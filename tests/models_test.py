@@ -1,4 +1,4 @@
-from resume.models import Person
+from django_resume.models import Person
 
 
 def test_person_name():

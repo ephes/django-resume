@@ -8,6 +8,11 @@ dependencies = [
     "django>=5.1.1",
 ]
 
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+include = ["src/django_resume"]
+
 [tool.uv]
 dev-dependencies = [
     "pytest>=8.3.3",
