@@ -8,3 +8,11 @@ django_resume.egg-info
 # pycharm
 .idea
 
+# Python bytecode
+__pycache__/
+*.pyc
+
+
+# Databases
+tests/test_database.sqlite3
+example/db.sqlite3
