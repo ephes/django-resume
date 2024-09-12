@@ -1,0 +1,10 @@
+# virtualenv
+.venv
+
+# dist / build
+dist
+django_resume.egg-info
+
+# pycharm
+.idea
+
