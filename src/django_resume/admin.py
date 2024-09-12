@@ -1,3 +1,7 @@
-# from django.contrib import admin
+from django.contrib import admin
 
-# Register your models here.
+from .models import Person
+
+admin.site.register(Person)
+class PersonAdmin(admin.ModelAdmin):
+    fields = ("name", "slug", "plugin_data")
