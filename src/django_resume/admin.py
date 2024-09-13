@@ -58,6 +58,7 @@ class PersonAdmin(admin.ModelAdmin):
         return readonly_fields
 
     def plugin_view_post(self, request, person_id, plugin_name):
+        print("in plubin view post: ", person_id, plugin_name)
         person = get_object_or_404(Person, id=person_id)
         plugin = plugin_registry.get_plugin(plugin_name)
 
@@ -71,15 +72,15 @@ class PersonAdmin(admin.ModelAdmin):
                 messages.success(
                     request, f"{plugin.verbose_name} data updated successfully."
                 )
-                return redirect("admin:resume_person_change", person_id)
-        return redirect("admin:resume_person_change", person_id)
+                return redirect("admin:django_resume_person_change", person_id)
+        return redirect("admin:django_resume_person_change", person_id)
 
     def plugin_view(self, request, person_id, plugin_name):
         person = get_object_or_404(Person, id=person_id)
         plugin = plugin_registry.get_plugin(plugin_name)
 
         if not plugin:
-            return redirect("admin:resume_person_change", person_id)
+            return redirect("admin:django_resume_person_change", person_id)
 
         form_class = plugin.get_admin_form()
         forms = []
@@ -90,7 +91,7 @@ class PersonAdmin(admin.ModelAdmin):
                 messages.success(
                     request, f"{plugin.verbose_name} data updated successfully."
                 )
-                return redirect("admin:resume_person_change", person_id)
+                return redirect("admin:django_resume_person_change", person_id)
         else:
             # initial_data = {'timeline_items': plugin.get_data(person)}
             initial_data = plugin.get_data(person)

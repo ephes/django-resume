@@ -6,10 +6,10 @@ class ResumeConfig(AppConfig):
     name = "django_resume"
 
     def register_plugins(self):
-        from .timelines import EmployedTimelinePlugin
+        from .timelines import TimelinePlugin
         from .plugins import plugin_registry
 
-        plugin_registry.register(EmployedTimelinePlugin)
+        plugin_registry.register(TimelinePlugin)
 
         print("Plugin registry: ", plugin_registry.plugins)
 

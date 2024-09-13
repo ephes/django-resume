@@ -5,7 +5,7 @@ from django import forms
 from .plugins import BasePlugin
 
 
-class EmployedTimelineForm(forms.Form):
+class TimelineForm(forms.Form):
     title = forms.CharField(widget=forms.TextInput())
     description = forms.CharField(widget=forms.Textarea())
     start = forms.CharField(widget=forms.TextInput(), required=False)
@@ -27,14 +27,13 @@ class EmployedTimelineForm(forms.Form):
             raise forms.ValidationError("Invalid JSON data for timeline items")
 
 
-class EmployedTimelinePlugin(BasePlugin):
+class TimelinePlugin(BasePlugin):
     name = "employed_timeline"
     verbose_name = "Employed Timeline"
     change_form_template = "resume/admin/timeline_admin_change_form_htmx.html"
 
     def get_admin_form(self):
-        # return EmployedTimelineFormset
-        return EmployedTimelineForm
+        return TimelineForm
 
     def get_data(self, person):
         return person.plugin_data.get(self.name, [])

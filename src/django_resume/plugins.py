@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 from django.urls import reverse
 from django.utils.html import format_html
 
@@ -13,7 +15,7 @@ class BasePlugin:
         if not person.plugin_data:
             person.plugin_data = {}
         person.plugin_data[self.name] = data
-        person.save()
+        return person
 
     def get_admin_form(self):
         return None
@@ -32,6 +34,50 @@ class BasePlugin:
 
         admin_link.short_description = self.verbose_name
         return admin_link
+
+    def create(self, person, data):
+        return self.set_data(person, data)
+
+    def update(self, person, data):
+        return self.set_data(person, data)
+
+    def delete(self, person, data):
+        return self.set_data(person, data)
+
+
+class ListPlugin(BasePlugin):
+    """
+    A plugin that displays a list of items. Simple crud operations are supported.
+    Each item in the list is a json serializable dict and should have an "id" field.
+    """
+
+    name = "list_plugin"
+
+    def get_data(self, person):
+        """Returns an empty list if no data is found."""
+        return person.plugin_data.get(self.name, [])
+
+    def create(self, person, data):
+        data["id"] = str(uuid4())
+        items = self.get_data(person)
+        items.append(data)
+        return self.set_data(person, items)
+
+    def update(self, person, data):
+        items = self.get_data(person)
+        for i, item in enumerate(items):
+            if item["id"] == data["id"]:
+                item.update(data)
+                break
+        return self.set_data(person, items)
+
+    def delete(self, person, data):
+        items = self.get_data(person)
+        for i, item in enumerate(items):
+            if item["id"] == data["id"]:
+                items.pop(i)
+                break
+        return self.set_data(person, items)
 
 
 class PluginRegistry:
