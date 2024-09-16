@@ -80,3 +80,8 @@ class TokenPlugin(ListPlugin):
 
     def get_admin_form(self):
         return TokenForm
+
+    def get_data_for_context(self, person):
+        token_data = self.get_data(person)
+        print("token_data: ", token_data)
+        return []

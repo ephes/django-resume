@@ -17,9 +17,24 @@ class TimelineForm(ListFormMixin, forms.Form):
         return title
 
 
+class TimelineForContext:
+    def __init__(self, title, ordered_entries):
+        self.title = title
+        self.ordered_entries = ordered_entries
+
+
 class TimelinePlugin(ListPlugin):
     name = "employed_timeline"
     verbose_name = "Employed Timeline"
 
     def get_admin_form(self):
         return TimelineForm
+
+    def get_data_for_context(self, person):
+        timeline_data = self.get_data(person)
+        timeline = TimelineForContext(
+            title=self.verbose_name,
+            ordered_entries=timeline_data,
+        )
+        print("timeline_data: ", timeline_data)
+        return timeline
