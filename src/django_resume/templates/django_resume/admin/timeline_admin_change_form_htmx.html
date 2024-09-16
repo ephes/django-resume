@@ -1,9 +1,0 @@
-{% extends "django_resume/admin/base_change_form.html" %}
-{% block plugin_content %}
-    <h2>Edit {{ plugin.verbose_name }}</h2>
-    {% for form in forms %}
-      {% include "django_resume/admin/timeline_item_form.html" %}
-      <p><hr></p>
-    {% endfor %}
-    <button hx-swap="beforebegin" hx-get="{{ add_form_link }}">Add Timeline Item</button>
-{% endblock %}
