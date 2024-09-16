@@ -7,9 +7,11 @@ class ResumeConfig(AppConfig):
 
     def register_plugins(self):
         from .timelines import TimelinePlugin
+        from .tokens import TokenPlugin
         from .plugins import plugin_registry
 
         plugin_registry.register(TimelinePlugin)
+        plugin_registry.register(TokenPlugin)
 
         print("Plugin registry: ", plugin_registry.plugins)
 
