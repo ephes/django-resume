@@ -28,7 +28,7 @@
 }
 
 body {
-  background-image: url('/static/resume/img/white-linen.png');
+  background-image: url('/static/django_resume/img/white-linen.png');
   background-repeat: repeat;
   background-size: 40%;
   background-position: top left;
