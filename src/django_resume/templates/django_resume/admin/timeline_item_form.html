@@ -1,0 +1,30 @@
+<form
+  id="form-for-{{ form.item_id }}"
+  hx-post="{{ form.post_url }}"
+  hx-target="this"
+  hx-swap="outerHTML"
+  hx-delete="{{ form.delete_url }}"
+>
+  {% csrf_token %}
+  {{ form.as_p }}
+  <div class="submit-row">
+    {% if form.is_new %}
+      <button type="submit">Add</button>
+    {% else %}
+      <button type="submit">Update</button>
+    {% endif %}
+    <a
+      {% if form.delete_url %}
+        hx-delete="{{ form.delete_url }}"
+        href="{{ form.delete_url }}"
+        hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
+        hx-target="#form-for-{{ form.item_id }}"
+        hx-swap="delete"
+      {% else %}
+        href="javascript:void(0);"
+        onclick="this.closest('form').remove();"
+      {% endif %}
+      class="deletelink"
+    >Delete</a>
+  </div>
+</form>

@@ -1,8 +1,5 @@
 from uuid import uuid4
 
-from django.urls import reverse
-from django.utils.html import format_html
-
 
 class BasePlugin:
     name = "base_plugin"
@@ -15,18 +12,11 @@ class BasePlugin:
         if not person.plugin_data:
             person.plugin_data = {}
         person.plugin_data[self.name] = data
+        print("setting data: ", data, "on person: ", person)
         return person
 
     def get_admin_form(self):
         return None
-
-    def get_admin_url(self, person_id):
-        return reverse("admin:person-plugin", args=[person_id, self.name])
-
-    def get_admin_link(self, person_id):
-        print("get admin link called for person: ", person_id)
-        url = self.get_admin_url(person_id)
-        return format_html('<a href="{}">{}</a>', url, f"Edit {self.verbose_name}")
 
     def get_list_display_field(self):
         def admin_link(obj):
@@ -61,7 +51,10 @@ class ListPlugin(BasePlugin):
         data["id"] = str(uuid4())
         items = self.get_data(person)
         items.append(data)
-        return self.set_data(person, items)
+        print("create items: ", items)
+        person = self.set_data(person, items)
+        print("create for person: ", person)
+        return person
 
     def update(self, person, data):
         items = self.get_data(person)
