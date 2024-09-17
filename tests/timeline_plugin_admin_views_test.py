@@ -14,6 +14,22 @@ def person():
     return person
 
 
+def test_get_add_form(admin_client, person):
+    # Given a person in the database and a timeline plugin
+    plugin = TimelinePlugin()
+    add_form_url = plugin.get_admin_item_add_form_url(person.id)
+
+    # When we get the item add form
+    r = admin_client.get(add_form_url)
+
+    # Then the response should be successful
+    assert r.status_code == 200
+
+    # And the form should be in the context and have the correct post url for the person
+    form = r.context["form"]
+    assert f"/person/{person.pk}/" in form.post_url
+
+
 @pytest.fixture
 def timeline_item_data():
     return {

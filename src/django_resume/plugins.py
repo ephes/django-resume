@@ -90,26 +90,39 @@ class ListPlugin(BasePlugin):
     # admin stuff
 
     def get_admin_item_form(self):
+        """Should return a form class that is used to create and update items."""
         return ListForm
 
     # admin urls
 
-    def get_admin_change_item_post_url(self, person_id):
-        return reverse(f"admin:{self.name}-admin-post", kwargs={"person_id": person_id})
-
-    def get_admin_delete_item_url(self, person_id, item_id):
-        return reverse(
-            f"admin:{self.name}-admin-delete",
-            kwargs={"person_id": person_id, "item_id": item_id},
-        )
-
     def get_admin_change_url(self, person_id):
+        """
+        Main admin view for this plugin. This view should display a list of item
+        forms with update buttons for existing items and a button to get a form to
+        add a new item. And a form to change the data for the plugin that is stored
+        in a flat format.
+        """
         return reverse(
             f"admin:{self.name}-admin-change", kwargs={"person_id": person_id}
         )
 
-    def get_admin_add_form_link(self, person_id):
+    def get_admin_item_add_form_url(self, person_id):
+        """
+        Returns the url of a view that returns a form to add a new item. The person_id
+        is needed to be able to add the right post url to the form.
+        """
         return reverse(f"admin:{self.name}-admin-add", kwargs={"person_id": person_id})
+
+    def get_admin_change_item_post_url(self, person_id):
+        """Used for create and update item."""
+        return reverse(f"admin:{self.name}-admin-post", kwargs={"person_id": person_id})
+
+    def get_admin_delete_item_url(self, person_id, item_id):
+        """Used for delete item."""
+        return reverse(
+            f"admin:{self.name}-admin-delete",
+            kwargs={"person_id": person_id, "item_id": item_id},
+        )
 
     def get_admin_link(self, person_id):
         print("get admin link called for person: ", person_id)
@@ -193,7 +206,7 @@ class ListPlugin(BasePlugin):
                 person.id, initial_item_data["id"]
             )
             timeline_forms.append(form)
-        context["add_form_link"] = self.get_admin_add_form_link(person.id)
+        context["add_form_link"] = self.get_admin_item_add_form_url(person.id)
         context["forms"] = timeline_forms
         return render(request, self.admin_change_form_template, context)
 
