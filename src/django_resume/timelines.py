@@ -63,6 +63,6 @@ class TimelinePlugin(ListPlugin):
         timeline_data = self.get_data(person)
         timeline = TimelineForContext(
             title=timeline_data.get("flat", {}).get("title", self.verbose_name),
-            ordered_entries=timeline_data["items"],
+            ordered_entries=timeline_data.get("items", []),
         )
         return timeline
