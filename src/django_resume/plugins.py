@@ -1,5 +1,4 @@
 from uuid import uuid4
-from pprint import pprint
 
 from django import forms
 from django.http import HttpResponse
@@ -70,7 +69,7 @@ class ListFormMixin(forms.Form):
 
 
 class ListForm(ListFormMixin, forms.Form):
-    data = forms.JSONField()
+    plugin_data = forms.JSONField()
 
 
 class ListPlugin(BasePlugin):
@@ -111,25 +110,37 @@ class ListPlugin(BasePlugin):
         Returns the url of a view that returns a form to add a new item. The person_id
         is needed to be able to add the right post url to the form.
         """
-        return reverse(f"admin:{self.name}-admin-add", kwargs={"person_id": person_id})
+        return reverse(
+            f"admin:{self.name}-admin-item-add", kwargs={"person_id": person_id}
+        )
 
     def get_admin_change_item_post_url(self, person_id):
         """Used for create and update item."""
-        return reverse(f"admin:{self.name}-admin-post", kwargs={"person_id": person_id})
+        return reverse(
+            f"admin:{self.name}-admin-item-post", kwargs={"person_id": person_id}
+        )
 
     def get_admin_delete_item_url(self, person_id, item_id):
         """Used for delete item."""
         return reverse(
-            f"admin:{self.name}-admin-delete",
+            f"admin:{self.name}-admin-item-delete",
             kwargs={"person_id": person_id, "item_id": item_id},
         )
 
     def get_admin_link(self, person_id):
-        print("get admin link called for person: ", person_id)
+        """
+        Return a link to the main admin view for this plugin. This is used to have the
+        plugins show up as readonly fields in the person change view and to have a link
+        to be able to edit the plugin data.
+        """
         url = self.get_admin_change_url(person_id)
         return format_html('<a href="{}">{}</a>', url, f"Edit {self.verbose_name}")
 
     def get_admin_urls(self, admin_view):
+        """
+        This method should return a list of urls that are used to manage the
+        plugin data in the admin interface.
+        """
         urls = [
             path(
                 f"<int:person_id>/plugin/{self.name}/change/",
@@ -139,17 +150,17 @@ class ListPlugin(BasePlugin):
             path(
                 f"<int:person_id>/plugin/{self.name}/post/",
                 admin_view(self.admin_post_view),
-                name=f"{self.name}-admin-post",
+                name=f"{self.name}-admin-item-post",
             ),
             path(
                 f"<int:person_id>/plugin/{self.name}/add/",
                 admin_view(self.add_admin_form_view),
-                name=f"{self.name}-admin-add",
+                name=f"{self.name}-admin-item-add",
             ),
             path(
                 f"<int:person_id>/plugin/{self.name}/delete/<str:item_id>/",
                 admin_view(self.delete_admin_view),
-                name=f"{self.name}-admin-delete",
+                name=f"{self.name}-admin-item-delete",
             ),
         ]
         return urls
@@ -157,7 +168,6 @@ class ListPlugin(BasePlugin):
     # admin views
 
     def add_admin_form_view(self, request, person_id):
-        print("add admin form view called!")
         person = get_object_or_404(Person, pk=person_id)
         form_class = self.get_admin_item_form()
         form = form_class(initial={}, person=person)
@@ -166,7 +176,6 @@ class ListPlugin(BasePlugin):
         return render(request, self.admin_item_change_form_template, context)
 
     def delete_admin_view(self, _request, person_id, item_id):
-        print("delete admin view called for item: ", item_id)
         person = get_object_or_404(Person, pk=person_id)
         person = self.delete(person, {"id": item_id})
         person.save()
@@ -193,14 +202,10 @@ class ListPlugin(BasePlugin):
         form_class = self.get_admin_item_form()
         plugin_data = self.get_data(person)
         initial_items_data = plugin_data.get("items", [])
-        print("initial_data: ", initial_items_data)
         post_url = self.get_admin_change_item_post_url(person.id)
         timeline_forms = []
         for initial_item_data in initial_items_data:
-            print("initial item data: ")
-            pprint(initial_item_data)
             form = form_class(initial=initial_item_data, person=person)
-            print("form id initial: ", form.initial.get("id"))
             form.post_url = post_url
             form.delete_url = self.get_admin_delete_item_url(
                 person.id, initial_item_data["id"]
@@ -217,13 +222,10 @@ class ListPlugin(BasePlugin):
         form.post_url = self.get_admin_change_item_post_url(person.pk)
         context = {"form": form}
         if form.is_valid():
-            print("save cleaned data: ", form.cleaned_data)
             if form.cleaned_data.get("id", False):
-                print("update!")
                 item_id = form.cleaned_data["id"]
                 person = self.update(person, form.cleaned_data)
             else:
-                print("create!")
                 data = form.cleaned_data
                 item_id = str(uuid4())
                 data["id"] = item_id
@@ -247,9 +249,7 @@ class ListPlugin(BasePlugin):
 
     def update(self, person, data):
         """Update an item in the items list of this plugin."""
-        pprint(data)
         plugin_data = self.get_data(person)
-        pprint(plugin_data)
         items = plugin_data.get("items", [])
         for item in items:
             if item["id"] == data["id"]:
