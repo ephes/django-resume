@@ -20,7 +20,6 @@ class BasePlugin:
         if not person.plugin_data:
             person.plugin_data = {}
         person.plugin_data[self.name] = data
-        print("setting data: ", data, "on person: ", person)
         return person
 
     def get_admin_form(self):
@@ -210,10 +209,6 @@ class ListPlugin(BasePlugin):
         return render(request, self.admin_item_change_form_template, context)
 
     # crud data handling
-
-    def get_data(self, person):
-        """Returns an empty list if no data is found."""
-        return person.plugin_data.get(self.name, [])
 
     def create(self, person, data):
         data["id"] = str(uuid4())

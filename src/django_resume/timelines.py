@@ -3,11 +3,18 @@ from .plugins import ListPlugin, ListFormMixin
 
 
 class TimelineForm(ListFormMixin, forms.Form):
-    title = forms.CharField(widget=forms.TextInput())
+    role = forms.CharField(widget=forms.TextInput())
+    company_url = forms.URLField(widget=forms.URLInput(), required=False)
+    company_name = forms.CharField(widget=forms.TextInput())
     description = forms.CharField(widget=forms.Textarea())
     start = forms.CharField(widget=forms.TextInput(), required=False)
     end = forms.CharField(widget=forms.TextInput(), required=False)
-    delete_url = None
+    badges = forms.CharField(widget=forms.TextInput(), required=False)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if "badges" in self.initial and isinstance(self.initial["badges"], list):
+            self.initial["badges"] = ",".join(self.initial["badges"])
 
     def clean_title(self):
         title = self.cleaned_data["title"]
@@ -15,6 +22,12 @@ class TimelineForm(ListFormMixin, forms.Form):
             print("No Senor! Validation Error!")
             raise forms.ValidationError("No Senor!")
         return title
+
+    def clean_badges(self):
+        badges = self.cleaned_data.get("badges", "")
+        # Split the comma-separated values and strip any extra spaces
+        badge_list = [badge.strip() for badge in badges.split(",")]
+        return badge_list
 
 
 class TimelineForContext:

@@ -19,7 +19,7 @@ class HTMLLinkWidget(forms.Widget):
         return mark_safe(value) if value else ""
 
 
-class TokenForm(ListFormMixin, forms.Form):
+class TokenItemForm(ListFormMixin, forms.Form):
     token = forms.CharField(max_length=255, required=True, label="Token")
     receiver = forms.CharField(max_length=255)
     created = forms.DateTimeField(widget=forms.HiddenInput(), required=False)
@@ -52,10 +52,6 @@ class TokenForm(ListFormMixin, forms.Form):
         if not token:
             raise forms.ValidationError("Token required.")
         return token
-        # try:
-        #     return CVToken.objects.get(token=token)
-        # except CVToken.DoesNotExist:
-        #     raise forms.ValidationError("Invalid token.")
 
     def clean_created(self):
         created = self.cleaned_data["created"]
@@ -65,6 +61,10 @@ class TokenForm(ListFormMixin, forms.Form):
         cleaned_data = super().clean()
         cleaned_data.pop("cv_link", None)  # Remove 'cv_link' from cleaned_data
         return cleaned_data
+
+
+class TokenForm(forms.Form):
+    token_required = forms.BooleanField(required=False, label="Token Required")
 
 
 class TokenPlugin(ListPlugin):
@@ -77,6 +77,9 @@ class TokenPlugin(ListPlugin):
 
     name = "token"
     verbose_name = "CV Token"
+
+    def get_admin_item_form(self):
+        return TokenItemForm
 
     def get_admin_form(self):
         return TokenForm
