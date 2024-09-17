@@ -1,7 +1,7 @@
 import pytest
 
 from django_resume.models import Person
-from django_resume.timelines import TimelinePlugin
+from django_resume.timelines import TimelinePlugin, TimelineItemForm
 
 
 # admin views of the base list plugin
@@ -31,7 +31,7 @@ def timeline_item_data():
 def test_timeline_plugin_create_item(admin_client, person, timeline_item_data):
     # Given a person in the database and a timeline plugin
     plugin = TimelinePlugin()
-    post_url = plugin.get_admin_change_post_url(person.id)
+    post_url = plugin.get_admin_change_item_post_url(person.id)
 
     # When we create a new timeline item
     r = admin_client.post(post_url, timeline_item_data)
@@ -49,4 +49,30 @@ def test_timeline_plugin_create_item(admin_client, person, timeline_item_data):
     assert len(item["id"]) > 0
 
     # And the item should have the correct data
-    assert timeline_item_data["role"] == item["role"]
+    assert item["role"] == timeline_item_data["role"]
+    badges_list = [badge.strip() for badge in timeline_item_data["badges"].split(",")]
+    assert item["badges"] == badges_list
+
+
+@pytest.mark.django_db
+def test_timeline_plugin_delete_item(admin_client, person, timeline_item_data):
+    # Given a person in the database with a timeline item
+    timeline_item_data["id"] = "123"
+    form = TimelineItemForm(data=timeline_item_data, person=person)
+    assert form.is_valid()
+
+    plugin = TimelinePlugin()
+    person = plugin.create(person, form.cleaned_data)
+    person.save()
+
+    # When we delete the timeline item
+    delete_url = plugin.get_admin_delete_item_url(person.id, "123")
+    r = admin_client.post(delete_url)
+
+    # Then the response should be successful
+    assert r.status_code == 200  # yes, 200 not 204 - htmx won't work with 204
+
+    # And the item should be removed from the database
+    person.refresh_from_db()
+    plugin_data = plugin.get_data(person)
+    assert len(plugin_data["items"]) == 0

@@ -2,7 +2,7 @@ from django import forms
 from .plugins import ListPlugin, ListFormMixin
 
 
-class TimelineForm(ListFormMixin, forms.Form):
+class TimelineItemForm(ListFormMixin, forms.Form):
     role = forms.CharField(widget=forms.TextInput())
     company_url = forms.URLField(
         widget=forms.URLInput(), required=False, assume_scheme="https"
@@ -42,8 +42,8 @@ class TimelinePlugin(ListPlugin):
     name = "employed_timeline"
     verbose_name = "Employed Timeline"
 
-    def get_admin_form(self):
-        return TimelineForm
+    def get_admin_item_form(self):
+        return TimelineItemForm
 
     def get_data_for_context(self, person):
         timeline_data = self.get_data(person)

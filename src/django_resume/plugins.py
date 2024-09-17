@@ -89,15 +89,15 @@ class ListPlugin(BasePlugin):
 
     # admin stuff
 
-    def get_admin_form(self):
+    def get_admin_item_form(self):
         return ListForm
 
     # admin urls
 
-    def get_admin_change_post_url(self, person_id):
+    def get_admin_change_item_post_url(self, person_id):
         return reverse(f"admin:{self.name}-admin-post", kwargs={"person_id": person_id})
 
-    def get_admin_delete_link(self, person_id, item_id):
+    def get_admin_delete_item_url(self, person_id, item_id):
         return reverse(
             f"admin:{self.name}-admin-delete",
             kwargs={"person_id": person_id, "item_id": item_id},
@@ -146,9 +146,9 @@ class ListPlugin(BasePlugin):
     def add_admin_form_view(self, request, person_id):
         print("add admin form view called!")
         person = get_object_or_404(Person, pk=person_id)
-        form_class = self.get_admin_form()
+        form_class = self.get_admin_item_form()
         form = form_class(initial={}, person=person)
-        form.post_url = self.get_admin_change_post_url(person.pk)
+        form.post_url = self.get_admin_change_item_post_url(person.pk)
         context = {"form": form}
         return render(request, self.admin_item_change_form_template, context)
 
@@ -177,11 +177,11 @@ class ListPlugin(BasePlugin):
             "has_delete_permission": False,
             "has_editable_inline_admin_formsets": False,
         }
-        form_class = self.get_admin_form()
+        form_class = self.get_admin_item_form()
         plugin_data = self.get_data(person)
         initial_items_data = plugin_data.get("items", [])
         print("initial_data: ", initial_items_data)
-        post_url = self.get_admin_change_post_url(person.id)
+        post_url = self.get_admin_change_item_post_url(person.id)
         timeline_forms = []
         for initial_item_data in initial_items_data:
             print("initial item data: ")
@@ -189,7 +189,7 @@ class ListPlugin(BasePlugin):
             form = form_class(initial=initial_item_data, person=person)
             print("form id initial: ", form.initial.get("id"))
             form.post_url = post_url
-            form.delete_url = self.get_admin_delete_link(
+            form.delete_url = self.get_admin_delete_item_url(
                 person.id, initial_item_data["id"]
             )
             timeline_forms.append(form)
@@ -199,9 +199,9 @@ class ListPlugin(BasePlugin):
 
     def admin_post_view(self, request, person_id):
         person = get_object_or_404(Person, id=person_id)
-        form_class = self.get_admin_form()
+        form_class = self.get_admin_item_form()
         form = form_class(request.POST, person=person)
-        form.post_url = self.get_admin_change_post_url(person.pk)
+        form.post_url = self.get_admin_change_item_post_url(person.pk)
         context = {"form": form}
         if form.is_valid():
             print("save cleaned data: ", form.cleaned_data)
@@ -220,7 +220,7 @@ class ListPlugin(BasePlugin):
                 form.data = form.data.copy()
                 form.data["id"] = item_id
             person.save()
-            form.delete_url = self.get_admin_delete_link(person.id, item_id)
+            form.delete_url = self.get_admin_delete_item_url(person.id, item_id)
         return render(request, self.admin_item_change_form_template, context)
 
     # crud data handling
