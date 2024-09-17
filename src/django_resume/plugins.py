@@ -68,14 +68,12 @@ class ListFormMixin(forms.Form):
         return self.initial.get("id", uuid4())
 
 
-class ListForm(ListFormMixin, forms.Form):
-    plugin_data = forms.JSONField()
-
-
 class ListPlugin(BasePlugin):
     """
     A plugin that displays a list of items. Simple crud operations are supported.
     Each item in the list is a json serializable dict and should have an "id" field.
+
+    Additional flat data can be stored in the plugin_data['flat'] field.
     """
 
     name = "list_plugin"
@@ -90,7 +88,13 @@ class ListPlugin(BasePlugin):
 
     def get_admin_item_form(self):
         """Should return a form class that is used to create and update items."""
-        return ListForm
+
+        class ListItemForm(ListFormMixin, forms.Form):
+            """Just a dummy form."""
+
+            pass
+
+        return ListItemForm
 
     # admin urls
 
@@ -214,8 +218,8 @@ class ListPlugin(BasePlugin):
                 person.id, initial_item_data["id"]
             )
             timeline_forms.append(form)
-        context["add_form_link"] = self.get_admin_item_add_form_url(person.id)
-        context["forms"] = timeline_forms
+        context["add_item_form_url"] = self.get_admin_item_add_form_url(person.id)
+        context["item_forms"] = timeline_forms
         return render(request, self.admin_change_form_template, context)
 
     def post_admin_item_view(self, request, person_id):

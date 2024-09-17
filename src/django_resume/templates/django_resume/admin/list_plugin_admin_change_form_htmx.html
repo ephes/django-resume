@@ -1,9 +1,9 @@
 {% extends "django_resume/admin/base_change_form.html" %}
 {% block plugin_content %}
     <h2>Edit {{ plugin.verbose_name }}</h2>
-    {% for form in forms %}
+    {% for form in item_forms %}
       {% include "./list_plugin_admin_item_form.html" %}
       <p><hr></p>
     {% endfor %}
-    <button hx-swap="beforebegin" hx-get="{{ add_form_link }}">Add {{ plugin.name.title }} Item</button>
+    <button hx-swap="beforebegin" hx-get="{{ add_item_form_url }}">Add {{ plugin.name.title }} Item</button>
 {% endblock %}
