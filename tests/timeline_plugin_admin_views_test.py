@@ -44,7 +44,7 @@ def timeline_item_data():
 
 
 @pytest.mark.django_db
-def test_timeline_plugin_create_item(admin_client, person, timeline_item_data):
+def test_create_item(admin_client, person, timeline_item_data):
     # Given a person in the database and a timeline plugin
     plugin = TimelinePlugin()
     post_url = plugin.get_admin_change_item_post_url(person.id)
@@ -83,9 +83,7 @@ def person_with_timeline_item(timeline_item_data):
 
 
 @pytest.mark.django_db
-def test_timeline_plugin_update_item(
-    admin_client, person_with_timeline_item, timeline_item_data
-):
+def test_update_item(admin_client, person_with_timeline_item, timeline_item_data):
     # Given a person in the database with a timeline item
     person: Person = person_with_timeline_item
     plugin = TimelinePlugin()
@@ -110,7 +108,7 @@ def test_timeline_plugin_update_item(
 
 
 @pytest.mark.django_db
-def test_timeline_plugin_delete_item(admin_client, person_with_timeline_item):
+def test_delete_item(admin_client, person_with_timeline_item):
     # Given a person in the database with a timeline item
     person: Person = person_with_timeline_item
     plugin = TimelinePlugin()
