@@ -49,7 +49,7 @@ def test_list_plugin_create(person):
 def test_list_plugin_update(person):
     # Given a person and a list plugin with an item
     plugin = ListPlugin()
-    item = {"foo": "bar"}
+    item = {"id": "123", "foo": "bar"}
     plugin.create(person, item)
     # When we update the item
     item["foo"] = "baz"
@@ -63,7 +63,7 @@ def test_list_plugin_update(person):
 def test_list_plugin_delete(person):
     # Given a person and a list plugin with an item
     plugin = ListPlugin()
-    item = {"foo": "bar"}
+    item = {"id": 123, "foo": "bar"}
     plugin.create(person, item)
     # When we delete the item
     person = plugin.delete(person, item)
