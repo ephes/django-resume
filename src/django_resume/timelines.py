@@ -32,6 +32,17 @@ class TimelineItemForm(ListFormMixin, forms.Form):
         return badge_list
 
 
+class TimelineFlatForm(forms.Form):
+    title = forms.CharField(widget=forms.TextInput())
+
+    def clean_title(self):
+        title = self.cleaned_data["title"]
+        if title == "Senor Developer":
+            print("No Senor! Validation Error!")
+            raise forms.ValidationError("No Senor!")
+        return title
+
+
 class TimelineForContext:
     def __init__(self, title, ordered_entries):
         self.title = title
@@ -45,10 +56,13 @@ class TimelinePlugin(ListPlugin):
     def get_admin_item_form(self):
         return TimelineItemForm
 
+    def get_admin_flat_form(self):
+        return TimelineFlatForm
+
     def get_data_for_context(self, person):
         timeline_data = self.get_data(person)
         timeline = TimelineForContext(
-            title=self.verbose_name,
+            title=timeline_data.get("flat", {}).get("title", self.verbose_name),
             ordered_entries=timeline_data["items"],
         )
         return timeline

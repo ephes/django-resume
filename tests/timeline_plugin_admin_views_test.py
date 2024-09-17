@@ -131,6 +131,26 @@ def test_delete_item(admin_client, person_with_timeline_item):
     assert len(plugin_data["items"]) == 0
 
 
+# Test flat form data
+
+
+def test_update_flat_view(admin_client, person):
+    # Given a person in the database and a timeline plugin
+    plugin = TimelinePlugin()
+    post_url = plugin.get_admin_change_flat_post_url(person.id)
+
+    # When we update the flat form
+    r = admin_client.post(post_url, {"title": "Updated title"})
+
+    # Then the response should be successful
+    assert r.status_code == 200
+
+    # And the data should be in the database
+    person.refresh_from_db()
+    plugin_data = plugin.get_data(person)
+    assert plugin_data["flat"]["title"] == "Updated title"
+
+
 # Test main admin change view integration test
 
 

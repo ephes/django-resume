@@ -83,6 +83,7 @@ class ListPlugin(BasePlugin):
     admin_item_change_form_template = (
         "django_resume/admin/list_plugin_admin_item_form.html"
     )
+    admin_flat_form_template = "django_resume/admin/list_plugin_admin_flat_form.html"
 
     # admin stuff
 
@@ -95,6 +96,16 @@ class ListPlugin(BasePlugin):
             pass
 
         return ListItemForm
+
+    def get_admin_flat_form(self):
+        """Should return a form class that is used to create and update flat data."""
+
+        class ListFlatForm(forms.Form):
+            """Just a dummy form."""
+
+            pass
+
+        return ListFlatForm
 
     # admin urls
 
@@ -131,6 +142,12 @@ class ListPlugin(BasePlugin):
             kwargs={"person_id": person_id, "item_id": item_id},
         )
 
+    def get_admin_change_flat_post_url(self, person_id):
+        """Used for create and update flat data."""
+        return reverse(
+            f"admin:{self.name}-admin-flat-post", kwargs={"person_id": person_id}
+        )
+
     def get_admin_link(self, person_id):
         """
         Return a link to the main admin view for this plugin. This is used to have the
@@ -152,7 +169,7 @@ class ListPlugin(BasePlugin):
                 name=f"{self.name}-admin-change",
             ),
             path(
-                f"<int:person_id>/plugin/{self.name}/post/",
+                f"<int:person_id>/plugin/{self.name}/item/post/",
                 admin_view(self.post_admin_item_view),
                 name=f"{self.name}-admin-item-post",
             ),
@@ -165,6 +182,11 @@ class ListPlugin(BasePlugin):
                 f"<int:person_id>/plugin/{self.name}/delete/<str:item_id>/",
                 admin_view(self.delete_admin_item_view),
                 name=f"{self.name}-admin-item-delete",
+            ),
+            path(
+                f"<int:person_id>/plugin/{self.name}/flat/post/",
+                admin_view(self.post_admin_flat_view),
+                name=f"{self.name}-admin-flat-post",
             ),
         ]
         return urls
@@ -206,13 +228,19 @@ class ListPlugin(BasePlugin):
             "has_delete_permission": False,
             "has_editable_inline_admin_formsets": False,
         }
-        form_class = self.get_admin_item_form()
         plugin_data = self.get_data(person)
+        # flat form
+        flat_form_class = self.get_admin_flat_form()
+        flat_form = flat_form_class(initial=plugin_data.get("flat", {}))
+        flat_form.post_url = self.get_admin_change_flat_post_url(person.pk)
+        context["flat_form"] = flat_form
+        # item forms
+        item_form_class = self.get_admin_item_form()
         initial_items_data = plugin_data.get("items", [])
         post_url = self.get_admin_change_item_post_url(person.id)
         timeline_forms = []
         for initial_item_data in initial_items_data:
-            form = form_class(initial=initial_item_data, person=person)
+            form = item_form_class(initial=initial_item_data, person=person)
             form.post_url = post_url
             form.delete_url = self.get_admin_delete_item_url(
                 person.id, initial_item_data["id"]
@@ -246,7 +274,28 @@ class ListPlugin(BasePlugin):
             form.delete_url = self.get_admin_delete_item_url(person.id, item_id)
         return render(request, self.admin_item_change_form_template, context)
 
-    # crud data handling
+    def post_admin_flat_view(self, request, person_id):
+        """Handle post requests to update flat data."""
+        print("update flat data! ", request.POST)
+        person = get_object_or_404(Person, id=person_id)
+        form_class = self.get_admin_flat_form()
+        form = form_class(request.POST)
+        form.post_url = self.get_admin_change_flat_post_url(person.pk)
+        context = {"form": form}
+        if form.is_valid():
+            person = self.update_flat(person, form.cleaned_data)
+            person.save()
+        return render(request, self.admin_flat_form_template, context)
+
+    # data handling for flat form
+
+    def update_flat(self, person, data):
+        """Update the flat data of this plugin."""
+        plugin_data = self.get_data(person)
+        plugin_data["flat"] = data
+        return self.set_data(person, plugin_data)
+
+    # crud data handling for items
 
     def create(self, person, data):
         """Create an item in the items list of this plugin."""

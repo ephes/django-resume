@@ -1,6 +1,7 @@
 {% extends "django_resume/admin/base_change_form.html" %}
 {% block plugin_content %}
     <h2>Edit {{ plugin.verbose_name }}</h2>
+    {% include "./list_plugin_admin_flat_form.html" with form=flat_form %}
     {% for form in item_forms %}
       {% include "./list_plugin_admin_item_form.html" %}
       <p><hr></p>
