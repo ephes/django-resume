@@ -4,7 +4,9 @@ from .plugins import ListPlugin, ListFormMixin
 
 class TimelineForm(ListFormMixin, forms.Form):
     role = forms.CharField(widget=forms.TextInput())
-    company_url = forms.URLField(widget=forms.URLInput(), required=False)
+    company_url = forms.URLField(
+        widget=forms.URLInput(), required=False, assume_scheme="https"
+    )
     company_name = forms.CharField(widget=forms.TextInput())
     description = forms.CharField(widget=forms.Textarea())
     start = forms.CharField(widget=forms.TextInput(), required=False)
@@ -47,7 +49,7 @@ class TimelinePlugin(ListPlugin):
         timeline_data = self.get_data(person)
         timeline = TimelineForContext(
             title=self.verbose_name,
-            ordered_entries=timeline_data,
+            ordered_entries=timeline_data["items"],
         )
         print("timeline_data: ", timeline_data)
         return timeline

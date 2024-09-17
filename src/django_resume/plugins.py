@@ -1,4 +1,5 @@
 from uuid import uuid4
+from pprint import pprint
 
 from django import forms
 from django.http import HttpResponse
@@ -177,14 +178,20 @@ class ListPlugin(BasePlugin):
             "has_editable_inline_admin_formsets": False,
         }
         form_class = self.get_admin_form()
-        initial_data = self.get_data(person)
-        print("initial_data: ", initial_data)
+        plugin_data = self.get_data(person)
+        initial_items_data = plugin_data.get("items", [])
+        print("initial_data: ", initial_items_data)
         post_url = self.get_admin_change_post_url(person.id)
         timeline_forms = []
-        for form_data in initial_data:
-            form = form_class(initial=form_data, person=person)
+        for initial_item_data in initial_items_data:
+            print("initial item data: ")
+            pprint(initial_item_data)
+            form = form_class(initial=initial_item_data, person=person)
+            print("form id initial: ", form.initial.get("id"))
             form.post_url = post_url
-            form.delete_url = self.get_admin_delete_link(person.id, form_data["id"])
+            form.delete_url = self.get_admin_delete_link(
+                person.id, initial_item_data["id"]
+            )
             timeline_forms.append(form)
         context["add_form_link"] = self.get_admin_add_form_link(person.id)
         context["forms"] = timeline_forms
@@ -199,41 +206,55 @@ class ListPlugin(BasePlugin):
         if form.is_valid():
             print("save cleaned data: ", form.cleaned_data)
             if form.cleaned_data.get("id", False):
+                print("update!")
+                item_id = form.cleaned_data["id"]
                 person = self.update(person, form.cleaned_data)
             else:
-                person = self.create(person, form.cleaned_data)
+                print("create!")
+                data = form.cleaned_data
+                item_id = str(uuid4())
+                data["id"] = item_id
+                person = self.create(person, data)
+                # weird hack to make the form look like it is for an existing item
+                # if there's a better way to do this, please let me know FIXME
+                form.data = form.data.copy()
+                form.data["id"] = item_id
             person.save()
-            form.delete_url = self.get_admin_delete_link(
-                person.id, form.cleaned_data["id"]
-            )
+            form.delete_url = self.get_admin_delete_link(person.id, item_id)
         return render(request, self.admin_item_change_form_template, context)
 
     # crud data handling
 
     def create(self, person, data):
-        data["id"] = str(uuid4())
-        items = self.get_data(person)
-        items.append(data)
-        print("create items: ", items)
-        person = self.set_data(person, items)
-        print("create for person: ", person)
+        """Create an item in the items list of this plugin."""
+        plugin_data = self.get_data(person)
+        plugin_data.setdefault("items", []).append(data)
+        person = self.set_data(person, plugin_data)
         return person
 
     def update(self, person, data):
-        items = self.get_data(person)
-        for i, item in enumerate(items):
+        """Update an item in the items list of this plugin."""
+        pprint(data)
+        plugin_data = self.get_data(person)
+        pprint(plugin_data)
+        items = plugin_data.get("items", [])
+        for item in items:
             if item["id"] == data["id"]:
                 item.update(data)
                 break
-        return self.set_data(person, items)
+        plugin_data["items"] = items
+        return self.set_data(person, plugin_data)
 
     def delete(self, person, data):
-        items = self.get_data(person)
+        """Delete an item from the items list of this plugin."""
+        plugin_data = self.get_data(person)
+        items = plugin_data.get("items", [])
         for i, item in enumerate(items):
             if item["id"] == data["id"]:
                 items.pop(i)
                 break
-        return self.set_data(person, items)
+        plugin_data["items"] = items
+        return self.set_data(person, plugin_data)
 
 
 class PluginRegistry:
