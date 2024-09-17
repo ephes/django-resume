@@ -1,3 +1,5 @@
+import re
+
 import pytest
 
 from django_resume.models import Person
@@ -28,6 +30,9 @@ def test_get_add_form(admin_client, person):
     # And the form should be in the context and have the correct post url for the person
     form = r.context["form"]
     assert f"/person/{person.pk}/" in form.post_url
+
+
+# Test item crud views
 
 
 @pytest.fixture
@@ -124,3 +129,56 @@ def test_delete_item(admin_client, person_with_timeline_item):
     person.refresh_from_db()
     plugin_data = plugin.get_data(person)
     assert len(plugin_data["items"]) == 0
+
+
+# Test main admin change view integration test
+
+
+def test_add_and_update_via_main_change_view(admin_client, person, timeline_item_data):
+    """
+    There was an issue that when an item was added the id was missing in the update
+    form that came back as a response to the add post. When the update form was
+    submitted, a second new item was created instead of updating the existing one.
+
+    This test is to ensure that this won't happen again.
+    """
+    # Given a person in the database and a timeline plugin
+    plugin = TimelinePlugin()
+    change_view_url = plugin.get_admin_change_url(person.id)
+
+    # When we get the change view
+    r = admin_client.get(change_view_url)
+
+    # Then the response should be successful
+    assert r.status_code == 200
+
+    # And there should be an add item button with a hx-get attribute in the response content
+    content = r.content.decode("utf-8")
+    if match := re.search(r'<button.*?hx-get="(.*?)".*?>', content):
+        add_form_url = match.group(1)
+    else:
+        raise AssertionError("Could not find the add form url")
+
+    # When we get the add form and post a new item
+    r = admin_client.get(add_form_url)
+    assert r.status_code == 200
+
+    post_new_item_here_url = r.context["form"].post_url
+    r = admin_client.post(post_new_item_here_url, timeline_item_data)
+    assert r.status_code == 200
+
+    # Then the item should be in the database and have an id
+    person.refresh_from_db()
+    [item] = plugin.get_data(person)["items"]
+    assert item["role"] == timeline_item_data["role"]
+    expected_item_id = item["id"]
+
+    # And there should be an update form in the response having an id field with the correct value
+    content = r.content.decode("utf-8")
+    if match := re.search(r'<input.*?name="id".*?value="(.*?)".*?>', content):
+        item_id_from_form = match.group(1)
+        print("item_id_from_form: ", item_id_from_form)
+    else:
+        raise AssertionError("Could not find the id field in the update form")
+
+    assert item_id_from_form == expected_item_id
