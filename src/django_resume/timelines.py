@@ -51,5 +51,4 @@ class TimelinePlugin(ListPlugin):
             title=self.verbose_name,
             ordered_entries=timeline_data["items"],
         )
-        print("timeline_data: ", timeline_data)
         return timeline

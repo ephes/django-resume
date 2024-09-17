@@ -144,22 +144,22 @@ class ListPlugin(BasePlugin):
         urls = [
             path(
                 f"<int:person_id>/plugin/{self.name}/change/",
-                admin_view(self.admin_change_view),
+                admin_view(self.get_admin_change_view),
                 name=f"{self.name}-admin-change",
             ),
             path(
                 f"<int:person_id>/plugin/{self.name}/post/",
-                admin_view(self.admin_post_view),
+                admin_view(self.post_admin_item_view),
                 name=f"{self.name}-admin-item-post",
             ),
             path(
                 f"<int:person_id>/plugin/{self.name}/add/",
-                admin_view(self.add_admin_form_view),
+                admin_view(self.get_admin_add_item_form_view),
                 name=f"{self.name}-admin-item-add",
             ),
             path(
                 f"<int:person_id>/plugin/{self.name}/delete/<str:item_id>/",
-                admin_view(self.delete_admin_view),
+                admin_view(self.delete_admin_item_view),
                 name=f"{self.name}-admin-item-delete",
             ),
         ]
@@ -167,7 +167,8 @@ class ListPlugin(BasePlugin):
 
     # admin views
 
-    def add_admin_form_view(self, request, person_id):
+    def get_admin_add_item_form_view(self, request, person_id):
+        """Return a single empty form to add a new item."""
         person = get_object_or_404(Person, pk=person_id)
         form_class = self.get_admin_item_form()
         form = form_class(initial={}, person=person)
@@ -175,13 +176,15 @@ class ListPlugin(BasePlugin):
         context = {"form": form}
         return render(request, self.admin_item_change_form_template, context)
 
-    def delete_admin_view(self, _request, person_id, item_id):
+    def delete_admin_item_view(self, _request, person_id, item_id):
+        """Delete an item from the items list of this plugin."""
         person = get_object_or_404(Person, pk=person_id)
         person = self.delete(person, {"id": item_id})
         person.save()
         return HttpResponse(status=200)
 
-    def admin_change_view(self, request, person_id):
+    def get_admin_change_view(self, request, person_id):
+        """Return the main admin view for this plugin."""
         person = get_object_or_404(Person, pk=person_id)
         context = {
             "title": f"{self.verbose_name} for {person.name}",
@@ -215,7 +218,8 @@ class ListPlugin(BasePlugin):
         context["forms"] = timeline_forms
         return render(request, self.admin_change_form_template, context)
 
-    def admin_post_view(self, request, person_id):
+    def post_admin_item_view(self, request, person_id):
+        """Handle post requests to create or update a single item."""
         person = get_object_or_404(Person, id=person_id)
         form_class = self.get_admin_item_form()
         form = form_class(request.POST, person=person)
