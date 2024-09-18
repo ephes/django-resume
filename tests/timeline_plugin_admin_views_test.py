@@ -30,6 +30,7 @@ def test_get_add_form(admin_client, person):
     # And the form should be in the context and have the correct post url for the person
     form = r.context["form"]
     assert f"/person/{person.pk}/" in form.post_url
+    assert form.initial.get("position") == 0
 
 
 # Test item crud views
@@ -45,6 +46,7 @@ def timeline_item_data():
         "start": "2020",
         "end": "2022",
         "badges": "remote, full-time",
+        "position": 1,
     }
 
 

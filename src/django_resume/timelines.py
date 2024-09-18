@@ -12,11 +12,18 @@ class TimelineItemForm(ListFormMixin, forms.Form):
     start = forms.CharField(widget=forms.TextInput(), required=False)
     end = forms.CharField(widget=forms.TextInput(), required=False)
     badges = forms.CharField(widget=forms.TextInput(), required=False)
+    position = forms.IntegerField(widget=forms.NumberInput(), required=False)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if "badges" in self.initial and isinstance(self.initial["badges"], list):
             self.initial["badges"] = ",".join(self.initial["badges"])
+
+    @staticmethod
+    def get_initial(items):
+        positions = [item.get("position", 0) for item in items]
+        max_position = max(positions) if positions else -1
+        return {"position": max_position + 1}
 
     def clean_title(self):
         title = self.cleaned_data["title"]
