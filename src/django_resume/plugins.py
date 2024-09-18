@@ -42,7 +42,7 @@ class BasePlugin:
         return self.set_data(person, data)
 
 
-class ListFormMixin(forms.Form):
+class ListItemFormMixin(forms.Form):
     id = forms.CharField(widget=forms.HiddenInput(), required=False)
 
     def __init__(self, *args, **kwargs):
@@ -90,7 +90,7 @@ class ListPlugin(BasePlugin):
     def get_admin_item_form(self):
         """Should return a form class that is used to create and update items."""
 
-        class ListItemForm(ListFormMixin, forms.Form):
+        class ListItemForm(ListItemFormMixin, forms.Form):
             """Just a dummy form."""
 
             pass

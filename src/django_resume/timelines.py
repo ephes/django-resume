@@ -1,8 +1,8 @@
 from django import forms
-from .plugins import ListPlugin, ListFormMixin
+from .plugins import ListPlugin, ListItemFormMixin
 
 
-class TimelineItemForm(ListFormMixin, forms.Form):
+class TimelineItemForm(ListItemFormMixin, forms.Form):
     role = forms.CharField(widget=forms.TextInput())
     company_url = forms.URLField(
         widget=forms.URLInput(), required=False, assume_scheme="https"

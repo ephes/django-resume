@@ -7,7 +7,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.safestring import mark_safe
 
-from .plugins import ListPlugin, ListFormMixin
+from .plugins import ListPlugin, ListItemFormMixin
 
 
 def generate_random_string(length=20):
@@ -19,7 +19,7 @@ class HTMLLinkWidget(forms.Widget):
         return mark_safe(value) if value else ""
 
 
-class TokenItemForm(ListFormMixin, forms.Form):
+class TokenItemForm(ListItemFormMixin, forms.Form):
     token = forms.CharField(max_length=255, required=True, label="Token")
     receiver = forms.CharField(max_length=255)
     created = forms.DateTimeField(widget=forms.HiddenInput(), required=False)
