@@ -10,6 +10,12 @@ def test_initial_position(person):
     assert form.initial["position"] == 2
 
 
+def test_timeline_item_form_position_invalid(person):
+    form = TimelineItemForm({"position": "invalid"}, person=person)
+    assert not form.is_valid()
+    assert "position" in form.errors
+
+
 def test_already_set_initial_position(person):
     # Given a person and existing items with positions 0 and 1
     existing_items = [{"position": 0}, {"position": 1}]
