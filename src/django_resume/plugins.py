@@ -242,7 +242,11 @@ class ListPlugin(BasePlugin):
         post_url = self.get_admin_change_item_post_url(person.id)
         timeline_forms = []
         for initial_item_data in initial_items_data:
-            form = item_form_class(initial=initial_item_data, person=person)
+            form = item_form_class(
+                initial=initial_item_data,
+                person=person,
+                existing_items=initial_items_data,
+            )
             form.post_url = post_url
             form.delete_url = self.get_admin_delete_item_url(
                 person.id, initial_item_data["id"]
@@ -256,7 +260,8 @@ class ListPlugin(BasePlugin):
         """Handle post requests to create or update a single item."""
         person = get_object_or_404(Person, id=person_id)
         form_class = self.get_admin_item_form()
-        form = form_class(request.POST, person=person)
+        existing_items = self.get_data(person).get("items", [])
+        form = form_class(request.POST, person=person, existing_items=existing_items)
         form.post_url = self.get_admin_change_item_post_url(person.pk)
         context = {"form": form}
         if form.is_valid():

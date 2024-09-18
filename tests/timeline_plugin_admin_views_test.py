@@ -36,20 +36,6 @@ def test_get_add_form(admin_client, person):
 # Test item crud views
 
 
-@pytest.fixture
-def timeline_item_data():
-    return {
-        "role": "Software Developer",
-        "company_name": "ACME Inc.",
-        "company_url": "https://example.org",
-        "description": "I did some stuff",
-        "start": "2020",
-        "end": "2022",
-        "badges": "remote, full-time",
-        "position": 1,
-    }
-
-
 @pytest.mark.django_db
 def test_create_item(admin_client, person, timeline_item_data):
     # Given a person in the database and a timeline plugin

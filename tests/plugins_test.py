@@ -1,12 +1,4 @@
-import pytest
-
-from django_resume.models import Person
 from django_resume.plugins import ListPlugin, BasePlugin
-
-
-@pytest.fixture
-def person():
-    return Person(name="John Doe", slug="john-doe")
 
 
 def test_base_plugin_create(person):

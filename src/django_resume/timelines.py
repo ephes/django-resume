@@ -24,11 +24,16 @@ class TimelineItemForm(ListItemFormMixin, forms.Form):
         if "badges" in self.initial and isinstance(self.initial["badges"], list):
             self.initial["badges"] = ",".join(self.initial["badges"])
 
+    @staticmethod
+    def get_max_position(items):
+        """Return the maximum position value from the existing items."""
+        positions = [item.get("position", 0) for item in items]
+        return max(positions) if positions else -1
+
     def set_initial_position(self):
         """Set the position to the next available position."""
-        positions = [item.get("position", 0) for item in self.existing_items]
-        max_position = max(positions) if positions else -1
-        self.initial["position"] = max_position + 1
+        if "position" not in self.initial:
+            self.initial["position"] = self.get_max_position(self.existing_items) + 1
 
     def clean_title(self):
         title = self.cleaned_data["title"]
@@ -42,6 +47,18 @@ class TimelineItemForm(ListItemFormMixin, forms.Form):
         # Split the comma-separated values and strip any extra spaces
         badge_list = [badge.strip() for badge in badges.split(",")]
         return badge_list
+
+    def clean_position(self):
+        position = self.cleaned_data.get("position", 0)
+        if position < 0:
+            raise forms.ValidationError("Position must be a positive integer.")
+        for item in self.existing_items:
+            if item.get("position") == position:
+                max_position = self.get_max_position(self.existing_items)
+                raise forms.ValidationError(
+                    f"Position must be unique - take {max_position + 1} instead."
+                )
+        return position
 
 
 class TimelineFlatForm(forms.Form):
