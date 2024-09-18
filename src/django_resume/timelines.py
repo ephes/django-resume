@@ -88,10 +88,16 @@ class TimelinePlugin(ListPlugin):
     def get_admin_flat_form(self):
         return TimelineFlatForm
 
+    @staticmethod
+    def items_ordered_by_position(items, reverse=False):
+        return sorted(items, key=lambda item: item.get("position", 0), reverse=reverse)
+
     def get_data_for_context(self, person):
         timeline_data = self.get_data(person)
         timeline = TimelineForContext(
             title=timeline_data.get("flat", {}).get("title", self.verbose_name),
-            ordered_entries=timeline_data.get("items", []),
+            ordered_entries=self.items_ordered_by_position(
+                timeline_data.get("items", []), reverse=True
+            ),
         )
         return timeline

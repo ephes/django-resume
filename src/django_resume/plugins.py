@@ -283,7 +283,6 @@ class ListPlugin(BasePlugin):
 
     def post_admin_flat_view(self, request, person_id):
         """Handle post requests to update flat data."""
-        print("update flat data! ", request.POST)
         person = get_object_or_404(Person, id=person_id)
         form_class = self.get_admin_flat_form()
         form = form_class(request.POST)
