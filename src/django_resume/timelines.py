@@ -76,12 +76,15 @@ class TimelineFlatForm(forms.Form):
 
 
 class TimelineForContext:
-    def __init__(self, title, ordered_entries):
+    def __init__(self, title, ordered_entries, template):
         self.title = title
         self.ordered_entries = ordered_entries
+        self.template = template
 
 
 class TimelineMixin:
+    template = "django_resume/plain/timeline.html"
+
     def get_admin_item_form(self):
         return TimelineItemForm
 
@@ -99,6 +102,7 @@ class TimelineMixin:
             ordered_entries=self.items_ordered_by_position(
                 timeline_data.get("items", []), reverse=True
             ),
+            template=self.template,
         )
         return timeline
 
