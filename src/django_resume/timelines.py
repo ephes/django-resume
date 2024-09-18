@@ -53,12 +53,14 @@ class TimelineItemForm(ListItemFormMixin, forms.Form):
         if position < 0:
             raise forms.ValidationError("Position must be a positive integer.")
         for item in self.existing_items:
+            if item["id"] == self.cleaned_data["id"]:
+                # updating the existing item, so we can skip checking its position
+                continue
             if item.get("position") == position:
-                if not (item.get("id", -1) == self.cleaned_data.get("id")):
-                    max_position = self.get_max_position(self.existing_items)
-                    raise forms.ValidationError(
-                        f"Position must be unique - take {max_position + 1} instead."
-                    )
+                max_position = self.get_max_position(self.existing_items)
+                raise forms.ValidationError(
+                    f"Position must be unique - take {max_position + 1} instead."
+                )
         return position
 
 
