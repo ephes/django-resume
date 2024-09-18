@@ -15,7 +15,12 @@ class TimelineItemForm(ListItemFormMixin, forms.Form):
     position = forms.IntegerField(widget=forms.NumberInput(), required=False)
 
     def __init__(self, *args, **kwargs):
+        self.existing_items = kwargs.pop("existing_items", [])
         super().__init__(*args, **kwargs)
+        self.set_initial_badges()
+
+    def set_initial_badges(self):
+        """Transform the list of badges into a comma-separated string."""
         if "badges" in self.initial and isinstance(self.initial["badges"], list):
             self.initial["badges"] = ",".join(self.initial["badges"])
 
