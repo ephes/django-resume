@@ -47,6 +47,7 @@ class ListItemFormMixin(forms.Form):
 
     def __init__(self, *args, **kwargs):
         self.person = kwargs.pop("person")
+        self.existing_items = kwargs.pop("existing_items", [])
         super().__init__(*args, **kwargs)
 
     @property
@@ -197,8 +198,8 @@ class ListPlugin(BasePlugin):
         """Return a single empty form to add a new item."""
         person = get_object_or_404(Person, pk=person_id)
         form_class = self.get_admin_item_form()
-        initial = form_class.get_initial(self.get_data(person).get("items", []))
-        form = form_class(initial=initial, person=person)
+        existing_items = self.get_data(person).get("items", [])
+        form = form_class(initial={}, person=person, existing_items=existing_items)
         form.post_url = self.get_admin_change_item_post_url(person.pk)
         context = {"form": form}
         return render(request, self.admin_item_change_form_template, context)

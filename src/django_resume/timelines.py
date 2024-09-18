@@ -15,20 +15,20 @@ class TimelineItemForm(ListItemFormMixin, forms.Form):
     position = forms.IntegerField(widget=forms.NumberInput(), required=False)
 
     def __init__(self, *args, **kwargs):
-        self.existing_items = kwargs.pop("existing_items", [])
         super().__init__(*args, **kwargs)
         self.set_initial_badges()
+        self.set_initial_position()
 
     def set_initial_badges(self):
         """Transform the list of badges into a comma-separated string."""
         if "badges" in self.initial and isinstance(self.initial["badges"], list):
             self.initial["badges"] = ",".join(self.initial["badges"])
 
-    @staticmethod
-    def get_initial(items):
-        positions = [item.get("position", 0) for item in items]
+    def set_initial_position(self):
+        """Set the position to the next available position."""
+        positions = [item.get("position", 0) for item in self.existing_items]
         max_position = max(positions) if positions else -1
-        return {"position": max_position + 1}
+        self.initial["position"] = max_position + 1
 
     def clean_title(self):
         title = self.cleaned_data["title"]
