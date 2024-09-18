@@ -3,7 +3,7 @@ import re
 import pytest
 
 from django_resume.models import Person
-from django_resume.timelines import TimelinePlugin, TimelineItemForm
+from django_resume.timelines import EmployedTimelinePlugin, TimelineItemForm
 
 
 # admin views of the base list plugin
@@ -18,7 +18,7 @@ def person():
 
 def test_get_add_form(admin_client, person):
     # Given a person in the database and a timeline plugin
-    plugin = TimelinePlugin()
+    plugin = EmployedTimelinePlugin()
     add_form_url = plugin.get_admin_item_add_form_url(person.id)
 
     # When we get the item add form
@@ -39,7 +39,7 @@ def test_get_add_form(admin_client, person):
 @pytest.mark.django_db
 def test_create_item(admin_client, person, timeline_item_data):
     # Given a person in the database and a timeline plugin
-    plugin = TimelinePlugin()
+    plugin = EmployedTimelinePlugin()
     post_url = plugin.get_admin_change_item_post_url(person.id)
 
     # When we create a new timeline item
@@ -67,7 +67,7 @@ def test_create_item(admin_client, person, timeline_item_data):
 def person_with_timeline_item(timeline_item_data):
     person: Person = Person(name="John Doe", slug="john-doe")
     timeline_item_data["id"] = "123"
-    plugin = TimelinePlugin()
+    plugin = EmployedTimelinePlugin()
     form = TimelineItemForm(data=timeline_item_data, person=person)
     assert form.is_valid()
     person = plugin.create(person, form.cleaned_data)
@@ -79,7 +79,7 @@ def person_with_timeline_item(timeline_item_data):
 def test_update_item(admin_client, person_with_timeline_item, timeline_item_data):
     # Given a person in the database with a timeline item
     person: Person = person_with_timeline_item
-    plugin = TimelinePlugin()
+    plugin = EmployedTimelinePlugin()
 
     plugin_data = plugin.get_data(person)
     [item] = plugin_data["items"]
@@ -104,7 +104,7 @@ def test_update_item(admin_client, person_with_timeline_item, timeline_item_data
 def test_delete_item(admin_client, person_with_timeline_item):
     # Given a person in the database with a timeline item
     person: Person = person_with_timeline_item
-    plugin = TimelinePlugin()
+    plugin = EmployedTimelinePlugin()
 
     # When we delete the timeline item
     delete_url = plugin.get_admin_delete_item_url(person.id, "123")
@@ -124,7 +124,7 @@ def test_delete_item(admin_client, person_with_timeline_item):
 
 def test_update_flat_view(admin_client, person):
     # Given a person in the database and a timeline plugin
-    plugin = TimelinePlugin()
+    plugin = EmployedTimelinePlugin()
     post_url = plugin.get_admin_change_flat_post_url(person.id)
 
     # When we update the flat form
@@ -151,7 +151,7 @@ def test_add_and_update_via_main_change_view(admin_client, person, timeline_item
     This test is to ensure that this won't happen again.
     """
     # Given a person in the database and a timeline plugin
-    plugin = TimelinePlugin()
+    plugin = EmployedTimelinePlugin()
     change_view_url = plugin.get_admin_change_url(person.id)
 
     # When we get the change view

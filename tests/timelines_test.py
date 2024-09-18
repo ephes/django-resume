@@ -1,13 +1,13 @@
-from django_resume.timelines import TimelinePlugin
+from django_resume.timelines import EmployedTimelinePlugin
 
 
-def test_timeline_plugin():
-    plugin = TimelinePlugin()
+def test_employed_timeline_plugin():
+    plugin = EmployedTimelinePlugin()
     assert plugin.name == "employed_timeline"
 
 
 def test_timeline_items_ordered_by_position():
-    plugin = TimelinePlugin()
+    plugin = EmployedTimelinePlugin()
     items = [
         {"position": 1, "title": "B"},
         {"position": 0, "title": "A"},

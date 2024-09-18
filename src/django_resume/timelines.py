@@ -81,10 +81,7 @@ class TimelineForContext:
         self.ordered_entries = ordered_entries
 
 
-class TimelinePlugin(ListPlugin):
-    name = "employed_timeline"
-    verbose_name = "Employed Timeline"
-
+class TimelineMixin:
     def get_admin_item_form(self):
         return TimelineItemForm
 
@@ -104,3 +101,13 @@ class TimelinePlugin(ListPlugin):
             ),
         )
         return timeline
+
+
+class FreelanceTimelinePlugin(TimelineMixin, ListPlugin):
+    name = "freelance_timeline"
+    verbose_name = "Freelance Timeline"
+
+
+class EmployedTimelinePlugin(TimelineMixin, ListPlugin):
+    name = "employed_timeline"
+    verbose_name = "Employed Timeline"
