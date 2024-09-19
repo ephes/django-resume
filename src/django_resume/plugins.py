@@ -176,8 +176,17 @@ class ListAdmin:
     )
     admin_flat_form_template = "django_resume/admin/list_plugin_admin_flat_form.html"
 
-    def __init__(self, *, plugin: Plugin, data: ListData):
-        self.plugin = plugin
+    def __init__(
+        self,
+        *,
+        plugin_name: str,
+        plugin_verbose_name,
+        form_classes: dict,
+        data: ListData,
+    ):
+        self.plugin_name = plugin_name
+        self.plugin_verbose_name = plugin_verbose_name
+        self.form_classes = form_classes
         self.data = data
 
     def get_change_url(self, person_id):
@@ -188,7 +197,7 @@ class ListAdmin:
         in a flat format.
         """
         return reverse(
-            f"admin:{self.plugin.name}-admin-change", kwargs={"person_id": person_id}
+            f"admin:{self.plugin_name}-admin-change", kwargs={"person_id": person_id}
         )
 
     def get_admin_link(self, person_id: int) -> str:
@@ -199,28 +208,25 @@ class ListAdmin:
         """
         url = self.get_change_url(person_id)
         return format_html(
-            '<a href="{}">{}</a>', url, f"Edit {self.plugin.verbose_name}"
+            '<a href="{}">{}</a>', url, f"Edit {self.plugin_verbose_name}"
         )
 
     def get_change_flat_post_url(self, person_id):
         """Used for create and update flat data."""
-        plugin = self.plugin
         return reverse(
-            f"admin:{plugin.name}-admin-flat-post", kwargs={"person_id": person_id}
+            f"admin:{self.plugin_name}-admin-flat-post", kwargs={"person_id": person_id}
         )
 
     def get_change_item_post_url(self, person_id):
         """Used for create and update item."""
-        plugin = self.plugin
         return reverse(
-            f"admin:{plugin.name}-admin-item-post", kwargs={"person_id": person_id}
+            f"admin:{self.plugin_name}-admin-item-post", kwargs={"person_id": person_id}
         )
 
     def get_delete_item_url(self, person_id, item_id):
         """Used for delete item."""
-        plugin = self.plugin
         return reverse(
-            f"admin:{plugin.name}-admin-item-delete",
+            f"admin:{self.plugin_name}-admin-item-delete",
             kwargs={"person_id": person_id, "item_id": item_id},
         )
 
@@ -229,18 +235,16 @@ class ListAdmin:
         Returns the url of a view that returns a form to add a new item. The person_id
         is needed to be able to add the right post url to the form.
         """
-        plugin = self.plugin
         return reverse(
-            f"admin:{plugin.name}-admin-item-add", kwargs={"person_id": person_id}
+            f"admin:{self.plugin_name}-admin-item-add", kwargs={"person_id": person_id}
         )
 
     # crud views
 
     def get_add_item_form_view(self, request, person_id):
         """Return a single empty form to add a new item."""
-        plugin = self.plugin
         person = get_object_or_404(Person, pk=person_id)
-        form_class = plugin.get_form_classes()["item"]
+        form_class = self.form_classes["item"]
         existing_items = self.data.get_data(person).get("items", [])
         form = form_class(initial={}, person=person, existing_items=existing_items)
         form.post_url = self.get_change_item_post_url(person.pk)
@@ -249,12 +253,10 @@ class ListAdmin:
 
     def get_change_view(self, request, person_id):
         """Return the main admin view for this plugin."""
-        plugin = self.plugin
         person = get_object_or_404(Person, pk=person_id)
         context = {
-            "title": f"{plugin.verbose_name} for {person.name}",
+            "title": f"{self.plugin_verbose_name} for {person.name}",
             "person": person,
-            "plugin": plugin,
             "opts": Person._meta,
             # context for admin/change_form.html template
             "add": False,
@@ -268,7 +270,7 @@ class ListAdmin:
             "has_editable_inline_admin_formsets": False,
         }
         plugin_data = self.data.get_data(person)
-        form_classes = plugin.get_form_classes()
+        form_classes = self.form_classes
         # flat form
         flat_form_class = form_classes["flat"]
         flat_form = flat_form_class(initial=plugin_data.get("flat", {}))
@@ -296,9 +298,8 @@ class ListAdmin:
 
     def post_item_view(self, request, person_id):
         """Handle post requests to create or update a single item."""
-        plugin = self.plugin
         person = get_object_or_404(Person, id=person_id)
-        form_class = plugin.get_form_classes()["item"]
+        form_class = self.form_classes["item"]
         existing_items = self.data.get_data(person).get("items", [])
         form = form_class(request.POST, person=person, existing_items=existing_items)
         form.post_url = self.get_change_item_post_url(person.pk)
@@ -322,9 +323,8 @@ class ListAdmin:
 
     def post_flat_view(self, request, person_id):
         """Handle post requests to update flat data."""
-        plugin = self.plugin
         person = get_object_or_404(Person, id=person_id)
-        form_class = plugin.get_form_classes()["flat"]
+        form_class = self.form_classes["flat"]
         form = form_class(request.POST)
         form.post_url = self.get_change_flat_post_url(person.pk)
         context = {"form": form}
@@ -347,7 +347,7 @@ class ListAdmin:
         This method should return a list of urls that are used to manage the
         plugin data in the admin interface.
         """
-        plugin_name = self.plugin.name
+        plugin_name = self.plugin_name
         urls = [
             path(
                 f"<int:person_id>/plugin/{plugin_name}/change/",
@@ -387,12 +387,16 @@ class ListInline:
     def __init__(
         self,
         *,
-        plugin: Plugin,
+        plugin_name: str,
+        plugin_verbose_name: str,
+        form_classes: dict,
         data: ListData,
         flat_template: str,
         flat_form_template: str,
     ):
-        self.plugin = plugin
+        self.plugin_name = plugin_name
+        self.plugin_verbose_name = plugin_verbose_name
+        self.form_classes = form_classes
         self.data = data
         self.flat_template = flat_template
         self.flat_form_template = flat_form_template
@@ -401,23 +405,22 @@ class ListInline:
 
     def get_edit_flat_post_url(self, person_id):
         return reverse(
-            f"django_resume:{self.plugin.name}-edit-flat-post",
+            f"django_resume:{self.plugin_name}-edit-flat-post",
             kwargs={"person_id": person_id},
         )
 
     def get_edit_flat_url(self, person_id):
         return reverse(
-            f"django_resume:{self.plugin.name}-edit-flat",
+            f"django_resume:{self.plugin_name}-edit-flat",
             kwargs={"person_id": person_id},
         )
 
     # crud views
 
     def get_edit_flat_view(self, request, person_id):
-        plugin = self.plugin
         person = get_object_or_404(Person, id=person_id)
         plugin_data = self.data.get_data(person)
-        flat_form_class = plugin.get_form_classes()["flat"]
+        flat_form_class = self.form_classes["flat"]
         flat_form = flat_form_class(initial=plugin_data.get("flat", {}))
         flat_form.post_url = self.get_edit_flat_post_url(person.pk)
         context = {
@@ -428,9 +431,8 @@ class ListInline:
 
     def post_edit_flat_view(self, request, person_id):
         print("in post edit flat view!")
-        plugin = self.plugin
         person = get_object_or_404(Person, id=person_id)
-        flat_form_class = plugin.get_form_classes()["flat"]
+        flat_form_class = self.form_classes["flat"]
         plugin_data = self.data.get_data(person)
         flat_form = flat_form_class(request.POST, initial=plugin_data.get("flat", {}))
         context = {"timeline": {}}
@@ -440,7 +442,7 @@ class ListInline:
             person.refresh_from_db()
             plugin_data = self.data.get_data(person)
             context["timeline"]["title"] = plugin_data.get("flat", {}).get(
-                "title", plugin.verbose_name
+                "title", self.plugin_verbose_name
             )
             context["timeline"]["edit_flat_url"] = self.get_edit_flat_url(person.pk)
             context["show_edit_button"] = True
@@ -455,7 +457,7 @@ class ListInline:
 
     # urlpatterns
     def get_urls(self):
-        plugin_name = self.plugin.name
+        plugin_name = self.plugin_name
         urls = [
             path(
                 f"<int:person_id>/plugin/{plugin_name}/edit/flat/",
@@ -480,15 +482,24 @@ class ListPlugin:
     """
 
     name = "list_plugin"
+    verbose_name = "List Plugin"
     flat_template = "django_resume/plain/list_plugin_flat.html"
     flat_form_template = "django_resume/plain/list_plugin_flat_form.html"
 
     def __init__(self):
         super().__init__()
         self.data = data = ListData(plugin_name=self.name)
-        self.admin = ListAdmin(plugin=self, data=data)
+        form_classes = self.get_form_classes()
+        self.admin = ListAdmin(
+            plugin_name=self.name,
+            plugin_verbose_name=self.verbose_name,
+            form_classes=form_classes,
+            data=data,
+        )
         self.inline = ListInline(
-            plugin=self,
+            plugin_name=self.name,
+            plugin_verbose_name=self.verbose_name,
+            form_classes=form_classes,
             data=data,
             flat_template=self.flat_template,
             flat_form_template=self.flat_form_template,
@@ -506,7 +517,7 @@ class ListPlugin:
 
     def get_form_classes(self) -> dict[str, type[forms.Form]]:
         """Please implement this method."""
-        raise NotImplementedError
+        return {}
 
     def get_data(self, person: Person) -> dict:
         return self.data.get_data(person)
