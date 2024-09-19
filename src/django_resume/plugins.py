@@ -96,6 +96,61 @@ class ListItemFormMixin(forms.Form):
         return self.initial.get("id", uuid4())
 
 
+class ListData:
+    """
+    This class contains the logic of the list plugin concerned with the data handling.
+
+    Simple crud operations are supported.
+    """
+
+    def __init__(self, *, plugin_name: str):
+        self.plugin_name = plugin_name
+
+    def get_data(self, person: Person):
+        return person.plugin_data.get(self.plugin_name, {})
+
+    def set_data(self, person: Person, data: dict):
+        if not person.plugin_data:
+            person.plugin_data = {}
+        person.plugin_data[self.plugin_name] = data
+        return person
+
+    def create(self, person: Person, data: dict):
+        """Create an item in the items list of this plugin."""
+        plugin_data = self.get_data(person)
+        plugin_data.setdefault("items", []).append(data)
+        person = self.set_data(person, plugin_data)
+        return person
+
+    def update(self, person: Person, data: dict):
+        """Update an item in the items list of this plugin."""
+        plugin_data = self.get_data(person)
+        items = plugin_data.get("items", [])
+        for item in items:
+            if item["id"] == data["id"]:
+                item.update(data)
+                break
+        plugin_data["items"] = items
+        return self.set_data(person, plugin_data)
+
+    def update_flat(self, person: Person, data: dict):
+        """Update the flat data of this plugin."""
+        plugin_data = self.get_data(person)
+        plugin_data["flat"] = data
+        return self.set_data(person, plugin_data)
+
+    def delete(self, person: Person, data: dict):
+        """Delete an item from the items list of this plugin."""
+        plugin_data = self.get_data(person)
+        items = plugin_data.get("items", [])
+        for i, item in enumerate(items):
+            if item["id"] == data["id"]:
+                items.pop(i)
+                break
+        plugin_data["items"] = items
+        return self.set_data(person, plugin_data)
+
+
 class ListAdmin:
     """
     This class contains the logic of the list plugin concerned with the Django admin interface.
@@ -112,8 +167,9 @@ class ListAdmin:
     )
     admin_flat_form_template = "django_resume/admin/list_plugin_admin_flat_form.html"
 
-    def __init__(self, *, plugin: Plugin):
+    def __init__(self, *, plugin: Plugin, data: ListData):
         self.plugin = plugin
+        self.data = data
 
     def get_change_url(self, person_id):
         """
@@ -176,7 +232,7 @@ class ListAdmin:
         plugin = self.plugin
         person = get_object_or_404(Person, pk=person_id)
         form_class = plugin.get_form_classes()["item"]
-        existing_items = plugin.get_data(person).get("items", [])
+        existing_items = self.data.get_data(person).get("items", [])
         form = form_class(initial={}, person=person, existing_items=existing_items)
         form.post_url = self.get_change_item_post_url(person.pk)
         context = {"form": form}
@@ -202,7 +258,7 @@ class ListAdmin:
             "has_delete_permission": False,
             "has_editable_inline_admin_formsets": False,
         }
-        plugin_data = plugin.get_data(person)
+        plugin_data = self.data.get_data(person)
         form_classes = plugin.get_form_classes()
         # flat form
         flat_form_class = form_classes["flat"]
@@ -234,19 +290,19 @@ class ListAdmin:
         plugin = self.plugin
         person = get_object_or_404(Person, id=person_id)
         form_class = plugin.get_form_classes()["item"]
-        existing_items = plugin.get_data(person).get("items", [])
+        existing_items = self.data.get_data(person).get("items", [])
         form = form_class(request.POST, person=person, existing_items=existing_items)
         form.post_url = self.get_change_item_post_url(person.pk)
         context = {"form": form}
         if form.is_valid():
             if form.cleaned_data.get("id", False):
                 item_id = form.cleaned_data["id"]
-                person = plugin.update(person, form.cleaned_data)
+                person = self.data.update(person, form.cleaned_data)
             else:
                 data = form.cleaned_data
                 item_id = str(uuid4())
                 data["id"] = item_id
-                person = plugin.create(person, data)
+                person = self.data.create(person, data)
                 # weird hack to make the form look like it is for an existing item
                 # if there's a better way to do this, please let me know FIXME
                 form.data = form.data.copy()
@@ -264,15 +320,14 @@ class ListAdmin:
         form.post_url = self.get_change_flat_post_url(person.pk)
         context = {"form": form}
         if form.is_valid():
-            person = plugin.update_flat(person, form.cleaned_data)
+            person = self.data.update_flat(person, form.cleaned_data)
             person.save()
         return render(request, self.admin_flat_form_template, context)
 
     def delete_item_view(self, _request, person_id, item_id):
         """Delete an item from the items list of this plugin."""
-        plugin = self.plugin
         person = get_object_or_404(Person, pk=person_id)
-        person = plugin.delete(person, {"id": item_id})
+        person = self.data.delete(person, {"id": item_id})
         person.save()
         return HttpResponse(status=200)
 
@@ -320,8 +375,16 @@ class ListInline:
     of the plugin data on the website itself.
     """
 
-    def __init__(self, *, plugin: Plugin, flat_template: str, flat_form_template: str):
+    def __init__(
+        self,
+        *,
+        plugin: Plugin,
+        data: ListData,
+        flat_template: str,
+        flat_form_template: str,
+    ):
         self.plugin = plugin
+        self.data = data
         self.flat_template = flat_template
         self.flat_form_template = flat_form_template
 
@@ -344,7 +407,7 @@ class ListInline:
     def get_edit_flat_view(self, request, person_id):
         plugin = self.plugin
         person = get_object_or_404(Person, id=person_id)
-        plugin_data = plugin.get_data(person)
+        plugin_data = self.data.get_data(person)
         flat_form_class = plugin.get_form_classes()["flat"]
         flat_form = flat_form_class(initial=plugin_data.get("flat", {}))
         flat_form.post_url = self.get_edit_flat_post_url(person.pk)
@@ -359,14 +422,14 @@ class ListInline:
         plugin = self.plugin
         person = get_object_or_404(Person, id=person_id)
         flat_form_class = plugin.get_form_classes()["flat"]
-        plugin_data = plugin.get_data(person)
+        plugin_data = self.data.get_data(person)
         flat_form = flat_form_class(request.POST, initial=plugin_data.get("flat", {}))
         context = {"timeline": {}}
         if flat_form.is_valid():
-            person = plugin.update_flat(person, flat_form.cleaned_data)
+            person = self.data.update_flat(person, flat_form.cleaned_data)
             person.save()
             person.refresh_from_db()
-            plugin_data = plugin.get_data(person)
+            plugin_data = self.data.get_data(person)
             context["timeline"]["title"] = plugin_data.get("flat", {}).get(
                 "title", plugin.verbose_name
             )
@@ -413,9 +476,11 @@ class ListPlugin(BasePlugin):
 
     def __init__(self):
         super().__init__()
-        self.admin = ListAdmin(plugin=self)
+        self.data = data = ListData(plugin_name=self.name)
+        self.admin = ListAdmin(plugin=self, data=data)
         self.inline = ListInline(
             plugin=self,
+            data=data,
             flat_template=self.flat_template,
             flat_form_template=self.flat_form_template,
         )
@@ -433,45 +498,6 @@ class ListPlugin(BasePlugin):
     def get_form_classes(self) -> dict[str, type[forms.Form]]:
         """Please implement this method."""
         raise NotImplementedError
-
-    # data handling for flat form
-
-    def update_flat(self, person, data):
-        """Update the flat data of this plugin."""
-        plugin_data = self.get_data(person)
-        plugin_data["flat"] = data
-        return self.set_data(person, plugin_data)
-
-    # crud data handling for items
-
-    def create(self, person, data):
-        """Create an item in the items list of this plugin."""
-        plugin_data = self.get_data(person)
-        plugin_data.setdefault("items", []).append(data)
-        person = self.set_data(person, plugin_data)
-        return person
-
-    def update(self, person, data):
-        """Update an item in the items list of this plugin."""
-        plugin_data = self.get_data(person)
-        items = plugin_data.get("items", [])
-        for item in items:
-            if item["id"] == data["id"]:
-                item.update(data)
-                break
-        plugin_data["items"] = items
-        return self.set_data(person, plugin_data)
-
-    def delete(self, person, data):
-        """Delete an item from the items list of this plugin."""
-        plugin_data = self.get_data(person)
-        items = plugin_data.get("items", [])
-        for i, item in enumerate(items):
-            if item["id"] == data["id"]:
-                items.pop(i)
-                break
-        plugin_data["items"] = items
-        return self.set_data(person, plugin_data)
 
 
 class PluginRegistry:

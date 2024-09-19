@@ -1,4 +1,4 @@
-from django_resume.plugins import ListPlugin, BasePlugin
+from django_resume.plugins import BasePlugin, ListData
 
 
 def test_base_plugin_create(person):
@@ -26,21 +26,21 @@ def test_base_plugin_update(person):
     assert item["foo"] == "baz"
 
 
-def test_list_plugin_create(person):
+def test_list_data_create(person):
     # Given a person and a list plugin
-    plugin = ListPlugin()
+    data = ListData(plugin_name="list_plugin")
     # When we create an item
     item = {"foo": "bar"}
-    person = plugin.create(person, item)
+    person = data.create(person, item)
     # Then the item should be in the list
-    items = plugin.get_data(person).get("items", [])
+    items = data.get_data(person).get("items", [])
     assert len(items) == 1
     assert item in items
 
 
-def test_list_plugin_update(person):
+def test_list_data_update(person):
     # Given a person and a list plugin with an item
-    plugin = ListPlugin()
+    plugin = ListData(plugin_name="list_plugin")
     item = {"id": "123", "foo": "bar"}
     plugin.create(person, item)
     # When we update the item
@@ -52,9 +52,9 @@ def test_list_plugin_update(person):
     assert updated_item["foo"] == "baz"
 
 
-def test_list_plugin_delete(person):
+def test_list_data_delete(person):
     # Given a person and a list plugin with an item
-    plugin = ListPlugin()
+    plugin = ListData(plugin_name="list_plugin")
     item = {"id": 123, "foo": "bar"}
     plugin.create(person, item)
     # When we delete the item

@@ -65,7 +65,7 @@ def person_with_timeline_item(person, timeline_item_data):
     plugin = EmployedTimelinePlugin()
     form = TimelineItemForm(data=timeline_item_data, person=person)
     assert form.is_valid()
-    person = plugin.create(person, form.cleaned_data)
+    person = plugin.data.create(person, form.cleaned_data)
     person.save()
     return person
 
@@ -77,6 +77,7 @@ def test_update_item(admin_client, person_with_timeline_item, timeline_item_data
     plugin = EmployedTimelinePlugin()
 
     plugin_data = plugin.get_data(person)
+    print("plugin_data: ", plugin_data)
     [item] = plugin_data["items"]
     timeline_item_data["id"] = item["id"]
     timeline_item_data["role"] = "Updated Developer"
