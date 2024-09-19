@@ -97,7 +97,7 @@ class TimelineMixin:
     flat_form_template = "django_resume/plain/timeline_flat_form.html"
 
     @staticmethod
-    def get_form_classes() -> dict[str, Type[TimelineItemForm | TimelineFlatForm]]:
+    def get_form_classes() -> dict[str, Type[forms.Form]]:
         return {"item": TimelineItemForm, "flat": TimelineFlatForm}
 
     @staticmethod
