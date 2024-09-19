@@ -367,6 +367,7 @@ class ListPlugin(BasePlugin):
             person = self.update_flat(person, flat_form.cleaned_data)
             person.save()
             person.refresh_from_db()
+            plugin_data = self.get_data(person)
             context["timeline"]["title"] = plugin_data.get("flat", {}).get(
                 "title", self.verbose_name
             )
