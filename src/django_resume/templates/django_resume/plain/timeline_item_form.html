@@ -1,29 +1,24 @@
-<!-- just a copy of the timeline_item.html for now -->
-<div class="stack-small">
+<form hx-post="{{ form.post_url }}" hx-swap="outerHTML" class="stack-small">
+  {% csrf_token %}
+  <input type="hidden" name="id" value="{{ form.id.value }}">
+  <input type="hidden" name="position" value="{{ form.position.value }}">
   <div class="cluster timeline-header-cluster">
-    <div class="timeline-header-title">
-      {% if entry.company_url %}
-        <h3><a class="underlined" href="{{ entry.company_url }}">{{ entry.company_name }}</a></h3>
-      {% else %}
-        <h3>{{ entry.company_name }}</h3>
-      {% endif %}
-      {% if entry.badges %}
-        <ul class="cluster cluster-list job-badges-list">
-          {% for badge in entry.badges %}
-            <li>{{ badge }}</li>
-          {% endfor %}
-        </ul>
-      {% endif %}
-    {% if show_edit_button %}
-      <button hx-get="{{ timeline.edit_flat_url }}" hx-target="closest h2" hx-swap="outerHTML">Edit</button>
-    {% endif %}
+    <div class="editable_block">
+      <input class="editable_h3" type="text" name="company_name" value="{{ form.company_name.value }}">
+      <input class="editable_h3" type="text" name="company_url" value="{{ form.company_url.value }}">
+      <input class="editable_h3" type="text" name="badges" value="{{ form.badges.value }}">
     </div>
     <ul class="cluster cluster-list year-span">
-      <li>{{ entry.start }}</li>
+      <li><input class="editable_year_span" type="text" name="start" value="{{ form.start.value }}"></li>
       <li>-</li>
-      <li>{{ entry.end }}</li>
+      <li><input class="editable_year_span" type="text" name="end" value="{{ form.end.value }}"></li>
     </ul>
   </div>
-  <div class="sub-line">{{ entry.role }}</div>
-  <p>{{ entry.description|safe }}</p>
-</div>
+  <div class="sub-line">
+    <input class="editable_sub_line" size="30" type="text" name="role" value="{{ form.role.value }}">
+  </div>
+  <p>
+    <textarea class="editable_description" cols="65" rows="4" name="description">{{ form.description.value }}</textarea>
+  </p>
+  <button type="submit">OK</button>
+</form>

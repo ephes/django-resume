@@ -6,7 +6,7 @@ def test_employed_timeline_plugin():
     assert plugin.name == "employed_timeline"
 
 
-def test_timeline_items_ordered_by_position():
+def test_items_ordered_by_position():
     plugin = EmployedTimelinePlugin()
     items = [
         {"position": 1, "title": "B"},

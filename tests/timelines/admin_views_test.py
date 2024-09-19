@@ -3,7 +3,7 @@ import re
 import pytest
 
 from django_resume.models import Person
-from django_resume.timelines import EmployedTimelinePlugin, TimelineItemForm
+from django_resume.timelines import EmployedTimelinePlugin
 
 
 # admin views of the base list plugin
@@ -57,17 +57,6 @@ def test_create_item(admin_client, person, timeline_item_data):
     assert item["role"] == timeline_item_data["role"]
     badges_list = [badge.strip() for badge in timeline_item_data["badges"].split(",")]
     assert item["badges"] == badges_list
-
-
-@pytest.fixture
-def person_with_timeline_item(person, timeline_item_data):
-    timeline_item_data["id"] = "123"
-    plugin = EmployedTimelinePlugin()
-    form = TimelineItemForm(data=timeline_item_data, person=person)
-    assert form.is_valid()
-    person = plugin.data.create(person, form.cleaned_data)
-    person.save()
-    return person
 
 
 @pytest.mark.django_db

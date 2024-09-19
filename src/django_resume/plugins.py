@@ -121,9 +121,18 @@ class ListData:
     def __init__(self, *, plugin_name: str):
         self.plugin_name = plugin_name
 
+    # read
     def get_data(self, person: Person):
         return person.plugin_data.get(self.plugin_name, {})
 
+    def get_item_by_id(self, person: Person, item_id: str) -> dict | None:
+        items = self.get_data(person).get("items", [])
+        for item in items:
+            if item["id"] == item_id:
+                return item
+        return None
+
+    # write
     def set_data(self, person: Person, data: dict):
         if not person.plugin_data:
             person.plugin_data = {}
@@ -424,6 +433,30 @@ class ListInline:
             kwargs={"person_id": person_id},
         )
 
+    def get_edit_item_url(self, person_id, item_id=None):
+        if item_id is None:
+            return reverse(
+                f"django_resume:{self.plugin_name}-add-item",
+                kwargs={"person_id": person_id},
+            )
+        else:
+            return reverse(
+                f"django_resume:{self.plugin_name}-edit-item",
+                kwargs={"person_id": person_id, "item_id": item_id},
+            )
+
+    def get_post_item_url(self, person_id):
+        return reverse(
+            f"django_resume:{self.plugin_name}-item-post",
+            kwargs={"person_id": person_id},
+        )
+
+    def get_delete_item_url(self, person_id, item_id):
+        return reverse(
+            f"django_resume:{self.plugin_name}-delete-item",
+            kwargs={"person_id": person_id, "item_id": item_id},
+        )
+
     # crud views
 
     def get_edit_flat_view(self, request, person_id):
@@ -464,10 +497,81 @@ class ListInline:
             response = render(request, self.templates.flat_form, context=context)
             return response
 
+    def get_item_view(self, request, person_id, item_id=None):
+        person = get_object_or_404(Person, id=person_id)
+        plugin_data = self.data.get_data(person)
+        existing_items = plugin_data.get("items", [])
+        # get the item data if we are editing an existing item
+        initial = {
+            "company_name": "company_name",
+            "company_url": "company_url",
+            "role": "role",
+            "start": "start",
+            "end": "end",
+            "description": "description",
+            "badges": "badges",
+        }
+        if item_id is not None:
+            for item in existing_items:
+                if item["id"] == item_id:
+                    initial = item
+        form_class = self.form_classes["item"]
+        form = form_class(initial=initial, person=person, existing_items=existing_items)
+        form.post_url = self.get_post_item_url(person.pk)
+        context = {"form": form}
+        return render(request, self.templates.item_form, context=context)
+
+    def post_item_view(self, request, person_id):
+        print("in post item view! ", person_id)
+        person = get_object_or_404(Person, id=person_id)
+        form_class = self.form_classes["item"]
+        existing_items = self.data.get_data(person).get("items", [])
+        form = form_class(request.POST, person=person, existing_items=existing_items)
+        form.post_url = self.get_post_item_url(person.pk)
+        context = {"form": form}
+        if form.is_valid():
+            if form.cleaned_data.get("id", False):
+                item_id = form.cleaned_data["id"]
+                person = self.data.update(person, form.cleaned_data)
+            else:
+                data = form.cleaned_data
+                item_id = str(uuid4())
+                data["id"] = item_id
+                person = self.data.create(person, data)
+                # weird hack to make the form look like it is for an existing item
+                # if there's a better way to do this, please let me know FIXME
+                form.data = form.data.copy()
+                form.data["id"] = item_id
+            person.save()
+            item = self.data.get_item_by_id(person, item_id)
+            form.delete_url = self.get_delete_item_url(person.id, item_id)
+            context["entry"] = {
+                "id": item_id,
+                "company_url": item["company_url"],
+                "company_name": item["company_name"],
+                "role": item["role"],
+                "start": item["start"],
+                "end": item["end"],
+                "description": item["description"],
+                "badges": item["badges"],
+                "edit_url": self.get_edit_item_url(person.id, item_id),
+            }
+            context["show_edit_button"] = True
+            return render(request, self.templates.item, context)
+        return render(request, self.templates.item_form, context)
+
+    def delete_item_view(self, _request, person_id, item_id):
+        """Delete an item from the items list of this plugin."""
+        person = get_object_or_404(Person, pk=person_id)
+        person = self.data.delete(person, {"id": item_id})
+        person.save()
+        return HttpResponse(status=200)
+
     # urlpatterns
     def get_urls(self):
         plugin_name = self.plugin_name
         urls = [
+            # flat
             path(
                 f"<int:person_id>/plugin/{plugin_name}/edit/flat/",
                 self.get_edit_flat_view,
@@ -477,6 +581,27 @@ class ListInline:
                 f"<int:person_id>/plugin/{plugin_name}/edit/flat/post/",
                 self.post_edit_flat_view,
                 name=f"{plugin_name}-edit-flat-post",
+            ),
+            # item
+            path(
+                f"<int:person_id>/plugin/{plugin_name}/edit/item/<str:item_id>",
+                self.get_item_view,
+                name=f"{plugin_name}-edit-item",
+            ),
+            path(
+                f"<int:person_id>/plugin/{plugin_name}/edit/item/",
+                self.get_item_view,
+                name=f"{plugin_name}-add-item",
+            ),
+            path(
+                f"<int:person_id>/plugin/{plugin_name}/edit/item/post/",
+                self.post_item_view,
+                name=f"{plugin_name}-item-post",
+            ),
+            path(
+                f"<int:person_id>/plugin/{plugin_name}/delete/<str:item_id>/",
+                self.delete_item_view,
+                name=f"{plugin_name}-delete-item",
             ),
         ]
         return urls

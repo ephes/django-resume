@@ -116,11 +116,16 @@ class TimelineMixin:
                 kwargs={"person_id": person_pk},
             ),
         )
+        ordered_entries = self.items_ordered_by_position(
+            plugin_data.get("items", []), reverse=True
+        )
+        for entry in ordered_entries:
+            entry["edit_url"] = self.inline.get_edit_item_url(
+                person_pk, item_id=entry["id"]
+            )
         timeline = TimelineForContext(
             title=plugin_data.get("flat", {}).get("title", self.verbose_name),
-            ordered_entries=self.items_ordered_by_position(
-                plugin_data.get("items", []), reverse=True
-            ),
+            ordered_entries=ordered_entries,
             templates=self.templates,
             edit_flat_url=reverse(
                 f"django_resume:{self.name}-edit-flat", kwargs={"person_id": person_pk}
