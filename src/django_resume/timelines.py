@@ -3,7 +3,7 @@ from typing import Type
 from django import forms
 from django.urls import reverse
 
-from .plugins import ListPlugin, ListItemFormMixin
+from .plugins import ListPlugin, ListItemFormMixin, ListTemplates
 
 
 class TimelineItemForm(ListItemFormMixin, forms.Form):
@@ -78,23 +78,26 @@ class TimelineForContext:
         *,
         title: str,
         ordered_entries: list[dict],
-        main_template: str,
-        flat_template: str,
+        templates: ListTemplates,
         edit_flat_url: str,
         edit_flat_post_url: str,
     ):
         self.title = title
         self.ordered_entries = ordered_entries
-        self.main_template = main_template
-        self.flat_template = flat_template
+        self.templates = templates
         self.edit_flat_url = edit_flat_url
         self.edit_flat_post_url = edit_flat_post_url
 
 
 class TimelineMixin:
-    main_template = "django_resume/plain/timeline.html"
-    flat_template = "django_resume/plain/timeline_flat.html"
-    flat_form_template = "django_resume/plain/timeline_flat_form.html"
+    name: str
+    verbose_name: str
+    templates = ListTemplates(
+        main="django_resume/plain/timeline.html",
+        flat="django_resume/plain/timeline_flat.html",
+        flat_form="django_resume/plain/timeline_flat_form.html",
+        item="django_resume/plain/timeline_item.html",
+    )
 
     @staticmethod
     def get_form_classes() -> dict[str, Type[forms.Form]]:
@@ -117,8 +120,7 @@ class TimelineMixin:
             ordered_entries=self.items_ordered_by_position(
                 plugin_data.get("items", []), reverse=True
             ),
-            main_template=self.main_template,
-            flat_template=self.flat_template,
+            templates=self.templates,
             edit_flat_url=reverse(
                 f"django_resume:{self.name}-edit-flat", kwargs={"person_id": person_pk}
             ),

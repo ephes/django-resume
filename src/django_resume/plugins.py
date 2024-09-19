@@ -100,6 +100,14 @@ class ListItemFormMixin(forms.Form):
         return self.initial.get("id", uuid4())
 
 
+class ListTemplates:
+    def __init__(self, *, main: str, flat: str, flat_form: str, item: str):
+        self.main = main
+        self.flat = flat
+        self.flat_form = flat_form
+        self.item = item
+
+
 class ListData:
     """
     This class contains the logic of the list plugin concerned with the data handling.
@@ -391,15 +399,13 @@ class ListInline:
         plugin_verbose_name: str,
         form_classes: dict,
         data: ListData,
-        flat_template: str,
-        flat_form_template: str,
+        templates: ListTemplates,
     ):
         self.plugin_name = plugin_name
         self.plugin_verbose_name = plugin_verbose_name
         self.form_classes = form_classes
         self.data = data
-        self.flat_template = flat_template
-        self.flat_form_template = flat_form_template
+        self.templates = templates
 
     # urls
 
@@ -427,7 +433,7 @@ class ListInline:
             "form": flat_form,
             "timeline": {"edit_flat_post_url": self.get_edit_flat_post_url(person.pk)},
         }
-        return render(request, self.flat_form_template, context=context)
+        return render(request, self.templates.flat_form, context=context)
 
     def post_edit_flat_view(self, request, person_id):
         print("in post edit flat view!")
@@ -446,13 +452,13 @@ class ListInline:
             )
             context["timeline"]["edit_flat_url"] = self.get_edit_flat_url(person.pk)
             context["show_edit_button"] = True
-            return render(request, self.flat_template, context=context)
+            return render(request, self.templates.flat, context=context)
         else:
             context["form"] = flat_form
             context["timeline"]["edit_flat_post_url"] = self.get_edit_flat_post_url(
                 person.pk
             )
-            response = render(request, self.flat_form_template, context=context)
+            response = render(request, self.templates.flat_form, context=context)
             return response
 
     # urlpatterns
@@ -483,8 +489,7 @@ class ListPlugin:
 
     name = "list_plugin"
     verbose_name = "List Plugin"
-    flat_template = "django_resume/plain/list_plugin_flat.html"
-    flat_form_template = "django_resume/plain/list_plugin_flat_form.html"
+    templates: ListTemplates = ListTemplates(main="", flat="", flat_form="", item="")
 
     def __init__(self):
         super().__init__()
@@ -501,8 +506,7 @@ class ListPlugin:
             plugin_verbose_name=self.verbose_name,
             form_classes=form_classes,
             data=data,
-            flat_template=self.flat_template,
-            flat_form_template=self.flat_form_template,
+            templates=self.templates,
         )
 
     # main interface see Plugin class

@@ -58,8 +58,8 @@
         <h2>About</h2>
         <p>{{ person.about }}</p>
       </section>
-      {% include freelance_timeline.main_template with timeline=freelance_timeline %}
-      {% include employed_timeline.main_template with timeline=employed_timeline %}
+      {% include freelance_timeline.templates.main with timeline=freelance_timeline %}
+      {% include employed_timeline.templates.main with timeline=employed_timeline %}
       <section class="stack">
         <h2>Education</h2>
         <div class="stack">
