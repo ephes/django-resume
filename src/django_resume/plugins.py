@@ -35,6 +35,10 @@ class Plugin(Protocol):
         """Return a dictionary of form classes that are used to manage the plugin data."""
         ...
 
+    def get_data(self, person: Person) -> dict:
+        """Return the plugin data for a person."""
+        ...
+
 
 class BasePlugin:
     name = "base_plugin"
@@ -467,7 +471,7 @@ class ListInline:
         return urls
 
 
-class ListPlugin(BasePlugin):
+class ListPlugin:
     """
     A plugin that displays a list of items. Simple crud operations are supported.
     Each item in the list is a json serializable dict and should have an "id" field.
@@ -503,6 +507,9 @@ class ListPlugin(BasePlugin):
     def get_form_classes(self) -> dict[str, type[forms.Form]]:
         """Please implement this method."""
         raise NotImplementedError
+
+    def get_data(self, person: Person) -> dict:
+        return self.data.get_data(person)
 
 
 class PluginRegistry:

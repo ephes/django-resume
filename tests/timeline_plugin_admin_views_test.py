@@ -46,7 +46,7 @@ def test_create_item(admin_client, person, timeline_item_data):
 
     # And the item should be in the database
     person.refresh_from_db()
-    plugin_data = plugin.get_data(person)
+    plugin_data = plugin.data.get_data(person)
     assert len(plugin_data["items"]) == 1
 
     [item] = plugin_data["items"]
@@ -76,8 +76,7 @@ def test_update_item(admin_client, person_with_timeline_item, timeline_item_data
     person: Person = person_with_timeline_item
     plugin = EmployedTimelinePlugin()
 
-    plugin_data = plugin.get_data(person)
-    print("plugin_data: ", plugin_data)
+    plugin_data = plugin.data.get_data(person)
     [item] = plugin_data["items"]
     timeline_item_data["id"] = item["id"]
     timeline_item_data["role"] = "Updated Developer"
@@ -91,7 +90,7 @@ def test_update_item(admin_client, person_with_timeline_item, timeline_item_data
 
     # And the item should be updated in the database
     person.refresh_from_db()
-    plugin_data = plugin.get_data(person)
+    plugin_data = plugin.data.get_data(person)
     [item] = plugin_data["items"]
     assert item["role"] == timeline_item_data["role"]
 
@@ -111,7 +110,7 @@ def test_delete_item(admin_client, person_with_timeline_item):
 
     # And the item should be removed from the database
     person.refresh_from_db()
-    plugin_data = plugin.get_data(person)
+    plugin_data = plugin.data.get_data(person)
     assert len(plugin_data["items"]) == 0
 
 
@@ -133,7 +132,7 @@ def test_update_flat_view(admin_client, person):
 
     # And the data should be in the database
     person.refresh_from_db()
-    plugin_data = plugin.get_data(person)
+    plugin_data = plugin.data.get_data(person)
     assert plugin_data["flat"]["title"] == "Updated title"
 
 
@@ -176,7 +175,7 @@ def test_add_and_update_via_main_change_view(admin_client, person, timeline_item
 
     # Then the item should be in the database and have an id
     person.refresh_from_db()
-    [item] = plugin.get_data(person)["items"]
+    [item] = plugin.data.get_data(person)["items"]
     assert item["role"] == timeline_item_data["role"]
     expected_item_id = item["id"]
 

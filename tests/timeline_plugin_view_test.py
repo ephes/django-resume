@@ -39,7 +39,6 @@ def test_edit_timeline_title(client, person):
     # Then the response should be successful and contain the updated title
     assert r.status_code == 200
     content = r.content.decode("utf-8")
-    print("content: ", content)
     assert "Updated title" in content
 
     # And the edit button should be still visible and the edit url should be in the context
@@ -48,5 +47,5 @@ def test_edit_timeline_title(client, person):
 
     # And the title should be updated in the database
     person.refresh_from_db()
-    plugin_data = plugin.get_data(person)
+    plugin_data = plugin.data.get_data(person)
     assert plugin_data["flat"]["title"] == "Updated title"
