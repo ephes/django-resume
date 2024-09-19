@@ -97,6 +97,7 @@ class TimelineMixin:
         flat="django_resume/plain/timeline_flat.html",
         flat_form="django_resume/plain/timeline_flat_form.html",
         item="django_resume/plain/timeline_item.html",
+        item_form="django_resume/plain/timeline_item_form.html",
     )
 
     @staticmethod

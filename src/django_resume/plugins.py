@@ -101,11 +101,14 @@ class ListItemFormMixin(forms.Form):
 
 
 class ListTemplates:
-    def __init__(self, *, main: str, flat: str, flat_form: str, item: str):
+    def __init__(
+        self, *, main: str, flat: str, flat_form: str, item: str, item_form: str
+    ):
         self.main = main
         self.flat = flat
         self.flat_form = flat_form
         self.item = item
+        self.item_form = item_form
 
 
 class ListData:
@@ -489,7 +492,9 @@ class ListPlugin:
 
     name = "list_plugin"
     verbose_name = "List Plugin"
-    templates: ListTemplates = ListTemplates(main="", flat="", flat_form="", item="")
+    templates: ListTemplates = ListTemplates(
+        main="", flat="", flat_form="", item="", item_form=""
+    )  # overwrite this
 
     def __init__(self):
         super().__init__()

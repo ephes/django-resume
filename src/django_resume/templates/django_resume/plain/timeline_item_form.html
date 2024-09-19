@@ -1,0 +1,29 @@
+<!-- just a copy of the timeline_item.html for now -->
+<div class="stack-small">
+  <div class="cluster timeline-header-cluster">
+    <div class="timeline-header-title">
+      {% if entry.company_url %}
+        <h3><a class="underlined" href="{{ entry.company_url }}">{{ entry.company_name }}</a></h3>
+      {% else %}
+        <h3>{{ entry.company_name }}</h3>
+      {% endif %}
+      {% if entry.badges %}
+        <ul class="cluster cluster-list job-badges-list">
+          {% for badge in entry.badges %}
+            <li>{{ badge }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% if show_edit_button %}
+      <button hx-get="{{ timeline.edit_flat_url }}" hx-target="closest h2" hx-swap="outerHTML">Edit</button>
+    {% endif %}
+    </div>
+    <ul class="cluster cluster-list year-span">
+      <li>{{ entry.start }}</li>
+      <li>-</li>
+      <li>{{ entry.end }}</li>
+    </ul>
+  </div>
+  <div class="sub-line">{{ entry.role }}</div>
+  <p>{{ entry.description|safe }}</p>
+</div>
