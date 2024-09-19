@@ -1,0 +1,6 @@
+  <h2>
+    {{ timeline.title }}
+    {% if show_edit_button %}
+      <button hx-get="{{ timeline.edit_flat_url }}" hx-target="closest h2" hx-swap="outerHTML">Edit</button>
+    {% endif %}   
+  </h2>

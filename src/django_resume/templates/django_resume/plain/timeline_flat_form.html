@@ -1,0 +1,22 @@
+<h2>
+  <form hx-post="{{ timeline.edit_flat_post_url }}" hx-target="closest h2" hx-swap="outerHTML">
+    {% csrf_token %}
+    {% if form.title.errors %}
+      <style>
+          .editable_h2 {
+              border: 1px solid red;
+          }
+
+          .error-title {
+              font-size: var(--s-1);
+              color: red;
+          }
+      </style>
+      {% for error in form.title.errors  %}
+        <p class="error-title">{{ error|escape }}</p>
+      {% endfor %}
+    {% endif %}
+    <input class="editable_h2" type="text" name="title" value="{{ form.title.value }}">
+    <button type="submit">OK</button>
+  </form>
+</h2>
