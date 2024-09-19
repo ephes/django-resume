@@ -67,14 +67,7 @@ class TimelineItemForm(ListItemFormMixin, forms.Form):
 
 
 class TimelineFlatForm(forms.Form):
-    title = forms.CharField(widget=forms.TextInput(), required=False, max_length=20)
-
-    def clean_title(self):
-        title = self.cleaned_data["title"]
-        if title == "Senor Developer":
-            print("No Senor! Validation Error!")
-            raise forms.ValidationError("No Senor!")
-        return title
+    title = forms.CharField(widget=forms.TextInput(), required=False, max_length=50)
 
 
 class TimelineForContext:
