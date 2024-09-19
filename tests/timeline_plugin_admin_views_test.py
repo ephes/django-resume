@@ -9,15 +9,10 @@ from django_resume.timelines import EmployedTimelinePlugin, TimelineItemForm
 # admin views of the base list plugin
 
 
-@pytest.fixture
-def person():
-    person = Person(name="John Doe", slug="john-doe")
-    person.save()
-    return person
-
-
+@pytest.mark.django_db
 def test_get_add_form(admin_client, person):
     # Given a person in the database and a timeline plugin
+    person.save()
     plugin = EmployedTimelinePlugin()
     add_form_url = plugin.get_admin_item_add_form_url(person.id)
 
@@ -39,6 +34,7 @@ def test_get_add_form(admin_client, person):
 @pytest.mark.django_db
 def test_create_item(admin_client, person, timeline_item_data):
     # Given a person in the database and a timeline plugin
+    person.save()
     plugin = EmployedTimelinePlugin()
     post_url = plugin.get_admin_change_item_post_url(person.id)
 
@@ -64,8 +60,7 @@ def test_create_item(admin_client, person, timeline_item_data):
 
 
 @pytest.fixture
-def person_with_timeline_item(timeline_item_data):
-    person: Person = Person(name="John Doe", slug="john-doe")
+def person_with_timeline_item(person, timeline_item_data):
     timeline_item_data["id"] = "123"
     plugin = EmployedTimelinePlugin()
     form = TimelineItemForm(data=timeline_item_data, person=person)
@@ -122,8 +117,10 @@ def test_delete_item(admin_client, person_with_timeline_item):
 # Test flat form data
 
 
+@pytest.mark.django_db
 def test_update_flat_view(admin_client, person):
     # Given a person in the database and a timeline plugin
+    person.save()
     plugin = EmployedTimelinePlugin()
     post_url = plugin.get_admin_change_flat_post_url(person.id)
 
@@ -142,6 +139,7 @@ def test_update_flat_view(admin_client, person):
 # Test main admin change view integration test
 
 
+@pytest.mark.django_db
 def test_add_and_update_via_main_change_view(admin_client, person, timeline_item_data):
     """
     There was an issue that when an item was added the id was missing in the update
@@ -151,6 +149,7 @@ def test_add_and_update_via_main_change_view(admin_client, person, timeline_item
     This test is to ensure that this won't happen again.
     """
     # Given a person in the database and a timeline plugin
+    person.save()
     plugin = EmployedTimelinePlugin()
     change_view_url = plugin.get_admin_change_url(person.id)
 
