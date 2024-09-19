@@ -157,6 +157,11 @@ class ListAdmin:
 
     Simple crud operations are supported. Each item in the list is a json serializable
     dict and should have an "id" field.
+
+    Why have an own class for this? Because the admin interface is different from the
+    inline editing on the website itself. For example: the admin interface has a change
+    view where all forms are displayed at once. Which makes sense, because the admin is
+    for editing.
     """
 
     admin_change_form_template = (
