@@ -1,4 +1,6 @@
 from django import forms
+from django.urls import reverse
+
 from .plugins import ListPlugin, ListItemFormMixin
 
 
@@ -65,7 +67,7 @@ class TimelineItemForm(ListItemFormMixin, forms.Form):
 
 
 class TimelineFlatForm(forms.Form):
-    title = forms.CharField(widget=forms.TextInput())
+    title = forms.CharField(widget=forms.TextInput(), required=False, max_length=20)
 
     def clean_title(self):
         title = self.cleaned_data["title"]
@@ -76,14 +78,28 @@ class TimelineFlatForm(forms.Form):
 
 
 class TimelineForContext:
-    def __init__(self, title, ordered_entries, template):
+    def __init__(
+        self,
+        *,
+        title: str,
+        ordered_entries: list[dict],
+        main_template: str,
+        flat_template: str,
+        edit_flat_url: str,
+        edit_flat_post_url: str,
+    ):
         self.title = title
         self.ordered_entries = ordered_entries
-        self.template = template
+        self.main_template = main_template
+        self.flat_template = flat_template
+        self.edit_flat_url = edit_flat_url
+        self.edit_flat_post_url = edit_flat_post_url
 
 
 class TimelineMixin:
-    template = "django_resume/plain/timeline.html"
+    main_template = "django_resume/plain/timeline.html"
+    flat_template = "django_resume/plain/timeline_flat.html"
+    flat_form_template = "django_resume/plain/timeline_flat_form.html"
 
     def get_admin_item_form(self):
         return TimelineItemForm
@@ -95,14 +111,28 @@ class TimelineMixin:
     def items_ordered_by_position(items, reverse=False):
         return sorted(items, key=lambda item: item.get("position", 0), reverse=reverse)
 
-    def get_data_for_context(self, person):
-        timeline_data = self.get_data(person)
-        timeline = TimelineForContext(
-            title=timeline_data.get("flat", {}).get("title", self.verbose_name),
-            ordered_entries=self.items_ordered_by_position(
-                timeline_data.get("items", []), reverse=True
+    def get_data_for_context(self, plugin_data, person_pk):
+        print(
+            "edit flat post: ",
+            reverse(
+                f"django_resume:{self.name}-edit-flat-post",
+                kwargs={"person_id": person_pk},
             ),
-            template=self.template,
+        )
+        timeline = TimelineForContext(
+            title=plugin_data.get("flat", {}).get("title", self.verbose_name),
+            ordered_entries=self.items_ordered_by_position(
+                plugin_data.get("items", []), reverse=True
+            ),
+            main_template=self.main_template,
+            flat_template=self.flat_template,
+            edit_flat_url=reverse(
+                f"django_resume:{self.name}-edit-flat", kwargs={"person_id": person_pk}
+            ),
+            edit_flat_post_url=reverse(
+                f"django_resume:{self.name}-edit-flat-post",
+                kwargs={"person_id": person_pk},
+            ),
         )
         return timeline
 

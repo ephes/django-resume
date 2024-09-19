@@ -16,6 +16,9 @@
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..500&display=swap" rel="stylesheet">
       <link href="https://fonts.googleapis.com/css2?family=Inconsolata:wght@200..900&family=Martian+Mono:wght@100..800&display=swap" rel="stylesheet">
     </noscript>
+    {% if show_edit_button %}
+      <script src="https://unpkg.com/htmx.org@2.0.2"></script>
+    {% endif %}
   </head>
   <body class="center">
     <header>
@@ -55,8 +58,8 @@
         <h2>About</h2>
         <p>{{ person.about }}</p>
       </section>
-      {% include freelance_timeline.template with timeline=freelance_timeline %}
-      {% include employed_timeline.template with timeline=employed_timeline %}
+      {% include freelance_timeline.main_template with timeline=freelance_timeline %}
+      {% include employed_timeline.main_template with timeline=employed_timeline %}
       <section class="stack">
         <h2>Education</h2>
         <div class="stack">

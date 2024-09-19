@@ -325,3 +325,18 @@ section {
   padding-block-start: var(--s1);
   padding-block-end: var(--s1);
 }
+
+/* split into styles_editable.css */
+
+.editable_h2 {
+  font-size: var(--s1);
+  font-family: inherit;  /* Ensure the same font is used */
+  font-weight: 600;
+  border: none; /* Remove input field border */
+  padding: 0; /* Match the spacing of the <h2> */
+  margin: 0; /* Remove margin */
+  background: transparent; /* Make background transparent */
+  width: 100%; /* Ensure the input takes the full width */
+  outline: none; /* Remove focus outline */
+  color: inherit; /* Use the same text color */
+}

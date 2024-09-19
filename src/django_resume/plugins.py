@@ -332,6 +332,70 @@ class ListPlugin(BasePlugin):
         plugin_data["items"] = items
         return self.set_data(person, plugin_data)
 
+    # edit urls and views
+
+    def get_edit_flat_post_url(self, person_id):
+        return reverse(
+            f"django_resume:{self.name}-edit-flat-post", kwargs={"person_id": person_id}
+        )
+
+    def get_edit_flat_url(self, person_id):
+        return reverse(
+            f"django_resume:{self.name}-edit-flat", kwargs={"person_id": person_id}
+        )
+
+    def get_edit_flat_view(self, request, person_id):
+        person = get_object_or_404(Person, id=person_id)
+        plugin_data = self.get_data(person)
+        flat_form_class = self.get_admin_flat_form()
+        flat_form = flat_form_class(initial=plugin_data.get("flat", {}))
+        flat_form.post_url = self.get_edit_flat_post_url(person.pk)
+        context = {
+            "form": flat_form,
+            "timeline": self.get_data_for_context(plugin_data, person.pk),
+        }
+        return render(request, self.flat_form_template, context=context)
+
+    def post_edit_flat_view(self, request, person_id):
+        print("in post edit flat view!")
+        person = get_object_or_404(Person, id=person_id)
+        flat_form_class = self.get_admin_flat_form()
+        plugin_data = self.get_data(person)
+        flat_form = flat_form_class(request.POST, initial=plugin_data.get("flat", {}))
+        context = {"timeline": {}}
+        if flat_form.is_valid():
+            person = self.update_flat(person, flat_form.cleaned_data)
+            person.save()
+            person.refresh_from_db()
+            context["timeline"]["title"] = plugin_data.get("flat", {}).get(
+                "title", self.verbose_name
+            )
+            context["timeline"]["edit_flat_url"] = self.get_edit_flat_url(person.pk)
+            context["show_edit_button"] = True
+            return render(request, self.flat_template, context=context)
+        else:
+            context["form"] = flat_form
+            context["timeline"]["edit_flat_post_url"] = self.get_edit_flat_post_url(
+                person.pk
+            )
+            response = render(request, self.flat_form_template, context=context)
+            return response
+
+    def get_edit_urls(self):
+        urls = [
+            path(
+                f"<int:person_id>/plugin/{self.name}/edit/flat/",
+                self.get_edit_flat_view,
+                name=f"{self.name}-edit-flat",
+            ),
+            path(
+                f"<int:person_id>/plugin/{self.name}/edit/flat/post/",
+                self.post_edit_flat_view,
+                name=f"{self.name}-edit-flat-post",
+            ),
+        ]
+        return urls
+
 
 class PluginRegistry:
     def __init__(self):
@@ -340,6 +404,9 @@ class PluginRegistry:
     def register(self, plugin_class):
         plugin = plugin_class()
         self.plugins[plugin.name] = plugin
+        from .urls import urlpatterns
+
+        urlpatterns.extend(plugin.get_edit_urls())
 
     def get_plugin(self, name):
         return self.plugins.get(name)

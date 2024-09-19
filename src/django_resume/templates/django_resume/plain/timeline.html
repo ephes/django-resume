@@ -1,5 +1,5 @@
 <section class="stack">
-  <h2>{{ timeline.title }}</h2>
+  {% include timeline.flat_template %}
   <div class="stack-large">
     {% for entry in timeline.ordered_entries %}
       <div class="stack-small">
