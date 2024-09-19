@@ -12,6 +12,8 @@ django_resume.egg-info
 __pycache__/
 *.pyc
 
+# coverage
+.coverage
 
 # Databases
 tests/test_database.sqlite3

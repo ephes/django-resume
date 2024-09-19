@@ -19,6 +19,7 @@ dev-dependencies = [
     "pytest-django>=4.9.0",
     "django-extensions>=3.2.3",
     "django-stubs[compatible-mypy]>=5.0.4",
+    "coverage>=7.6.1",
 ]
 
 [tool.pytest.ini_options]
@@ -33,3 +34,18 @@ exclude = "[a-zA-Z]*/(migrations)|(example)/(.)*"  # ignore migrations
 
 [tool.django-stubs]
 django_settings_module = "tests.settings"
+
+[tool.coverage.run]
+branch = true
+source = ["src"]
+omit = [
+    "*/migrations/*",
+]
+
+[tool.coverage.report]
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+]
