@@ -16,7 +16,7 @@ def test_edit_timeline_title(client, person):
     plugin = EmployedTimelinePlugin()
 
     # When we get the title edit view
-    title_edit_url = plugin.get_edit_flat_url(person.pk)
+    title_edit_url = plugin.inline.get_edit_flat_url(person.pk)
     r = client.get(title_edit_url)
 
     # Then the response should be successful and contain the title form
@@ -24,7 +24,7 @@ def test_edit_timeline_title(client, person):
     assert "form" in r.context
 
     # When we post a title that is too long using the edit form
-    title_edit_post_url = r.context["timeline"].edit_flat_post_url
+    title_edit_post_url = r.context["timeline"]["edit_flat_post_url"]
     r = client.post(title_edit_post_url, {"title": "x" * 51})
 
     # Then the response should be successful and contain the title form with an error

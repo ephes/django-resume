@@ -1,3 +1,5 @@
+from typing import Type
+
 from django import forms
 from django.urls import reverse
 
@@ -94,11 +96,9 @@ class TimelineMixin:
     flat_template = "django_resume/plain/timeline_flat.html"
     flat_form_template = "django_resume/plain/timeline_flat_form.html"
 
-    def get_admin_item_form(self):
-        return TimelineItemForm
-
-    def get_admin_flat_form(self):
-        return TimelineFlatForm
+    @staticmethod
+    def get_form_classes() -> dict[str, Type[TimelineItemForm | TimelineFlatForm]]:
+        return {"item": TimelineItemForm, "flat": TimelineFlatForm}
 
     @staticmethod
     def items_ordered_by_position(items, reverse=False):

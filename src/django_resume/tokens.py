@@ -77,6 +77,8 @@ class TokenPlugin(ListPlugin):
 
     name = "token"
     verbose_name = "CV Token"
+    flat_template = "django_resume/plain/token_flat.html"
+    flat_form_template = "django_resume/plain/token_flat_form.html"
 
     def get_admin_item_form(self):
         return TokenItemForm
