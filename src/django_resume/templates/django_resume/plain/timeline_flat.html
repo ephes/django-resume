@@ -1,6 +1,8 @@
-  <h2>
-    {{ timeline.title }}
-    {% if show_edit_button %}
-      <button hx-get="{{ timeline.edit_flat_url }}" hx-target="closest h2" hx-swap="outerHTML">Edit</button>
-    {% endif %}   
-  </h2>
+<h2>
+  {{ timeline.title }}
+  {% if show_edit_button %}
+    <svg class="icon" hx-get="{{ timeline.edit_flat_url }}" hx-target="closest h2" hx-swap="outerHTML">
+      <use href="#edit"></use>
+    </svg>
+  {% endif %}
+</h2>

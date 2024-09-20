@@ -13,14 +13,16 @@
           {% endfor %}
         </ul>
       {% endif %}
-    {% if show_edit_button %}
-      <button hx-get="{{ entry.edit_url }}" hx-target="#item-{{ entry.id }}" hx-swap="outerHTML">Edit</button>
-    {% endif %}
     </div>
     <ul class="cluster cluster-list year-span">
       <li>{{ entry.start }}</li>
       <li>-</li>
       <li>{{ entry.end }}</li>
+      {% if show_edit_button %}
+        <svg class="icon" hx-get="{{ entry.edit_url }}" hx-target="#item-{{ entry.id }}" hx-swap="outerHTML">
+          <use href="#edit"></use>
+        </svg>
+      {% endif %}
     </ul>
   </div>
   <div class="sub-line">{{ entry.role }}</div>
