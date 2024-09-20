@@ -179,6 +179,14 @@ svg {
   --color-light: #fff;
   --color-dark: #000;
   color: var(--font-color);
+  transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease;
+}
+
+.project-box:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 5px 10px rgba(110, 114, 124, 0.15);
+  /*background-color: rgba(52, 136, 218, 0.05); !* link color 30% *!*/
+  background: linear-gradient(to bottom, rgba(52, 136, 218, 0.1), rgba(255, 255, 255, 0));
 }
 
 .project-box > h3 {
