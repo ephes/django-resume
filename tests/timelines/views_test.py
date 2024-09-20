@@ -102,6 +102,14 @@ def test_create_item(client, person, timeline_item_data):
     [item] = plugin.data.get_data(person)["items"]
     assert item["company_name"] == timeline_item_data["company_name"]
 
+    # And the delete and edit urls should be in the context
+    assert r.context["entry"]["delete_url"] == plugin.inline.get_delete_item_url(
+        person.pk, item["id"]
+    )
+    assert r.context["entry"]["edit_url"] == plugin.inline.get_edit_item_url(
+        person.pk, item["id"]
+    )
+
 
 @pytest.mark.django_db
 def test_update_item(client, person_with_timeline_item, timeline_item_data):
@@ -121,6 +129,14 @@ def test_update_item(client, person_with_timeline_item, timeline_item_data):
     person.refresh_from_db()
     [updated_item] = plugin.data.get_data(person)["items"]
     assert updated_item["company_name"] == timeline_item_data["company_name"]
+
+    # And the delete and edit urls should be in the context
+    assert r.context["entry"]["delete_url"] == plugin.inline.get_delete_item_url(
+        person.pk, item["id"]
+    )
+    assert r.context["entry"]["edit_url"] == plugin.inline.get_edit_item_url(
+        person.pk, item["id"]
+    )
 
 
 @pytest.mark.django_db
