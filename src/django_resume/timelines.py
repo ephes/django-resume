@@ -1,9 +1,8 @@
-from typing import Type
+from typing import Type, Any
 
 from django import forms
-from django.urls import reverse
 
-from .plugins import ListPlugin, ListItemFormMixin, ListTemplates
+from .plugins import ListPlugin, ListItemFormMixin, ListTemplates, ListInline
 
 
 class TimelineItemForm(ListItemFormMixin, forms.Form):
@@ -94,6 +93,7 @@ class TimelineForContext:
 class TimelineMixin:
     name: str
     verbose_name: str
+    inline: ListInline
     templates = ListTemplates(
         main="django_resume/plain/timeline.html",
         flat="django_resume/plain/timeline_flat.html",
@@ -110,37 +110,28 @@ class TimelineMixin:
     def items_ordered_by_position(items, reverse=False):
         return sorted(items, key=lambda item: item.get("position", 0), reverse=reverse)
 
-    def get_data_for_context(self, plugin_data, person_pk):
-        print(
-            "edit flat post: ",
-            reverse(
-                f"django_resume:{self.name}-edit-flat-post",
-                kwargs={"person_id": person_pk},
-            ),
-        )
+    def get_context(
+        self, plugin_data, person_pk, *, context: dict[str, Any]
+    ) -> TimelineForContext:
         ordered_entries = self.items_ordered_by_position(
             plugin_data.get("items", []), reverse=True
         )
-        # add the edit URLs to each entry
-        for entry in ordered_entries:
-            entry["edit_url"] = self.inline.get_edit_item_url(
-                person_pk, item_id=entry["id"]
-            )
-            entry["delete_url"] = self.inline.get_delete_item_url(
-                person_pk, item_id=entry["id"]
-            )
+        if context.get("show_edit_button", False):
+            # if there should be edit buttons, add the edit URLs to each entry
+            for entry in ordered_entries:
+                entry["edit_url"] = self.inline.get_edit_item_url(
+                    person_pk, item_id=entry["id"]
+                )
+                entry["delete_url"] = self.inline.get_delete_item_url(
+                    person_pk, item_id=entry["id"]
+                )
         timeline = TimelineForContext(
             title=plugin_data.get("flat", {}).get("title", self.verbose_name),
             ordered_entries=ordered_entries,
             templates=self.templates,
             add_item_url=self.inline.get_edit_item_url(person_pk),
-            edit_flat_url=reverse(
-                f"django_resume:{self.name}-edit-flat", kwargs={"person_id": person_pk}
-            ),
-            edit_flat_post_url=reverse(
-                f"django_resume:{self.name}-edit-flat-post",
-                kwargs={"person_id": person_pk},
-            ),  # use method? refactor plz # FIXME
+            edit_flat_url=self.inline.get_edit_flat_url(person_pk),
+            edit_flat_post_url=self.inline.get_edit_flat_post_url(person_pk),
         )
         return timeline
 

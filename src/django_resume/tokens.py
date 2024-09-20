@@ -86,6 +86,6 @@ class TokenPlugin(ListPlugin):
     def get_admin_form(self):
         return TokenForm
 
-    def get_data_for_context(self, plugin_data, person):
+    def get_context(self, plugin_data, _person_pk, *, context):
         print("token_data: ", plugin_data)
         return {}

@@ -39,6 +39,12 @@ class Plugin(Protocol):
         """Return the plugin data for a person."""
         ...
 
+    def get_context(
+        self, plugin_data: dict, person_pk: int, *, context: dict
+    ) -> object:
+        """Return the object which is stored in context for the plugin."""
+        ...
+
 
 class BasePlugin:
     name = "base_plugin"
