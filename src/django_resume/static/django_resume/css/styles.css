@@ -160,6 +160,17 @@ svg {
   height: 1.25em;
 }
 
+.icon-link {
+  position: absolute;
+  top: var(--s-2);
+  right: var(--s-2);
+  color: #0071c7 !important;
+}
+
+.link-margin {
+  margin-inline-end: var(--s-1);
+}
+
 .with-icon {
   display: inline-flex;
   vertical-align: middle;
@@ -170,6 +181,7 @@ svg {
 }
 
 .project-box {
+  position: relative;
   display: flex;
   flex-direction: column;
   justify-content: space-between;

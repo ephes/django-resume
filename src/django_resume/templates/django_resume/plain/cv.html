@@ -88,15 +88,22 @@
         <h2>Projects</h2>
         <div class="grid">
           {% for project in projects %}
-            <a href="{{ project.url }}" aria-label="{{ project.title }}" class="project-box stack stack-card">
-              <h3>{{ project.title }}</h3>
+            <div aria-label="{{ project.title }}" class="project-box stack stack-card">
+              <div>
+                <h3 class="link-margin">{{ project.title }}</h3>
+                <a href="{{ project.url }}">
+                  <svg class="icon icon-link">
+                    <use href="#link"></use>
+                  </svg>
+                </a>
+              </div>
               <p>{{ project.description }}</p>
               <ul class="cluster cluster-list project-badges-list">
                 {% for badge in project.badges_list %}
                   <li>{{ badge }}</li>
                 {% endfor %}
               </ul>
-            </a>
+            </div>
           {% endfor %}
         </div>
       </section>
