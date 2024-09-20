@@ -65,7 +65,11 @@
   {% for error in form.description.errors %}
     <p class="error-field">{{ error|escape }}</p>
   {% endfor %}
-  <button id="submit-item-{{ form.item_id }}" type="submit">OK</button>
+  <button id="submit-item-{{ form.item_id }}" type="submit">
+    <svg class="icon">
+      <use href="#ok"></use>
+    </svg>
+  </button>
   <script>
       {#If then submit button is clicked, then collect all the data from the contenteditable elements#}
       {#and copy them to the hidden input fields in the form. Then submit the form using htmx.#}
