@@ -22,6 +22,16 @@
         <svg class="icon" hx-get="{{ entry.edit_url }}" hx-target="#item-{{ entry.id }}" hx-swap="outerHTML">
           <use href="#edit"></use>
         </svg>
+        <svg
+          class="icon"
+          style="color: red !important;"
+          hx-delete="{{ entry.delete_url }}"
+          hx-target="#item-{{ entry.id }}"
+          hx-swap="delete"
+          hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
+        >
+          <use href="#delete"></use>
+        </svg>
       {% endif %}
     </ul>
   </div>

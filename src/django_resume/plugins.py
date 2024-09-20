@@ -522,7 +522,6 @@ class ListInline:
         return render(request, self.templates.item_form, context=context)
 
     def post_item_view(self, request, person_id):
-        print("in post item view! ", person_id)
         person = get_object_or_404(Person, id=person_id)
         form_class = self.form_classes["item"]
         existing_items = self.data.get_data(person).get("items", [])

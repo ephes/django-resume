@@ -1,5 +1,3 @@
-import re
-
 import pytest
 
 from django_resume.models import Person
@@ -42,8 +40,8 @@ def test_edit_timeline_title(client, person):
     content = r.content.decode("utf-8")
     assert "Updated title" in content
 
-    # And the edit button should be still visible and the edit url should be in the context
-    assert re.search(r"<button[^>]*>Edit</button>", content) is not None
+    # And the edit button should be still visible and the edit and delete url should be in the context
+    assert '<use href="#edit"></use>' in content
     assert r.context["timeline"]["edit_flat_url"] == title_edit_url
 
     # And the title should be updated in the database

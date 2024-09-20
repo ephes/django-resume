@@ -119,8 +119,12 @@ class TimelineMixin:
         ordered_entries = self.items_ordered_by_position(
             plugin_data.get("items", []), reverse=True
         )
+        # add the edit URLs to each entry
         for entry in ordered_entries:
             entry["edit_url"] = self.inline.get_edit_item_url(
+                person_pk, item_id=entry["id"]
+            )
+            entry["delete_url"] = self.inline.get_delete_item_url(
                 person_pk, item_id=entry["id"]
             )
         timeline = TimelineForContext(
