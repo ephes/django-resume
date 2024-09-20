@@ -1,24 +1,91 @@
-<form hx-post="{{ form.post_url }}" hx-swap="outerHTML" class="stack-small">
-  {% csrf_token %}
-  <input type="hidden" name="id" value="{{ form.id.value }}">
-  <input type="hidden" name="position" value="{{ form.position.value }}">
+<div id="item-{{ form.item_id }}" class="stack-small">
+  {#  This is a hidden form that will be submitted by the button below.#}
+  <style>
+      .error-field {
+          font-size: var(--s0);
+          color: red;
+      }
+  </style>
+  <form
+    id="form-{{ form.item_id }}"
+    class="stack-small"
+    hx-post="{{ form.post_url }}"
+    hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
+    hx-target="#item-{{ form.item_id }}"
+    hx-swap="outerHTML"
+  >
+    <input data-field="id" type="hidden" name="id" value="{{ form.item_id }}">
+    <input data-field="position" type="hidden" name="position" value="{{ form.position.value }}">
+    <input type="hidden" data-field="company_url" name="company_url" value="{{ form.company_url.value }}">
+    <input type="hidden" data-field="company_name" name="company_name" value="{{ form.company_name.value }}">
+    <input type="hidden" data-field="badges" name="badges" value="{{ form.badges.value }}">
+    <input type="hidden" data-field="start" name="start" value="{{ form.start.value }}">
+    <input type="hidden" data-field="end" name="end" value="{{ form.end.value }}">
+    <input type="hidden" data-field="role" name="role" value="{{ form.role.value }}">
+    <input type="hidden" data-field="description" name="description" value="{{ form.description.value }}">
+  </form>
   <div class="cluster timeline-header-cluster">
-    <div class="editable_block">
-      <input class="editable_h3" type="text" name="company_name" value="{{ form.company_name.value }}">
-      <input class="editable_h3" type="text" name="company_url" value="{{ form.company_url.value }}">
-      <input class="editable_h3" type="text" name="badges" value="{{ form.badges.value }}">
+    <div class="timeline-header-title">
+      <h3>
+        <span contenteditable="true" data-field="company_name">{{ form.company_name.value }}</span>
+        {% for error in form.company_name.errors %}
+          <p class="error-field">{{ error|escape }}</p>
+        {% endfor %}
+        <span contenteditable="true" data-field="company_url">{{ form.company_url.value }}</span>
+        {% for error in form.company_url.errors %}
+          <p class="error-field">{{ error|escape }}</p>
+        {% endfor %}
+      </h3>
+      {% if form.badges.value %}
+        <ul class="cluster cluster-list job-badges-list">
+          <li contenteditable="true" data-field="badges">{{ form.badges.value }}</li>
+        </ul>
+        {% for error in form.badges.errors %}
+          <p class="error-field">{{ error|escape }}</p>
+        {% endfor %}
+      {% endif %}
     </div>
     <ul class="cluster cluster-list year-span">
-      <li><input class="editable_year_span" type="text" name="start" value="{{ form.start.value }}"></li>
+      <li contenteditable="true" data-field="start">{{ form.start.value }}</li>
       <li>-</li>
-      <li><input class="editable_year_span" type="text" name="end" value="{{ form.end.value }}"></li>
+      <li contenteditable="true" data-field="end">{{ form.end.value }}</li>
     </ul>
+    {% for error in form.start.errors %}
+      <p class="error-field">{{ error|escape }}</p>
+    {% endfor %}
+    {% for error in form.end.errors %}
+      <p class="error-field">{{ error|escape }}</p>
+    {% endfor %}
   </div>
-  <div class="sub-line">
-    <input class="editable_sub_line" size="30" type="text" name="role" value="{{ form.role.value }}">
-  </div>
-  <p>
-    <textarea class="editable_description" cols="65" rows="4" name="description">{{ form.description.value }}</textarea>
-  </p>
-  <button type="submit">OK</button>
-</form>
+  <div contenteditable="true" data-field="role" class="sub-line">{{ form.role.value }}</div>
+  {% for error in form.role.errors %}
+    <p class="error-field">{{ error|escape }}</p>
+  {% endfor %}
+  <p contenteditable="true" data-field="description">{{ form.description.value|safe }}</p>
+  {% for error in form.description.errors %}
+    <p class="error-field">{{ error|escape }}</p>
+  {% endfor %}
+  <button id="submit-item-{{ form.item_id }}" type="submit">OK</button>
+  <script>
+      {#If then submit button is clicked, then collect all the data from the contenteditable elements#}
+      {#and copy them to the hidden input fields in the form. Then submit the form using htmx.#}
+      document.getElementById("submit-item-{{ form.item_id }}").addEventListener("click", function (e) {
+          const timelineItem = document.getElementById("item-{{ form.item_id }}");
+          const formElement = document.getElementById("form-{{ form.item_id }}");
+          const editableElements = timelineItem.querySelectorAll("[contenteditable=true]");
+          const formValues = {"id": "{{ form.item_id }}"};
+          editableElements.forEach((field) => {
+              const fieldName = field.dataset.field;
+              const fieldValue = field.textContent.trim();
+              formValues[fieldName] = fieldValue;
+              const hiddenInput = formElement.querySelector(`input[type="hidden"][data-field="${fieldName}"]`);
+              if (hiddenInput) {
+                  hiddenInput.value = fieldValue;
+                  console.log("hiddenInput: ", fieldName, fieldValue);
+              }
+          });
+          console.log("formValues: ", formValues);
+          htmx.trigger(formElement, "submit");
+      });
+  </script>
+</div>

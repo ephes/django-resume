@@ -11,7 +11,7 @@ class TimelineItemForm(ListItemFormMixin, forms.Form):
     company_url = forms.URLField(
         widget=forms.URLInput(), required=False, assume_scheme="https"
     )
-    company_name = forms.CharField(widget=forms.TextInput())
+    company_name = forms.CharField(widget=forms.TextInput(), max_length=50)
     description = forms.CharField(widget=forms.Textarea())
     start = forms.CharField(widget=forms.TextInput(), required=False)
     end = forms.CharField(widget=forms.TextInput(), required=False)

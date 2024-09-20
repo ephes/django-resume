@@ -545,6 +545,8 @@ class ListInline:
             person.save()
             item = self.data.get_item_by_id(person, item_id)
             form.delete_url = self.get_delete_item_url(person.id, item_id)
+            # populate entry because it's used in the standard item template,
+            # and we are no longer rendering a form when the form was valid
             context["entry"] = {
                 "id": item_id,
                 "company_url": item["company_url"],
@@ -558,7 +560,9 @@ class ListInline:
             }
             context["show_edit_button"] = True
             return render(request, self.templates.item, context)
-        return render(request, self.templates.item_form, context)
+        else:
+            # form is invalid
+            return render(request, self.templates.item_form, context)
 
     def delete_item_view(self, _request, person_id, item_id):
         """Delete an item from the items list of this plugin."""
