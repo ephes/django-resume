@@ -97,7 +97,9 @@ class ListItemFormMixin(forms.Form):
         """
         if self.is_bound:
             return self.cleaned_data.get("id", uuid4())
-        return self.initial.get("id", uuid4())
+        if self.initial.get("id") is None:
+            self.initial["id"] = uuid4()
+        return self.initial["id"]
 
 
 class ListTemplates:
@@ -504,7 +506,7 @@ class ListInline:
         # get the item data if we are editing an existing item
         initial = {
             "company_name": "company_name",
-            "company_url": "company_url",
+            "company_url": "https://example.com",
             "role": "role",
             "start": "start",
             "end": "end",
@@ -522,6 +524,7 @@ class ListInline:
         return render(request, self.templates.item_form, context=context)
 
     def post_item_view(self, request, person_id):
+        print("in post item view!")
         person = get_object_or_404(Person, id=person_id)
         form_class = self.form_classes["item"]
         existing_items = self.data.get_data(person).get("items", [])
@@ -529,10 +532,22 @@ class ListInline:
         form.post_url = self.get_post_item_url(person.pk)
         context = {"form": form}
         if form.is_valid():
-            if form.cleaned_data.get("id", False):
+            # try to find out whether we are updating an existing item or creating a new one
+            existing = True
+            item_id = form.cleaned_data.get("id", None)
+            if item_id is not None:
+                item = self.data.get_item_by_id(person, item_id)
+                if item is None:
+                    existing = False
+            else:
+                # no item_id -> new item
+                existing = False
+            if existing:
+                # update existing item
                 item_id = form.cleaned_data["id"]
                 person = self.data.update(person, form.cleaned_data)
             else:
+                # create new item
                 data = form.cleaned_data
                 item_id = str(uuid4())
                 data["id"] = item_id

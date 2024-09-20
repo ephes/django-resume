@@ -79,12 +79,14 @@ class TimelineForContext:
         title: str,
         ordered_entries: list[dict],
         templates: ListTemplates,
+        add_item_url: str,
         edit_flat_url: str,
         edit_flat_post_url: str,
     ):
         self.title = title
         self.ordered_entries = ordered_entries
         self.templates = templates
+        self.add_item_url = add_item_url
         self.edit_flat_url = edit_flat_url
         self.edit_flat_post_url = edit_flat_post_url
 
@@ -131,13 +133,14 @@ class TimelineMixin:
             title=plugin_data.get("flat", {}).get("title", self.verbose_name),
             ordered_entries=ordered_entries,
             templates=self.templates,
+            add_item_url=self.inline.get_edit_item_url(person_pk),
             edit_flat_url=reverse(
                 f"django_resume:{self.name}-edit-flat", kwargs={"person_id": person_pk}
             ),
             edit_flat_post_url=reverse(
                 f"django_resume:{self.name}-edit-flat-post",
                 kwargs={"person_id": person_pk},
-            ),
+            ),  # use method? refactor plz # FIXME
         )
         return timeline
 
