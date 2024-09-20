@@ -14,7 +14,5 @@ class ResumeConfig(AppConfig):
         plugin_registry.register(EmployedTimelinePlugin)
         plugin_registry.register(TokenPlugin)
 
-        print("Plugin registry: ", plugin_registry.plugins)
-
     def ready(self):
         self.register_plugins()
