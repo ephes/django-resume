@@ -45,6 +45,8 @@ class TimelineItemForm(ListItemFormMixin, forms.Form):
             "end": item["end"],
             "description": item["description"],
             "badges": item["badges"],
+            "edit_url": context["edit_url"],
+            "delete_url": context["delete_url"],
         }
         return context
 

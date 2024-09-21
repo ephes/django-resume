@@ -562,9 +562,9 @@ class ListInline:
             item = self.data.get_item_by_id(person, item_id)
             # populate entry because it's used in the standard item template,
             # and we are no longer rendering a form when the form was valid
-            form.set_context(item, context)
-            context["edit_url"] = (self.get_edit_item_url(person.id, item_id),)
+            context["edit_url"] = self.get_edit_item_url(person.id, item_id)
             context["delete_url"] = self.get_delete_item_url(person.id, item_id)
+            form.set_context(item, context)
             context["show_edit_button"] = True
             return render(request, self.templates.item, context)
         else:

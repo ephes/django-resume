@@ -34,6 +34,8 @@ class ProjectItemForm(ListItemFormMixin, forms.Form):
             "title": item["title"],
             "description": item["description"],
             "badges": item["badges"],
+            "edit_url": context["edit_url"],
+            "delete_url": context["delete_url"],
         }
         return context
 
