@@ -1,11 +1,5 @@
 <div id="item-{{ form.item_id }}" class="stack-small">
   {#  This is a hidden form that will be submitted by the button below.#}
-  <style>
-      .error-field {
-          font-size: var(--s0);
-          color: red;
-      }
-  </style>
   <form
     id="form-{{ form.item_id }}"
     class="stack-small"
@@ -28,21 +22,12 @@
     <div class="timeline-header-title">
       <h3>
         <span contenteditable="true" data-field="company_name">{{ form.company_name.value }}</span>
-        {% for error in form.company_name.errors %}
-          <p class="error-field">{{ error|escape }}</p>
-        {% endfor %}
         <span contenteditable="true" data-field="company_url">{{ form.company_url.value }}</span>
-        {% for error in form.company_url.errors %}
-          <p class="error-field">{{ error|escape }}</p>
-        {% endfor %}
       </h3>
       {% if form.badges.value %}
         <ul class="cluster cluster-list job-badges-list">
           <li contenteditable="true" data-field="badges">{{ form.badges.value }}</li>
         </ul>
-        {% for error in form.badges.errors %}
-          <p class="error-field">{{ error|escape }}</p>
-        {% endfor %}
       {% endif %}
     </div>
     <ul class="cluster cluster-list year-span">
@@ -50,20 +35,30 @@
       <li>-</li>
       <li contenteditable="true" data-field="end">{{ form.end.value }}</li>
     </ul>
-    {% for error in form.start.errors %}
-      <p class="error-field">{{ error|escape }}</p>
-    {% endfor %}
-    {% for error in form.end.errors %}
-      <p class="error-field">{{ error|escape }}</p>
-    {% endfor %}
   </div>
+  {# place form errors for timeline header fields below header #}
+  {% for error in form.company_url.errors %}
+    <p class="error">{{ error|escape }}</p>
+  {% endfor %}
+  {% for error in form.company_name.errors %}
+    <p class="error">{{ error|escape }}</p>
+  {% endfor %}
+  {% for error in form.badges.errors %}
+    <p class="error">{{ error|escape }}</p>
+  {% endfor %}
+  {% for error in form.start.errors %}
+    <p class="error">{{ error|escape }}</p>
+  {% endfor %}
+  {% for error in form.end.errors %}
+    <p class="error">{{ error|escape }}</p>
+  {% endfor %}
   <div contenteditable="true" data-field="role" class="sub-line">{{ form.role.value }}</div>
   {% for error in form.role.errors %}
-    <p class="error-field">{{ error|escape }}</p>
+    <p class="error">{{ error|escape }}</p>
   {% endfor %}
   <p contenteditable="true" data-field="description">{{ form.description.value|safe }}</p>
   {% for error in form.description.errors %}
-    <p class="error-field">{{ error|escape }}</p>
+    <p class="error">{{ error|escape }}</p>
   {% endfor %}
   <button id="submit-item-{{ form.item_id }}" type="submit">
     <svg class="icon">

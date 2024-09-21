@@ -1,0 +1,8 @@
+.editable_h2 {
+    border: 1px solid red;
+}
+
+.error {
+    font-size: var(--s0);
+    color: red;
+}
