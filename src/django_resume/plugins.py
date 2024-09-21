@@ -308,7 +308,7 @@ class ListAdmin:
         item_form_class = form_classes["item"]
         initial_items_data = plugin_data.get("items", [])
         post_url = self.get_change_item_post_url(person.id)
-        timeline_forms = []
+        item_forms = []
         for initial_item_data in initial_items_data:
             form = item_form_class(
                 initial=initial_item_data,
@@ -319,9 +319,9 @@ class ListAdmin:
             form.delete_url = self.get_delete_item_url(
                 person.id, initial_item_data["id"]
             )
-            timeline_forms.append(form)
+            item_forms.append(form)
         context["add_item_form_url"] = self.get_item_add_form_url(person.id)
-        context["item_forms"] = timeline_forms
+        context["item_forms"] = item_forms
         return render(request, self.admin_change_form_template, context)
 
     def post_item_view(self, request, person_id):
@@ -475,7 +475,9 @@ class ListInline:
         flat_form.post_url = self.get_edit_flat_post_url(person.pk)
         context = {
             "form": flat_form,
-            "timeline": {"edit_flat_post_url": self.get_edit_flat_post_url(person.pk)},
+            self.plugin_name: {
+                "edit_flat_post_url": self.get_edit_flat_post_url(person.pk)
+            },
         }
         return render(request, self.templates.flat_form, context=context)
 
@@ -485,22 +487,24 @@ class ListInline:
         flat_form_class = self.form_classes["flat"]
         plugin_data = self.data.get_data(person)
         flat_form = flat_form_class(request.POST, initial=plugin_data.get("flat", {}))
-        context = {"timeline": {}}
+        context = {self.plugin_name: {}}
         if flat_form.is_valid():
             person = self.data.update_flat(person, flat_form.cleaned_data)
             person.save()
             person.refresh_from_db()
             plugin_data = self.data.get_data(person)
-            context["timeline"]["title"] = plugin_data.get("flat", {}).get(
+            context[self.plugin_name]["title"] = plugin_data.get("flat", {}).get(
                 "title", self.plugin_verbose_name
             )
-            context["timeline"]["edit_flat_url"] = self.get_edit_flat_url(person.pk)
+            context[self.plugin_name]["edit_flat_url"] = self.get_edit_flat_url(
+                person.pk
+            )
             context["show_edit_button"] = True
             return render(request, self.templates.flat, context=context)
         else:
             context["form"] = flat_form
-            context["timeline"]["edit_flat_post_url"] = self.get_edit_flat_post_url(
-                person.pk
+            context[self.plugin_name]["edit_flat_post_url"] = (
+                self.get_edit_flat_post_url(person.pk)
             )
             response = render(request, self.templates.flat_form, context=context)
             return response
@@ -509,21 +513,13 @@ class ListInline:
         person = get_object_or_404(Person, id=person_id)
         plugin_data = self.data.get_data(person)
         existing_items = plugin_data.get("items", [])
+        form_class = self.form_classes["item"]
         # get the item data if we are editing an existing item
-        initial = {
-            "company_name": "company_name",
-            "company_url": "https://example.com",
-            "role": "role",
-            "start": "start",
-            "end": "end",
-            "description": "description",
-            "badges": "badges",
-        }
+        initial = form_class.get_initial()
         if item_id is not None:
             for item in existing_items:
                 if item["id"] == item_id:
                     initial = item
-        form_class = self.form_classes["item"]
         form = form_class(initial=initial, person=person, existing_items=existing_items)
         form.post_url = self.get_post_item_url(person.pk)
         context = {"form": form}
@@ -566,18 +562,9 @@ class ListInline:
             item = self.data.get_item_by_id(person, item_id)
             # populate entry because it's used in the standard item template,
             # and we are no longer rendering a form when the form was valid
-            context["entry"] = {
-                "id": item_id,
-                "company_url": item["company_url"],
-                "company_name": item["company_name"],
-                "role": item["role"],
-                "start": item["start"],
-                "end": item["end"],
-                "description": item["description"],
-                "badges": item["badges"],
-                "edit_url": self.get_edit_item_url(person.id, item_id),
-                "delete_url": self.get_delete_item_url(person.id, item_id),
-            }
+            form.set_context(item, context)
+            context["edit_url"] = (self.get_edit_item_url(person.id, item_id),)
+            context["delete_url"] = self.get_delete_item_url(person.id, item_id)
             context["show_edit_button"] = True
             return render(request, self.templates.item, context)
         else:

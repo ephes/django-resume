@@ -5,15 +5,10 @@ from django import forms
 from .plugins import ListPlugin, ListItemFormMixin, ListTemplates, ListInline
 
 
-class TimelineItemForm(ListItemFormMixin, forms.Form):
-    role = forms.CharField(widget=forms.TextInput())
-    company_url = forms.URLField(
-        widget=forms.URLInput(), required=False, assume_scheme="https"
-    )
-    company_name = forms.CharField(widget=forms.TextInput(), max_length=50)
+class ProjectItemForm(ListItemFormMixin, forms.Form):
+    title = forms.CharField(widget=forms.TextInput())
+    url = forms.URLField(widget=forms.URLInput(), required=False, assume_scheme="https")
     description = forms.CharField(widget=forms.Textarea())
-    start = forms.CharField(widget=forms.TextInput(), required=False)
-    end = forms.CharField(widget=forms.TextInput(), required=False)
     badges = forms.CharField(widget=forms.TextInput(), required=False)
     position = forms.IntegerField(widget=forms.NumberInput(), required=False)
 
@@ -26,23 +21,17 @@ class TimelineItemForm(ListItemFormMixin, forms.Form):
     def get_initial() -> dict[str, Any]:
         """Just some default values."""
         return {
-            "company_name": "company_name",
-            "company_url": "https://example.com",
-            "role": "role",
-            "start": "start",
-            "end": "end",
+            "title": "Project Title",
+            "url": "https://example.com/project/",
             "description": "description",
             "badges": "badges",
         }
 
     def set_context(self, item: dict, context: dict[str, Any]) -> dict[str, Any]:
-        context["entry"] = {
+        context["project"] = {
             "id": item["id"],
-            "company_url": item["company_url"],
-            "company_name": item["company_name"],
-            "role": item["role"],
-            "start": item["start"],
-            "end": item["end"],
+            "url": item["url"],
+            "title": item["title"],
             "description": item["description"],
             "badges": item["badges"],
         }
@@ -93,11 +82,11 @@ class TimelineItemForm(ListItemFormMixin, forms.Form):
         return position
 
 
-class TimelineFlatForm(forms.Form):
+class ProjectFlatForm(forms.Form):
     title = forms.CharField(widget=forms.TextInput(), required=False, max_length=50)
 
 
-class TimelineForContext:
+class ProjectsForContext:
     def __init__(
         self,
         *,
@@ -116,21 +105,21 @@ class TimelineForContext:
         self.edit_flat_post_url = edit_flat_post_url
 
 
-class TimelineMixin:
-    name: str
-    verbose_name: str
+class ProjectsPlugin(ListPlugin):
+    name: str = "projects"
+    verbose_name: str = "Projects"
     inline: ListInline
     templates = ListTemplates(
-        main="django_resume/plain/timeline.html",
-        flat="django_resume/plain/timeline_flat.html",
-        flat_form="django_resume/plain/timeline_flat_form.html",
-        item="django_resume/plain/timeline_item.html",
-        item_form="django_resume/plain/timeline_item_form.html",
+        main="django_resume/plain/projects.html",
+        flat="django_resume/plain/projects_flat.html",
+        flat_form="django_resume/plain/projects_flat_form.html",
+        item="django_resume/plain/projects_item.html",
+        item_form="django_resume/plain/projects_item_form.html",
     )
 
     @staticmethod
     def get_form_classes() -> dict[str, Type[forms.Form]]:
-        return {"item": TimelineItemForm, "flat": TimelineFlatForm}
+        return {"item": ProjectItemForm, "flat": ProjectFlatForm}
 
     @staticmethod
     def items_ordered_by_position(items, reverse=False):
@@ -138,7 +127,7 @@ class TimelineMixin:
 
     def get_context(
         self, plugin_data, person_pk, *, context: dict[str, Any]
-    ) -> TimelineForContext:
+    ) -> ProjectsForContext:
         ordered_entries = self.items_ordered_by_position(
             plugin_data.get("items", []), reverse=True
         )
@@ -151,7 +140,8 @@ class TimelineMixin:
                 entry["delete_url"] = self.inline.get_delete_item_url(
                     person_pk, item_id=entry["id"]
                 )
-        timeline = TimelineForContext(
+        print("edit flat post: ", self.inline.get_edit_flat_post_url(person_pk))
+        projects = ProjectsForContext(
             title=plugin_data.get("flat", {}).get("title", self.verbose_name),
             ordered_entries=ordered_entries,
             templates=self.templates,
@@ -159,14 +149,4 @@ class TimelineMixin:
             edit_flat_url=self.inline.get_edit_flat_url(person_pk),
             edit_flat_post_url=self.inline.get_edit_flat_post_url(person_pk),
         )
-        return timeline
-
-
-class FreelanceTimelinePlugin(TimelineMixin, ListPlugin):
-    name = "freelance_timeline"
-    verbose_name = "Freelance Timeline"
-
-
-class EmployedTimelinePlugin(TimelineMixin, ListPlugin):
-    name = "employed_timeline"
-    verbose_name = "Employed Timeline"
+        return projects

@@ -1,0 +1,13 @@
+<section class="stack">
+  {% include projects.templates.flat %}
+  {% if show_edit_button %}
+    <svg class="edit-icon-small" hx-get="{{ projects.add_item_url }}" hx-target="#projects-grid" hx-swap="afterbegin">
+      <use href="#add"></use>
+    </svg>
+  {% endif %}
+  <div id="projects-grid" class="grid">
+    {% for project in projects.ordered_entries %}
+      {% include projects.templates.item %}
+    {% endfor %}
+  </div>
+</section>
