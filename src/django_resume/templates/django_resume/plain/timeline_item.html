@@ -28,7 +28,6 @@
           hx-delete="{{ entry.delete_url }}"
           hx-target="#item-{{ entry.id }}"
           hx-swap="delete"
-          hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
         >
           <use href="#delete"></use>
         </svg>

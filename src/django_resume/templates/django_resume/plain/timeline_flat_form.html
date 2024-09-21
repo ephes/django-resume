@@ -1,6 +1,5 @@
 <h2>
   <form hx-post="{{ timeline.edit_flat_post_url }}" hx-target="closest h2" hx-swap="outerHTML">
-    {% csrf_token %}
     <input class="editable-h2" type="text" name="title" value="{{ form.title.value }}">
     {% for error in form.title.errors %}
       <p class="error">{{ error|escape }}</p>

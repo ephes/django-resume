@@ -21,8 +21,12 @@
       <link rel="stylesheet" type="text/css" href="{% static "django_resume/css/edit.css" %}">
     {% endif %}
   </head>
-  <body class="center">
-    {% include "./icons.svg" %}
+  {% if show_edit_button %}
+    <body class="center" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+  {% else %}
+    <body class="center">
+  {% endif %}
+  {% include "./icons.svg" %}
     <header>
       <h1>Curriculum Vitae</h1>
     </header>

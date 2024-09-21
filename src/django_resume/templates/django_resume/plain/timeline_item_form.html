@@ -4,7 +4,6 @@
     id="form-{{ form.item_id }}"
     class="stack-small"
     hx-post="{{ form.post_url }}"
-    hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
     hx-target="#item-{{ form.item_id }}"
     hx-swap="outerHTML"
   >
