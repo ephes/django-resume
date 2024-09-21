@@ -87,6 +87,12 @@ class ProjectItemForm(ListItemFormMixin, forms.Form):
 class ProjectFlatForm(forms.Form):
     title = forms.CharField(widget=forms.TextInput(), required=False, max_length=50)
 
+    @staticmethod
+    def set_context(item: dict, context: dict[str, Any]) -> dict[str, Any]:
+        context["projects"] = {"title": item.get("title", "")}
+        context["projects"]["edit_flat_url"] = context["edit_flat_url"]
+        return context
+
 
 class ProjectsForContext:
     def __init__(

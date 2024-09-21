@@ -475,9 +475,7 @@ class ListInline:
         flat_form.post_url = self.get_edit_flat_post_url(person.pk)
         context = {
             "form": flat_form,
-            self.plugin_name: {
-                "edit_flat_post_url": self.get_edit_flat_post_url(person.pk)
-            },
+            "edit_flat_post_url": self.get_edit_flat_post_url(person.pk),
         }
         return render(request, self.templates.flat_form, context=context)
 
@@ -487,25 +485,19 @@ class ListInline:
         flat_form_class = self.form_classes["flat"]
         plugin_data = self.data.get_data(person)
         flat_form = flat_form_class(request.POST, initial=plugin_data.get("flat", {}))
-        context = {self.plugin_name: {}}
+        context = {}
         if flat_form.is_valid():
             person = self.data.update_flat(person, flat_form.cleaned_data)
             person.save()
             person.refresh_from_db()
             plugin_data = self.data.get_data(person)
-            context[self.plugin_name]["title"] = plugin_data.get("flat", {}).get(
-                "title", self.plugin_verbose_name
-            )
-            context[self.plugin_name]["edit_flat_url"] = self.get_edit_flat_url(
-                person.pk
-            )
+            context["edit_flat_url"] = self.get_edit_flat_url(person.pk)
+            context = flat_form.set_context(plugin_data["flat"], context)
             context["show_edit_button"] = True
             return render(request, self.templates.flat, context=context)
         else:
             context["form"] = flat_form
-            context[self.plugin_name]["edit_flat_post_url"] = (
-                self.get_edit_flat_post_url(person.pk)
-            )
+            context["edit_flat_post_url"] = self.get_edit_flat_post_url(person.pk)
             response = render(request, self.templates.flat_form, context=context)
             return response
 
