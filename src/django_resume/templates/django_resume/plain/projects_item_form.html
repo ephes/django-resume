@@ -18,12 +18,26 @@
     <h3 contenteditable="true" data-field="title">{{ form.title.value }}</h3>
     <span contenteditable="true" data-field="url">{{ form.url.value }}</span>
   </div>
+  <div>
+    {% for error in form.title.errors %}
+      <p class="error">{{ error|escape }}</p>
+    {% endfor %}
+    {% for error in form.url.errors %}
+      <p class="error">{{ error|escape }}</p>
+    {% endfor %}
+  </div>
   <p contenteditable="true" data-field="description">{{ form.description.value }}</p>
+  {% for error in form.description.errors %}
+    <p class="error">{{ error|escape }}</p>
+  {% endfor %}
   {% if form.badges.value %}
     <ul class="cluster cluster-list project-badges-list">
       <li contenteditable="true" data-field="badges">{{ form.badges.value }}</li>
     </ul>
   {% endif %}
+  {% for error in form.badges.errors %}
+    <p class="error">{{ error|escape }}</p>
+  {% endfor %}
   <button id="submit-projects-item-{{ form.item_id }}" type="submit">
     <svg class="edit-icon-small">
       <use href="#ok"></use>
