@@ -1,13 +1,13 @@
-<h2>
-  <form hx-post="{{ timeline.edit_flat_post_url }}" hx-target="closest h2" hx-swap="outerHTML">
+<form hx-post="{{ timeline.edit_flat_post_url }}" hx-target="this" hx-swap="outerHTML">
+  <div class="cluster">
     <input class="editable-h2" type="text" name="title" value="{{ form.title.value }}">
-    {% for error in form.title.errors %}
-      <p class="error">{{ error|escape }}</p>
-    {% endfor %}
     <button type="submit">
-    <svg class="icon">
+      <svg class="edit-icon-small">
         <use href="#ok"></use>
       </svg>
     </button>
-  </form>
-</h2>
+  </div>
+  {% for error in form.title.errors %}
+    <p class="error">{{ error|escape }}</p>
+  {% endfor %}
+</form>

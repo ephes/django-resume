@@ -19,11 +19,12 @@
       <li>-</li>
       <li>{{ entry.end }}</li>
       {% if show_edit_button %}
-        <svg class="icon" hx-get="{{ entry.edit_url }}" hx-target="#item-{{ entry.id }}" hx-swap="outerHTML">
+        <div class="edit-icons">
+        <svg class="edit-icon-small" hx-get="{{ entry.edit_url }}" hx-target="#item-{{ entry.id }}" hx-swap="outerHTML">
           <use href="#edit"></use>
         </svg>
         <svg
-          class="icon"
+          class="edit-icon-small"
           style="color: red !important;"
           hx-delete="{{ entry.delete_url }}"
           hx-target="#item-{{ entry.id }}"
@@ -31,6 +32,7 @@
         >
           <use href="#delete"></use>
         </svg>
+        </div>
       {% endif %}
     </ul>
   </div>

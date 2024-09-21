@@ -2,7 +2,7 @@
   {% include timeline.templates.flat %}
   <div class="stack-large">
     {% if show_edit_button %}
-      <svg class="icon" hx-get="{{ timeline.add_item_url }}" hx-target="this" hx-swap="afterend">
+      <svg class="edit-icon-small" hx-get="{{ timeline.add_item_url }}" hx-target="this" hx-swap="afterend">
         <use href="#add"></use>
       </svg>
     {% endif %}

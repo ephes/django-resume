@@ -1,17 +1,30 @@
 .editable-h2 {
-  font-size: var(--s1);
-  font-family: inherit;  /* Ensure the same font is used */
-  font-weight: 600;
-  border: none; /* Remove input field border */
-  padding: 0; /* Match the spacing of the <h2> */
-  margin: 0; /* Remove margin */
-  background: transparent; /* Make background transparent */
-  width: 100%; /* Ensure the input takes the full width */
-  outline: none; /* Remove focus outline */
-  color: inherit; /* Use the same text color */
+    font-size: var(--s1);
+    font-family: inherit; /* Ensure the same font is used */
+    font-weight: 600;
+    border: none; /* Remove input field border */
+    padding: 0; /* Match the spacing of the <h2> */
+    margin: 0; /* Remove margin */
+    background: transparent; /* Make background transparent */
+    width: 100%; /* Ensure the input takes the full width */
+    outline: none; /* Remove focus outline */
+    color: inherit; /* Use the same text color */
 }
 
 .error {
     font-size: var(--s0);
     color: red;
+}
+
+.edit-icons {
+    display: flex;
+    justify-content: flex-end;
+    margin-block-end: var(--s-3);
+    margin-block-start: var(--s-3);
+    gap: var(--s-3);
+}
+
+.edit-icon-small {
+    width: 1.5em;
+    height: 1.5em;
 }
