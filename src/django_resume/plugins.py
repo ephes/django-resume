@@ -12,12 +12,14 @@ from .models import Person
 
 
 URLPatterns: TypeAlias = list[URLPattern | URLResolver]
+FormClasses: TypeAlias = dict[str, type[forms.Form]]
 
 
 @runtime_checkable
 class Plugin(Protocol):
     name: str
     verbose_name: str
+    form_classes: FormClasses
 
     def get_admin_urls(self, admin_view: Callable) -> URLPatterns:
         """Return a list of urls that are used to manage the plugin data in the Django admin interface."""
@@ -31,8 +33,11 @@ class Plugin(Protocol):
         """Return a list of urls that are used to manage the plugin data inline."""
         ...
 
-    def get_form_classes(self) -> dict[str, type[forms.Form]]:
-        """Return a dictionary of form classes that are used to manage the plugin data."""
+    def get_form_classes(self) -> FormClasses:
+        """
+        Return a dictionary of form classes that are used to manage the plugin data.
+        Overwrite this method or set the form_classes attribute.
+        """
         ...
 
     def get_data(self, person: Person) -> dict:
@@ -244,7 +249,6 @@ class SimplePlugin:
         super().__init__()
         self.data = data = SimpleData(plugin_name=self.name)
         form_classes = self.get_form_classes()
-        print("form classes: ", form_classes)
         self.admin = SimpleAdmin(
             plugin_name=self.name,
             plugin_verbose_name=self.verbose_name,
@@ -260,7 +264,9 @@ class SimplePlugin:
         )
 
     def get_form_classes(self) -> dict[str, type[forms.Form]]:
-        """Please overwrite this method."""
+        if hasattr(self, "form_classes"):
+            return self.form_classes
+        # please either set the form_classes attribute or overwrite this method
         return {"admin": forms.Form, "inline": forms.Form}
 
     def get_admin_urls(self, admin_view: Callable) -> URLPatterns:

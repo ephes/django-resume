@@ -1,4 +1,4 @@
-from typing import Any, Type
+from typing import Any
 
 from django import forms
 
@@ -58,10 +58,7 @@ class EducationPlugin(SimplePlugin):
         main="django_resume/plain/education.html",
         form="django_resume/plain/education_form.html",
     )
-
-    @staticmethod
-    def get_form_classes() -> dict[str, Type[forms.Form]]:
-        return {"admin": EducationForm, "inline": EducationForm}
+    form_classes = {"admin": EducationForm, "inline": EducationForm}
 
     def get_context(
         self, plugin_data, person_pk, *, context: dict[str, Any]
