@@ -66,21 +66,7 @@
       </section>
       {% include freelance_timeline.templates.main with timeline=freelance_timeline %}
       {% include employed_timeline.templates.main with timeline=employed_timeline %}
-      <section class="stack">
-        <h2>Education</h2>
-        <div class="stack">
-          <div class="cluster timeline-header-cluster">
-            <div class="timeline-header-title">
-              <h3><a class="underlined" href="{{ person.education_school_url }}">{{ person.education_school_name }}</a></h3>
-            </div>
-            <ul class="cluster cluster-list year-span">
-              <li>{{ person.education_start }}</li>
-              <li>-</li>
-              <li>{{ person.education_end }}</li>
-            </ul>
-          </div>
-        </div>
-      </section>
+      {% include education.templates.main %}
       <section class="stack">
         <h2>Skills</h2>
         <ul class="cluster cluster-list skills-list">

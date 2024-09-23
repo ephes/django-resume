@@ -79,6 +79,235 @@ class BasePlugin:
         return self.set_data(person, data)
 
 
+class SimpleData:
+    def __init__(self, *, plugin_name: str):
+        self.plugin_name = plugin_name
+
+    def get_data(self, person):
+        return person.plugin_data.get(self.plugin_name, {})
+
+    def set_data(self, person, data):
+        if not person.plugin_data:
+            person.plugin_data = {}
+        person.plugin_data[self.plugin_name] = data
+        return person
+
+    def create(self, person, data):
+        return self.set_data(person, data)
+
+    def update(self, person, data):
+        return self.set_data(person, data)
+
+    def delete(self, person, data):
+        return self.set_data(person, data)
+
+
+class SimpleAdmin:
+    admin_template = "django_resume/admin/simple_plugin_admin_view.html"
+    change_form = "django_resume/admin/simple_plugin_admin_form.html"
+
+    def __init__(
+        self,
+        *,
+        plugin_name: str,
+        plugin_verbose_name,
+        form_class: type[forms.Form],
+        data: SimpleData,
+    ):
+        self.plugin_name = plugin_name
+        self.plugin_verbose_name = plugin_verbose_name
+        self.form_class = form_class
+        self.data = data
+
+    def get_change_url(self, person_id):
+        return reverse(
+            f"admin:{self.plugin_name}-admin-change", kwargs={"person_id": person_id}
+        )
+
+    def get_admin_link(self, person_id):
+        url = self.get_change_url(person_id)
+        return format_html(
+            '<a href="{}">{}</a>', url, f"Edit {self.plugin_verbose_name}"
+        )
+
+    def get_change_post_url(self, person_id):
+        return reverse(
+            f"admin:{self.plugin_name}-admin-post", kwargs={"person_id": person_id}
+        )
+
+    def get_change_view(self, request, person_id):
+        person = get_object_or_404(Person, pk=person_id)
+        plugin_data = self.data.get_data(person)
+        form = self.form_class(initial=plugin_data)
+        form.post_url = self.get_change_post_url(person.pk)
+        context = {
+            "title": f"{self.plugin_verbose_name} for {person.name}",
+            "person": person,
+            "opts": Person._meta,
+            "form": form,
+            "form_template": self.change_form,
+            # context for admin/change_form.html template
+            "add": False,
+            "change": True,
+            "is_popup": False,
+            "save_as": False,
+            "has_add_permission": False,
+            "has_view_permission": True,
+            "has_change_permission": True,
+            "has_delete_permission": False,
+            "has_editable_inline_admin_formsets": False,
+        }
+        return render(request, self.admin_template, context)
+
+    def post_view(self, request, person_id):
+        person = get_object_or_404(Person, id=person_id)
+        form = self.form_class(request.POST)
+        form.post_url = self.get_change_post_url(person.pk)
+        context = {"form": form}
+        if form.is_valid():
+            person = self.data.update(person, form.cleaned_data)
+            person.save()
+        print("render form again: ", form.is_valid())
+        response = render(request, self.change_form, context)
+        return response
+
+    def get_urls(self, admin_view: Callable) -> URLPatterns:
+        """
+        This method should return a list of urls that are used to manage the
+        plugin data in the admin interface.
+        """
+        print("get admin urls simple plugin")
+        plugin_name = self.plugin_name
+        urls = [
+            path(
+                f"<int:person_id>/plugin/{plugin_name}/change/",
+                admin_view(self.get_change_view),
+                name=f"{plugin_name}-admin-change",
+            ),
+            path(
+                f"<int:person_id>/plugin/{plugin_name}/post/",
+                admin_view(self.post_view),
+                name=f"{plugin_name}-admin-post",
+            ),
+        ]
+        return urls
+
+
+class SimpleTemplates:
+    def __init__(self, *, main: str, form: str):
+        self.main = main
+        self.form = form
+
+
+class SimpleInline:
+    def __init__(
+        self,
+        *,
+        plugin_name: str,
+        plugin_verbose_name: str,
+        form_class: type[forms.Form],
+        data: SimpleData,
+        templates: SimpleTemplates,
+    ):
+        self.plugin_name = plugin_name
+        self.plugin_verbose_name = plugin_verbose_name
+        self.form_class = form_class
+        self.data = data
+        self.templates = templates
+
+    def get_edit_url(self, person_id):
+        return reverse(
+            f"django_resume:{self.plugin_name}-edit", kwargs={"person_id": person_id}
+        )
+
+    def get_post_url(self, person_id):
+        return reverse(
+            f"django_resume:{self.plugin_name}-post", kwargs={"person_id": person_id}
+        )
+
+    def get_edit_view(self, request, person_id):
+        person = get_object_or_404(Person, id=person_id)
+        plugin_data = self.data.get_data(person)
+        form = self.form_class(initial=plugin_data)
+        form.post_url = self.get_post_url(person.pk)
+        context = {"form": form}
+        return render(request, self.templates.form, context)
+
+    def post_view(self, request, person_id):
+        person = get_object_or_404(Person, id=person_id)
+        form_class = self.form_class
+        form = form_class(request.POST)
+        form.post_url = self.get_post_url(person.pk)
+        context = {"form": form}
+        if form.is_valid():
+            # update the plugin data and render the main template
+            person = self.data.update(person, form.cleaned_data)
+            person.save()
+            context["show_edit_button"] = True
+            context["edit_url"] = self.get_edit_url(person.pk)
+            context = form.set_context(self.data.get_data(person), context)
+            return render(request, self.templates.main, context)
+        # render the form again with errors
+        return render(request, self.templates.form, context)
+
+    def get_urls(self):
+        plugin_name = self.plugin_name
+        urls = [
+            # flat
+            path(
+                f"<int:person_id>/plugin/{plugin_name}/edit/",
+                self.get_edit_view,
+                name=f"{plugin_name}-edit",
+            ),
+            path(
+                f"<int:person_id>/plugin/{plugin_name}/edit/post/",
+                self.post_view,
+                name=f"{plugin_name}-post",
+            ),
+        ]
+        return urls
+
+
+class SimplePlugin:
+    name = "simple_plugin"
+    verbose_name = "Simple Plugin"
+    templates: SimpleTemplates = SimpleTemplates(main="", form="")  # overwrite this
+
+    def __init__(self):
+        super().__init__()
+        self.data = data = SimpleData(plugin_name=self.name)
+        form_classes = self.get_form_classes()
+        self.admin = SimpleAdmin(
+            plugin_name=self.name,
+            plugin_verbose_name=self.verbose_name,
+            form_class=form_classes["admin"],
+            data=data,
+        )
+        self.inline = SimpleInline(
+            plugin_name=self.name,
+            plugin_verbose_name=self.verbose_name,
+            form_class=form_classes["inline"],
+            data=data,
+            templates=self.templates,
+        )
+
+    def get_admin_urls(self, admin_view: Callable) -> URLPatterns:
+        return self.admin.get_urls(admin_view)
+
+    def get_admin_link(self, person_id: int) -> str:
+        return self.admin.get_admin_link(person_id)
+
+    def get_inline_urls(self) -> URLPatterns:
+        return self.inline.get_urls()
+
+    def get_form_classes(self) -> dict[str, type[forms.Form]]:
+        """Please implement this method."""
+        return {}
+
+    def get_data(self, person: Person) -> dict:
+        return self.data.get_data(person)
+
+
 class ListItemFormMixin(forms.Form):
     id = forms.CharField(widget=forms.HiddenInput(), required=False)
 

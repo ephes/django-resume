@@ -9,10 +9,12 @@ class ResumeConfig(AppConfig):
         from .timelines import FreelanceTimelinePlugin, EmployedTimelinePlugin
         from .tokens import TokenPlugin
         from .projects import ProjectsPlugin
+        from .education import EducationPlugin
         from .plugins import plugin_registry
 
         plugin_registry.register(FreelanceTimelinePlugin)
         plugin_registry.register(EmployedTimelinePlugin)
+        plugin_registry.register(EducationPlugin)
         plugin_registry.register(ProjectsPlugin)
         plugin_registry.register(TokenPlugin)
 
