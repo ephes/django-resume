@@ -1,8 +1,10 @@
-from django_resume.plugins import ListData, SimplePlugin
+from django_resume.plugins import ListPlugin, SimplePlugin
+
+# simple plugin data manipulation: create, update - there's no delete
 
 
-def test_base_plugin_create(person):
-    # Given a person and a base plugin
+def test_simple_plugin_create(person):
+    # Given a person and a plugin with no data
     plugin = SimplePlugin()
     # When we create an item
     item = {"foo": "bar"}
@@ -13,8 +15,8 @@ def test_base_plugin_create(person):
     assert item["foo"] == "bar"
 
 
-def test_base_plugin_update(person):
-    # Given a person and a base plugin with an item
+def test_simple_plugin_update(person):
+    # Given a person and a simple plugin with an item
     plugin = SimplePlugin()
     item = {"foo": "bar"}
     person = plugin.data.create(person, item)
@@ -26,39 +28,42 @@ def test_base_plugin_update(person):
     assert item["foo"] == "baz"
 
 
-def test_list_data_create(person):
+# list plugin data manipulation: create, update, delete
+
+
+def test_list_plugin_create(person):
     # Given a person and a list plugin
-    data = ListData(plugin_name="list_plugin")
+    plugin = ListPlugin()
     # When we create an item
     item = {"foo": "bar"}
-    person = data.create(person, item)
+    person = plugin.data.create(person, item)
     # Then the item should be in the list
-    items = data.get_data(person).get("items", [])
+    items = plugin.get_data(person).get("items", [])
     assert len(items) == 1
     assert item in items
 
 
-def test_list_data_update(person):
+def test_list_plugin_update(person):
     # Given a person and a list plugin with an item
-    plugin = ListData(plugin_name="list_plugin")
+    plugin = ListPlugin()
     item = {"id": "123", "foo": "bar"}
-    plugin.create(person, item)
+    plugin.data.create(person, item)
     # When we update the item
     item["foo"] = "baz"
-    person = plugin.update(person, item)
+    person = plugin.data.update(person, item)
     # Then the item should be updated
     items = plugin.get_data(person).get("items", [])
     [updated_item] = [i for i in items if i["id"] == item["id"]]
     assert updated_item["foo"] == "baz"
 
 
-def test_list_data_delete(person):
+def test_list_plugin_delete(person):
     # Given a person and a list plugin with an item
-    plugin = ListData(plugin_name="list_plugin")
+    plugin = ListPlugin()
     item = {"id": 123, "foo": "bar"}
-    plugin.create(person, item)
+    plugin.data.create(person, item)
     # When we delete the item
-    person = plugin.delete(person, item)
+    person = plugin.data.delete(person, item)
     # Then the item should be removed
     items = plugin.get_data(person).get("items", [])
     assert len(items) == 0

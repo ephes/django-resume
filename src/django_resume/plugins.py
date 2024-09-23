@@ -23,54 +23,51 @@ class Plugin(Protocol):
 
     def get_admin_urls(self, admin_view: Callable) -> URLPatterns:
         """Return a list of urls that are used to manage the plugin data in the Django admin interface."""
-        ...
+        ...  # pragma: no cover
 
     def get_admin_link(self, person_id: int) -> str:
         """Return a formatted html link to the main admin view for this plugin."""
-        ...
+        ...  # pragma: no cover
 
     def get_inline_urls(self) -> URLPatterns:
         """Return a list of urls that are used to manage the plugin data inline."""
-        ...
+        ...  # pragma: no cover
 
     def get_form_classes(self) -> FormClasses:
         """
         Return a dictionary of form classes that are used to manage the plugin data.
         Overwrite this method or set the form_classes attribute.
         """
-        ...
+        ...  # pragma: no cover
 
     def get_data(self, person: Person) -> dict:
         """Return the plugin data for a person."""
-        ...
+        ...  # pragma: no cover
 
     def get_context(
         self, plugin_data: dict, person_pk: int, *, context: dict
     ) -> object:
         """Return the object which is stored in context for the plugin."""
-        ...
+        ...  # pragma: no cover
 
 
 class SimpleData:
     def __init__(self, *, plugin_name: str):
         self.plugin_name = plugin_name
 
-    def get_data(self, person):
+    def get_data(self, person: Person) -> dict:
         return person.plugin_data.get(self.plugin_name, {})
 
-    def set_data(self, person, data):
+    def set_data(self, person: Person, data: dict) -> Person:
         if not person.plugin_data:
             person.plugin_data = {}
         person.plugin_data[self.plugin_name] = data
         return person
 
-    def create(self, person, data):
+    def create(self, person: Person, data: dict) -> Person:
         return self.set_data(person, data)
 
-    def update(self, person, data):
-        return self.set_data(person, data)
-
-    def delete(self, person, data):
+    def update(self, person: Person, data: dict) -> Person:
         return self.set_data(person, data)
 
 
