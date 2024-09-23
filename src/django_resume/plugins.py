@@ -46,39 +46,6 @@ class Plugin(Protocol):
         ...
 
 
-class BasePlugin:
-    name = "base_plugin"
-    verbose_name = "Base Plugin"
-
-    def get_data(self, person):
-        return person.plugin_data.get(self.name, {})
-
-    def set_data(self, person, data):
-        if not person.plugin_data:
-            person.plugin_data = {}
-        person.plugin_data[self.name] = data
-        return person
-
-    def get_admin_form(self):
-        return None
-
-    def get_list_display_field(self):
-        def admin_link(obj):
-            return self.get_admin_link(obj.id)
-
-        admin_link.short_description = self.verbose_name
-        return admin_link
-
-    def create(self, person, data):
-        return self.set_data(person, data)
-
-    def update(self, person, data):
-        return self.set_data(person, data)
-
-    def delete(self, person, data):
-        return self.set_data(person, data)
-
-
 class SimpleData:
     def __init__(self, *, plugin_name: str):
         self.plugin_name = plugin_name
@@ -277,6 +244,7 @@ class SimplePlugin:
         super().__init__()
         self.data = data = SimpleData(plugin_name=self.name)
         form_classes = self.get_form_classes()
+        print("form classes: ", form_classes)
         self.admin = SimpleAdmin(
             plugin_name=self.name,
             plugin_verbose_name=self.verbose_name,
@@ -291,6 +259,10 @@ class SimplePlugin:
             templates=self.templates,
         )
 
+    def get_form_classes(self) -> dict[str, type[forms.Form]]:
+        """Please overwrite this method."""
+        return {"admin": forms.Form, "inline": forms.Form}
+
     def get_admin_urls(self, admin_view: Callable) -> URLPatterns:
         return self.admin.get_urls(admin_view)
 
@@ -299,10 +271,6 @@ class SimplePlugin:
 
     def get_inline_urls(self) -> URLPatterns:
         return self.inline.get_urls()
-
-    def get_form_classes(self) -> dict[str, type[forms.Form]]:
-        """Please implement this method."""
-        return {}
 
     def get_data(self, person: Person) -> dict:
         return self.data.get_data(person)

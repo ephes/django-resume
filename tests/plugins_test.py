@@ -1,12 +1,12 @@
-from django_resume.plugins import BasePlugin, ListData
+from django_resume.plugins import ListData, SimplePlugin
 
 
 def test_base_plugin_create(person):
     # Given a person and a base plugin
-    plugin = BasePlugin()
+    plugin = SimplePlugin()
     # When we create an item
     item = {"foo": "bar"}
-    person = plugin.create(person, item)
+    person = plugin.data.create(person, item)
     # Then the attribute should be set
     item = plugin.get_data(person)
     assert len(item) == 1
@@ -15,12 +15,12 @@ def test_base_plugin_create(person):
 
 def test_base_plugin_update(person):
     # Given a person and a base plugin with an item
-    plugin = BasePlugin()
+    plugin = SimplePlugin()
     item = {"foo": "bar"}
-    person = plugin.create(person, item)
+    person = plugin.data.create(person, item)
     # When we update the item
     item["foo"] = "baz"
-    person = plugin.update(person, item)
+    person = plugin.data.update(person, item)
     # Then the attribute should be updated
     item = plugin.get_data(person)
     assert item["foo"] == "baz"
