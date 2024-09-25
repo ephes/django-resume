@@ -58,7 +58,7 @@ class EducationPlugin(SimplePlugin):
         main="django_resume/plain/education.html",
         form="django_resume/plain/education_form.html",
     )
-    form_classes = {"admin": EducationForm, "inline": EducationForm}
+    admin_form_class = inline_form_class = EducationForm
 
     def get_context(
         self, plugin_data, person_pk, *, context: dict[str, Any]

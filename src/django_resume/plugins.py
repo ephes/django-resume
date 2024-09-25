@@ -71,6 +71,10 @@ class SimpleData:
         return self.set_data(person, data)
 
 
+class SimpleJsonForm(forms.Form):
+    plugin_data = forms.JSONField(widget=forms.Textarea)
+
+
 class SimpleAdmin:
     admin_template = "django_resume/admin/simple_plugin_admin_view.html"
     change_form = "django_resume/admin/simple_plugin_admin_form.html"
@@ -107,7 +111,11 @@ class SimpleAdmin:
     def get_change_view(self, request, person_id):
         person = get_object_or_404(Person, pk=person_id)
         plugin_data = self.data.get_data(person)
-        form = self.form_class(initial=plugin_data)
+        if self.form_class == SimpleJsonForm:
+            # special case for the SimpleJsonForm which has a JSONField for the plugin data
+            form = self.form_class(initial={"plugin_data": plugin_data})
+        else:
+            form = self.form_class(initial=plugin_data)
         form.post_url = self.get_change_post_url(person.pk)
         context = {
             "title": f"{self.plugin_verbose_name} for {person.name}",
@@ -134,9 +142,13 @@ class SimpleAdmin:
         form.post_url = self.get_change_post_url(person.pk)
         context = {"form": form}
         if form.is_valid():
-            person = self.data.update(person, form.cleaned_data)
+            if self.form_class == SimpleJsonForm:
+                # special case for the SimpleJsonForm which has a JSONField for the plugin data
+                plugin_data = form.cleaned_data["plugin_data"]
+            else:
+                plugin_data = form.cleaned_data
+            person = self.data.update(person, plugin_data)
             person.save()
-        print("render form again: ", form.is_valid())
         response = render(request, self.change_form, context)
         return response
 
@@ -145,7 +157,6 @@ class SimpleAdmin:
         This method should return a list of urls that are used to manage the
         plugin data in the admin interface.
         """
-        print("get admin urls simple plugin")
         plugin_name = self.plugin_name
         urls = [
             path(
@@ -245,26 +256,31 @@ class SimplePlugin:
     def __init__(self):
         super().__init__()
         self.data = data = SimpleData(plugin_name=self.name)
-        form_classes = self.get_form_classes()
         self.admin = SimpleAdmin(
             plugin_name=self.name,
             plugin_verbose_name=self.verbose_name,
-            form_class=form_classes["admin"],
+            form_class=self.get_admin_form_class(),
             data=data,
         )
         self.inline = SimpleInline(
             plugin_name=self.name,
             plugin_verbose_name=self.verbose_name,
-            form_class=form_classes["inline"],
+            form_class=self.get_inline_form_class(),
             data=data,
             templates=self.templates,
         )
 
-    def get_form_classes(self) -> dict[str, type[forms.Form]]:
-        if hasattr(self, "form_classes"):
-            return self.form_classes
-        # please either set the form_classes attribute or overwrite this method
-        return {"admin": forms.Form, "inline": forms.Form}
+    def get_admin_form_class(self) -> type[forms.Form]:
+        """Set admin_form_class attribute or overwrite this method."""
+        if hasattr(self, "admin_form_class"):
+            return self.admin_form_class
+        return SimpleJsonForm  # default
+
+    def get_inline_form_class(self) -> type[forms.Form]:
+        """Set inline_form_class attribute or overwrite this method."""
+        if hasattr(self, "inline_form_class"):
+            return self.inline_form_class
+        return SimpleJsonForm  # default
 
     def get_admin_urls(self, admin_view: Callable) -> URLPatterns:
         return self.admin.get_urls(admin_view)
@@ -680,7 +696,6 @@ class ListInline:
         return render(request, self.templates.flat_form, context=context)
 
     def post_edit_flat_view(self, request, person_id):
-        print("in post edit flat view!")
         person = get_object_or_404(Person, id=person_id)
         flat_form_class = self.form_classes["flat"]
         plugin_data = self.data.get_data(person)
@@ -864,12 +879,15 @@ class PluginRegistry:
     def __init__(self):
         self.plugins = {}
 
-    def register(self, plugin_class):
+    def register(self, plugin_class: type[Plugin]):
         plugin = plugin_class()
         self.plugins[plugin.name] = plugin
         from .urls import urlpatterns
 
         urlpatterns.extend(plugin.get_inline_urls())
+
+    def unregister(self, plugin_class: type[Plugin]):
+        del self.plugins[plugin_class.name]
 
     def get_plugin(self, name):
         return self.plugins.get(name)

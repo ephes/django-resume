@@ -5,7 +5,8 @@ class ResumeConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "django_resume"
 
-    def register_plugins(self):
+    @staticmethod
+    def register_plugins():
         from .timelines import FreelanceTimelinePlugin, EmployedTimelinePlugin
         from .tokens import TokenPlugin
         from .projects import ProjectsPlugin
