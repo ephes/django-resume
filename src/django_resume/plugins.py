@@ -1,6 +1,6 @@
 from uuid import uuid4
 
-from typing import Protocol, runtime_checkable, Callable, TypeAlias
+from typing import Protocol, runtime_checkable, Callable, TypeAlias, Any
 
 from django import forms
 from django.http import HttpResponse
@@ -196,6 +196,11 @@ class SimpleInline:
         self.templates = templates
 
     def get_edit_url(self, person_id):
+        from .urls import urlpatterns
+
+        print("urlpatterns: ")
+        for url in urlpatterns:
+            print(url)
         return reverse(
             f"django_resume:{self.plugin_name}-edit", kwargs={"person_id": person_id}
         )
@@ -269,6 +274,15 @@ class SimplePlugin:
             data=data,
             templates=self.templates,
         )
+
+    def get_context(self, plugin_data, person_pk, *, context: dict[str, Any]) -> dict:
+        """This method returns the context of the plugin for inline editing."""
+        context.update(plugin_data)
+        context["edit_url"] = self.inline.get_edit_url(person_pk)
+
+        return context
+
+    # plugin protocol methods
 
     def get_admin_form_class(self) -> type[forms.Form]:
         """Set admin_form_class attribute or overwrite this method."""
