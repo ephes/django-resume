@@ -401,6 +401,7 @@ class ListData:
         """Update an item in the items list of this plugin."""
         plugin_data = self.get_data(person)
         items = plugin_data.get("items", [])
+        print(items, data)
         for item in items:
             if item["id"] == data["id"]:
                 item.update(data)
