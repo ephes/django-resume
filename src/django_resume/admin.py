@@ -1,7 +1,7 @@
 from django.contrib import admin
 
 from .models import Person
-from .plugin_registry import plugin_registry
+from .plugins import plugin_registry
 
 
 class PersonAdmin(admin.ModelAdmin):

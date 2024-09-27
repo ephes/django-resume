@@ -7,7 +7,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.safestring import mark_safe
 
-from .plugins import ListPlugin, ListItemFormMixin
+from .base import ListPlugin, ListItemFormMixin
 
 
 def generate_random_string(length=20):

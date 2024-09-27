@@ -2,7 +2,7 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render, get_object_or_404
 
 from .models import Person
-from .plugin_registry import plugin_registry
+from .plugins import plugin_registry
 
 
 def cv(request: HttpRequest, slug: str) -> HttpResponse:

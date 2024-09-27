@@ -8,7 +8,7 @@ from django.shortcuts import get_object_or_404, render
 from django.urls import reverse, path, URLPattern, URLResolver
 from django.utils.html import format_html
 
-from .models import Person
+from ..models import Person
 
 
 URLPatterns: TypeAlias = list[URLPattern | URLResolver]

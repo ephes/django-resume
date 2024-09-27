@@ -1,4 +1,4 @@
-from django_resume.timelines import TimelineItemForm
+from django_resume.plugins.timelines import TimelineItemForm
 
 
 def test_initial_position(person):

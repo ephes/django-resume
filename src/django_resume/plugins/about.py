@@ -1,6 +1,6 @@
 from django import forms
 
-from .plugins import SimplePlugin, SimpleTemplates
+from .base import SimplePlugin, SimpleTemplates
 
 
 class AboutForm(forms.Form):

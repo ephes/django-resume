@@ -2,7 +2,7 @@ from typing import Type, Any
 
 from django import forms
 
-from .plugins import ListPlugin, ListItemFormMixin, ListTemplates, ListInline
+from .base import ListPlugin, ListItemFormMixin, ListTemplates, ListInline
 
 
 class ProjectItemForm(ListItemFormMixin, forms.Form):

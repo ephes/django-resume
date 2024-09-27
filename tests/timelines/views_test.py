@@ -1,7 +1,7 @@
 import pytest
 
 from django_resume.models import Person
-from django_resume.timelines import EmployedTimelinePlugin
+from django_resume.plugins import EmployedTimelinePlugin
 
 
 # inline edit view tests

@@ -1,6 +1,7 @@
 import pytest
 
-from django_resume.timelines import EmployedTimelinePlugin, TimelineItemForm
+from django_resume.plugins import EmployedTimelinePlugin
+from django_resume.plugins.timelines import TimelineItemForm
 
 
 @pytest.fixture

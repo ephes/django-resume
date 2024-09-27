@@ -1,7 +1,6 @@
 from django import forms
 
-from django_resume.plugins import SimplePlugin
-from django_resume.plugin_registry import plugin_registry
+from django_resume.plugins import SimplePlugin, plugin_registry
 
 
 def test_simple_plugin_get_context(person):

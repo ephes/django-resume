@@ -1,4 +1,4 @@
-from django_resume.timelines import EmployedTimelinePlugin
+from django_resume.plugins import EmployedTimelinePlugin
 
 
 def test_employed_timeline_plugin():

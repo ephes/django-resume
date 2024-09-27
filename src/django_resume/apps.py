@@ -7,12 +7,15 @@ class ResumeConfig(AppConfig):
 
     @staticmethod
     def register_plugins():
-        from .timelines import FreelanceTimelinePlugin, EmployedTimelinePlugin
-        from .tokens import TokenPlugin
-        from .projects import ProjectsPlugin
-        from .education import EducationPlugin
-        from .about import AboutPlugin
-        from .plugin_registry import plugin_registry
+        from .plugins import (
+            FreelanceTimelinePlugin,
+            EmployedTimelinePlugin,
+            TokenPlugin,
+            ProjectsPlugin,
+            EducationPlugin,
+            AboutPlugin,
+            plugin_registry,
+        )
 
         plugin_registry.register(FreelanceTimelinePlugin)
         plugin_registry.register(EmployedTimelinePlugin)

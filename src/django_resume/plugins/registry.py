@@ -1,4 +1,7 @@
-from django_resume.plugins import Plugin
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .base import Plugin
 
 
 class PluginRegistry:
@@ -9,7 +12,7 @@ class PluginRegistry:
     def __init__(self):
         self.plugins = {}
 
-    def register(self, plugin_class: type[Plugin]):
+    def register(self, plugin_class: type["Plugin"]):
         """
         Register a plugin class. This will instantiate the plugin and add it to the registry.
 
@@ -17,11 +20,11 @@ class PluginRegistry:
         """
         plugin = plugin_class()
         self.plugins[plugin.name] = plugin
-        from .urls import urlpatterns
+        from ..urls import urlpatterns
 
         urlpatterns.extend(plugin.get_inline_urls())
 
-    def unregister(self, plugin_class: type[Plugin]):
+    def unregister(self, plugin_class: type["Plugin"]):
         del self.plugins[plugin_class.name]
 
     def get_plugin(self, name):

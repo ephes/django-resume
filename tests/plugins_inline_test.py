@@ -2,8 +2,7 @@ import json
 
 import pytest
 
-from django_resume.plugins import SimplePlugin
-from django_resume.plugin_registry import plugin_registry
+from django_resume.plugins import SimplePlugin, plugin_registry
 
 
 @pytest.mark.django_db

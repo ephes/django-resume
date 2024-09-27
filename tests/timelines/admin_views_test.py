@@ -3,7 +3,7 @@ import re
 import pytest
 
 from django_resume.models import Person
-from django_resume.timelines import EmployedTimelinePlugin
+from django_resume.plugins import EmployedTimelinePlugin
 
 
 # admin views of the base list plugin
