@@ -21,7 +21,7 @@ class EducationPlugin(SimplePlugin):
     name: str = "education"
     verbose_name: str = "Education"
     templates = SimpleTemplates(
-        main="django_resume/plain/education.html",
-        form="django_resume/plain/education_form.html",
+        main="django_resume/education/plain/content.html",
+        form="django_resume/education/plain/form.html",
     )
     admin_form_class = inline_form_class = EducationForm
