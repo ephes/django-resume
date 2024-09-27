@@ -1,0 +1,19 @@
+<section id="simple-plugin" class="stack">
+  {% if show_edit_button %}
+    <div class="cluster">
+      <h2>Simple Plugin</h2>
+      <svg class="edit-icon-small" hx-get="{{ simple_plugin.edit_url }}" hx-target="#simple-plugin" hx-swap="outerHTML">
+        <use href="#edit"></use>
+      </svg>
+    </div>
+  {% else %}
+    <h2>Simple Plugin</h2>
+  {% endif %}
+  <div class="stack">
+    <div>
+      <p>
+        This is a simple plugin that can be edited.
+      </p>
+    </div>
+  </div>
+</section>

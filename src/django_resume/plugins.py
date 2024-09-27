@@ -224,8 +224,8 @@ class SimpleInline:
             person = self.data.update(person, form.cleaned_data)
             person.save()
             context["show_edit_button"] = True
-            context["edit_url"] = self.get_edit_url(person.pk)
-            context = form.set_context(self.data.get_data(person), context)
+            context[self.plugin_name] = form.cleaned_data
+            context[self.plugin_name]["edit_url"] = self.get_edit_url(person.pk)
             return render(request, self.templates.main, context)
         # render the form again with errors
         return render(request, self.templates.form, context)
@@ -251,7 +251,11 @@ class SimpleInline:
 class SimplePlugin:
     name = "simple_plugin"
     verbose_name = "Simple Plugin"
-    templates: SimpleTemplates = SimpleTemplates(main="", form="")  # overwrite this
+    templates: SimpleTemplates = SimpleTemplates(
+        # those two templates are just a dummies - overwrite them
+        main="django_resume/plain/simple_plugin.html",
+        form="django_resume/plain/simple_plugin_form.html",
+    )
 
     def __init__(self):
         super().__init__()
