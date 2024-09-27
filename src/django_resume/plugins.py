@@ -279,7 +279,7 @@ class SimplePlugin:
         """This method returns the context of the plugin for inline editing."""
         context.update(plugin_data)
         context["edit_url"] = self.inline.get_edit_url(person_pk)
-
+        context["templates"] = self.templates
         return context
 
     # plugin protocol methods
