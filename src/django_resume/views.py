@@ -16,7 +16,9 @@ def cv(request: HttpRequest, slug: str) -> HttpResponse:
     }
     for plugin in plugin_registry.get_all_plugins():
         context[plugin.name] = plugin.get_context(
-            plugin.get_data(person), person.pk, context=context
+            plugin.get_data(person),
+            person.pk,
+            context={},
         )
     is_authenticated = request.user.is_authenticated
     print("is_authenticated: ", is_authenticated)

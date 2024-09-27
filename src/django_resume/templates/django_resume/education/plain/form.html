@@ -45,26 +45,5 @@
       </svg>
     </button>
   </div>
-  <script>
-      {#If then submit button is clicked, then collect all the data from the contenteditable elements#}
-      {#and copy them to the hidden input fields in the form. Then submit the form using htmx.#}
-      document.getElementById("submit-education").addEventListener("click", function (e) {
-          const educationElement = document.getElementById("education");
-          const formElement = document.getElementById("form-education");
-          const editableElements = educationElement.querySelectorAll("[contenteditable=true]");
-          const formValues = {"id": "{{ form.item_id }}"};
-          editableElements.forEach((field) => {
-              const fieldName = field.dataset.field;
-              const fieldValue = field.textContent.trim();
-              formValues[fieldName] = fieldValue;
-              const hiddenInput = formElement.querySelector(`input[type="hidden"][data-field="${fieldName}"]`);
-              if (hiddenInput) {
-                  hiddenInput.value = fieldValue;
-                  console.log("hiddenInput: ", fieldName, fieldValue);
-              }
-          });
-          console.log("formValues: ", formValues);
-          htmx.trigger(formElement, "submit");
-      });
-  </script>
+  <script>registerClickListenerForHiddenForm("education", "submit-education", "form-education");</script>
 </section>
