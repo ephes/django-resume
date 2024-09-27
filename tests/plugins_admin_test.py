@@ -98,6 +98,24 @@ def test_simple_plugin_post_data_changes_data(admin_client, person, plugin_regis
     assert plugin_data == {"foo": "bar"}
 
 
+@pytest.mark.django_db
+def test_simple_plugin_post_data_invalid(admin_client, person, plugin_registry):
+    # Given a person in the database and a simple plugin in the registry
+    person.save()
+
+    # When we post data to the plugin
+    plugin = plugin_registry.get_plugin(SimplePlugin.name)
+    post_url = plugin.admin.get_change_post_url(person.pk)
+    data = {"plugin_data": "invalid"}
+    r = admin_client.post(post_url, data)
+
+    # Then the error message should be shown
+    assert r.status_code == 200
+    form = r.context["form"]
+    [error] = form.errors["plugin_data"]
+    assert error == "Enter a valid JSON."
+
+
 # integration test: click on the edit button, change the data, save, check the data
 
 
