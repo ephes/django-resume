@@ -272,6 +272,14 @@ class SimplePlugin:
 
     def get_context(self, plugin_data, person_pk, *, context: dict[str, Any]) -> dict:
         """This method returns the context of the plugin for inline editing."""
+        if plugin_data == {}:
+            # no data yet, use initial data from inline form
+            form = self.get_inline_form_class()()
+            initial_values = {
+                field_name: form.get_initial_for_field(field, field_name)
+                for field_name, field in form.fields.items()
+            }
+            plugin_data = initial_values
         context.update(plugin_data)
         context["edit_url"] = self.inline.get_edit_url(person_pk)
         context["templates"] = self.templates

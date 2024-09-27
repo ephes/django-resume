@@ -33,24 +33,6 @@ class EducationForm(forms.Form):
         return context
 
 
-class EducationForContext:
-    def __init__(
-        self,
-        school_name: str,
-        school_url: str,
-        start: str,
-        end: str,
-        templates: SimpleTemplates,
-        edit_url: str,
-    ):
-        self.school_name = school_name
-        self.school_url = school_url
-        self.start = start
-        self.end = end
-        self.templates = templates
-        self.edit_url = edit_url
-
-
 class EducationPlugin(SimplePlugin):
     name: str = "education"
     verbose_name: str = "Education"
@@ -59,16 +41,3 @@ class EducationPlugin(SimplePlugin):
         form="django_resume/plain/education_form.html",
     )
     admin_form_class = inline_form_class = EducationForm
-
-    def get_context(
-        self, plugin_data, person_pk, *, context: dict[str, Any]
-    ) -> EducationForContext:
-        education = EducationForContext(
-            school_name=plugin_data.get("school_name", "School name"),
-            school_url=plugin_data.get("school_url", "https://example.org"),
-            start=plugin_data.get("start", "start"),
-            end=plugin_data.get("end", "end"),
-            templates=self.templates,
-            edit_url=self.inline.get_edit_url(person_pk),
-        )
-        return education
