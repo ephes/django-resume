@@ -249,6 +249,12 @@ class SimpleInline:
 
 
 class SimplePlugin:
+    """
+    A simple plugin that only stores a json serializable dict of data. It's simple,
+    because there is only one form for the plugin data and no items with IDs or other
+    complex logic.
+    """
+
     name = "simple_plugin"
     verbose_name = "Simple Plugin"
     templates: SimpleTemplates = SimpleTemplates(
