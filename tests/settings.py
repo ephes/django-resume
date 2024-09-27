@@ -1,5 +1,5 @@
 SECRET_KEY = "efb9abd23dc7eea4da34b5e7c3b2130b0790426c1bdcacce1667bbb2d3cde5f0"
-ROOT_URLCONF = "django_resume.urls"
+ROOT_URLCONF = "tests.urls"
 
 INSTALLED_APPS = [
     "django.contrib.admin",

@@ -1,27 +1,11 @@
-import pytest
-
-from django.urls import path, include
-from django_resume.plugins import SimplePlugin
+from django_resume.plugins import SimplePlugin, plugin_registry
 
 
-class SimplePluginUrlpatterns:
-    def __init__(self):
-        self.urlpatterns = [
-            path(
-                "",
-                include(
-                    (SimplePlugin().get_inline_urls(), "django_resume"),
-                    namespace="django_resume",
-                ),
-            )
-        ]
-
-
-@pytest.mark.urls(SimplePluginUrlpatterns())
 def test_simple_plugin_get_context(person):
     # Given a person with a primary key and a plugin with some arbitrary data
     person.pk = 1
     plugin = SimplePlugin()
+    plugin_registry.register(SimplePlugin)
     plugin_data = {"foo": "bar"}
 
     # When we get the context
