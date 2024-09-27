@@ -11,12 +11,14 @@ class ResumeConfig(AppConfig):
         from .tokens import TokenPlugin
         from .projects import ProjectsPlugin
         from .education import EducationPlugin
-        from django_resume.plugin_registry import plugin_registry
+        from .about import AboutPlugin
+        from .plugin_registry import plugin_registry
 
         plugin_registry.register(FreelanceTimelinePlugin)
         plugin_registry.register(EmployedTimelinePlugin)
         plugin_registry.register(EducationPlugin)
         plugin_registry.register(ProjectsPlugin)
+        plugin_registry.register(AboutPlugin)
         plugin_registry.register(TokenPlugin)
 
     def ready(self):

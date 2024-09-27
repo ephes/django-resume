@@ -60,10 +60,7 @@
           <img class="avatar" src="{{ person.avatar_url }}" alt="{{ person.avatar_alt }}" width="110" height="110">
         </div>
       </section>
-      <section class="stack">
-        <h2>About</h2>
-        <p>{{ person.about }}</p>
-      </section>
+      {% include about.templates.main %}
       {% include freelance_timeline.templates.main with timeline=freelance_timeline %}
       {% include employed_timeline.templates.main with timeline=employed_timeline %}
       {% include education.templates.main %}

@@ -1,0 +1,46 @@
+<section id="about" class="stack">
+  {#  This is a hidden form that will be submitted by the button below.#}
+  <form
+    id="form-about"
+    class="stack-small"
+    hx-post="{{ form.post_url }}"
+    hx-target="#about"
+    hx-swap="outerHTML"
+  >
+    <input type="hidden" data-field="text" name="text" value="{{ form.text.value }}">
+  </form>
+  <h2>About</h2>
+  <p contenteditable="true" data-field="text">{{ form.text.value }}</p>
+  {% for error in form.text.errors %}
+    <p class="error">{{ error|escape }}</p>
+  {% endfor %}
+  <div> {# prevent button from taking full width with this div #}
+    <button id="submit-about" type="submit">
+      <svg class="edit-icon-small">
+        <use href="#ok"></use>
+      </svg>
+    </button>
+  </div>
+  <script>
+      {#If then submit button is clicked, then collect all the data from the contenteditable elements#}
+      {#and copy them to the hidden input fields in the form. Then submit the form using htmx.#}
+      document.getElementById("submit-about").addEventListener("click", function (e) {
+          const aboutElement = document.getElementById("about");
+          const formElement = document.getElementById("form-about");
+          const editableElements = aboutElement.querySelectorAll("[contenteditable=true]");
+          const formValues = {};
+          editableElements.forEach((field) => {
+              const fieldName = field.dataset.field;
+              const fieldValue = field.textContent.trim();
+              formValues[fieldName] = fieldValue;
+              const hiddenInput = formElement.querySelector(`input[type="hidden"][data-field="${fieldName}"]`);
+              if (hiddenInput) {
+                  hiddenInput.value = fieldValue;
+                  console.log("hiddenInput: ", fieldName, fieldValue);
+              }
+          });
+          console.log("formValues: ", formValues);
+          htmx.trigger(formElement, "submit");
+      });
+  </script>
+</section>
