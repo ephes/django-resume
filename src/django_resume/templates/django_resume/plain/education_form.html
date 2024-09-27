@@ -28,6 +28,16 @@
       </ul>
     </div>
   </div>
+  {% if form.errors %}
+    <div>
+      {% for error in form.school_name.errors %}
+        <p class="error">{{ error|escape }}</p>
+      {% endfor %}
+      {% for error in form.school_url.errors %}
+        <p class="error">{{ error|escape }}</p>
+      {% endfor %}
+    </div>
+  {% endif %}
   <div> {# prevent button from taking full width with this div #}
     <button id="submit-education" type="submit">
       <svg class="edit-icon-small">
