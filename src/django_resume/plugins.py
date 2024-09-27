@@ -894,27 +894,3 @@ class ListPlugin:
 
     def get_data(self, person: Person) -> dict:
         return self.data.get_data(person)
-
-
-class PluginRegistry:
-    def __init__(self):
-        self.plugins = {}
-
-    def register(self, plugin_class: type[Plugin]):
-        plugin = plugin_class()
-        self.plugins[plugin.name] = plugin
-        from .urls import urlpatterns
-
-        urlpatterns.extend(plugin.get_inline_urls())
-
-    def unregister(self, plugin_class: type[Plugin]):
-        del self.plugins[plugin_class.name]
-
-    def get_plugin(self, name):
-        return self.plugins.get(name)
-
-    def get_all_plugins(self):
-        return self.plugins.values()
-
-
-plugin_registry = PluginRegistry()

@@ -3,9 +3,9 @@ from django import forms
 from django.urls import reverse
 
 from django_resume.plugins import (
-    plugin_registry as global_plugin_registry,
     SimplePlugin,
 )
+from django_resume.plugin_registry import plugin_registry as global_plugin_registry
 
 
 # fixtures
