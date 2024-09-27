@@ -196,11 +196,6 @@ class SimpleInline:
         self.templates = templates
 
     def get_edit_url(self, person_id):
-        from .urls import urlpatterns
-
-        print("urlpatterns: ")
-        for url in urlpatterns:
-            print(url)
         return reverse(
             f"django_resume:{self.plugin_name}-edit", kwargs={"person_id": person_id}
         )
