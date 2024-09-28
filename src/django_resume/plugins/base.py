@@ -209,6 +209,7 @@ class SimpleInline:
     def get_edit_view(self, request, person_id):
         person = get_object_or_404(Person, id=person_id)
         plugin_data = self.data.get_data(person)
+        print("get edit view!")
         form = self.form_class(initial=plugin_data)
         form.post_url = self.get_post_url(person.pk)
         context = {"form": form}

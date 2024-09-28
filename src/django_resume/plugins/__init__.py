@@ -4,6 +4,7 @@ from .base import SimplePlugin, ListPlugin
 from .education import EducationPlugin
 from .tokens import TokenPlugin
 from .projects import ProjectsPlugin
+from .skills import SkillsPlugin
 from .timelines import EmployedTimelinePlugin, FreelanceTimelinePlugin
 
 
@@ -16,5 +17,6 @@ __all__ = [
     "plugin_registry",
     "ProjectsPlugin",
     "SimplePlugin",
+    "SkillsPlugin",
     "TokenPlugin",
 ]
