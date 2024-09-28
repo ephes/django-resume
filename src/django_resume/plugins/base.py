@@ -13,6 +13,7 @@ from ..models import Person
 
 URLPatterns: TypeAlias = list[URLPattern | URLResolver]
 FormClasses: TypeAlias = dict[str, type[forms.Form]]
+ContextDict: TypeAlias = dict[str, Any]
 
 
 @runtime_checkable
@@ -45,7 +46,7 @@ class Plugin(Protocol):
         ...  # pragma: no cover
 
     def get_context(
-        self, plugin_data: dict, person_pk: int, *, context: dict
+        self, plugin_data: dict, person_pk: int, *, context: dict, edit: bool = False
     ) -> object:
         """Return the object which is stored in context for the plugin."""
         ...  # pragma: no cover
@@ -280,7 +281,9 @@ class SimplePlugin:
             templates=self.templates,
         )
 
-    def get_context(self, plugin_data, person_pk, *, context: dict[str, Any]) -> dict:
+    def get_context(
+        self, plugin_data, person_pk, *, context: ContextDict, edit: bool = False
+    ) -> ContextDict:
         """This method returns the context of the plugin for inline editing."""
         if plugin_data == {}:
             # no data yet, use initial data from inline form
@@ -292,6 +295,7 @@ class SimplePlugin:
             plugin_data = initial_values
         context.update(plugin_data)
         context["edit_url"] = self.inline.get_edit_url(person_pk)
+        context["show_edit_button"] = edit
         context["templates"] = self.templates
         return context
 
@@ -757,7 +761,7 @@ class ListInline:
                     initial = item
         form = form_class(initial=initial, person=person, existing_items=existing_items)
         form.post_url = self.get_post_item_url(person.pk)
-        context = {"form": form}
+        context = {"form": form, "plugin_name": self.plugin_name}
         return render(request, self.templates.item_form, context=context)
 
     def post_item_view(self, request, person_id):
@@ -885,7 +889,59 @@ class ListPlugin:
             templates=self.templates,
         )
 
-    # main interface see Plugin class
+    # list logic
+
+    def get_flat_form_class(self) -> type[forms.Form]:
+        """Set inline_form_class attribute or overwrite this method."""
+        if hasattr(self, "flat_form_class"):
+            return self.flat_form_class
+        return SimpleJsonForm  # default
+
+    @staticmethod
+    def items_ordered_by_position(items, reverse=False):
+        return sorted(items, key=lambda item: item.get("position", 0), reverse=reverse)
+
+    def get_context(
+        self, plugin_data, person_pk, *, context: ContextDict, edit: bool = False
+    ) -> ContextDict:
+        if plugin_data.get("flat", {}) == {}:
+            # no flat data yet, use initial data from inline form
+            form = self.get_flat_form_class()()
+            initial_values = {
+                field_name: form.get_initial_for_field(field, field_name)
+                for field_name, field in form.fields.items()
+            }
+            plugin_data["flat"]: initial_values
+        # add flat data to context
+        context.update(plugin_data["flat"])
+
+        ordered_entries = self.items_ordered_by_position(
+            plugin_data.get("items", []), reverse=True
+        )
+        if edit:
+            # if there should be edit buttons, add the edit URLs to each entry
+            context["show_edit_button"] = True
+            for entry in ordered_entries:
+                entry["edit_url"] = self.inline.get_edit_item_url(
+                    person_pk, item_id=entry["id"]
+                )
+                entry["delete_url"] = self.inline.get_delete_item_url(
+                    person_pk, item_id=entry["id"]
+                )
+        print("edit flat post: ", self.inline.get_edit_flat_post_url(person_pk))
+        context.update(
+            {
+                "templates": self.templates,
+                "ordered_entries": ordered_entries,
+                "add_item_url": self.inline.get_edit_item_url(person_pk),
+                "edit_flat_url": self.inline.get_edit_flat_url(person_pk),
+                "edit_flat_post_url": self.inline.get_edit_flat_post_url(person_pk),
+            }
+        )
+        return context
+
+    # plugin protocol methods
+
     def get_admin_urls(self, admin_view: Callable) -> URLPatterns:
         return self.admin.get_urls(admin_view)
 

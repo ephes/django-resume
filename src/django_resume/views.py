@@ -8,17 +8,20 @@ from .plugins import plugin_registry
 def cv(request: HttpRequest, slug: str) -> HttpResponse:
     person = get_object_or_404(Person, slug=slug)
     edit = bool(request.GET.get("edit", False))
+    show_edit_button = True if request.user.is_authenticated and edit else False
     context = {
-        "show_edit_button": True if request.user.is_authenticated and edit else False,
         "person": person,
         "timelines": [],
         "projects": [],
+        # needed to include edit styles in the base template
+        "show_edit_button": show_edit_button,
     }
     for plugin in plugin_registry.get_all_plugins():
         context[plugin.name] = plugin.get_context(
             plugin.get_data(person),
             person.pk,
             context={},
+            edit=show_edit_button,
         )
     is_authenticated = request.user.is_authenticated
     print("is_authenticated: ", is_authenticated)

@@ -1,10 +1,10 @@
-<div id="project-{{ form.item_id }}" class="project-box stack stack-card">
+<div id="{{ plugin_name }}-item-{{ form.item_id }}" class="project-box stack stack-card">
   {#  This is a hidden form that will be submitted by the button below.#}
   <form
-    id="form-project-{{ form.item_id }}"
+    id="{{ plugin_name }}-form-{{ form.item_id }}"
     class="stack-small"
     hx-post="{{ form.post_url }}"
-    hx-target="#project-{{ form.item_id }}"
+    hx-target="#{{ plugin_name }}-item-{{ form.item_id }}"
     hx-swap="outerHTML"
   >
     <input data-field="id" type="hidden" name="id" value="{{ form.item_id }}">
@@ -38,31 +38,17 @@
   {% for error in form.badges.errors %}
     <p class="error">{{ error|escape }}</p>
   {% endfor %}
-  <button id="submit-projects-item-{{ form.item_id }}" type="submit">
+  <button id="{{ plugin_name }}-submit-item-{{ form.item_id }}" type="submit">
     <svg class="edit-icon-small">
       <use href="#ok"></use>
     </svg>
   </button>
   <script>
-      {#If then submit button is clicked, then collect all the data from the contenteditable elements#}
-      {#and copy them to the hidden input fields in the form. Then submit the form using htmx.#}
-      document.getElementById("submit-projects-item-{{ form.item_id }}").addEventListener("click", function (e) {
-          const projectItem = document.getElementById("project-{{ form.item_id }}");
-          const formElement = document.getElementById("form-project-{{ form.item_id }}");
-          const editableElements = projectItem.querySelectorAll("[contenteditable=true]");
-          const formValues = {"id": "{{ form.item_id }}"};
-          editableElements.forEach((field) => {
-              const fieldName = field.dataset.field;
-              const fieldValue = field.textContent.trim();
-              formValues[fieldName] = fieldValue;
-              const hiddenInput = formElement.querySelector(`input[type="hidden"][data-field="${fieldName}"]`);
-              if (hiddenInput) {
-                  hiddenInput.value = fieldValue;
-                  console.log("hiddenInput: ", fieldName, fieldValue);
-              }
-          });
-          console.log("formValues: ", formValues);
-          htmx.trigger(formElement, "submit");
-      });
+      registerClickListenerForHiddenForm(
+          "{{ plugin_name }}-item-{{ form.item_id }}",
+          "{{ plugin_name }}-submit-item-{{ form.item_id }}",
+          "{{ plugin_name }}-form-{{ form.item_id }}",
+          "{{ form.item_id }}"
+      );
   </script>
 </div>

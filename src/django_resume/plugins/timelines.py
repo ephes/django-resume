@@ -96,32 +96,15 @@ class TimelineItemForm(ListItemFormMixin, forms.Form):
 
 
 class TimelineFlatForm(forms.Form):
-    title = forms.CharField(widget=forms.TextInput(), required=False, max_length=50)
+    title = forms.CharField(
+        widget=forms.TextInput(), required=False, max_length=50, initial="Timeline"
+    )
 
     @staticmethod
     def set_context(item: dict, context: dict[str, Any]) -> dict[str, Any]:
         context["timeline"] = {"title": item.get("title", "")}
         context["timeline"]["edit_flat_url"] = context["edit_flat_url"]
         return context
-
-
-class TimelineForContext:
-    def __init__(
-        self,
-        *,
-        title: str,
-        ordered_entries: list[dict],
-        templates: ListTemplates,
-        add_item_url: str,
-        edit_flat_url: str,
-        edit_flat_post_url: str,
-    ):
-        self.title = title
-        self.ordered_entries = ordered_entries
-        self.templates = templates
-        self.add_item_url = add_item_url
-        self.edit_flat_url = edit_flat_url
-        self.edit_flat_post_url = edit_flat_post_url
 
 
 class TimelineMixin:
@@ -139,35 +122,6 @@ class TimelineMixin:
     @staticmethod
     def get_form_classes() -> dict[str, Type[forms.Form]]:
         return {"item": TimelineItemForm, "flat": TimelineFlatForm}
-
-    @staticmethod
-    def items_ordered_by_position(items, reverse=False):
-        return sorted(items, key=lambda item: item.get("position", 0), reverse=reverse)
-
-    def get_context(
-        self, plugin_data, person_pk, *, context: dict[str, Any]
-    ) -> TimelineForContext:
-        ordered_entries = self.items_ordered_by_position(
-            plugin_data.get("items", []), reverse=True
-        )
-        if context.get("show_edit_button", False):
-            # if there should be edit buttons, add the edit URLs to each entry
-            for entry in ordered_entries:
-                entry["edit_url"] = self.inline.get_edit_item_url(
-                    person_pk, item_id=entry["id"]
-                )
-                entry["delete_url"] = self.inline.get_delete_item_url(
-                    person_pk, item_id=entry["id"]
-                )
-        timeline = TimelineForContext(
-            title=plugin_data.get("flat", {}).get("title", self.verbose_name),
-            ordered_entries=ordered_entries,
-            templates=self.templates,
-            add_item_url=self.inline.get_edit_item_url(person_pk),
-            edit_flat_url=self.inline.get_edit_flat_url(person_pk),
-            edit_flat_post_url=self.inline.get_edit_flat_post_url(person_pk),
-        )
-        return timeline
 
 
 class FreelanceTimelinePlugin(TimelineMixin, ListPlugin):
