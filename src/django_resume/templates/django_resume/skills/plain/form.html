@@ -1,0 +1,68 @@
+<section id="skills" class="stack">
+  {#  This is a hidden form that will be submitted by the button below.#}
+  <form
+    id="form-skills"
+    class="stack-small"
+    hx-post="{{ form.post_url }}"
+    hx-target="#skills"
+    hx-swap="outerHTML"
+  >
+    <input type="hidden" data-field="badges" name="badges" value="{{ form.badges.value }}">
+  </form>
+  <h2>Skills</h2>
+  {% if form.badges.value %}
+    <ul id="skills-list" class="cluster cluster-list skills-list">
+      <li contenteditable="true" data-field="badges" style="display: none;" id="hidden-skill-list">
+        {{ form.badges_as_text }}
+      </li>
+      {% for skill in form.badges.value %}
+        <li class="skill-badge badge">
+          <span class="skill-name badge-name">{{ skill|escape }}</span>
+          <button class="delete-skill-button badge-delete-button" type="button">
+            <svg class="edit-icon-small">
+              <use href="#delete"></use>
+            </svg>
+          </button>
+        </li>
+      {% endfor %}
+      <li>
+        <input type="text" id="new-skill-input" placeholder="Add skill">
+        <button id="add-skill-button" type="button">Add</button>
+      </li>
+    </ul>
+  {% endif %}
+  {% for error in form.badges.errors %}
+    <p class="error">{{ error|escape }}</p>
+  {% endfor %}
+  <div> {# prevent button from taking full width with this div #}
+    <button id="submit-skills" type="submit">
+      <svg class="edit-icon-small">
+        <use href="#ok"></use>
+      </svg>
+    </button>
+  </div>
+  <script>
+      // Listen for htmx events to re-initialize when content is swapped
+      document.body.addEventListener('htmx:afterSwap', function (evt) {
+          if (
+              evt.detail &&
+              evt.detail.target &&
+              evt.detail.target.id === 'skills'
+          ) {
+              initBadgesForm(
+                  'skills-list',
+                  'new-skill-input',
+                  'add-skill-button',
+                  'hidden-skill-list',
+                  'skill-name',
+                  'skill-badge',
+                  'delete-skill-button',
+                  'submit-skills'
+              );
+              if (document.getElementById('submit-skills')) {
+                  registerClickListenerForHiddenForm('skills', 'submit-skills', 'form-skills');
+              }
+          }
+      });
+  </script>
+</section>

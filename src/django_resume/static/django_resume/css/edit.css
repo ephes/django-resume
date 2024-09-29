@@ -28,3 +28,25 @@
     width: 1.5em;
     height: 1.5em;
 }
+
+/* for the delete button of badges */
+
+.badge {
+    display: flex;
+}
+
+.badge-name {
+    margin-right: 0;
+}
+
+.badge-delete-button {
+    background-color: transparent;
+    color: white;
+    border: none;
+    cursor: pointer;
+    padding-right: 0;
+}
+
+.badge-delete-button:hover svg {
+    color: #ff0000; /* Optional: change color on hover */
+}
