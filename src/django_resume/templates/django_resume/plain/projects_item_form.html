@@ -31,8 +31,24 @@
     <p class="error">{{ error|escape }}</p>
   {% endfor %}
   {% if form.badges.value %}
-    <ul class="cluster cluster-list project-badges-list">
-      <li contenteditable="true" data-field="badges">{{ form.badges.value }}</li>
+    <ul id="project-badges-list" class="cluster cluster-list project-badges-list">
+      <li contenteditable="true" data-field="badges" style="display: none;" id="hidden-project-badges-list">
+        {{ form.badges_as_text }}
+      </li>
+      {% for skill in form.badges.value %}
+        <li class="project-badge badge">
+          <span class="project-badge-name badge-name">{{ skill|escape }}</span>
+          <button class="delete-project-badge-button badge-delete-button" type="button">
+            <svg class="edit-icon-small">
+              <use href="#delete"></use>
+            </svg>
+          </button>
+        </li>
+      {% endfor %}
+      <li>
+        <input type="text" id="new-project-badge-input" placeholder="Add badge">
+        <button id="add-project-badge-button" type="button">Add</button>
+      </li>
     </ul>
   {% endif %}
   {% for error in form.badges.errors %}
@@ -44,11 +60,35 @@
     </svg>  
   </button>
   <script>
-      registerClickListenerForHiddenForm(
-          "{{ plugin_name }}-item-{{ form.item_id }}",
-          "{{ plugin_name }}-submit-item-{{ form.item_id }}",
-          "{{ plugin_name }}-form-{{ form.item_id }}",
-          "{{ form.item_id }}"
-      );
+      // Listen for htmx events to re-initialize when content is swapped
+      document.body.addEventListener('htmx:afterSwap', function (evt) {
+          console.log("target id: ", evt.detail.target.id, );
+          if (
+              evt.detail &&
+              evt.detail.target &&
+              (evt.detail.target.id === "{{ plugin_name }}-item-{{ form.item_id }}" ||
+               evt.detail.target.id === "projects-grid")
+          ) {
+              console.log("adding event listeners for project badges!");
+              initBadgesForm(
+                  'project-badges-list',
+                  'new-project-badge-input',
+                  'add-project-badge-button',
+                  'hidden-project-badges-list',
+                  'project-badge-name',
+                  'project-badge',
+                  'delete-project-badge-button',
+                  '{{ plugin_name }}-submit-item-{{ form.item_id }}'
+              );
+              if (document.getElementById("{{ plugin_name }}-submit-item-{{ form.item_id }}")) {
+                  registerClickListenerForHiddenForm(
+                      "{{ plugin_name }}-item-{{ form.item_id }}",
+                      "{{ plugin_name }}-submit-item-{{ form.item_id }}",
+                      "{{ plugin_name }}-form-{{ form.item_id }}",
+                      "{{ form.item_id }}"
+                  );
+              }
+          }
+      });
   </script>
 </div>

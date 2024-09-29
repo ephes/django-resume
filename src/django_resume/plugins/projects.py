@@ -9,13 +9,25 @@ class ProjectItemForm(ListItemFormMixin, forms.Form):
     title = forms.CharField(widget=forms.TextInput())
     url = forms.URLField(widget=forms.URLInput(), required=False, assume_scheme="https")
     description = forms.CharField(widget=forms.Textarea())
-    badges = forms.CharField(widget=forms.TextInput(), required=False)
+    initial_badges = ["Some Badge", "Another Badge"]
+    badges = forms.CharField(
+        widget=forms.TextInput(), required=False, initial=initial_badges
+    )
     position = forms.IntegerField(widget=forms.NumberInput(), required=False)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.set_initial_badges()
         self.set_initial_position()
+
+    def badges_as_text(self):
+        """
+        Return the initial badges which should already be a comma seperated string
+        or the initial_badged list joined by commas for the first render of the form.
+        """
+        existing_badges = self.initial.get("badges")
+        if existing_badges is not None:
+            return ",".join(existing_badges)
+        return ",".join(self.initial_badges)
 
     @staticmethod
     def get_initial() -> dict[str, Any]:
@@ -24,7 +36,7 @@ class ProjectItemForm(ListItemFormMixin, forms.Form):
             "title": "Project Title",
             "url": "https://example.com/project/",
             "description": "description",
-            "badges": "badges",
+            "badges": ProjectItemForm.initial_badges,
         }
 
     def set_context(self, item: dict, context: dict[str, Any]) -> dict[str, Any]:

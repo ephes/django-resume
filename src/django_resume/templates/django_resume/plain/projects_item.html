@@ -1,4 +1,4 @@
-<div id="project-{{ project.id }}" aria-label="{{ project.title }}" class="project-box stack stack-card">
+<div id="projects-item-{{ project.id }}" aria-label="{{ project.title }}" class="project-box stack stack-card">
   <div>
     <h3 class="link-margin">{{ project.title }}</h3>
     <a href="{{ project.url }}">
@@ -10,7 +10,7 @@
   <p>{{ project.description }}</p>
   {% if show_edit_button %}
     <div class="edit-icons">
-      <svg class="edit-icon-small" hx-get="{{ project.edit_url }}" hx-target="#project-{{ project.id }}"
+      <svg class="edit-icon-small" hx-get="{{ project.edit_url }}" hx-target="#projects-item-{{ project.id }}"
            hx-swap="outerHTML">
         <use href="#edit"></use>
       </svg>
@@ -18,7 +18,7 @@
         class="edit-icon-small"
         style="color: red !important;"
         hx-delete="{{ project.delete_url }}"
-        hx-target="#project-{{ project.id }}"
+        hx-target="#projects-item-{{ project.id }}"
         hx-swap="delete"
       >
         <use href="#delete"></use>
