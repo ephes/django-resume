@@ -41,10 +41,14 @@
 
 .badge-delete-button {
     background-color: transparent;
-    color: white;
+    color: var(--font-color);
     border: none;
     cursor: pointer;
     padding-right: 0;
+}
+
+.badge-delete-button\:white {
+    color: white;
 }
 
 .badge-delete-button:hover svg {

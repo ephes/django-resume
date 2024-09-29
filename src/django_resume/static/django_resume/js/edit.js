@@ -38,7 +38,8 @@ function initBadgesForm(
     badgeNameClassName,
     badgeLiClassName,
     deleteClassName,
-    submitButtonId
+    submitButtonId,
+    white = false
 ) {
     const badgesList = document.getElementById(badgesListId);
     const newBadgeInput = document.getElementById(newBadgeInputId);
@@ -93,6 +94,9 @@ function initBadgesForm(
                 span.textContent = badge;
                 const delButton = document.createElement('button');
                 delButton.className = `${deleteClassName} badge-delete-button`;
+                if (white) {
+                    delButton.classList.add('badge-delete-button:white');
+                }
                 delButton.type = 'button'; // Prevents form submission
 
                 // Create the SVG icon
@@ -115,34 +119,6 @@ function initBadgesForm(
         }
     };
 
-    // // Handler for adding a new badge
-    // addBadgeButtonHandler = function (e) {
-    //     e.preventDefault();
-    //     const badge = newBadgeInput.value.trim();
-    //     if (badge) {
-    //         const existingBadges = Array.from(
-    //             badgesList.querySelectorAll(`.${badgeNameClassName}`)
-    //         ).map((el) => el.textContent.trim());
-    //         if (existingBadges.includes(badge)) {
-    //             alert('Badge already exists.');
-    //         } else {
-    //             const li = document.createElement('li');
-    //             li.className = badgeLiClassName;
-    //             const span = document.createElement('span');
-    //             span.className = badgeNameClassName;
-    //             span.textContent = badge;
-    //             const delButton = document.createElement('button');
-    //             delButton.className = deleteClassName;
-    //             delButton.type = 'button'; // Prevents form submission
-    //             delButton.textContent = 'x';
-    //             li.appendChild(span);
-    //             li.appendChild(delButton);
-    //             badgesList.insertBefore(li, badgesList.lastElementChild);
-    //             newBadgeInput.value = '';
-    //             updateHiddenBadgeList();
-    //         }
-    //     }
-    // };
 
     // Handler for deleting a badge
     badgesListClickHandler = function (e) {
