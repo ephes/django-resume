@@ -14,13 +14,27 @@ class TimelineItemForm(ListItemFormMixin, forms.Form):
     description = forms.CharField(widget=forms.Textarea())
     start = forms.CharField(widget=forms.TextInput(), required=False)
     end = forms.CharField(widget=forms.TextInput(), required=False)
-    badges = forms.CharField(widget=forms.TextInput(), required=False)
+    initial_badges = [
+        "Some Badge",
+    ]
+    badges = forms.CharField(
+        widget=forms.TextInput(), required=False, initial=initial_badges
+    )
     position = forms.IntegerField(widget=forms.NumberInput(), required=False)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.set_initial_badges()
         self.set_initial_position()
+
+    def badges_as_text(self):
+        """
+        Return the initial badges which should already be a comma seperated string
+        or the initial_badged list joined by commas for the first render of the form.
+        """
+        existing_badges = self.initial.get("badges")
+        if existing_badges is not None:
+            return ",".join(existing_badges)
+        return ",".join(self.initial_badges)
 
     @staticmethod
     def get_initial() -> dict[str, Any]:
@@ -32,7 +46,7 @@ class TimelineItemForm(ListItemFormMixin, forms.Form):
             "start": "start",
             "end": "end",
             "description": "description",
-            "badges": "badges",
+            "badges": TimelineItemForm.initial_badges,
         }
 
     def set_context(self, item: dict, context: dict[str, Any]) -> dict[str, Any]:
@@ -49,11 +63,6 @@ class TimelineItemForm(ListItemFormMixin, forms.Form):
             "delete_url": context["delete_url"],
         }
         return context
-
-    def set_initial_badges(self):
-        """Transform the list of badges into a comma-separated string."""
-        if "badges" in self.initial and isinstance(self.initial["badges"], list):
-            self.initial["badges"] = ",".join(self.initial["badges"])
 
     @staticmethod
     def get_max_position(items):

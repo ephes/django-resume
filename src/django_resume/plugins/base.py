@@ -806,6 +806,7 @@ class ListInline:
             context["delete_url"] = self.get_delete_item_url(person.id, item_id)
             form.set_context(item, context)
             context["show_edit_button"] = True
+            context["plugin_name"] = self.plugin_name  # for javascript
             return render(request, self.templates.item, context)
         else:
             # form is invalid
@@ -932,6 +933,7 @@ class ListPlugin:
         print("edit flat post: ", self.inline.get_edit_flat_post_url(person_pk))
         context.update(
             {
+                "plugin_name": self.name,
                 "templates": self.templates,
                 "ordered_entries": ordered_entries,
                 "add_item_url": self.inline.get_edit_item_url(person_pk),

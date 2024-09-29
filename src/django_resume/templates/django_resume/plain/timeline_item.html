@@ -1,4 +1,4 @@
-<div id="item-{{ entry.id }}" class="stack-small">
+<div id="{{ plugin_name }}-item-{{ entry.id }}" class="stack-small">
   <div class="cluster timeline-header-cluster">
     <div class="timeline-header-title">
       {% if entry.company_url %}
@@ -20,14 +20,14 @@
       <li>{{ entry.end }}</li>
       {% if show_edit_button %}
         <div class="edit-icons">
-        <svg class="edit-icon-small" hx-get="{{ entry.edit_url }}" hx-target="#item-{{ entry.id }}" hx-swap="outerHTML">
+        <svg class="edit-icon-small" hx-get="{{ entry.edit_url }}" hx-target="#{{ plugin_name }}-item-{{ entry.id }}" hx-swap="outerHTML">
           <use href="#edit"></use>
         </svg>
         <svg
           class="edit-icon-small"
           style="color: red !important;"
           hx-delete="{{ entry.delete_url }}"
-          hx-target="#item-{{ entry.id }}"
+          hx-target="#{{ plugin_name }}-item-{{ entry.id }}"
           hx-swap="delete"
         >
           <use href="#delete"></use>

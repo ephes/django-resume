@@ -24,8 +24,24 @@
         <span contenteditable="true" data-field="company_url">{{ form.company_url.value }}</span>
       </h3>
       {% if form.badges.value %}
-        <ul class="cluster cluster-list job-badges-list">
-          <li contenteditable="true" data-field="badges">{{ form.badges.value }}</li>
+        <ul id="{{ plugin_name }}-badges-list" class="cluster cluster-list job-badges-list">
+          <li contenteditable="true" data-field="badges" style="display: none;" id="hidden-{{ plugin_name }}-badges-list">
+            {{ form.badges_as_text }}
+          </li>
+          {% for skill in form.badges.value %}
+            <li class="{{ plugin_name }}-badge badge">
+              <span class="{{ plugin_name }}-badge-name badge-name">{{ skill|escape }}</span>
+              <button class="delete-{{ plugin_name }}-badge-button badge-delete-button" type="button">
+                <svg class="edit-icon-small">
+                  <use href="#delete"></use>
+                </svg>
+              </button>
+            </li>
+          {% endfor %}
+          <li>
+            <input type="text" id="new-{{ plugin_name }}-badge-input" placeholder="Add badge">
+            <button id="add-{{ plugin_name }}-badge-button" type="button">Add</button>
+          </li>
         </ul>
       {% endif %}
     </div>
@@ -65,11 +81,35 @@
     </svg>
   </button>
   <script>
-      registerClickListenerForHiddenForm(
-          "{{ plugin_name }}-item-{{ form.item_id }}",
-          "{{ plugin_name }}-submit-item-{{ form.item_id }}",
-          "{{ plugin_name }}-form-{{ form.item_id }}",
-          "{{ form.item_id }}"
-      );
+      // Listen for htmx events to re-initialize when content is swapped
+      document.body.addEventListener('htmx:afterSwap', function (evt) {
+          console.log("target id: ", evt.detail.target.id);
+          if (
+              evt.detail &&
+              evt.detail.target &&
+              (evt.detail.target.id === "{{ plugin_name }}-item-{{ form.item_id }}" ||
+               evt.detail.target.id === "add-{{ plugin_name }}-icon")
+          ) {
+              console.log("adding event listeners for timeline badges!");
+              initBadgesForm(
+                  '{{ plugin_name }}-badges-list',
+                  'new-{{ plugin_name }}-badge-input',
+                  'add-{{ plugin_name }}-badge-button',
+                  'hidden-{{ plugin_name }}-badges-list',
+                  '{{ plugin_name }}-badge-name',
+                  '{{ plugin_name }}-badge',
+                  'delete-{{ plugin_name }}-badge-button',
+                  '{{ plugin_name }}-submit-item-{{ form.item_id }}'
+              );
+              if (document.getElementById("{{ plugin_name }}-submit-item-{{ form.item_id }}")) {
+                  registerClickListenerForHiddenForm(
+                      "{{ plugin_name }}-item-{{ form.item_id }}",
+                      "{{ plugin_name }}-submit-item-{{ form.item_id }}",
+                      "{{ plugin_name }}-form-{{ form.item_id }}",
+                      "{{ form.item_id }}"
+                  );
+              }
+          }
+      });
   </script>
 </div>
