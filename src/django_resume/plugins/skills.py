@@ -1,3 +1,5 @@
+import json
+
 from django import forms
 
 from .base import SimplePlugin, SimpleTemplates
@@ -18,6 +20,12 @@ class SkillsForm(forms.Form):
         if existing_badges is not None:
             return ",".join(existing_badges)
         return ",".join(self.initial_badges)
+
+    def badges_as_json(self):
+        existing_badges = self.initial.get("badges")
+        if existing_badges is not None:
+            return json.dumps(existing_badges)
+        return json.dumps(self.initial_badges)
 
     def clean_badges(self):
         badges = self.cleaned_data.get("badges", "")

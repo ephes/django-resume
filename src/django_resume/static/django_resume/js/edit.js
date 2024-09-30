@@ -140,3 +140,136 @@ function initBadgesForm(
     // Update hidden badge list on initialization
     updateHiddenBadgeList();
 }
+
+
+/**
+ * @module badge-editor
+ * @description
+ * A custom element for editing a list of badges.
+ * @property {string} form-field-id=null The id of the hidden input field that will store the badge data
+ */
+class BadgeEditor extends HTMLElement {
+    constructor() {
+        super();
+        this.render = () => {
+            console.log("rendering...");
+            console.log("form field id: ", this.formFieldId);
+            const badges = this.badges;
+            console.log("badges: ", badges);
+            this.innerHTML = `
+                <ul class="cluster cluster-list skills-list">
+                    <!-- Badges will be inserted here -->
+                    <li>
+                        <input type="text" id="new-skill-input" placeholder="Add badge">
+                        <button type="button">Add</button>
+                    </li>        
+                </ul>
+            `;
+            const newBadgeInput = this.querySelector('input');
+            const badgesList = this.querySelector('ul');
+            // add event listener to add badge button
+            this.addBadgeButtonHandler = (e) => {
+                e.preventDefault();
+                const badge = newBadgeInput.value.trim();
+                if (badge) {
+                    const existingBadges = Array.from(badgesList.querySelectorAll('.badge-name'))
+                        .map(el => el.textContent.trim());
+                    if (existingBadges.includes(badge)) {
+                        alert('Badge already exists.');
+                    } else {
+                        const li = this.getBadgeLi(badge);
+                        badgesList.insertBefore(li, badgesList.lastElementChild);
+                        newBadgeInput.value = '';
+                        // updateHiddenBadgeList();
+                    }
+                }
+            };
+            const addBadgeButton = this.querySelector('button');
+            addBadgeButton.addEventListener('click', this.addBadgeButtonHandler);
+
+            // Delete badge handler
+            this.badgesListClickHandler = (e) => {
+                const deleteButton = e.target.closest('.badge-delete-button');
+                if (deleteButton) {
+                    e.preventDefault();
+                    const li = deleteButton.closest('li');
+                    if (li && badgesList.contains(li)) {
+                        badgesList.removeChild(li);
+                        // updateHiddenBadgeList();
+                    }
+                }
+            };
+            badgesList.addEventListener('click', this.badgesListClickHandler);
+
+            if (badges.length > 0) {
+                this.renderBadgesList(badges);
+            }
+        }
+    }
+
+    get formFieldId() {
+        return this.getAttribute('form-field-id') || null;
+    }
+
+    set formFieldId(val) {
+        return this.setAttribute('form-field-id', val);
+    }
+
+    get badges() {
+        if (this.formFieldId) {
+            return JSON.parse(document.getElementById(this.formFieldId).value);
+        } else {
+            return [];
+        }
+    }
+
+    getBadgeLi(badge) {
+        const li = document.createElement('li');
+        li.className = 'skill-badge badge';
+        const span = document.createElement('span');
+        span.className = 'badge-name';
+        span.textContent = badge;
+        const delButton = document.createElement('button');
+        delButton.className = 'badge-delete-button badge-delete-button:white';
+        delButton.type = 'button'; // Prevents form submission
+
+        // Create the SVG icon
+        const svgNS = 'http://www.w3.org/2000/svg';
+        const svg = document.createElementNS(svgNS, 'svg');
+        svg.classList.add('edit-icon-small');
+
+        const use = document.createElementNS(svgNS, 'use');
+        use.setAttributeNS('http://www.w3.org/1999/xlink', 'href', '#delete');
+
+        svg.appendChild(use);
+        delButton.appendChild(svg);
+
+        li.appendChild(span);
+        li.appendChild(delButton);
+        return li;
+    }
+
+    renderBadgesList(badges) {
+        const badgesUl = this.getElementsByTagName('ul')[0];
+        badges.forEach((badge) => {
+            const li = this.getBadgeLi(badge);
+            badgesUl.insertBefore(li, badgesUl.lastElementChild);
+        });
+    }
+
+    connectedCallback() {
+        this.render();
+    }
+
+    attributeChangedCallback() {
+        this.render();
+    }
+
+    static get observedAttributes() {
+        return ['form-field-id'];
+    }
+}
+
+if ('customElements' in window) {
+    customElements.define('badge-editor', BadgeEditor);
+}

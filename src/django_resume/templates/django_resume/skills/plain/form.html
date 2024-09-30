@@ -7,7 +7,7 @@
     hx-target="#skills"
     hx-swap="outerHTML"
   >
-    <input type="hidden" data-field="badges" name="badges" value="{{ form.badges.value }}">
+    <input id="form-skills-badges" type="hidden" data-field="badges" name="badges" value="{{ form.badges_as_json}}">
   </form>
   <h2>Skills</h2>
   {% if form.badges.value %}
@@ -41,6 +41,7 @@
       </svg>
     </button>
   </div>
+  <badge-editor form-field-id="form-skills-badges"></badge-editor>
   <script>
       // Listen for htmx events to re-initialize when content is swapped
       document.body.addEventListener('htmx:afterSwap', function (evt) {
