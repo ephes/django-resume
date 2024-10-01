@@ -209,7 +209,7 @@ class BadgeEditor extends HTMLElement {
         const badgeNames = Array.from(badgesList.querySelectorAll('.badge-name'))
             .map(el => el.textContent.trim());
 
-        console.log("update hidden badges list: ", badgeNames);
+        // console.log("update hidden badges list: ", badgeNames);
         hiddenBadgesList.value = JSON.stringify(badgeNames);
     };
 
