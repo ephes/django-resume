@@ -17,6 +17,6 @@ def timeline_item_data():
         "description": "I did some stuff",
         "start": "2020",
         "end": "2022",
-        "badges": "remote, full-time",
+        "badges": '["remote", "full-time"]',
         "position": 1,
     }

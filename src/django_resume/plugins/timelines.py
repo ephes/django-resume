@@ -1,3 +1,4 @@
+import json
 from typing import Type, Any
 
 from django import forms
@@ -17,7 +18,7 @@ class TimelineItemForm(ListItemFormMixin, forms.Form):
     initial_badges = [
         "Some Badge",
     ]
-    badges = forms.CharField(
+    badges = forms.JSONField(
         widget=forms.TextInput(), required=False, initial=initial_badges
     )
     position = forms.IntegerField(widget=forms.NumberInput(), required=False)
@@ -26,15 +27,15 @@ class TimelineItemForm(ListItemFormMixin, forms.Form):
         super().__init__(*args, **kwargs)
         self.set_initial_position()
 
-    def badges_as_text(self):
+    def badges_as_json(self):
         """
-        Return the initial badges which should already be a comma seperated string
-        or the initial_badged list joined by commas for the first render of the form.
+        Return the initial badges which should already be a normal list of strings
+        or the initial_badged list for the first render of the form encoded as json.
         """
         existing_badges = self.initial.get("badges")
         if existing_badges is not None:
-            return ",".join(existing_badges)
-        return ",".join(self.initial_badges)
+            return json.dumps(existing_badges)
+        return json.dumps(self.initial_badges)
 
     @staticmethod
     def get_initial() -> dict[str, Any]:
@@ -81,12 +82,6 @@ class TimelineItemForm(ListItemFormMixin, forms.Form):
             print("No Senor! Validation Error!")
             raise forms.ValidationError("No Senor!")
         return title
-
-    def clean_badges(self):
-        badges = self.cleaned_data.get("badges", "")
-        # Split the comma-separated values and strip any extra spaces
-        badge_list = [badge.strip() for badge in badges.split(",")]
-        return badge_list
 
     def clean_position(self):
         position = self.cleaned_data.get("position", 0)

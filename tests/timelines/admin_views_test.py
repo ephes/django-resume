@@ -1,3 +1,4 @@
+import json
 import re
 
 import pytest
@@ -55,7 +56,7 @@ def test_create_item(admin_client, person, timeline_item_data):
 
     # And the item should have the correct data
     assert item["role"] == timeline_item_data["role"]
-    badges_list = [badge.strip() for badge in timeline_item_data["badges"].split(",")]
+    badges_list = json.loads(timeline_item_data["badges"])
     assert item["badges"] == badges_list
 
 

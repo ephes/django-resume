@@ -10,7 +10,13 @@
     <input id="form-skills-badges" type="hidden" data-field="badges" name="badges" value="{{ form.badges_as_json}}">
   </form>
   <h2>Skills</h2>
-  <badge-editor input-field-id="form-skills-badges"></badge-editor>
+  <badge-editor
+    input-field-id="form-skills-badges"
+    white="true"
+    ul-class="skills-list"
+    li-class="skill-badge"
+    span-class="skill-badge-name"
+  ></badge-editor>
   {% for error in form.badges.errors %}
     <p class="error">{{ error|escape }}</p>
   {% endfor %}

@@ -11,7 +11,7 @@
     <input data-field="position" type="hidden" name="position" value="{{ form.position.value }}">
     <input type="hidden" data-field="company_url" name="company_url" value="{{ form.company_url.value }}">
     <input type="hidden" data-field="company_name" name="company_name" value="{{ form.company_name.value }}">
-    <input type="hidden" data-field="badges" name="badges" value="{{ form.badges.value }}">
+    <input id="{{ plugin_name }}-item-badges-{{ form.item_id }}" type="hidden" data-field="badges" name="badges" value="{{ form.badges_as_json }}">
     <input type="hidden" data-field="start" name="start" value="{{ form.start.value }}">
     <input type="hidden" data-field="end" name="end" value="{{ form.end.value }}">
     <input type="hidden" data-field="role" name="role" value="{{ form.role.value }}">
@@ -24,25 +24,12 @@
         <span contenteditable="true" data-field="company_url">{{ form.company_url.value }}</span>
       </h3>
       {% if form.badges.value %}
-        <ul id="{{ plugin_name }}-badges-list" class="cluster cluster-list job-badges-list">
-          <li contenteditable="true" data-field="badges" style="display: none;" id="hidden-{{ plugin_name }}-badges-list">
-            {{ form.badges_as_text }}
-          </li>
-          {% for skill in form.badges.value %}
-            <li class="{{ plugin_name }}-badge badge">
-              <span class="{{ plugin_name }}-badge-name badge-name">{{ skill|escape }}</span>
-              <button class="delete-{{ plugin_name }}-badge-button badge-delete-button" type="button">
-                <svg class="edit-icon-small">
-                  <use href="#delete"></use>
-                </svg>
-              </button>
-            </li>
-          {% endfor %}
-          <li>
-            <input type="text" id="new-{{ plugin_name }}-badge-input" placeholder="Add badge">
-            <button id="add-{{ plugin_name }}-badge-button" type="button">Add</button>
-          </li>
-        </ul>
+        <badge-editor
+          input-field-id="{{ plugin_name }}-item-badges-{{ form.item_id }}"
+          ul-class="job-badges-list"
+          li-class="job-badge"
+          span-class="job-badge-name"
+        ></badge-editor>
       {% endif %}
     </div>
     <ul class="cluster cluster-list year-span">
@@ -91,16 +78,6 @@
                evt.detail.target.id === "add-{{ plugin_name }}-icon")
           ) {
               console.log("adding event listeners for timeline badges!");
-              initBadgesForm(
-                  '{{ plugin_name }}-badges-list',
-                  'new-{{ plugin_name }}-badge-input',
-                  'add-{{ plugin_name }}-badge-button',
-                  'hidden-{{ plugin_name }}-badges-list',
-                  '{{ plugin_name }}-badge-name',
-                  '{{ plugin_name }}-badge',
-                  'delete-{{ plugin_name }}-badge-button',
-                  '{{ plugin_name }}-submit-item-{{ form.item_id }}'
-              );
               if (document.getElementById("{{ plugin_name }}-submit-item-{{ form.item_id }}")) {
                   registerClickListenerForHiddenForm(
                       "{{ plugin_name }}-item-{{ form.item_id }}",

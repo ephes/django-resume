@@ -11,7 +11,7 @@
     <input data-field="position" type="hidden" name="position" value="{{ form.position.value }}">
     <input type="hidden" data-field="url" name="url" value="{{ form.url.value }}">
     <input type="hidden" data-field="title" name="title" value="{{ form.title.value }}">
-    <input type="hidden" data-field="badges" name="badges" value="{{ form.badges.value }}">
+    <input id="{{ plugin_name }}-item-badges-{{ form.item_id }}" type="hidden" data-field="badges" name="badges" value="{{ form.badges_as_json }}">
     <input type="hidden" data-field="description" name="description" value="{{ form.description.value }}">
   </form>
   <div>
@@ -31,25 +31,12 @@
     <p class="error">{{ error|escape }}</p>
   {% endfor %}
   {% if form.badges.value %}
-    <ul id="project-badges-list" class="cluster cluster-list project-badges-list">
-      <li contenteditable="true" data-field="badges" style="display: none;" id="hidden-project-badges-list">
-        {{ form.badges_as_text }}
-      </li>
-      {% for skill in form.badges.value %}
-        <li class="project-badge badge">
-          <span class="project-badge-name badge-name">{{ skill|escape }}</span>
-          <button class="delete-project-badge-button badge-delete-button" type="button">
-            <svg class="edit-icon-small">
-              <use href="#delete"></use>
-            </svg>
-          </button>
-        </li>
-      {% endfor %}
-      <li>
-        <input type="text" id="new-project-badge-input" placeholder="Add badge">
-        <button id="add-project-badge-button" type="button">Add</button>
-      </li>
-    </ul>
+    <badge-editor
+      input-field-id="{{ plugin_name }}-item-badges-{{ form.item_id }}"
+      ul-class="project-badges-list"
+      li-class="project-badge"
+      span-class="project-badge-name"
+    ></badge-editor>
   {% endif %}
   {% for error in form.badges.errors %}
     <p class="error">{{ error|escape }}</p>
@@ -69,17 +56,6 @@
               (evt.detail.target.id === "{{ plugin_name }}-item-{{ form.item_id }}" ||
                evt.detail.target.id === "projects-grid")
           ) {
-              console.log("adding event listeners for project badges!");
-              initBadgesForm(
-                  'project-badges-list',
-                  'new-project-badge-input',
-                  'add-project-badge-button',
-                  'hidden-project-badges-list',
-                  'project-badge-name',
-                  'project-badge',
-                  'delete-project-badge-button',
-                  '{{ plugin_name }}-submit-item-{{ form.item_id }}'
-              );
               if (document.getElementById("{{ plugin_name }}-submit-item-{{ form.item_id }}")) {
                   registerClickListenerForHiddenForm(
                       "{{ plugin_name }}-item-{{ form.item_id }}",
