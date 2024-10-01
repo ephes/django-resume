@@ -29,17 +29,6 @@
               evt.detail.target &&
               evt.detail.target.id === 'skills'
           ) {
-              initBadgesForm(
-                  'skills-list',
-                  'new-skill-input',
-                  'add-skill-button',
-                  'hidden-skill-list',
-                  'skill-name',
-                  'skill-badge',
-                  'delete-skill-button',
-                  'submit-skills',
-                  true
-              );
               if (document.getElementById('submit-skills')) {
                   registerClickListenerForHiddenForm('skills', 'submit-skills', 'form-skills');
               }
