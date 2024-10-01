@@ -146,16 +146,13 @@ function initBadgesForm(
  * @module badge-editor
  * @description
  * A custom element for editing a list of badges.
- * @property {string} form-field-id=null The id of the hidden input field that will store the badge data
+ * @property {string} input-field-id=null The id of the hidden input field that will store the badge data
  */
 class BadgeEditor extends HTMLElement {
     constructor() {
         super();
         this.render = () => {
-            console.log("rendering...");
-            console.log("form field id: ", this.formFieldId);
             const badges = this.badges;
-            console.log("badges: ", badges);
             this.innerHTML = `
                 <ul class="cluster cluster-list skills-list">
                     <!-- Badges will be inserted here -->
@@ -167,6 +164,8 @@ class BadgeEditor extends HTMLElement {
             `;
             const newBadgeInput = this.querySelector('input');
             const badgesList = this.querySelector('ul');
+            const hiddenBadgesList = document.getElementById(this.inputFieldId);
+
             // add event listener to add badge button
             this.addBadgeButtonHandler = (e) => {
                 e.preventDefault();
@@ -180,7 +179,7 @@ class BadgeEditor extends HTMLElement {
                         const li = this.getBadgeLi(badge);
                         badgesList.insertBefore(li, badgesList.lastElementChild);
                         newBadgeInput.value = '';
-                        // updateHiddenBadgeList();
+                        this.updateHiddenBadgesList(badgesList, hiddenBadgesList);
                     }
                 }
             };
@@ -195,7 +194,7 @@ class BadgeEditor extends HTMLElement {
                     const li = deleteButton.closest('li');
                     if (li && badgesList.contains(li)) {
                         badgesList.removeChild(li);
-                        // updateHiddenBadgeList();
+                        this.updateHiddenBadgesList(badgesList, hiddenBadgesList);
                     }
                 }
             };
@@ -206,18 +205,26 @@ class BadgeEditor extends HTMLElement {
             }
         }
     }
+    updateHiddenBadgesList(badgesList, hiddenBadgesList) {
+        const badgeNames = Array.from(badgesList.querySelectorAll('.badge-name'))
+            .map(el => el.textContent.trim());
 
-    get formFieldId() {
-        return this.getAttribute('form-field-id') || null;
+        console.log("update hidden badges list: ", badgeNames);
+        hiddenBadgesList.value = JSON.stringify(badgeNames);
+    };
+
+
+    get inputFieldId() {
+        return this.getAttribute('input-field-id') || null;
     }
 
-    set formFieldId(val) {
-        return this.setAttribute('form-field-id', val);
+    set inputFieldId(val) {
+        return this.setAttribute('input-field-id', val);
     }
 
     get badges() {
-        if (this.formFieldId) {
-            return JSON.parse(document.getElementById(this.formFieldId).value);
+        if (this.inputFieldId) {
+            return JSON.parse(document.getElementById(this.inputFieldId).value);
         } else {
             return [];
         }
@@ -232,6 +239,7 @@ class BadgeEditor extends HTMLElement {
         const delButton = document.createElement('button');
         delButton.className = 'badge-delete-button badge-delete-button:white';
         delButton.type = 'button'; // Prevents form submission
+        delButton.setAttribute('aria-label', `Delete ${badge}`);  // Add aria-label needed for testing
 
         // Create the SVG icon
         const svgNS = 'http://www.w3.org/2000/svg';
@@ -266,7 +274,7 @@ class BadgeEditor extends HTMLElement {
     }
 
     static get observedAttributes() {
-        return ['form-field-id'];
+        return ['input-field-id'];
     }
 }
 

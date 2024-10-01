@@ -25,3 +25,9 @@ uv run mypy src
 coverage run -m pytest
 coverage report
 ```
+
+## Run the javascript tests
+
+```bash
+npx vitest run
+```

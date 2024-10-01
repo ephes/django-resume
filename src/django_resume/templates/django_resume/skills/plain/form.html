@@ -10,27 +10,7 @@
     <input id="form-skills-badges" type="hidden" data-field="badges" name="badges" value="{{ form.badges_as_json}}">
   </form>
   <h2>Skills</h2>
-  {% if form.badges.value %}
-    <ul id="skills-list" class="cluster cluster-list skills-list">
-      <li contenteditable="true" data-field="badges" style="display: none;" id="hidden-skill-list">
-        {{ form.badges_as_text }}
-      </li>
-      {% for skill in form.badges.value %}
-        <li class="skill-badge badge">
-          <span class="skill-name badge-name">{{ skill|escape }}</span>
-          <button class="delete-skill-button badge-delete-button badge-delete-button:white" type="button">
-            <svg class="edit-icon-small">
-              <use href="#delete"></use>
-            </svg>
-          </button>
-        </li>
-      {% endfor %}
-      <li>
-        <input type="text" id="new-skill-input" placeholder="Add skill">
-        <button id="add-skill-button" type="button">Add</button>
-      </li>
-    </ul>
-  {% endif %}
+  <badge-editor input-field-id="form-skills-badges"></badge-editor>
   {% for error in form.badges.errors %}
     <p class="error">{{ error|escape }}</p>
   {% endfor %}
@@ -41,7 +21,6 @@
       </svg>
     </button>
   </div>
-  <badge-editor form-field-id="form-skills-badges"></badge-editor>
   <script>
       // Listen for htmx events to re-initialize when content is swapped
       document.body.addEventListener('htmx:afterSwap', function (evt) {
