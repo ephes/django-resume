@@ -1,10 +1,15 @@
-<section class="with-sidebar">
+<section id="identity" class="with-sidebar">
   <div class="stack"><!-- The person's name, pronouns, tagline, location, and social links - not sidebar -->
     <div class="cluster">
       <h2>{{ person.name }}</h2>
       <ul class="cluster cluster-list pronoun-badges-list">
         <li>{{ person.pronouns }}</li>
       </ul>
+      {% if show_edit_button %}
+        <svg class="edit-icon-small" hx-get="{{ identity.edit_url }}" hx-target="#identity" hx-swap="outerHTML">
+          <use href="#edit"></use>
+        </svg>
+      {% endif %}
     </div>
     <p>{{ person.tagline }}</p>
     <span class="with-icon">
