@@ -1,0 +1,62 @@
+<section id="identity" class="stack">
+  <form
+    id="form-identity"
+    hx-post="{{ form.post_url }}"
+    hx-target="#identity"
+    hx-swap="outerHTML"
+  >
+    <input type="hidden" data-field="name" name="name" value="{{ form.name.value }}">
+    <input type="hidden" data-field="pronouns" name="pronouns" value="{{ form.pronouns.value }}">
+    <input type="hidden" data-field="tagline" name="tagline" value="{{ form.tagline.value }}">
+    <input type="hidden" data-field="location_name" name="location_name" value="{{ form.location_name.value }}">
+    <input type="hidden" data-field="location_url" name="location_url" value="{{ form.location_url.value }}">
+    <input type="hidden" data-field="avatar_url" name="avatar_url" value="{{ form.avatar_url.value }}">
+    <input type="hidden" data-field="avatar_alt" name="avatar_alt" value="{{ form.avatar_alt.value }}">
+    <input type="hidden" data-field="email" name="email" value="{{ form.email.value }}">
+    <input type="hidden" data-field="phone" name="phone" value="{{ form.phone.value }}">
+    <input type="hidden" data-field="github" name="github" value="{{ form.github.value }}">
+    <input type="hidden" data-field="linkedin" name="linkedin" value="{{ form.linkedin.value }}">
+    <input type="hidden" data-field="mastodon" name="mastodon" value="{{ form.mastodon.value }}">
+  </form>
+  <div class="with-sidebar">
+    <div class="stack"><!-- The person's name, pronouns, tagline, location, and social links - not sidebar -->
+      <div class="cluster">
+        <h2 contenteditable="true" data-field="name">{{ form.name.value }}</h2>
+        <ul class="cluster cluster-list pronoun-badges-list">
+          <li contenteditable="true" data-field="pronouns">{{ form.pronouns.value }}</li>
+        </ul>
+      </div>
+      <p contenteditable="true" data-field="tagline">{{ form.tagline.value }}</p>
+      <span class="with-icon">
+        <svg class="icon"><use href="#location"></use></svg>
+        <span contenteditable="true" data-field="location_name">{{ form.location_name.value }}</span>
+        <span contenteditable="true" data-field="location_url">{{ form.location_url.value }}</span>
+      </span>
+      <ul>
+        <li contenteditable="true" data-field="email">{{ form.email.value }}</li>
+        <li contenteditable="true" data-field="phone">{{ form.phone.value }}</li>
+        <li contenteditable="true" data-field="github">{{ form.github.value }}</li>
+        <li contenteditable="true" data-field="linkedin">{{ form.linkedin.value }}</li>
+        <li contenteditable="true" data-field="mastodon">{{ form.mastodon.value }}</li>
+      </ul>
+    </div>
+    <div class="avatar-container"><!-- Right side - the sidebar -->
+      <p>
+        <label>Avatar URL</label>
+        <span contenteditable="true" data-field="avatar_url">{{ form.avatar_url.value }}</span>
+      </p>
+      <p>
+        <label>Avatar Alt-Text</label>
+        <span contenteditable="true" data-field="avatar_alt">{{ form.avatar_alt.value }}</span>
+      </p>
+    </div>
+  </div>
+  <div> {# prevent button from taking full width with this div #}
+    <button id="submit-identity" type="submit">
+      <svg class="edit-icon-small">
+        <use href="#ok"></use>
+      </svg>
+    </button>
+  </div>
+  <script>registerClickListenerForHiddenForm("identity", "submit-identity", "form-identity");</script>
+</section>

@@ -6,6 +6,7 @@ from .base import SimplePlugin, SimpleTemplates
 class IdentityForm(forms.Form):
     name = forms.CharField(label="Your name", max_length=100, initial="Your name")
     pronouns = forms.CharField(label="Pronouns", max_length=100, initial="they/them")
+    tagline = forms.CharField(label="Tagline", max_length=512, initial="Tagline")
     location_name = forms.CharField(
         label="Location", max_length=100, initial="City, Country, Timezone"
     )
@@ -15,13 +16,15 @@ class IdentityForm(forms.Form):
         initial="https://maps.app.goo.gl/TkuHEzeGpr7u2aCD7",
         assume_scheme="https",
     )
-    profile_photo_url = forms.URLField(
+    avatar_url = forms.URLField(
         label="Profile photo url",
         max_length=100,
         initial="https://example.com/photo.jpg",
         assume_scheme="https",
     )
-    tagline = forms.CharField(label="Tagline", max_length=512, initial="Tagline")
+    avatar_alt = forms.CharField(
+        label="Profile photo alt text", max_length=100, initial="Profile photo"
+    )
     email = forms.EmailField(
         label="Email address",
         max_length=100,
