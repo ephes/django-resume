@@ -1,12 +1,39 @@
 from django import forms
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
+from django.core.files.uploadedfile import InMemoryUploadedFile
+from django.forms.widgets import ClearableFileInput
 
 from .base import SimplePlugin, SimpleTemplates
 
 
+class CustomFileObject:
+    def __init__(self, filename):
+        self.name = filename
+        self.url = default_storage.url(filename)
+
+    def __str__(self):
+        return self.name
+
+
+class CustomClearableFileInput(ClearableFileInput):
+    template_name = "custom_clearable_file_input.html"
+
+    def get_context(self, name, value, attrs):
+        value = CustomFileObject(value)
+        context = super().get_context(name, value, attrs)
+        context["widget"]["is_initial"] = self.is_initial(value)
+        return context
+
+
 class IdentityForm(forms.Form):
     name = forms.CharField(label="Your name", max_length=100, initial="Your name")
-    pronouns = forms.CharField(label="Pronouns", max_length=100, initial="they/them")
-    tagline = forms.CharField(label="Tagline", max_length=512, initial="Tagline")
+    pronouns = forms.CharField(
+        label="Pronouns", max_length=100, initial="your/pronouns"
+    )
+    tagline = forms.CharField(
+        label="Tagline", max_length=512, initial="Some tagline text."
+    )
     location_name = forms.CharField(
         label="Location", max_length=100, initial="City, Country, Timezone"
     )
@@ -16,14 +43,20 @@ class IdentityForm(forms.Form):
         initial="https://maps.app.goo.gl/TkuHEzeGpr7u2aCD7",
         assume_scheme="https",
     )
-    avatar_url = forms.URLField(
-        label="Profile photo url",
+    avatar_img = forms.FileField(
+        label="Profile Image",
         max_length=100,
-        initial="https://example.com/photo.jpg",
-        assume_scheme="https",
+        required=False,
+        widget=CustomClearableFileInput,
     )
     avatar_alt = forms.CharField(
-        label="Profile photo alt text", max_length=100, initial="Profile photo"
+        label="Profile photo alt text",
+        max_length=100,
+        initial="Profile photo",
+        required=False,
+    )
+    clear_avatar = forms.BooleanField(
+        widget=forms.CheckboxInput, initial=False, required=False
     )
     email = forms.EmailField(
         label="Email address",
@@ -53,6 +86,50 @@ class IdentityForm(forms.Form):
         initial="https://fosstodon.org/@foobar",
         assume_scheme="https",
     )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        initial_avatar_img_filename = self.initial.get("avatar_img")
+        print("initial avatar img: ", initial_avatar_img_filename)
+        if initial_avatar_img_filename is not None:
+            self.fields["avatar_img"].initial = CustomFileObject(
+                initial_avatar_img_filename
+            )
+            print("initial avatar img: ", self.fields["avatar_img"].initial)
+
+    def clean(self):
+        # super ugly - FIXME
+        cleaned_data = super().clean()
+        avatar_img = cleaned_data.get("avatar_img")
+        clear_avatar = cleaned_data.get("clear_avatar")
+
+        avatar_handled = False
+        just_clear_the_avatar = clear_avatar and not hasattr(
+            avatar_img, "temporary_file_path"
+        )
+        if just_clear_the_avatar:
+            cleaned_data["avatar_img"] = None
+            avatar_handled = True
+
+        set_new_avatar_image = (
+            isinstance(avatar_img, InMemoryUploadedFile) and not avatar_handled
+        )
+        if set_new_avatar_image:
+            if avatar_img.size > 2 * 1024 * 1024:
+                raise forms.ValidationError("Image file too large ( > 2mb )")
+            cleaned_data["avatar_img"] = default_storage.save(
+                f"uploads/{avatar_img.name}", ContentFile(avatar_img.read())
+            )
+            avatar_handled = True
+
+        keep_current_avatar = (
+            not clear_avatar and isinstance(avatar_img, str) and not avatar_handled
+        )
+        if keep_current_avatar:
+            cleaned_data["avatar_img"] = avatar_img
+
+        del cleaned_data["clear_avatar"]  # reset the clear_avatar field
+        return cleaned_data
 
 
 class IdentityPlugin(SimplePlugin):

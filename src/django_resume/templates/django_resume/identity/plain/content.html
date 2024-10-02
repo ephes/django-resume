@@ -1,3 +1,4 @@
+{% load static %}
 <section id="identity" class="with-sidebar">
   <div class="stack"><!-- The person's name, pronouns, tagline, location, and social links - not sidebar -->
     <div class="cluster">
@@ -55,6 +56,12 @@
     </ul>
   </div>
   <div class="avatar-container"><!-- Right side - the sidebar -->
-    <img class="avatar" src="{{ identity.avatar_url }}" alt="{{ identity.avatar_alt }}" width="110" height="110">
+    {% if identity.avatar_img %}
+      <img class="avatar" src="/media/{{ identity.avatar_img }}" alt="{{ identity.avatar_alt }}" width="110" height="110">
+    {% else %}
+      <svg class="avatar" width="110" height="110">
+        <use href="#avatar"></use>
+      </svg>
+    {% endif %}
   </div>
 </section>
