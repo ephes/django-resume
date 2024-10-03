@@ -27,6 +27,7 @@ class CustomClearableFileInput(ClearableFileInput):
 
 
 class IdentityForm(forms.Form):
+    template_name = "django_resume/identity/plain/form_as_div.html"
     name = forms.CharField(label="Your name", max_length=100, initial="Your name")
     pronouns = forms.CharField(
         label="Pronouns", max_length=100, initial="your/pronouns"
