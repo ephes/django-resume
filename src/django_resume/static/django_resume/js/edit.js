@@ -25,6 +25,66 @@ function registerClickListenerForHiddenForm(pluginId, submitId, formId, initialI
     });
 }
 
+function registerClickListenerForAvatar() {
+    const avatarContainer = document.querySelector("#avatar-container");
+    const avatarImage = avatarContainer.querySelector("img.avatar");
+    const avatarFileInput = document.getElementById("avatar-img");
+    avatarContainer.addEventListener('click', function (event) {
+        console.log("avatar container clicked");
+        avatarFileInput.click();
+    });
+
+    avatarFileInput.addEventListener('change', function (event) {
+        handleFileUpload(event.target.files[0]);
+    });
+
+    avatarContainer.addEventListener('dragover', function (event) {
+        console.log("drag over");
+        event.preventDefault();
+        avatarContainer.classList.add('drag-over');
+    });
+
+    avatarContainer.addEventListener('dragleave', function () {
+        avatarContainer.classList.remove('drag-over');
+    });
+
+    avatarContainer.addEventListener('drop', function (event) {
+        console.log("image dropped");
+        event.preventDefault();
+        avatarContainer.classList.remove('drag-over');
+        const file = event.dataTransfer.files[0];
+        if (file) {
+            previewImage(file);
+            updateFileInput(file); // Assign the dropped file to the file input
+        }
+    });
+
+    // Handle the file (either from drag-drop or file input)
+    function handleFileUpload(file) {
+        const reader = new FileReader();
+        reader.onload = function (event) {
+            // Preview the image
+            avatarImage.src = event.target.result;
+        }
+        reader.readAsDataURL(file);
+    }
+
+    function previewImage(file) {
+        const reader = new FileReader();
+        reader.onload = function (event) {
+            avatarImage.src = event.target.result;  // Display the selected image
+        };
+        reader.readAsDataURL(file);  // Read file as data URL for preview
+    }
+
+    function updateFileInput(file) {
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        avatarFileInput.files = dataTransfer.files; // Set the new file list to the input
+    }
+}
+
+
 /**
  * @module badge-editor
  * @description
@@ -93,6 +153,7 @@ class BadgeEditor extends HTMLElement {
             }
         }
     }
+
     updateHiddenBadgesList(badgesList, hiddenBadgesList) {
         const badgeNames = Array.from(badgesList.querySelectorAll('.badge-name'))
             .map(el => el.textContent.trim());

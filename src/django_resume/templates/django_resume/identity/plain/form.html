@@ -4,13 +4,15 @@
     hx-post="{{ form.post_url }}"
     hx-target="#identity"
     hx-swap="outerHTML"
+    enctype="multipart/form-data"
   >
     <input type="hidden" data-field="name" name="name" value="{{ form.name.value }}">
     <input type="hidden" data-field="pronouns" name="pronouns" value="{{ form.pronouns.value }}">
     <input type="hidden" data-field="tagline" name="tagline" value="{{ form.tagline.value }}">
     <input type="hidden" data-field="location_name" name="location_name" value="{{ form.location_name.value }}">
     <input type="hidden" data-field="location_url" name="location_url" value="{{ form.location_url.value }}">
-    <input type="hidden" data-field="avatar_url" name="avatar_url" value="{{ form.avatar_url.value }}">
+    {#    <input type="hidden" data-field="avatar_img" name="avatar_img" value="{{ form.avatar_img.value }}" accept="image/*">#}
+    <input type="file" id="avatar-img" style="display:none;" name="avatar_img" accept="image/*"/>
     <input type="hidden" data-field="avatar_alt" name="avatar_alt" value="{{ form.avatar_alt.value }}">
     <input type="hidden" data-field="email" name="email" value="{{ form.email.value }}">
     <input type="hidden" data-field="phone" name="phone" value="{{ form.phone.value }}">
@@ -29,7 +31,9 @@
       <p contenteditable="true" data-field="tagline">{{ form.tagline.value }}</p>
 
       <div class="with-icon">
-        <svg class="icon"><use href="#location"></use></svg>
+        <svg class="icon">
+          <use href="#location"></use>
+        </svg>
         <h3>Location</h3>
       </div>
       <ul>
@@ -71,7 +75,7 @@
         </li>
       </ul>
     </div>
-    <div class="avatar-container"><!-- Right side - the sidebar -->
+    <div id="avatar-container" class="avatar-container"><!-- Right side - the sidebar -->
       {% if form.avatar_img.value %}
         <img class="avatar" src="/media/{{ form.avatar_img.value }}" alt="{{ form.avatar_alt.value }}" width="110"
              height="110">
@@ -89,5 +93,19 @@
       </button>
     </div>
   </div>
-  <script>registerClickListenerForHiddenForm("identity", "submit-identity", "form-identity");</script>
+  <script>
+      // Listen for htmx events to re-initialize when content is swapped
+      document.body.addEventListener('htmx:afterSwap', function (evt) {
+          if (
+              evt.detail &&
+              evt.detail.target &&
+              evt.detail.target.id === 'identity'
+          ) {
+              if (document.getElementById('submit-identity')) {
+                  registerClickListenerForHiddenForm("identity", "submit-identity", "form-identity");
+                  registerClickListenerForAvatar();
+              }
+          }
+      });
+  </script>
 </section>

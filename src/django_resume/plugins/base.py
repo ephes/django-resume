@@ -219,6 +219,7 @@ class SimpleInline:
         person = get_object_or_404(Person, id=person_id)
         plugin_data = self.data.get_data(person)
         form_class = self.form_class
+        print("post view: ", request.POST, request.FILES)
         form = form_class(request.POST, request.FILES, initial=plugin_data)
         form.post_url = self.get_post_url(person.pk)
         context = {"form": form}
@@ -233,9 +234,9 @@ class SimpleInline:
         # render the form again with errors
         return render(request, self.templates.form, context)
 
-    def get_urls(self):
+    def get_urls(self) -> URLPatterns:
         plugin_name = self.plugin_name
-        urls = [
+        urls: URLPatterns = [
             # flat
             path(
                 f"<int:person_id>/plugin/{plugin_name}/edit/",
@@ -914,7 +915,7 @@ class ListPlugin:
                 field_name: form.get_initial_for_field(field, field_name)
                 for field_name, field in form.fields.items()
             }
-            plugin_data["flat"]: initial_values
+            plugin_data["flat"] = initial_values
         # add flat data to context
         context.update(plugin_data["flat"])
 
