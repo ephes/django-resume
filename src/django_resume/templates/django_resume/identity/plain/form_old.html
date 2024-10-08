@@ -39,16 +39,15 @@
       <li contenteditable="true" data-field="mastodon">{{ form.mastodon.value }}</li>
     </ul>
   </div>
-  <div class="avatar-container"><!-- Right side - the sidebar -->
-    <p>
-      <label>Avatar URL</label>
-      <span contenteditable="true" data-field="avatar_url">{{ form.avatar_url.value }}</span>
-    </p>
-    <p>
-      <label>Avatar Alt-Text</label>
-      <span contenteditable="true" data-field="avatar_alt">{{ form.avatar_alt.value }}</span>
-    </p>
-  </div>
+    <div class="avatar-container"><!-- Right side - the sidebar -->
+      {% if form.avatar_img.value %}
+        <img class="avatar" src="/media/{{ form.avatar_img.value }}" alt="{{ form.avatar_alt.value }}" width="110" height="110">
+      {% else %}
+        <svg class="avatar" width="110" height="110">
+          <use href="#avatar"></use>
+        </svg>
+      {% endif %}
+    </div>
   <div> {# prevent button from taking full width with this div #}
     <button id="submit-identity" type="submit">
       <svg class="edit-icon-small">

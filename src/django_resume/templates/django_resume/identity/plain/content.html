@@ -7,7 +7,12 @@
         <li>{{ identity.pronouns }}</li>
       </ul>
       {% if show_edit_button %}
-        <svg class="edit-icon-small" hx-get="{{ identity.edit_url }}" hx-target="#identity" hx-swap="outerHTML">
+        <svg
+          class="edit-icon-small"
+          hx-get="{{ identity.edit_url }}"
+          hx-target="#identity"
+          hx-swap="outerHTML swap:0.1s"
+        >
           <use href="#edit"></use>
         </svg>
       {% endif %}

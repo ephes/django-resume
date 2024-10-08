@@ -54,3 +54,19 @@
 .badge-delete-button:hover svg {
     color: #ff0000; /* Optional: change color on hover */
 }
+
+/* htmx animations */
+
+#identity.htmx-swapping {
+  opacity: 0;
+  transition: opacity 0.1s ease-out;
+}
+
+#identity.htmx-added {
+  opacity: 0;
+}
+#identity {
+  opacity: 1;
+  transition: opacity 0.3s ease-out;
+}
+
