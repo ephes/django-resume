@@ -39,6 +39,12 @@
         <li contenteditable="true" data-field="location_name">{{ form.location_name.value }}</li>
         <li contenteditable="true" data-field="location_url">{{ form.location_url.value }}</li>
       </ul>
+      {% for error in form.location_name.errors %}
+        <p class="error">{{ error|escape }}</p>
+      {% endfor %}
+      {% for error in form.location_url.errors %}
+        <p class="error">{{ error|escape }}</p>
+      {% endfor %}
 
       <h3>Social Links</h3>
       <ul>
@@ -47,30 +53,45 @@
             <svg class="icon"><use href="#email"></use></svg>
             <span contenteditable="true" data-field="email">{{ form.email.value }}</span>
           </span>
+          {% for error in form.email.errors %}
+            <p class="error">{{ error|escape }}</p>
+          {% endfor %}
         </li>
         <li>
           <span class="with-icon">
             <svg class="icon"><use href="#phone"></use></svg>
             <span contenteditable="true" data-field="phone">{{ form.phone.value }}</span>
           </span>
+          {% for error in form.phone.errors %}
+            <p class="error">{{ error|escape }}</p>
+          {% endfor %}
         </li>
         <li>
           <span class="with-icon">
             <svg class="icon"><use href="#github"></use></svg>
             <span contenteditable="true" data-field="github">{{ form.github.value }}</span>
           </span>
+          {% for error in form.github.errors %}
+            <p class="error">{{ error|escape }}</p>
+          {% endfor %}
         </li>
         <li>
           <span class="with-icon">
             <svg class="icon"><use href="#linkedin"></use></svg>
             <span contenteditable="true" data-field="linkedin">{{ form.linkedin.value }}</span>
           </span>
+          {% for error in form.linkedin.errors %}
+            <p class="error">{{ error|escape }}</p>
+          {% endfor %}
         </li>
         <li>
           <span class="with-icon">
             <svg class="icon"><use href="#mastodon"></use></svg>
             <span contenteditable="true" data-field="mastodon">{{ form.mastodon.value }}</span>
           </span>
+          {% for error in form.mastodon.errors %}
+            <p class="error">{{ error|escape }}</p>
+          {% endfor %}
         </li>
       </ul>
     </div>
@@ -81,6 +102,9 @@
                width="110"
                height="110">
           <p contenteditable="true" data-field="avatar_alt" style="max-width: 110px">{{ form.avatar_alt.value }}</p>
+          {% for error in form.avatar_alt.errors %}
+            <p class="error">{{ error|escape }}</p>
+          {% endfor %}
         </div>
       {% else %}
         <div class="stack">
@@ -88,6 +112,9 @@
             <use href="#avatar"></use>
           </svg>
           <p contenteditable="true" data-field="avatar_alt" style="max-width: 110px">{{ form.avatar_alt.value }}</p>
+          {% for error in form.avatar_alt.errors %}
+            <p class="error">{{ error|escape }}</p>
+          {% endfor %}
         </div>
       {% endif %}
     </div>
