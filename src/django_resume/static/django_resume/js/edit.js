@@ -26,36 +26,41 @@ function registerClickListenerForHiddenForm(pluginId, submitId, formId, initialI
 }
 
 function registerClickListenerForAvatar() {
-    const avatarContainer = document.querySelector("img.editable-avatar");
+    function addContainerEventListeners(el) {
+        el.addEventListener('click', function (event) {
+            console.log("avatar container clicked");
+            avatarFileInput.click();
+        });
+
+        el.addEventListener('dragover', function (event) {
+            console.log("drag over");
+            event.preventDefault();
+            avatarContainer.classList.add('drag-over');
+        });
+
+        el.addEventListener('dragleave', function () {
+            avatarContainer.classList.remove('drag-over');
+        });
+
+        el.addEventListener('drop', function (event) {
+            console.log("image dropped");
+            event.preventDefault();
+            avatarContainer.classList.remove('drag-over');
+            const file = event.dataTransfer.files[0];
+            if (file) {
+                previewImage(file);
+                updateFileInput(file); // Assign the dropped file to the file input
+            }
+        });
+    }
+
+    let avatarContainer = document.querySelector("img.editable-avatar, svg.editable-avatar");
     const avatarFileInput = document.getElementById("avatar-img");
-    avatarContainer.addEventListener('click', function (event) {
-        console.log("avatar container clicked");
-        avatarFileInput.click();
-    });
+    addContainerEventListeners(avatarContainer);
 
     avatarFileInput.addEventListener('change', function (event) {
         handleFileUpload(event.target.files[0]);
-    });
-
-    avatarContainer.addEventListener('dragover', function (event) {
-        console.log("drag over");
-        event.preventDefault();
-        avatarContainer.classList.add('drag-over');
-    });
-
-    avatarContainer.addEventListener('dragleave', function () {
-        avatarContainer.classList.remove('drag-over');
-    });
-
-    avatarContainer.addEventListener('drop', function (event) {
-        console.log("image dropped");
-        event.preventDefault();
-        avatarContainer.classList.remove('drag-over');
-        const file = event.dataTransfer.files[0];
-        if (file) {
-            previewImage(file);
-            updateFileInput(file); // Assign the dropped file to the file input
-        }
+        previewImage(event.target.files[0]);
     });
 
     // Handle the file (either from drag-drop or file input)
@@ -71,7 +76,28 @@ function registerClickListenerForAvatar() {
     function previewImage(file) {
         const reader = new FileReader();
         reader.onload = function (event) {
-            avatarContainer.src = event.target.result;  // Display the selected image
+            // Check if the avatarContainer is an <img> or <svg>
+            console.log("avatar container: ", avatarContainer.tagName.toLowerCase());
+            const result = event.target.result;  // Data URL of the selected image
+            if (avatarContainer.tagName.toLowerCase() === 'svg') {
+                // Create a new <img> element to replace the <svg>
+                const imgElement = document.createElement('img');
+                imgElement.classList.add('avatar')
+                imgElement.classList.add('editable-avatar');  // Add the same class
+                imgElement.src = result;  // Set the data URL as the src
+                imgElement.width = 110;
+                imgElement.height = 110;
+
+                // Replace the <svg> with the new <img>
+                avatarContainer.parentNode.replaceChild(imgElement, avatarContainer);
+
+                // Update avatarContainer to reference the new img element and add event listeners
+                avatarContainer = imgElement;
+                addContainerEventListeners(avatarContainer);
+            } else {
+                // If it's already an <img>, just update the src
+                avatarContainer.src = result;
+            }
         };
         reader.readAsDataURL(file);  // Read file as data URL for preview
     }

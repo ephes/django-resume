@@ -73,16 +73,19 @@
 
 /* avatar container */
 
-img.editable-avatar {
+img.editable-avatar,
+svg.editable-avatar {
     cursor: pointer; /* Indicate it's clickable */
     transition: border 0.3s ease, background-color 0.3s ease; /* Smooth transitions */
 }
 
-img.editable-avatar:hover {
+img.editable-avatar:hover,
+svg.editable-avatar:hover {
     border: 2px solid #007bff; /* A thicker border on hover */
 }
 
 /* Active state: While dragging a file over the container */
-img.editable-avatar.drag-over {
+img.editable-avatar.drag-over,
+svg.editable-avatar.drag-over {
     border: 2px solid #007bff; /* A thicker border on hover */
 }
