@@ -76,12 +76,19 @@
     </div>
     <div id="avatar-container" class="avatar-container"><!-- Right side - the sidebar -->
       {% if form.avatar_img.value %}
-        <img class="avatar editable-avatar" src="/media/{{ form.avatar_img.value }}" alt="{{ form.avatar_alt.value }}" width="110"
-             height="110">
+        <div class="stack">
+          <img class="avatar editable-avatar" src="/media/{{ form.avatar_img.value }}" alt="{{ form.avatar_alt.value }}"
+               width="110"
+               height="110">
+          <p contenteditable="true" data-field="avatar_alt" style="max-width: 110px">{{ form.avatar_alt.value }}</p>
+        </div>
       {% else %}
-        <svg class="avatar editable-avatar" width="110" height="110">
-          <use href="#avatar"></use>
-        </svg>
+        <div class="stack">
+          <svg class="avatar editable-avatar" width="110" height="110">
+            <use href="#avatar"></use>
+          </svg>
+          <p contenteditable="true" data-field="avatar_alt" style="max-width: 110px">{{ form.avatar_alt.value }}</p>
+        </div>
       {% endif %}
     </div>
     <div> {# prevent button from taking full width with this div #}
