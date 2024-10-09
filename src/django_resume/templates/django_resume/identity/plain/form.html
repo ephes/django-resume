@@ -11,7 +11,6 @@
     <input type="hidden" data-field="tagline" name="tagline" value="{{ form.tagline.value }}">
     <input type="hidden" data-field="location_name" name="location_name" value="{{ form.location_name.value }}">
     <input type="hidden" data-field="location_url" name="location_url" value="{{ form.location_url.value }}">
-    {#    <input type="hidden" data-field="avatar_img" name="avatar_img" value="{{ form.avatar_img.value }}" accept="image/*">#}
     <input type="file" id="avatar-img" style="display:none;" name="avatar_img" accept="image/*"/>
     <input type="hidden" data-field="avatar_alt" name="avatar_alt" value="{{ form.avatar_alt.value }}">
     <input type="hidden" data-field="email" name="email" value="{{ form.email.value }}">
@@ -77,7 +76,7 @@
     </div>
     <div id="avatar-container" class="avatar-container"><!-- Right side - the sidebar -->
       {% if form.avatar_img.value %}
-        <img class="avatar" src="/media/{{ form.avatar_img.value }}" alt="{{ form.avatar_alt.value }}" width="110"
+        <img class="avatar editable-avatar" src="/media/{{ form.avatar_img.value }}" alt="{{ form.avatar_alt.value }}" width="110"
              height="110">
       {% else %}
         <svg class="avatar" width="110" height="110">

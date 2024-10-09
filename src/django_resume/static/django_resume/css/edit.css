@@ -58,15 +58,31 @@
 /* htmx animations */
 
 #identity.htmx-swapping {
-  opacity: 0;
-  transition: opacity 0.1s ease-out;
+    opacity: 0;
+    transition: opacity 0.1s ease-out;
 }
 
 #identity.htmx-added {
-  opacity: 0;
-}
-#identity {
-  opacity: 1;
-  transition: opacity 0.3s ease-out;
+    opacity: 0;
 }
 
+#identity {
+    opacity: 1;
+    transition: opacity 0.3s ease-out;
+}
+
+/* avatar container */
+
+img.editable-avatar {
+    cursor: pointer; /* Indicate it's clickable */
+    transition: border 0.3s ease, background-color 0.3s ease; /* Smooth transitions */
+}
+
+img.editable-avatar:hover {
+    border: 2px solid #007bff; /* A thicker border on hover */
+}
+
+/* Active state: While dragging a file over the container */
+img.editable-avatar.drag-over {
+    border: 2px solid #007bff; /* A thicker border on hover */
+}

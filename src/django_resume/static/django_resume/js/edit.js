@@ -26,8 +26,7 @@ function registerClickListenerForHiddenForm(pluginId, submitId, formId, initialI
 }
 
 function registerClickListenerForAvatar() {
-    const avatarContainer = document.querySelector("#avatar-container");
-    const avatarImage = avatarContainer.querySelector("img.avatar");
+    const avatarContainer = document.querySelector("img.editable-avatar");
     const avatarFileInput = document.getElementById("avatar-img");
     avatarContainer.addEventListener('click', function (event) {
         console.log("avatar container clicked");
@@ -64,7 +63,7 @@ function registerClickListenerForAvatar() {
         const reader = new FileReader();
         reader.onload = function (event) {
             // Preview the image
-            avatarImage.src = event.target.result;
+            avatarContainer.src = event.target.result;
         }
         reader.readAsDataURL(file);
     }
@@ -72,7 +71,7 @@ function registerClickListenerForAvatar() {
     function previewImage(file) {
         const reader = new FileReader();
         reader.onload = function (event) {
-            avatarImage.src = event.target.result;  // Display the selected image
+            avatarContainer.src = event.target.result;  // Display the selected image
         };
         reader.readAsDataURL(file);  // Read file as data URL for preview
     }
