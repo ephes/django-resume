@@ -3,8 +3,9 @@ from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.forms.widgets import ClearableFileInput
+from django.http import HttpRequest
 
-from .base import SimplePlugin, SimpleTemplates
+from .base import SimplePlugin, SimpleTemplates, ContextDict
 
 
 class CustomFileObject:
@@ -98,6 +99,10 @@ class IdentityForm(forms.Form):
             )
             print("initial avatar img: ", self.fields["avatar_img"].initial)
 
+    @property
+    def avatar_img_url(self):
+        return default_storage.url(self.initial.get("avatar_img", ""))
+
     def clean(self):
         # super ugly - FIXME
         cleaned_data = super().clean()
@@ -142,3 +147,20 @@ class IdentityPlugin(SimplePlugin):
         form="django_resume/identity/plain/form.html",
     )
     admin_form_class = inline_form_class = IdentityForm
+
+    def get_context(
+        self,
+        _request: HttpRequest,
+        plugin_data: dict,
+        person_pk: int,
+        *,
+        context: ContextDict,
+        edit: bool = False,
+    ) -> ContextDict:
+        context = super().get_context(
+            _request, plugin_data, person_pk, context=context, edit=edit
+        )
+        context["avatar_img_url"] = default_storage.url(
+            plugin_data.get("avatar_img", "")
+        )
+        return context

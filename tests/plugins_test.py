@@ -11,7 +11,7 @@ def test_simple_plugin_get_context(person):
     plugin_data = {"foo": "bar"}
 
     # When we get the context
-    context = plugin.get_context(plugin_data, person.pk, context={"blub": "blub"})
+    context = plugin.get_context(None, plugin_data, person.pk, context={"blub": "blub"})
 
     # Then the context should contain the plugin data and the additional context
     assert context["foo"] == "bar"
@@ -36,7 +36,7 @@ def test_simple_plugin_get_context_defaults_from_form(person):
     plugin_data = {}
 
     # When we get the context
-    context = plugin.get_context(plugin_data, person.pk, context={})
+    context = plugin.get_context(None, plugin_data, person.pk, context={})
 
     # Then the context should contain default values for the plugin data
     assert context["foo"] == "bar"

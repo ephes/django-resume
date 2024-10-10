@@ -18,6 +18,7 @@ def cv(request: HttpRequest, slug: str) -> HttpResponse:
     }
     for plugin in plugin_registry.get_all_plugins():
         context[plugin.name] = plugin.get_context(
+            request,
             plugin.get_data(person),
             person.pk,
             context={},

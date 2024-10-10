@@ -3,7 +3,7 @@ from uuid import uuid4
 from typing import Protocol, runtime_checkable, Callable, TypeAlias, Any
 
 from django import forms
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpRequest
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse, path, URLPattern
 from django.utils.html import format_html
@@ -46,7 +46,13 @@ class Plugin(Protocol):
         ...  # pragma: no cover
 
     def get_context(
-        self, plugin_data: dict, person_pk: int, *, context: dict, edit: bool = False
+        self,
+        request: HttpRequest,
+        plugin_data: dict,
+        person_pk: int,
+        *,
+        context: dict,
+        edit: bool = False,
     ) -> object:
         """Return the object which is stored in context for the plugin."""
         ...  # pragma: no cover
@@ -189,12 +195,14 @@ class SimpleInline:
         form_class: type[forms.Form],
         data: SimpleData,
         templates: SimpleTemplates,
+        get_context: Callable,
     ):
         self.plugin_name = plugin_name
         self.plugin_verbose_name = plugin_verbose_name
         self.form_class = form_class
         self.data = data
         self.templates = templates
+        self.get_context = get_context
 
     def get_edit_url(self, person_id):
         return reverse(
@@ -227,8 +235,11 @@ class SimpleInline:
             # update the plugin data and render the main template
             person = self.data.update(person, form.cleaned_data)
             person.save()
+            context[self.plugin_name] = self.get_context(
+                request, form.cleaned_data, person.pk, context=context
+            )
             context["show_edit_button"] = True
-            context[self.plugin_name] = form.cleaned_data
+            context[self.plugin_name].update(form.cleaned_data)
             context[self.plugin_name]["edit_url"] = self.get_edit_url(person.pk)
             return render(request, self.templates.main, context)
         # render the form again with errors
@@ -282,10 +293,17 @@ class SimplePlugin:
             form_class=self.get_inline_form_class(),
             data=data,
             templates=self.templates,
+            get_context=self.get_context,
         )
 
     def get_context(
-        self, plugin_data, person_pk, *, context: ContextDict, edit: bool = False
+        self,
+        _request: HttpRequest,
+        plugin_data: dict,
+        person_pk: int,
+        *,
+        context: ContextDict,
+        edit: bool = False,
     ) -> ContextDict:
         """This method returns the context of the plugin for inline editing."""
         if plugin_data == {}:
@@ -586,10 +604,22 @@ class ListAdmin:
         form.post_url = self.get_change_item_post_url(person.pk)
         context = {"form": form}
         if form.is_valid():
-            if form.cleaned_data.get("id", False):
+            # try to find out whether we are updating an existing item or creating a new one
+            existing = True
+            item_id = form.cleaned_data.get("id", None)
+            if item_id is not None:
+                item = self.data.get_item_by_id(person, item_id)
+                if item is None:
+                    existing = False
+            else:
+                # no item_id -> new item
+                existing = False
+            if existing:
+                # update existing item
                 item_id = form.cleaned_data["id"]
                 person = self.data.update(person, form.cleaned_data)
             else:
+                # create new item
                 data = form.cleaned_data
                 item_id = str(uuid4())
                 data["id"] = item_id
@@ -908,7 +938,13 @@ class ListPlugin:
         return sorted(items, key=lambda item: item.get("position", 0), reverse=reverse)
 
     def get_context(
-        self, plugin_data, person_pk, *, context: ContextDict, edit: bool = False
+        self,
+        _request: HttpRequest,
+        plugin_data: dict,
+        person_pk: int,
+        *,
+        context: ContextDict,
+        edit: bool = False,
     ) -> ContextDict:
         if plugin_data.get("flat", {}) == {}:
             # no flat data yet, use initial data from inline form

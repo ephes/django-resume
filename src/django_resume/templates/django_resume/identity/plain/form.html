@@ -98,7 +98,7 @@
     <div id="avatar-container" class="avatar-container"><!-- Right side - the sidebar -->
       {% if form.avatar_img.value %}
         <div class="stack">
-          <img class="avatar editable-avatar" src="/media/{{ form.avatar_img.value }}" alt="{{ form.avatar_alt.value }}"
+          <img class="avatar editable-avatar" src="{{ form.avatar_img_url }}" alt="{{ form.avatar_alt.value }}"
                width="110"
                height="110">
           <p contenteditable="true" data-field="avatar_alt" style="max-width: 110px">{{ form.avatar_alt.value }}</p>
