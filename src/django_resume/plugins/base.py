@@ -5,13 +5,13 @@ from typing import Protocol, runtime_checkable, Callable, TypeAlias, Any
 from django import forms
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, render
-from django.urls import reverse, path, URLPattern, URLResolver
+from django.urls import reverse, path, URLPattern
 from django.utils.html import format_html
 
 from ..models import Person
 
 
-URLPatterns: TypeAlias = list[URLPattern | URLResolver]
+URLPatterns: TypeAlias = list[URLPattern]
 FormClasses: TypeAlias = dict[str, type[forms.Form]]
 ContextDict: TypeAlias = dict[str, Any]
 
