@@ -7,7 +7,7 @@ from .plugins import plugin_registry
 
 def cv(request: HttpRequest, slug: str) -> HttpResponse:
     person = get_object_or_404(Person, slug=slug)
-    edit = bool(request.GET.get("edit", False))
+    edit = bool(dict(request.GET).get("edit", False))
     show_edit_button = True if request.user.is_authenticated and edit else False
     context = {
         "person": person,
@@ -24,8 +24,6 @@ def cv(request: HttpRequest, slug: str) -> HttpResponse:
             context={},
             edit=show_edit_button,
         )
-    is_authenticated = request.user.is_authenticated
-    print("is_authenticated: ", is_authenticated)
     return render(request, "django_resume/plain/cv.html", context=context)
 
 
