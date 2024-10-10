@@ -3,6 +3,8 @@ import string
 from datetime import datetime
 
 from django import forms
+from django.core.exceptions import PermissionDenied
+from django.http import HttpRequest
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.safestring import mark_safe
@@ -67,6 +69,10 @@ class TokenForm(forms.Form):
     token_required = forms.BooleanField(required=False, label="Token Required")
 
 
+class TokenViaGetForm(forms.Form):
+    token = forms.CharField(max_length=255, required=True, label="Token")
+
+
 class TokenPlugin(ListPlugin):
     """
     Generate tokens for a person.
@@ -80,8 +86,43 @@ class TokenPlugin(ListPlugin):
     flat_template = "django_resume/plain/token_flat.html"
     flat_form_template = "django_resume/plain/token_flat_form.html"
 
-    def get_admin_item_form(self):
+    @staticmethod
+    def get_admin_item_form():
         return TokenItemForm
 
-    def get_admin_form(self):
+    @staticmethod
+    def get_admin_form():
         return TokenForm
+
+    def get_form_classes(self):
+        return {"item": TokenItemForm, "flat": TokenForm}
+
+    @staticmethod
+    def check_permissions(request: HttpRequest, plugin_data: dict) -> None:
+        token_required = plugin_data.get("flat", {"token_required": True}).get(
+            "token_required", True
+        )
+        if not token_required:
+            return
+        form = TokenViaGetForm(request.GET)
+        if not form.is_valid():
+            raise PermissionDenied("Token required to access this page.")
+        token = form.cleaned_data["token"]
+        if token is None:
+            raise PermissionDenied("Token required to access this page.")
+        tokens = set(item["token"] for item in plugin_data.get("items", []))
+        if token in tokens:
+            return
+        raise PermissionDenied("Invalid token.")
+
+    def get_context(
+        self,
+        request: HttpRequest,
+        plugin_data: dict,
+        person_pk: int,
+        *,
+        context: dict,
+        edit: bool = False,
+    ) -> dict:
+        self.check_permissions(request, plugin_data)
+        return {}
