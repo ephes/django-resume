@@ -319,7 +319,9 @@ class SimplePlugin:
     def get_admin_urls(self, admin_view: Callable) -> URLPatterns:
         return self.admin.get_urls(admin_view)
 
-    def get_admin_link(self, person_id: int) -> str:
+    def get_admin_link(self, person_id: int | None) -> str:
+        if person_id is None:
+            return ""
         return self.admin.get_admin_link(person_id)
 
     def get_inline_urls(self) -> URLPatterns:
@@ -950,7 +952,9 @@ class ListPlugin:
     def get_admin_urls(self, admin_view: Callable) -> URLPatterns:
         return self.admin.get_urls(admin_view)
 
-    def get_admin_link(self, person_id: int) -> str:
+    def get_admin_link(self, person_id: int | None) -> str:
+        if person_id is None:
+            return ""
         return self.admin.get_admin_link(person_id)
 
     def get_inline_urls(self) -> URLPatterns:
