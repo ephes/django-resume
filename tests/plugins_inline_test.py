@@ -24,6 +24,22 @@ def test_get_edit_view(client, person):
 
 
 @pytest.mark.django_db
+def test_post_view_not_authenticated(client, person):
+    # Given a person in the database and a simple plugin in the registry
+    person.save()
+    plugin_registry.register(SimplePlugin)
+
+    # When we post the form without being authenticated
+    plugin = plugin_registry.get_plugin(SimplePlugin.name)
+    url = plugin.inline.get_post_url(person.pk)
+    json_data = json.dumps({"foo": "bar"})
+    r = client.post(url, {"plugin_data": json_data})
+
+    # Then the response should be a 401
+    assert r.status_code == 401
+
+
+@pytest.mark.django_db
 def test_post_view(client, person):
     # Given a person in the database and a simple plugin in the registry
     person.save()
