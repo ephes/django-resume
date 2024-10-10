@@ -10,6 +10,7 @@
     <meta name="description" content="{{ person.about }}">
     <meta name="robots" content="index">
     <link rel="stylesheet" type="text/css" href="{% static "django_resume/css/styles.css" %}">
+    <link media="print" rel="stylesheet" href="{% static "django_resume/css/print.css" %}"/>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <noscript>
@@ -39,7 +40,7 @@
       {% include skills.templates.main %}
       {% include projects.templates.main with projects=projects %}
     </main>
-    <footer>
+    <footer class="no-print">
       <p>This is a footer!</p>
     </footer>
     {% if show_edit_button %}
