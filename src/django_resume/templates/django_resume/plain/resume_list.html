@@ -1,2 +1,19 @@
-{% extends "base.html" %}
+{% extends "./base.html" %}
 {% load static %}
+
+{% block body %}
+  <body class="center">
+    <header>
+      <h1>Resume List</h1>
+    </header>
+    <main>
+      <ul>
+        {% for resume in resumes %}
+          <li>
+            <a href="{% url 'django_resume:detail' resume.slug %}">{{ resume.name }}</a>
+          </li>
+        {% endfor %}
+      </ul>
+    </main>
+  </body>
+{% endblock body %}

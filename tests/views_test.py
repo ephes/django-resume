@@ -4,6 +4,7 @@ from django.urls import reverse
 from django_resume.plugins import plugin_registry, TokenPlugin
 
 
+@pytest.mark.django_db
 def test_index_view(client):
     # When we access the index page
     r = client.get(reverse("resume:list"))

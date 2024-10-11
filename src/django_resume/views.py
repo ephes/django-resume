@@ -90,4 +90,6 @@ def resume_list(request: HttpRequest) -> HttpResponse:
 
     You can add and delete resumes from this view.
     """
-    return render(request, "django_resume/plain/resume_list.html")
+    context = {"resumes": Resume.objects.all()}
+    print("context: ", context)
+    return render(request, "django_resume/plain/resume_list.html", context=context)
