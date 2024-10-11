@@ -299,7 +299,7 @@ svg {
 }
 
 .icons-list {
-    margin-block-end: var(--s-3);  /* Remove ul default margin for social link icons */
+  margin-block-end: var(--s-3); /* Remove ul default margin for social link icons */
 }
 
 .skills-list li {

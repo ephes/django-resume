@@ -1,5 +1,6 @@
 :root {
     --font-size: 12px; /* Smaller font size for printing */
+    --font-color: #505d6c;
     --measure: 85ch;
     --ratio: 1.2;
     line-height: 1.3rem;
@@ -20,6 +21,11 @@ h1 {
 
 .project-box > p {
   font-size: calc(0.7 * var(--s0));
+}
+
+.project-box.invisible {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .project-badges-list li {
