@@ -11,5 +11,6 @@ def person_with_timeline_item(person, timeline_item_data):
     form = TimelineItemForm(data=timeline_item_data, person=person)
     assert form.is_valid()
     person = plugin.data.create(person, form.cleaned_data)
+    person.owner.save()
     person.save()
     return person

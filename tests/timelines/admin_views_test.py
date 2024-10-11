@@ -13,6 +13,7 @@ from django_resume.plugins import EmployedTimelinePlugin
 @pytest.mark.django_db
 def test_get_add_form(admin_client, person):
     # Given a person in the database and a timeline plugin
+    person.owner.save()
     person.save()
     plugin = EmployedTimelinePlugin()
     add_form_url = plugin.admin.get_item_add_form_url(person.id)
@@ -35,6 +36,7 @@ def test_get_add_form(admin_client, person):
 @pytest.mark.django_db
 def test_create_item(admin_client, person, timeline_item_data):
     # Given a person in the database and a timeline plugin
+    person.owner.save()
     person.save()
     plugin = EmployedTimelinePlugin()
     post_url = plugin.admin.get_change_item_post_url(person.id)
@@ -110,6 +112,7 @@ def test_delete_item(admin_client, person_with_timeline_item):
 @pytest.mark.django_db
 def test_update_flat_view(admin_client, person):
     # Given a person in the database and a timeline plugin
+    person.owner.save()
     person.save()
     plugin = EmployedTimelinePlugin()
     post_url = plugin.admin.get_change_flat_post_url(person.id)
@@ -139,6 +142,7 @@ def test_add_and_update_via_main_change_view(admin_client, person, timeline_item
     This test is to ensure that this won't happen again.
     """
     # Given a person in the database and a timeline plugin
+    person.owner.save()
     person.save()
     plugin = EmployedTimelinePlugin()
     change_view_url = plugin.admin.get_change_url(person.id)

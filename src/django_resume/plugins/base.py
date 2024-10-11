@@ -3,6 +3,7 @@ from uuid import uuid4
 from typing import Protocol, runtime_checkable, Callable, TypeAlias, Any
 
 from django import forms
+from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, HttpRequest
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse, path, URLPattern
@@ -44,6 +45,10 @@ class Plugin(Protocol):
     def get_data(self, person: Person) -> dict:
         """Return the plugin data for a person."""
         ...  # pragma: no cover
+
+    def check_permissions(self, request: HttpRequest, person: Person) -> bool:
+        """Check if the user has the permissions to edit the plugin data."""
+        ...
 
     def get_context(
         self,
@@ -196,6 +201,7 @@ class SimpleInline:
         data: SimpleData,
         templates: SimpleTemplates,
         get_context: Callable,
+        check_permissions: Callable,
     ):
         self.plugin_name = plugin_name
         self.plugin_verbose_name = plugin_verbose_name
@@ -203,6 +209,7 @@ class SimpleInline:
         self.data = data
         self.templates = templates
         self.get_context = get_context
+        self.check_permissions = check_permissions
 
     def get_edit_url(self, person_id):
         return reverse(
@@ -223,14 +230,16 @@ class SimpleInline:
         context = {"form": form}
         return render(request, self.templates.form, context)
 
-    def post_view(self, request, person_id):
+    def post_view(self, request, person_id) -> HttpResponse:
         person = get_object_or_404(Person, id=person_id)
+        if not self.check_permissions(request, person):
+            return HttpResponse(status=403, reason="Permission denied")
         plugin_data = self.data.get_data(person)
         form_class = self.form_class
         print("post view: ", request.POST, request.FILES)
         form = form_class(request.POST, request.FILES, initial=plugin_data)
         form.post_url = self.get_post_url(person.pk)
-        context = {"form": form}
+        context: dict[str, Any] = {"form": form}
         if form.is_valid():
             # update the plugin data and render the main template
             person = self.data.update(person, form.cleaned_data)
@@ -256,7 +265,7 @@ class SimpleInline:
             ),
             path(
                 f"<int:person_id>/plugin/{plugin_name}/edit/post/",
-                self.post_view,
+                login_required(self.post_view),
                 name=f"{plugin_name}-post",
             ),
         ]
@@ -294,7 +303,10 @@ class SimplePlugin:
             data=data,
             templates=self.templates,
             get_context=self.get_context,
+            check_permissions=self.check_permissions,
         )
+
+    # plugin protocol methods
 
     def get_context(
         self,
@@ -320,7 +332,9 @@ class SimplePlugin:
         context["templates"] = self.templates
         return context
 
-    # plugin protocol methods
+    @staticmethod
+    def check_permissions(request: HttpRequest, person: Person) -> bool:
+        return person.owner == request.user
 
     def get_admin_form_class(self) -> type[forms.Form]:
         """Set admin_form_class attribute or overwrite this method."""

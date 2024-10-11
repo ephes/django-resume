@@ -47,6 +47,7 @@ def test_person_change_contains_simple_plugin_link(
     admin_client, person, plugin_registry
 ):
     # Given a person in the database and a simple plugin in the registry
+    person.owner.save()
     person.save()
 
     # When we visit the admin page of the associated person
@@ -62,6 +63,7 @@ def test_person_change_contains_simple_plugin_link(
 @pytest.mark.django_db
 def test_simple_plugin_change_view_contains_form(admin_client, person, plugin_registry):
     # Given a person in the database and a simple plugin in the registry
+    person.owner.save()
     person.save()
 
     # When we visit the edit page of the plugin
@@ -82,6 +84,7 @@ def test_simple_plugin_change_view_contains_form(admin_client, person, plugin_re
 @pytest.mark.django_db
 def test_simple_plugin_post_data_changes_data(admin_client, person, plugin_registry):
     # Given a person in the database and a simple plugin in the registry
+    person.owner.save()
     person.save()
 
     # When we post data to the plugin
@@ -101,6 +104,7 @@ def test_simple_plugin_post_data_changes_data(admin_client, person, plugin_regis
 @pytest.mark.django_db
 def test_simple_plugin_post_data_invalid(admin_client, person, plugin_registry):
     # Given a person in the database and a simple plugin in the registry
+    person.owner.save()
     person.save()
 
     # When we post data to the plugin
@@ -122,6 +126,7 @@ def test_simple_plugin_post_data_invalid(admin_client, person, plugin_registry):
 @pytest.mark.django_db
 def test_simple_plugin_integration(admin_client, person, plugin_registry):
     # Given a person in the database and a simple plugin in the registry
+    person.owner.save()
     person.save()
 
     # When we visit the edit page of the plugin

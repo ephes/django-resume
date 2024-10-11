@@ -11,6 +11,7 @@ from django_resume.plugins import EmployedTimelinePlugin
 @pytest.mark.django_db
 def test_edit_timeline_title(client, person):
     # Given a person in the database and a timeline plugin
+    person.owner.save()
     person.save()
     plugin = EmployedTimelinePlugin()
 
@@ -56,6 +57,7 @@ def test_edit_timeline_title(client, person):
 @pytest.mark.django_db
 def test_get_add_item_form(client, person):
     # Given a person in the database and a timeline plugin
+    person.owner.save()
     person.save()
     plugin = EmployedTimelinePlugin()
 
@@ -89,6 +91,7 @@ def test_get_update_item_form(client, person_with_timeline_item):
 @pytest.mark.django_db
 def test_create_item(client, person, timeline_item_data):
     # Given a person in the database and a timeline plugin
+    person.owner.save()
     person.save()
     plugin = EmployedTimelinePlugin()
 

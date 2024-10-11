@@ -4,8 +4,13 @@ from django_resume.models import Person
 
 
 @pytest.fixture
-def person():
-    return Person(name="John Doe", slug="john-doe")
+def user(django_user_model):
+    return django_user_model(username="testuser", password="password")
+
+
+@pytest.fixture
+def person(user):
+    return Person(name="John Doe", slug="john-doe", owner=user)
 
 
 @pytest.fixture

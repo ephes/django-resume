@@ -8,6 +8,7 @@ from django_resume.plugins import SimplePlugin, plugin_registry
 @pytest.mark.django_db
 def test_get_edit_view(client, person):
     # Given a person in the database and a simple plugin in the registry
+    person.owner.save()
     person.save()
     plugin_registry.register(SimplePlugin)
 
@@ -26,6 +27,7 @@ def test_get_edit_view(client, person):
 @pytest.mark.django_db
 def test_post_view_not_authenticated(client, person):
     # Given a person in the database and a simple plugin in the registry
+    person.owner.save()
     person.save()
     plugin_registry.register(SimplePlugin)
 
@@ -35,15 +37,40 @@ def test_post_view_not_authenticated(client, person):
     json_data = json.dumps({"foo": "bar"})
     r = client.post(url, {"plugin_data": json_data})
 
-    # Then the response should be a 401
-    assert r.status_code == 401
+    # Then the response should be a redirect to the login page
+    assert r.status_code == 302
+    assert "login" in r.url
+
+
+@pytest.mark.django_db
+def test_post_view_not_authorized(client, person, django_user_model):
+    # Given a person in the database and a simple plugin in the registry
+    person.owner.save()
+    person.save()
+    plugin_registry.register(SimplePlugin)
+    unauthorized_user = django_user_model.objects.create_user(
+        username="unauthorized", password="password"
+    )
+    client.force_login(unauthorized_user)
+
+    # When we post the form without being authenticated
+    plugin = plugin_registry.get_plugin(SimplePlugin.name)
+    url = plugin.inline.get_post_url(person.pk)
+    json_data = json.dumps({"foo": "bar"})
+    r = client.post(url, {"plugin_data": json_data})
+
+    # Then the response should be a 403 permission denied
+    assert r.status_code == 403
 
 
 @pytest.mark.django_db
 def test_post_view(client, person):
     # Given a person in the database and a simple plugin in the registry
+    # and the client is logged in
+    person.owner.save()
     person.save()
     plugin_registry.register(SimplePlugin)
+    client.force_login(person.owner)
 
     # When we post the form
     plugin = plugin_registry.get_plugin(SimplePlugin.name)
@@ -67,8 +94,10 @@ def test_post_view(client, person):
 @pytest.mark.django_db
 def test_post_view_invalid_data(client, person):
     # Given a person in the database and a simple plugin in the registry
+    person.owner.save()
     person.save()
     plugin_registry.register(SimplePlugin)
+    client.force_login(person.owner)
 
     # When we post the form with invalid data
     plugin = plugin_registry.get_plugin(SimplePlugin.name)

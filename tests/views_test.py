@@ -7,6 +7,7 @@ from django_resume.plugins import plugin_registry, TokenPlugin
 @pytest.mark.django_db
 def test_cv_editable_only_for_authenticated_users(client, person):
     # Given a person in the database and the token plugin deactivated
+    person.owner.save()
     person.save()
     plugin_registry.unregister(TokenPlugin)
 
