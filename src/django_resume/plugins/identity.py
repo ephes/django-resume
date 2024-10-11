@@ -2,7 +2,6 @@ from django import forms
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.core.files.uploadedfile import InMemoryUploadedFile
-from django.forms.widgets import ClearableFileInput
 from django.http import HttpRequest
 
 from .base import SimplePlugin, SimpleTemplates, ContextDict
@@ -17,18 +16,7 @@ class CustomFileObject:
         return self.name
 
 
-class CustomClearableFileInput(ClearableFileInput):
-    template_name = "custom_clearable_file_input.html"
-
-    def get_context(self, name, value, attrs):
-        value = CustomFileObject(value)
-        context = super().get_context(name, value, attrs)
-        context["widget"]["is_initial"] = self.is_initial(value)
-        return context
-
-
 class IdentityForm(forms.Form):
-    template_name = "django_resume/identity/plain/form_as_div.html"
     name = forms.CharField(label="Your name", max_length=100, initial="Your name")
     pronouns = forms.CharField(
         label="Pronouns", max_length=100, initial="your/pronouns"
@@ -49,7 +37,6 @@ class IdentityForm(forms.Form):
         label="Profile Image",
         max_length=100,
         required=False,
-        widget=CustomClearableFileInput,
     )
     avatar_alt = forms.CharField(
         label="Profile photo alt text",

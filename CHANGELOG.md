@@ -7,6 +7,7 @@
 
 ### Refactor
 - Moved all plugin templates in folders named after the plugin
+- Removed dead templates
 
 0.1.1 - 2024-10-11
 ==================
