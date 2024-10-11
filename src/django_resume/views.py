@@ -17,6 +17,11 @@ def get_edit_and_show_urls(request: HttpRequest) -> tuple[str, str]:
 
 
 def resume_cv(request: HttpRequest, slug: str) -> HttpResponse:
+    """
+    Show a CV view of the resume.
+
+    By default, you need a token to be able to see the CV.
+    """
     resume = get_object_or_404(Resume.objects.select_related("owner"), slug=slug)
 
     edit = bool(dict(request.GET).get("edit", False))
@@ -46,6 +51,11 @@ def resume_cv(request: HttpRequest, slug: str) -> HttpResponse:
 
 
 def resume_detail(request: HttpRequest, slug: str) -> HttpResponse:
+    """
+    The main resume detail view.
+
+    At the moment, it is used for the cover letter.
+    """
     resume = get_object_or_404(Resume.objects.select_related("owner"), slug=slug)
 
     edit = bool(dict(request.GET).get("edit", False))
@@ -75,4 +85,9 @@ def resume_detail(request: HttpRequest, slug: str) -> HttpResponse:
 
 
 def resume_list(request: HttpRequest) -> HttpResponse:
+    """
+    The main resume list view.
+
+    You can add and delete resumes from this view.
+    """
     return render(request, "django_resume/plain/resume_list.html")
