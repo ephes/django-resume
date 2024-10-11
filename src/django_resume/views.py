@@ -6,7 +6,7 @@ from .plugins import plugin_registry
 
 
 def cv(request: HttpRequest, slug: str) -> HttpResponse:
-    resume = get_object_or_404(Resume, slug=slug)
+    resume = get_object_or_404(Resume.objects.select_related("owner"), slug=slug)
     edit = bool(dict(request.GET).get("edit", False))
     show_edit_button = True if request.user.is_authenticated and edit else False
     context = {
