@@ -11,6 +11,13 @@
     {% endfor %}
   </div>
 <script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const projects = document.querySelectorAll('.project-box');
+    projects.forEach(box => {
+      box.classList.add('invisible');
+    });
+  });
+  
   window.addEventListener('scroll', function() {
     const projects = document.querySelectorAll('.project-box');
     projects.forEach(box => {
