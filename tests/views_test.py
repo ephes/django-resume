@@ -11,15 +11,15 @@ def test_cv_editable_only_for_authenticated_users(client, resume):
     resume.save()
     plugin_registry.unregister(TokenPlugin)
 
-    # When we try to access the cv edit page
+    # When we access the cv page
     cv_url = reverse("resume:cv", kwargs={"slug": resume.slug})
-    cv_url = f"{cv_url}?edit=true"
     r = client.get(cv_url)
 
     # Then the response should be successful
     assert r.status_code == 200
 
-    # And the edit button should not be shown
+    # And the edit buttons should not be shown
+    assert not r.context["is_editable"]
     assert not r.context["show_edit_button"]
 
     # When we access the cv url being authenticated
@@ -29,5 +29,16 @@ def test_cv_editable_only_for_authenticated_users(client, resume):
     # Then the response should be successful
     assert r.status_code == 200
 
-    # And the edit button should be shown
+    # And the global edit button should be shown but not the local ones
+    assert r.context["is_editable"]
+    assert not r.context["show_edit_button"]
+
+    # When we access the cv edit url
+    cv_edit_url = f"{cv_url}?edit=true"
+    r = client.get(cv_edit_url)
+
+    # Then the response should be successful
+    assert r.status_code == 200
+
+    # And the local edit buttons should be shown
     assert r.context["show_edit_button"]

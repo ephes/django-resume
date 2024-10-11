@@ -29,6 +29,17 @@
     height: 1.5em;
 }
 
+.with-edit-icon-big {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-2);
+}
+
+.edit-icon-big {
+    height: calc(1.2 * 1cap);
+    width: calc(1.2 * 1cap);
+}
+
 /* for the delete button of badges */
 
 .badge {
