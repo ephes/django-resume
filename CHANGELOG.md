@@ -3,6 +3,7 @@
 
 ### Features
 - Area labels for project links without text
+- Project links are working now in pdf export
 
 
 0.1.1 - 2024-10-11
