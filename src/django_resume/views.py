@@ -46,4 +46,4 @@ def cv(request: HttpRequest, slug: str) -> HttpResponse:
 
 
 def index(request):
-    return render(request, "django_resume/index.html")
+    return render(request, "django_resume/plain/index.html")

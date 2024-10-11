@@ -1,3 +1,10 @@
+0.1.3 - 2024-10-12
+==================
+
+### Features
+
+- Added add resume button to the main page
+
 0.1.2 - 2024-10-11
 ==================
 

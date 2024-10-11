@@ -4,6 +4,17 @@ from django.urls import reverse
 from django_resume.plugins import plugin_registry, TokenPlugin
 
 
+def test_index_view(client):
+    # When we access the index page
+    r = client.get(reverse("resume:index"))
+
+    # Then the response should be successful
+    assert r.status_code == 200
+
+    # And the index template should be used
+    assert "django_resume/plain/index.html" in set([t.name for t in r.templates])
+
+
 @pytest.mark.django_db
 def test_cv_editable_only_for_authenticated_users(client, resume):
     # Given a resume in the database and the token plugin deactivated
