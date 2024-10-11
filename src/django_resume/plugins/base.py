@@ -46,10 +46,6 @@ class Plugin(Protocol):
         """Return the plugin data for a resume."""
         ...  # pragma: no cover
 
-    def check_permissions(self, request: HttpRequest, resume: Resume) -> bool:
-        """Check if the user has the permissions to edit the plugin data."""
-        ...
-
     def get_context(
         self,
         request: HttpRequest,
@@ -306,6 +302,10 @@ class SimplePlugin:
             check_permissions=self.check_permissions,
         )
 
+    @staticmethod
+    def check_permissions(request: HttpRequest, resume: Resume) -> bool:
+        return resume.owner == request.user
+
     # plugin protocol methods
 
     def get_context(
@@ -331,10 +331,6 @@ class SimplePlugin:
         context["show_edit_button"] = edit
         context["templates"] = self.templates
         return context
-
-    @staticmethod
-    def check_permissions(request: HttpRequest, resume: Resume) -> bool:
-        return resume.owner == request.user
 
     def get_admin_form_class(self) -> type[forms.Form]:
         """Set admin_form_class attribute or overwrite this method."""
