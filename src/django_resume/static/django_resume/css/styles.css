@@ -11,7 +11,7 @@
   line-height: 1.3rem;
   --measure: 75ch;
   --ratio: 1.5;
-  --border-thin: var(--s-6);
+  --border-thin: 1px;
   --border-color: #e3e3e3;
   --s-6: calc(var(--s-5) / var(--ratio));
   --s-5: calc(var(--s-4) / var(--ratio));

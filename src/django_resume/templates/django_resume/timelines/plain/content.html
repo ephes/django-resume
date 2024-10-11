@@ -1,4 +1,8 @@
+{% if page_break_before %}
+<section class="stack page-break-before">
+{% else %}
 <section class="stack">
+{% endif %}
   {% include timeline.templates.flat %}
   <div class="stack-large">
     {% if show_edit_button %}

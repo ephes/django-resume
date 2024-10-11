@@ -1,3 +1,30 @@
+:root {
+    --font-size: 12px; /* Smaller font size for printing */
+    --measure: 90ch;
+    --ratio: 1.2;
+}
+
+body {
+  font-size: var(--font-size);
+}
+
+h1 {
+  font-size: calc(2 * var(--s0));
+  font-weight: 600;
+}
+
+.job-badges-list li {
+  font-size: calc(0.7 * var(--s0));
+}
+
+.project-box > p {
+  font-size: calc(0.8 * var(--s0));
+}
+
+.project-badges-list li {
+  font-size: calc(0.7 * var(--s0));
+}
+
 .avoid-page-break {
     page-break-inside: avoid;
 }
@@ -11,7 +38,7 @@ body {
 }
 
 @page {
-    margin: 10mm 10mm 20mm;
+    margin: 10mm 10mm 15mm;
 }
 
 .no-print {

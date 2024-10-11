@@ -41,8 +41,8 @@
 <main>
   {% include identity.templates.main %}
   {% include about.templates.main %}
-  {% include freelance_timeline.templates.main with timeline=freelance_timeline %}
-  {% include employed_timeline.templates.main with timeline=employed_timeline %}
+  {% include freelance_timeline.templates.main with timeline=freelance_timeline page_break_before=False %}
+  {% include employed_timeline.templates.main with timeline=employed_timeline page_break_before=True %}
   {% include education.templates.main %}
   {% include skills.templates.main %}
   {% include projects.templates.main with projects=projects %}

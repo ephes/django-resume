@@ -7,6 +7,7 @@
 - Added add resume button to the main page
 - Added a base template for the resume pages
 - Do not require token for CV when user is logged in
+- Better print styles for the CV
 
 0.1.2 - 2024-10-11
 ==================
