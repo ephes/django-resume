@@ -8,6 +8,8 @@ class Resume(models.Model):
     owner = models.ForeignKey(get_user_model(), on_delete=models.CASCADE)
     plugin_data = models.JSONField(default=dict, blank=True, null=False)
 
+    objects: models.Manager["Resume"]  # make mypy happy
+
     def __repr__(self):
         return f"<{self.name}>"
 
