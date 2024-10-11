@@ -9,6 +9,17 @@
   color: var(--font-color);
   font-size: 15px;
   line-height: 1.4rem;
+  --color-black: black;
+  --color-white: white;
+  --color-ultralightgrey: rgb(235, 236, 241);
+  --color-lightgrey: rgb(180, 185, 198);
+  --color-middlegrey: #545d69;
+  --color-grey-transparent: hsl(207, 6%, 30%);
+  --color-grey: #333333;
+  --color-brightblue: #0071c7;
+  --color-brightblue-transparent: #0071c7;
+  --color-darkblue: rgba(0, 113, 199, 0.7);
+  --color-darkblue-transparent: rgba(52, 136, 218, 0.3);
   --measure: 75ch;
   --ratio: 1.5;
   --border-thin: 1px;
@@ -40,7 +51,7 @@ h1, h2, h3, h4, h5, h6 {
   font-style: normal;
   font-variation-settings: "slnt" 0;
   font-optical-sizing: auto;
-  color: black;
+  color: var(--color-black);
   margin: 0; /* Removes default margin to remove gaps between sections */
 }
 
@@ -70,7 +81,7 @@ a {
 
 a.underlined {
   position: relative;
-  color: #0071c7; /* Changes the link color */
+  color: var(--color-brightblue); /* Changes the link color */
 }
 
 a.underlined::after {
@@ -80,7 +91,7 @@ a.underlined::after {
   height: 2px;
   bottom: 0;
   left: 0;
-  background-color: rgba(0, 113, 199, 0.7);
+  background-color: var(--color-darkblue);
 }
 
 a.underlined:hover::after {
@@ -165,7 +176,7 @@ svg {
   position: absolute;
   top: var(--s-2);
   right: var(--s-2);
-  color: #0071c7 !important;
+  color: var(--color-brightblue-transparent) !important;
 }
 
 .link-margin {
@@ -187,10 +198,10 @@ svg {
   flex-direction: column;
   justify-content: space-between;
   padding: var(--s0);
-  border: rgb(180, 185, 198) var(--border-thin) solid;
+  border: var(--color-lightgrey) var(--border-thin) solid;
   border-radius: 0.5ch;
-  --color-light: #fff;
-  --color-dark: #000;
+  --color-light: var(--color-white);
+  --color-dark: var(--color-black);
   color: var(--font-color);
   transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease;
 }
@@ -203,7 +214,7 @@ svg {
 }
 
 .project-box > h3 {
-  color: black;
+  color: var(--color-black);
 }
 
 .project-box > p {
@@ -236,15 +247,15 @@ svg {
 }
 
 .social-link {
-  color: #333333;
+  color: var(--color-grey);
   border: var(--border-thin) solid var(--border-color);
   padding: var(--s-3);
   border-radius: 0.5ch;
 }
 
 .social-link:hover {
-  background-color: rgba(52, 136, 218, 0.3); /* link color 30% */
-  color: black;
+  background-color: var(--color-darkblue-transparent); /* link color 30% */
+  color: var(--color-black);
 }
 
 .cluster {
@@ -283,8 +294,8 @@ svg {
 }
 
 .skills-list li {
-  background-color: #333333; /* Dark grey background */
-  color: #ffffff; /* White text color */
+  background-color: var(--color-grey); /* Dark grey background */
+  color: var(--color-white); /* White text color */
   padding: 0.5ch 1ch; /* Adds space inside the badge */
   border-radius: 0.5ch; /* Rounds the corners */
   font-size: calc(0.8 * var(--s0)); /* Adjusts the font size */
@@ -292,36 +303,36 @@ svg {
 }
 
 .pronoun-badges-list li {
-  background-color: rgb(235, 236, 241); /* Light grey background */
+  background-color: var(--color-ultralightgrey); /* Light grey background */
   line-height: 1.5; /* normalize the line height so that the badges are centered vertically */
   padding: 0.5ch 1ch; /* Adds space inside the badge */
   border-radius: 1ch; /* Rounds the corners */
   font-size: calc(0.8 * var(--s0)); /* Adjusts the font size */
-  color: #545d69; /* Dark grey text color */
+  color: var(--color-middlegrey); /* Dark grey text color */
   display: inline-block; /* Ensures badges are inline */
 }
 
 .job-badges-list li {
-  background-color: rgb(235, 236, 241); /* Light grey background */
+  background-color: var(--color-ultralightgrey); /* Light grey background */
   padding: 0.5ch 1ch; /* Adds space inside the badge */
   border-radius: 1ch; /* Rounds the corners */
   font-size: calc(0.8 * var(--s0)); /* Adjusts the font size */
-  color: #545d69; /* Dark grey text color */
+  color: var(--color-middlegrey); /* Dark grey text color */
   display: inline-block; /* Ensures badges are inline */
 }
 
 .project-badges-list li {
-  background-color: rgb(235, 236, 241); /* Light grey background */
+  background-color: var(--color-ultralightgrey); /* Light grey background */
   padding: 0.5ch 1ch; /* Adds space inside the badge */
   border-radius: 1ch; /* Rounds the corners */
   font-size: calc(0.8 * var(--s0)); /* Adjusts the font size */
-  color: #545d69; /* Dark grey text color */
+  color: var(--color-middlegrey); /* Dark grey text color */
   display: inline-block; /* Ensures badges are inline */
 }
 
 .sub-line {
   font-size: calc(1.1 * var(--s0));
-  color: black;
+  color: var(--color-black);
 }
 
 header {
@@ -337,11 +348,10 @@ h1 {
 }
 
 h3 {
-  color: hsl(207, 6%, 30%);
+  color: var(--color-grey-transparent);
 }
 
 section {
-  /*background-color: red;*/
   padding-block-start: var(--s1);
   padding-block-end: var(--s1);
 }
