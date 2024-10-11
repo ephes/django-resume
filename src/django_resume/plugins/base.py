@@ -101,24 +101,41 @@ class SimpleAdmin:
         self.form_class = form_class
         self.data = data
 
-    def get_change_url(self, resume_id):
+    @staticmethod
+    def check_permissions(request: HttpRequest, resume: Resume) -> bool:
+        is_owner = resume.owner == request.user
+        is_staff = request.user.is_staff
+        return is_owner and is_staff
+
+    def get_resume_or_error(self, request: HttpRequest, resume_id: int) -> Resume:
+        """Returns the resume or generates a 404 or 403 response."""
+        resume = get_object_or_404(Resume, id=resume_id)
+        if not self.check_permissions(request, resume):
+            raise PermissionDenied("Permission denied")
+        return resume
+
+    def get_change_url(self, resume_id: int) -> str:
         return reverse(
             f"admin:{self.plugin_name}-admin-change", kwargs={"resume_id": resume_id}
         )
 
-    def get_admin_link(self, resume_id):
+    def get_admin_link(self, resume_id: int) -> str:
         url = self.get_change_url(resume_id)
         return format_html(
             '<a href="{}">{}</a>', url, f"Edit {self.plugin_verbose_name}"
         )
 
-    def get_change_post_url(self, resume_id):
+    def get_change_post_url(self, resume_id: int) -> str:
         return reverse(
             f"admin:{self.plugin_name}-admin-post", kwargs={"resume_id": resume_id}
         )
 
-    def get_change_view(self, request, resume_id):
-        resume = get_object_or_404(Resume, pk=resume_id)
+    def get_change_view(self, request: HttpRequest, resume_id: int) -> HttpResponse:
+        """
+        Return the main admin view for this plugin. This view should display a form
+        to edit the plugin data.
+        """
+        resume = self.get_resume_or_error(request, resume_id)
         plugin_data = self.data.get_data(resume)
         if self.form_class == SimpleJsonForm:
             # special case for the SimpleJsonForm which has a JSONField for the plugin data
@@ -145,8 +162,12 @@ class SimpleAdmin:
         }
         return render(request, self.admin_template, context)
 
-    def post_view(self, request, resume_id):
-        resume = get_object_or_404(Resume, id=resume_id)
+    def post_view(self, request: HttpRequest, resume_id: int) -> HttpResponse:
+        """
+        Handle post requests to update the plugin data and returns either the main template or
+        the form with errors.
+        """
+        resume = self.get_resume_or_error(request, resume_id)
         form = self.form_class(request.POST)
         form.post_url = self.get_change_post_url(resume.pk)
         context = {"form": form}
@@ -158,8 +179,7 @@ class SimpleAdmin:
                 plugin_data = form.cleaned_data
             resume = self.data.update(resume, plugin_data)
             resume.save()
-        response = render(request, self.change_form, context)
-        return response
+        return render(request, self.change_form, context)
 
     def get_urls(self, admin_view: Callable) -> URLPatterns:
         """
@@ -170,12 +190,12 @@ class SimpleAdmin:
         urls = [
             path(
                 f"<int:resume_id>/plugin/{plugin_name}/change/",
-                admin_view(self.get_change_view),
+                login_required(admin_view(self.get_change_view)),
                 name=f"{plugin_name}-admin-change",
             ),
             path(
                 f"<int:resume_id>/plugin/{plugin_name}/post/",
-                admin_view(self.post_view),
+                login_required(admin_view(self.post_view)),
                 name=f"{plugin_name}-admin-post",
             ),
         ]
