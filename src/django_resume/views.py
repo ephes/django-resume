@@ -16,7 +16,7 @@ def get_edit_and_show_urls(request: HttpRequest) -> tuple[str, str]:
     return edit_url, show_url
 
 
-def cv(request: HttpRequest, slug: str) -> HttpResponse:
+def resume_cv(request: HttpRequest, slug: str) -> HttpResponse:
     resume = get_object_or_404(Resume.objects.select_related("owner"), slug=slug)
 
     edit = bool(dict(request.GET).get("edit", False))
@@ -42,10 +42,10 @@ def cv(request: HttpRequest, slug: str) -> HttpResponse:
             context={},
             edit=show_edit_button,
         )
-    return render(request, "django_resume/plain/cv.html", context=context)
+    return render(request, "django_resume/plain/resume_cv.html", context=context)
 
 
-def detail(request: HttpRequest, slug: str) -> HttpResponse:
+def resume_detail(request: HttpRequest, slug: str) -> HttpResponse:
     resume = get_object_or_404(Resume.objects.select_related("owner"), slug=slug)
 
     edit = bool(dict(request.GET).get("edit", False))
@@ -71,8 +71,8 @@ def detail(request: HttpRequest, slug: str) -> HttpResponse:
             context={},
             edit=show_edit_button,
         )
-    return render(request, "django_resume/plain/detail.html", context=context)
+    return render(request, "django_resume/plain/resume_detail.html", context=context)
 
 
-def index(request):
-    return render(request, "django_resume/plain/index.html")
+def resume_list(request: HttpRequest) -> HttpResponse:
+    return render(request, "django_resume/plain/resume_list.html")

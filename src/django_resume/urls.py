@@ -5,7 +5,7 @@ from . import views
 
 app_name = "django_resume"
 urlpatterns = [
-    path("", views.index, name="index"),
-    path("<slug:slug>/", views.detail, name="detail"),
-    path("cv/<slug:slug>/", views.cv, name="cv"),
+    path("", views.resume_list, name="list"),
+    path("<slug:slug>/", views.resume_detail, name="detail"),
+    path("cv/<slug:slug>/", views.resume_cv, name="cv"),
 ]

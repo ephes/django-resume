@@ -6,13 +6,13 @@ from django_resume.plugins import plugin_registry, TokenPlugin
 
 def test_index_view(client):
     # When we access the index page
-    r = client.get(reverse("resume:index"))
+    r = client.get(reverse("resume:list"))
 
     # Then the response should be successful
     assert r.status_code == 200
 
     # And the index template should be used
-    assert "django_resume/plain/index.html" in set([t.name for t in r.templates])
+    assert "django_resume/plain/resume_list.html" in set([t.name for t in r.templates])
 
 
 @pytest.mark.django_db
@@ -29,7 +29,9 @@ def test_resume_detail_view(client, resume):
     assert r.status_code == 200
 
     # And the cv template should be used
-    assert "django_resume/plain/detail.html" in set([t.name for t in r.templates])
+    assert "django_resume/plain/resume_detail.html" in set(
+        [t.name for t in r.templates]
+    )
 
     # And the resume should be in the context
     assert r.context["resume"] == resume
