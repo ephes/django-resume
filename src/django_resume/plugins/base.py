@@ -319,8 +319,8 @@ class SimplePlugin:
     verbose_name = "Simple Plugin"
     templates: SimpleTemplates = SimpleTemplates(
         # those two templates are just a dummies - overwrite them
-        main="django_resume/plain/simple_plugin.html",
-        form="django_resume/plain/simple_plugin_form.html",
+        main="django_resume/simple_plugin/plain/content.html",
+        form="django_resume/simple_plugin/plain/form.html",
     )
 
     def __init__(self):

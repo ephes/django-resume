@@ -116,11 +116,11 @@ class TimelineMixin:
     verbose_name: str
     inline: ListInline
     templates = ListTemplates(
-        main="django_resume/plain/timeline.html",
-        flat="django_resume/plain/timeline_flat.html",
-        flat_form="django_resume/plain/timeline_flat_form.html",
-        item="django_resume/plain/timeline_item.html",
-        item_form="django_resume/plain/timeline_item_form.html",
+        main="django_resume/timelines/plain/content.html",
+        flat="django_resume/timelines/plain/flat.html",
+        flat_form="django_resume/timelines/plain/flat_form.html",
+        item="django_resume/timelines/plain/item.html",
+        item_form="django_resume/timelines/plain/item_form.html",
     )
 
     @staticmethod

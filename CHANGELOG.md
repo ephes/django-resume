@@ -5,6 +5,8 @@
 - Area labels for project links without text
 - Project links are working now in pdf export
 
+### Refactor
+- Moved all plugin templates in folders named after the plugin
 
 0.1.1 - 2024-10-11
 ==================

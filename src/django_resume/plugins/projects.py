@@ -109,11 +109,11 @@ class ProjectsPlugin(ListPlugin):
     verbose_name: str = "Projects"
     inline: ListInline
     templates = ListTemplates(
-        main="django_resume/plain/projects.html",
-        flat="django_resume/plain/projects_flat.html",
-        flat_form="django_resume/plain/projects_flat_form.html",
-        item="django_resume/plain/projects_item.html",
-        item_form="django_resume/plain/projects_item_form.html",
+        main="django_resume/projects/plain/content.html",
+        flat="django_resume/projects/plain/flat.html",
+        flat_form="django_resume/projects/plain/flat_form.html",
+        item="django_resume/projects/plain/item.html",
+        item_form="django_resume/projects/plain/item_form.html",
     )
     flat_form_class = ProjectFlatForm
 
