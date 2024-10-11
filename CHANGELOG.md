@@ -4,6 +4,7 @@
 ### Features
 - Area labels for project links without text
 - Project links are working now in pdf export
+- Global edit button for the whole CV
 
 ### Refactor
 - Moved all plugin templates in folders named after the plugin
