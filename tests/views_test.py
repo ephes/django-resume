@@ -21,3 +21,13 @@ def test_cv_editable_only_for_authenticated_users(client, resume):
 
     # And the edit button should not be shown
     assert not r.context["show_edit_button"]
+
+    # When we access the cv url being authenticated
+    client.force_login(resume.owner)
+    r = client.get(cv_url)
+
+    # Then the response should be successful
+    assert r.status_code == 200
+
+    # And the edit button should be shown
+    assert r.context["show_edit_button"]
