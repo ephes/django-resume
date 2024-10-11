@@ -142,7 +142,9 @@ class SimpleAdmin:
             form = self.form_class(initial={"plugin_data": plugin_data})
         else:
             form = self.form_class(initial=plugin_data)
-        form.post_url = self.get_change_post_url(resume.pk)
+        setattr(
+            form, "post_url", self.get_change_post_url(resume.pk)
+        )  # make mypy happy
         context = {
             "title": f"{self.plugin_verbose_name} for {resume.name}",
             "resume": resume,
@@ -169,7 +171,9 @@ class SimpleAdmin:
         """
         resume = self.get_resume_or_error(request, resume_id)
         form = self.form_class(request.POST)
-        form.post_url = self.get_change_post_url(resume.pk)
+        setattr(
+            form, "post_url", self.get_change_post_url(resume.pk)
+        )  # make mypy happy
         context = {"form": form}
         if form.is_valid():
             if self.form_class == SimpleJsonForm:
@@ -253,7 +257,7 @@ class SimpleInline:
         plugin_data = self.data.get_data(resume)
         print("get edit view!")
         form = self.form_class(initial=plugin_data)
-        form.post_url = self.get_post_url(resume.pk)
+        setattr(form, "post_url", self.get_post_url(resume.pk))  # make mypy happy
         context = {"form": form}
         return render(request, self.templates.form, context)
 
@@ -267,7 +271,7 @@ class SimpleInline:
         form_class = self.form_class
         print("post view: ", request.POST, request.FILES)
         form = form_class(request.POST, request.FILES, initial=plugin_data)
-        form.post_url = self.get_post_url(resume.pk)
+        setattr(form, "post_url", self.get_post_url(resume.pk))  # make mypy happy
         context: dict[str, Any] = {"form": form}
         if form.is_valid():
             # update the plugin data and render the main template
@@ -838,7 +842,7 @@ class ListInline:
         flat_form_class = self.form_classes["flat"]
         plugin_data = self.data.get_data(resume)
         flat_form = flat_form_class(request.POST, initial=plugin_data.get("flat", {}))
-        context = {}
+        context: dict[str, Any] = {}
         if flat_form.is_valid():
             resume = self.data.update_flat(resume, flat_form.cleaned_data)
             resume.save()
