@@ -1,7 +1,8 @@
 :root {
     --font-size: 12px; /* Smaller font size for printing */
-    --measure: 90ch;
+    --measure: 85ch;
     --ratio: 1.2;
+    line-height: 1.3rem;
 }
 
 body {
@@ -18,11 +19,11 @@ h1 {
 }
 
 .project-box > p {
-  font-size: calc(0.8 * var(--s0));
+  font-size: calc(0.7 * var(--s0));
 }
 
 .project-badges-list li {
-  font-size: calc(0.7 * var(--s0));
+  font-size: calc(0.6 * var(--s0));
 }
 
 .avoid-page-break {

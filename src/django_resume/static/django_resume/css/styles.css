@@ -8,7 +8,7 @@
   --font-color: #66727f;
   color: var(--font-color);
   font-size: 15px;
-  line-height: 1.3rem;
+  line-height: 1.4rem;
   --measure: 75ch;
   --ratio: 1.5;
   --border-thin: 1px;
@@ -46,6 +46,7 @@ h1, h2, h3, h4, h5, h6 {
 
 p, ul {
   margin: 0;  /* Removes default margin to remove gaps between sections */
+  word-spacing: -0.3ch; /* Adds space between words */
 }
 
 * {
@@ -256,12 +257,12 @@ svg {
 
 .timeline-header-cluster {
   justify-content: space-between;
-  align-items: center;
 }
 
 .timeline-header-title {
   display: flex;
   gap: var(--s-2);
+  align-items: center;  /* Aligns the title and the job badges vertically */
 }
 
 .year-span {
@@ -302,7 +303,6 @@ svg {
 
 .job-badges-list li {
   background-color: rgb(235, 236, 241); /* Light grey background */
-  line-height: 1.5; /* normalize the line height so that the badges are centered vertically */
   padding: 0.5ch 1ch; /* Adds space inside the badge */
   border-radius: 1ch; /* Rounds the corners */
   font-size: calc(0.8 * var(--s0)); /* Adjusts the font size */
