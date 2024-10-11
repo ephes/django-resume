@@ -1,3 +1,10 @@
+0.1.2 - 2024-10-11
+==================
+
+### Features
+- Area labels for project links without text
+
+
 0.1.1 - 2024-10-11
 ==================
 
