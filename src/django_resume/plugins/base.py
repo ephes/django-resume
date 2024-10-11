@@ -441,7 +441,7 @@ class ListData:
         self.plugin_name = plugin_name
 
     # read
-    def get_data(self, resume: Resume):
+    def get_data(self, resume: Resume) -> dict:
         return resume.plugin_data.get(self.plugin_name, {})
 
     def get_item_by_id(self, resume: Resume, item_id: str) -> dict | None:
@@ -452,20 +452,20 @@ class ListData:
         return None
 
     # write
-    def set_data(self, resume: Resume, data: dict):
+    def set_data(self, resume: Resume, data: dict) -> Resume:
         if not resume.plugin_data:
             resume.plugin_data = {}
         resume.plugin_data[self.plugin_name] = data
         return resume
 
-    def create(self, resume: Resume, data: dict):
+    def create(self, resume: Resume, data: dict) -> Resume:
         """Create an item in the items list of this plugin."""
         plugin_data = self.get_data(resume)
         plugin_data.setdefault("items", []).append(data)
         resume = self.set_data(resume, plugin_data)
         return resume
 
-    def update(self, resume: Resume, data: dict):
+    def update(self, resume: Resume, data: dict) -> Resume:
         """Update an item in the items list of this plugin."""
         plugin_data = self.get_data(resume)
         items = plugin_data.get("items", [])
@@ -477,13 +477,13 @@ class ListData:
         plugin_data["items"] = items
         return self.set_data(resume, plugin_data)
 
-    def update_flat(self, resume: Resume, data: dict):
+    def update_flat(self, resume: Resume, data: dict) -> Resume:
         """Update the flat data of this plugin."""
         plugin_data = self.get_data(resume)
         plugin_data["flat"] = data
         return self.set_data(resume, plugin_data)
 
-    def delete(self, resume: Resume, data: dict):
+    def delete(self, resume: Resume, data: dict) -> Resume:
         """Delete an item from the items list of this plugin."""
         plugin_data = self.get_data(resume)
         items = plugin_data.get("items", [])
