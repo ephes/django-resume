@@ -8,6 +8,7 @@
 - Added a base template for the resume pages
 - Do not require token for CV when user is logged in
 - Better print styles for the CV
+- Scroll animate project-boxes up
 
 0.1.2 - 2024-10-11
 ==================
