@@ -5,14 +5,14 @@ from django_resume.plugins import plugin_registry, TokenPlugin
 
 
 @pytest.mark.django_db
-def test_cv_editable_only_for_authenticated_users(client, person):
-    # Given a person in the database and the token plugin deactivated
-    person.owner.save()
-    person.save()
+def test_cv_editable_only_for_authenticated_users(client, resume):
+    # Given a resume in the database and the token plugin deactivated
+    resume.owner.save()
+    resume.save()
     plugin_registry.unregister(TokenPlugin)
 
     # When we try to access the cv edit page
-    cv_url = reverse("resume:cv", kwargs={"slug": person.slug})
+    cv_url = reverse("resume:cv", kwargs={"slug": resume.slug})
     cv_url = f"{cv_url}?edit=true"
     r = client.get(cv_url)
 

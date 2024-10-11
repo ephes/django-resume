@@ -152,13 +152,13 @@ class IdentityPlugin(SimplePlugin):
         self,
         _request: HttpRequest,
         plugin_data: dict,
-        person_pk: int,
+        resume_pk: int,
         *,
         context: ContextDict,
         edit: bool = False,
     ) -> ContextDict:
         context = super().get_context(
-            _request, plugin_data, person_pk, context=context, edit=edit
+            _request, plugin_data, resume_pk, context=context, edit=edit
         )
         context["avatar_img_url"] = default_storage.url(
             plugin_data.get("avatar_img", "")

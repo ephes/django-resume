@@ -3,7 +3,7 @@ import re
 
 import pytest
 
-from django_resume.models import Person
+from django_resume.models import Resume
 from django_resume.plugins import EmployedTimelinePlugin
 
 
@@ -11,12 +11,12 @@ from django_resume.plugins import EmployedTimelinePlugin
 
 
 @pytest.mark.django_db
-def test_get_add_form(admin_client, person):
-    # Given a person in the database and a timeline plugin
-    person.owner.save()
-    person.save()
+def test_get_add_form(admin_client, resume):
+    # Given a resume in the database and a timeline plugin
+    resume.owner.save()
+    resume.save()
     plugin = EmployedTimelinePlugin()
-    add_form_url = plugin.admin.get_item_add_form_url(person.id)
+    add_form_url = plugin.admin.get_item_add_form_url(resume.id)
 
     # When we get the item add form
     r = admin_client.get(add_form_url)
@@ -24,9 +24,9 @@ def test_get_add_form(admin_client, person):
     # Then the response should be successful
     assert r.status_code == 200
 
-    # And the form should be in the context and have the correct post url for the person
+    # And the form should be in the context and have the correct post url for the resume
     form = r.context["form"]
-    assert f"/person/{person.pk}/" in form.post_url
+    assert f"/resume/{resume.pk}/" in form.post_url
     assert form.initial.get("position") == 0
 
 
@@ -34,12 +34,12 @@ def test_get_add_form(admin_client, person):
 
 
 @pytest.mark.django_db
-def test_create_item(admin_client, person, timeline_item_data):
-    # Given a person in the database and a timeline plugin
-    person.owner.save()
-    person.save()
+def test_create_item(admin_client, resume, timeline_item_data):
+    # Given a resume in the database and a timeline plugin
+    resume.owner.save()
+    resume.save()
     plugin = EmployedTimelinePlugin()
-    post_url = plugin.admin.get_change_item_post_url(person.id)
+    post_url = plugin.admin.get_change_item_post_url(resume.id)
 
     # When we create a new timeline item
     r = admin_client.post(post_url, timeline_item_data)
@@ -48,8 +48,8 @@ def test_create_item(admin_client, person, timeline_item_data):
     assert r.status_code == 200
 
     # And the item should be in the database
-    person.refresh_from_db()
-    plugin_data = plugin.data.get_data(person)
+    resume.refresh_from_db()
+    plugin_data = plugin.data.get_data(resume)
     assert len(plugin_data["items"]) == 1
 
     [item] = plugin_data["items"]
@@ -63,16 +63,16 @@ def test_create_item(admin_client, person, timeline_item_data):
 
 
 @pytest.mark.django_db
-def test_update_item(admin_client, person_with_timeline_item, timeline_item_data):
-    # Given a person in the database with a timeline item
-    person: Person = person_with_timeline_item
+def test_update_item(admin_client, resume_with_timeline_item, timeline_item_data):
+    # Given a resume in the database with a timeline item
+    resume: Resume = resume_with_timeline_item
     plugin = EmployedTimelinePlugin()
 
-    plugin_data = plugin.data.get_data(person)
+    plugin_data = plugin.data.get_data(resume)
     [item] = plugin_data["items"]
     timeline_item_data["id"] = item["id"]
     timeline_item_data["role"] = "Updated Developer"
-    update_url = plugin.admin.get_change_item_post_url(person.id)
+    update_url = plugin.admin.get_change_item_post_url(resume.id)
 
     # When we update the timeline item
     r = admin_client.post(update_url, timeline_item_data)
@@ -81,28 +81,28 @@ def test_update_item(admin_client, person_with_timeline_item, timeline_item_data
     assert r.status_code == 200
 
     # And the item should be updated in the database
-    person.refresh_from_db()
-    plugin_data = plugin.data.get_data(person)
+    resume.refresh_from_db()
+    plugin_data = plugin.data.get_data(resume)
     [item] = plugin_data["items"]
     assert item["role"] == timeline_item_data["role"]
 
 
 @pytest.mark.django_db
-def test_delete_item(admin_client, person_with_timeline_item):
-    # Given a person in the database with a timeline item
-    person: Person = person_with_timeline_item
+def test_delete_item(admin_client, resume_with_timeline_item):
+    # Given a resume in the database with a timeline item
+    resume: Resume = resume_with_timeline_item
     plugin = EmployedTimelinePlugin()
 
     # When we delete the timeline item
-    delete_url = plugin.admin.get_delete_item_url(person.id, "123")
+    delete_url = plugin.admin.get_delete_item_url(resume.id, "123")
     r = admin_client.post(delete_url)
 
     # Then the response should be successful
     assert r.status_code == 200  # yes, 200 not 204 - htmx won't work with 204
 
     # And the item should be removed from the database
-    person.refresh_from_db()
-    plugin_data = plugin.data.get_data(person)
+    resume.refresh_from_db()
+    plugin_data = plugin.data.get_data(resume)
     assert len(plugin_data["items"]) == 0
 
 
@@ -110,12 +110,12 @@ def test_delete_item(admin_client, person_with_timeline_item):
 
 
 @pytest.mark.django_db
-def test_update_flat_view(admin_client, person):
-    # Given a person in the database and a timeline plugin
-    person.owner.save()
-    person.save()
+def test_update_flat_view(admin_client, resume):
+    # Given a resume in the database and a timeline plugin
+    resume.owner.save()
+    resume.save()
     plugin = EmployedTimelinePlugin()
-    post_url = plugin.admin.get_change_flat_post_url(person.id)
+    post_url = plugin.admin.get_change_flat_post_url(resume.id)
 
     # When we update the flat form
     r = admin_client.post(post_url, {"title": "Updated title"})
@@ -124,8 +124,8 @@ def test_update_flat_view(admin_client, person):
     assert r.status_code == 200
 
     # And the data should be in the database
-    person.refresh_from_db()
-    plugin_data = plugin.data.get_data(person)
+    resume.refresh_from_db()
+    plugin_data = plugin.data.get_data(resume)
     assert plugin_data["flat"]["title"] == "Updated title"
 
 
@@ -133,7 +133,7 @@ def test_update_flat_view(admin_client, person):
 
 
 @pytest.mark.django_db
-def test_add_and_update_via_main_change_view(admin_client, person, timeline_item_data):
+def test_add_and_update_via_main_change_view(admin_client, resume, timeline_item_data):
     """
     There was an issue that when an item was added the id was missing in the update
     form that came back as a response to the add post. When the update form was
@@ -141,11 +141,11 @@ def test_add_and_update_via_main_change_view(admin_client, person, timeline_item
 
     This test is to ensure that this won't happen again.
     """
-    # Given a person in the database and a timeline plugin
-    person.owner.save()
-    person.save()
+    # Given a resume in the database and a timeline plugin
+    resume.owner.save()
+    resume.save()
     plugin = EmployedTimelinePlugin()
-    change_view_url = plugin.admin.get_change_url(person.id)
+    change_view_url = plugin.admin.get_change_url(resume.id)
     # When we get the change view
     r = admin_client.get(change_view_url)
 
@@ -168,8 +168,8 @@ def test_add_and_update_via_main_change_view(admin_client, person, timeline_item
     assert r.status_code == 200
 
     # Then the item should be in the database and have an id
-    person.refresh_from_db()
-    [item] = plugin.data.get_data(person)["items"]
+    resume.refresh_from_db()
+    [item] = plugin.data.get_data(resume)["items"]
     assert item["role"] == timeline_item_data["role"]
     expected_item_id = item["id"]
 

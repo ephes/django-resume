@@ -40,10 +40,10 @@ class TokenItemForm(ListItemFormMixin, forms.Form):
             # Set the 'created' field to the current time if it's not already set
             self.fields["created"].initial = timezone.now()
 
-        self.generate_cv_link(self.person)
+        self.generate_cv_link(self.resume)
 
-    def generate_cv_link(self, person):
-        base_url = reverse("django_resume:cv", kwargs={"slug": person.slug})
+    def generate_cv_link(self, resume):
+        base_url = reverse("django_resume:cv", kwargs={"slug": resume.slug})
         link = f"{base_url}?token={self.token}"
         self.fields["cv_link"].initial = mark_safe(
             f'<a href="{link}" target="_blank">{link}</a>'
@@ -75,10 +75,10 @@ class TokenViaGetForm(forms.Form):
 
 class TokenPlugin(ListPlugin):
     """
-    Generate tokens for a person.
+    Generate tokens for a resume.
 
-    If you want to restrict access to a person's resume, you can generate a token.
-    The token can be shared with the person and they can access their resume using the token.
+    If you want to restrict access to a resume's resume, you can generate a token.
+    The token can be shared with the resume, and they can access their resume using the token.
     """
 
     name = "token"
@@ -119,7 +119,7 @@ class TokenPlugin(ListPlugin):
         self,
         request: HttpRequest,
         plugin_data: dict,
-        person_pk: int,
+        resume_pk: int,
         *,
         context: dict,
         edit: bool = False,

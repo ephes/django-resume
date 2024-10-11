@@ -1,6 +1,6 @@
 import pytest
 
-from django_resume.models import Person
+from django_resume.models import Resume
 
 
 @pytest.fixture
@@ -9,8 +9,8 @@ def user(django_user_model):
 
 
 @pytest.fixture
-def person(user):
-    return Person(name="John Doe", slug="john-doe", owner=user)
+def resume(user):
+    return Resume(name="John Doe", slug="john-doe", owner=user)
 
 
 @pytest.fixture

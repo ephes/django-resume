@@ -1,10 +1,10 @@
 from django.contrib import admin
 
-from .models import Person
+from .models import Resume
 from .plugins import plugin_registry
 
 
-class PersonAdmin(admin.ModelAdmin):
+class ResumeAdmin(admin.ModelAdmin):
     # fields = ("name", "slug", "plugin_data")
 
     def get_urls(self):
@@ -17,7 +17,7 @@ class PersonAdmin(admin.ModelAdmin):
     def add_plugin_method(self, plugin):
         """
         Add a method to the admin class that will return a link to the plugin admin view.
-        This is used to have the plugins show up as readonly fields in the person change view.
+        This is used to have the plugins show up as readonly fields in the resume change view.
         """
 
         def plugin_method(_self, obj):
@@ -44,4 +44,4 @@ class PersonAdmin(admin.ModelAdmin):
         return readonly_fields
 
 
-admin.site.register(Person, PersonAdmin)
+admin.site.register(Resume, ResumeAdmin)

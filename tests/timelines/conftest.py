@@ -5,12 +5,12 @@ from django_resume.plugins.timelines import TimelineItemForm
 
 
 @pytest.fixture
-def person_with_timeline_item(person, timeline_item_data):
+def resume_with_timeline_item(resume, timeline_item_data):
     timeline_item_data["id"] = "123"
     plugin = EmployedTimelinePlugin()
-    form = TimelineItemForm(data=timeline_item_data, person=person)
+    form = TimelineItemForm(data=timeline_item_data, resume=resume)
     assert form.is_valid()
-    person = plugin.data.create(person, form.cleaned_data)
-    person.owner.save()
-    person.save()
-    return person
+    resume = plugin.data.create(resume, form.cleaned_data)
+    resume.owner.save()
+    resume.save()
+    return resume

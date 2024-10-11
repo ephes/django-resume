@@ -43,15 +43,15 @@ def plugin_registry():
 
 
 @pytest.mark.django_db
-def test_person_change_contains_simple_plugin_link(
-    admin_client, person, plugin_registry
+def test_resume_change_contains_simple_plugin_link(
+    admin_client, resume, plugin_registry
 ):
-    # Given a person in the database and a simple plugin in the registry
-    person.owner.save()
-    person.save()
+    # Given a resume in the database and a simple plugin in the registry
+    resume.owner.save()
+    resume.save()
 
-    # When we visit the admin page of the associated person
-    url = reverse("admin:django_resume_person_change", args=[person.pk])
+    # When we visit the admin page of the associated resume
+    url = reverse("admin:django_resume_resume_change", args=[resume.pk])
     r = admin_client.get(url)
 
     # Then the plugin should be there
@@ -61,14 +61,14 @@ def test_person_change_contains_simple_plugin_link(
 
 
 @pytest.mark.django_db
-def test_simple_plugin_change_view_contains_form(admin_client, person, plugin_registry):
-    # Given a person in the database and a simple plugin in the registry
-    person.owner.save()
-    person.save()
+def test_simple_plugin_change_view_contains_form(admin_client, resume, plugin_registry):
+    # Given a resume in the database and a simple plugin in the registry
+    resume.owner.save()
+    resume.save()
 
     # When we visit the edit page of the plugin
     plugin = plugin_registry.get_plugin(SimplePlugin.name)
-    change_url = plugin.admin.get_change_url(person.pk)
+    change_url = plugin.admin.get_change_url(resume.pk)
     r = admin_client.get(change_url)
 
     # Then the form should be there
@@ -82,34 +82,34 @@ def test_simple_plugin_change_view_contains_form(admin_client, person, plugin_re
 
 
 @pytest.mark.django_db
-def test_simple_plugin_post_data_changes_data(admin_client, person, plugin_registry):
-    # Given a person in the database and a simple plugin in the registry
-    person.owner.save()
-    person.save()
+def test_simple_plugin_post_data_changes_data(admin_client, resume, plugin_registry):
+    # Given a resume in the database and a simple plugin in the registry
+    resume.owner.save()
+    resume.save()
 
     # When we post data to the plugin
     plugin = plugin_registry.get_plugin(SimplePlugin.name)
-    post_url = plugin.admin.get_change_post_url(person.pk)
+    post_url = plugin.admin.get_change_post_url(resume.pk)
     data = {"plugin_data": '{"foo": "bar"}'}
     r = admin_client.post(post_url, data)
 
     # Then the data should be updated
     assert r.status_code == 200
 
-    person.refresh_from_db()
-    plugin_data = plugin.get_data(person)
+    resume.refresh_from_db()
+    plugin_data = plugin.get_data(resume)
     assert plugin_data == {"foo": "bar"}
 
 
 @pytest.mark.django_db
-def test_simple_plugin_post_data_invalid(admin_client, person, plugin_registry):
-    # Given a person in the database and a simple plugin in the registry
-    person.owner.save()
-    person.save()
+def test_simple_plugin_post_data_invalid(admin_client, resume, plugin_registry):
+    # Given a resume in the database and a simple plugin in the registry
+    resume.owner.save()
+    resume.save()
 
     # When we post data to the plugin
     plugin = plugin_registry.get_plugin(SimplePlugin.name)
-    post_url = plugin.admin.get_change_post_url(person.pk)
+    post_url = plugin.admin.get_change_post_url(resume.pk)
     data = {"plugin_data": "invalid"}
     r = admin_client.post(post_url, data)
 
@@ -124,13 +124,13 @@ def test_simple_plugin_post_data_invalid(admin_client, person, plugin_registry):
 
 
 @pytest.mark.django_db
-def test_simple_plugin_integration(admin_client, person, plugin_registry):
-    # Given a person in the database and a simple plugin in the registry
-    person.owner.save()
-    person.save()
+def test_simple_plugin_integration(admin_client, resume, plugin_registry):
+    # Given a resume in the database and a simple plugin in the registry
+    resume.owner.save()
+    resume.save()
 
     # When we visit the edit page of the plugin
-    url = reverse("admin:django_resume_person_change", args=[person.pk])
+    url = reverse("admin:django_resume_resume_change", args=[resume.pk])
     r = admin_client.get(url)
 
     # Then the change link should be there
@@ -158,8 +158,8 @@ def test_simple_plugin_integration(admin_client, person, plugin_registry):
     assert 'value="bar"' in content
 
     # And the data should have been updated in the database
-    person.refresh_from_db()
+    resume.refresh_from_db()
     plugin = IntegrationPlugin()
-    plugin_data = plugin.get_data(person)
+    plugin_data = plugin.get_data(resume)
 
     assert plugin_data == {"foo": "bar"}

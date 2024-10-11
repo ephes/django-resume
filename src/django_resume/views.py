@@ -1,16 +1,16 @@
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render, get_object_or_404
 
-from .models import Person
+from .models import Resume
 from .plugins import plugin_registry
 
 
 def cv(request: HttpRequest, slug: str) -> HttpResponse:
-    person = get_object_or_404(Person, slug=slug)
+    resume = get_object_or_404(Resume, slug=slug)
     edit = bool(dict(request.GET).get("edit", False))
     show_edit_button = True if request.user.is_authenticated and edit else False
     context = {
-        "person": person,
+        "resume": resume,
         "timelines": [],
         "projects": [],
         # needed to include edit styles in the base template
@@ -19,8 +19,8 @@ def cv(request: HttpRequest, slug: str) -> HttpResponse:
     for plugin in plugin_registry.get_all_plugins():
         context[plugin.name] = plugin.get_context(
             request,
-            plugin.get_data(person),
-            person.pk,
+            plugin.get_data(resume),
+            resume.pk,
             context={},
             edit=show_edit_button,
         )

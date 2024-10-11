@@ -6,15 +6,15 @@ from django_resume.plugins import SimplePlugin, plugin_registry
 
 
 @pytest.mark.django_db
-def test_get_edit_view(client, person):
-    # Given a person in the database and a simple plugin in the registry
-    person.owner.save()
-    person.save()
+def test_get_edit_view(client, resume):
+    # Given a resume in the database and a simple plugin in the registry
+    resume.owner.save()
+    resume.save()
     plugin_registry.register(SimplePlugin)
 
     # When we get the edit form
     plugin = plugin_registry.get_plugin(SimplePlugin.name)
-    url = plugin.inline.get_edit_url(person.pk)
+    url = plugin.inline.get_edit_url(resume.pk)
     r = client.get(url)
 
     # Then the response should be successful and contain the form with the post link
@@ -25,15 +25,15 @@ def test_get_edit_view(client, person):
 
 
 @pytest.mark.django_db
-def test_post_view_not_authenticated(client, person):
-    # Given a person in the database and a simple plugin in the registry
-    person.owner.save()
-    person.save()
+def test_post_view_not_authenticated(client, resume):
+    # Given a resume in the database and a simple plugin in the registry
+    resume.owner.save()
+    resume.save()
     plugin_registry.register(SimplePlugin)
 
     # When we post the form without being authenticated
     plugin = plugin_registry.get_plugin(SimplePlugin.name)
-    url = plugin.inline.get_post_url(person.pk)
+    url = plugin.inline.get_post_url(resume.pk)
     json_data = json.dumps({"foo": "bar"})
     r = client.post(url, {"plugin_data": json_data})
 
@@ -43,10 +43,10 @@ def test_post_view_not_authenticated(client, person):
 
 
 @pytest.mark.django_db
-def test_post_view_not_authorized(client, person, django_user_model):
-    # Given a person in the database and a simple plugin in the registry
-    person.owner.save()
-    person.save()
+def test_post_view_not_authorized(client, resume, django_user_model):
+    # Given a resume in the database and a simple plugin in the registry
+    resume.owner.save()
+    resume.save()
     plugin_registry.register(SimplePlugin)
     unauthorized_user = django_user_model.objects.create_user(
         username="unauthorized", password="password"
@@ -55,7 +55,7 @@ def test_post_view_not_authorized(client, person, django_user_model):
 
     # When we post the form without being authenticated
     plugin = plugin_registry.get_plugin(SimplePlugin.name)
-    url = plugin.inline.get_post_url(person.pk)
+    url = plugin.inline.get_post_url(resume.pk)
     json_data = json.dumps({"foo": "bar"})
     r = client.post(url, {"plugin_data": json_data})
 
@@ -64,44 +64,44 @@ def test_post_view_not_authorized(client, person, django_user_model):
 
 
 @pytest.mark.django_db
-def test_post_view(client, person):
-    # Given a person in the database and a simple plugin in the registry
+def test_post_view(client, resume):
+    # Given a resume in the database and a simple plugin in the registry
     # and the client is logged in
-    person.owner.save()
-    person.save()
+    resume.owner.save()
+    resume.save()
     plugin_registry.register(SimplePlugin)
-    client.force_login(person.owner)
+    client.force_login(resume.owner)
 
     # When we post the form
     plugin = plugin_registry.get_plugin(SimplePlugin.name)
-    url = plugin.inline.get_post_url(person.pk)
+    url = plugin.inline.get_post_url(resume.pk)
     json_data = json.dumps({"foo": "bar"})
     r = client.post(url, {"plugin_data": json_data})
 
     # Then the response should be successful
     assert r.status_code == 200
-    person.refresh_from_db()
+    resume.refresh_from_db()
 
     # And the edit_url should be set in the context for the plugin
     assert r.context[SimplePlugin.name]["edit_url"] == plugin.inline.get_edit_url(
-        person.pk
+        resume.pk
     )
 
     # And the plugin data should be saved
-    assert person.plugin_data[SimplePlugin.name]["plugin_data"] == {"foo": "bar"}
+    assert resume.plugin_data[SimplePlugin.name]["plugin_data"] == {"foo": "bar"}
 
 
 @pytest.mark.django_db
-def test_post_view_invalid_data(client, person):
-    # Given a person in the database and a simple plugin in the registry
-    person.owner.save()
-    person.save()
+def test_post_view_invalid_data(client, resume):
+    # Given a resume in the database and a simple plugin in the registry
+    resume.owner.save()
+    resume.save()
     plugin_registry.register(SimplePlugin)
-    client.force_login(person.owner)
+    client.force_login(resume.owner)
 
     # When we post the form with invalid data
     plugin = plugin_registry.get_plugin(SimplePlugin.name)
-    url = plugin.inline.get_post_url(person.pk)
+    url = plugin.inline.get_post_url(resume.pk)
     r = client.post(url, {"plugin_data": "invalid"})
 
     # Then the response should be successful
