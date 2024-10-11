@@ -198,7 +198,6 @@ class SimpleInline:
         data: SimpleData,
         templates: SimpleTemplates,
         get_context: Callable,
-        check_permissions: Callable,
     ):
         self.plugin_name = plugin_name
         self.plugin_verbose_name = plugin_verbose_name
@@ -206,7 +205,10 @@ class SimpleInline:
         self.data = data
         self.templates = templates
         self.get_context = get_context
-        self.check_permissions = check_permissions
+
+    @staticmethod
+    def check_permissions(request: HttpRequest, resume: Resume) -> bool:
+        return resume.owner == request.user
 
     def get_edit_url(self, resume_id: int) -> str:
         return reverse(
@@ -313,12 +315,7 @@ class SimplePlugin:
             data=data,
             templates=self.templates,
             get_context=self.get_context,
-            check_permissions=self.check_permissions,
         )
-
-    @staticmethod
-    def check_permissions(request: HttpRequest, resume: Resume) -> bool:
-        return resume.owner == request.user
 
     # plugin protocol methods
 
