@@ -102,8 +102,8 @@ class TokenPlugin(ListPlugin):
         token_required = plugin_data.get("flat", {"token_required": True}).get(
             "token_required", True
         )
-        if not token_required:
-            return
+        if not token_required or request.user.is_authenticated:
+            return None
         form = TokenViaGetForm(request.GET)
         if not form.is_valid():
             raise PermissionDenied("Token required to access this page.")
@@ -112,7 +112,7 @@ class TokenPlugin(ListPlugin):
             raise PermissionDenied("Token required to access this page.")
         tokens = set(item["token"] for item in plugin_data.get("items", []))
         if token in tokens:
-            return
+            return None
         raise PermissionDenied("Invalid token.")
 
     def get_context(
