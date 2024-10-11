@@ -204,6 +204,15 @@ svg {
   --color-dark: var(--color-black);
   color: var(--font-color);
   transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease;
+  /* scroll animation */
+  opacity: 1;
+  transform: translateY(0px);
+}
+
+.project-box.invisible {
+  opacity: 0;
+  transform: translateY(100px);
+  transition: all 0.5s ease;
 }
 
 .project-box:hover {
