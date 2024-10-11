@@ -226,10 +226,6 @@ class SimpleInline:
         self.templates = templates
         self.get_context = get_context
 
-    @staticmethod
-    def check_permissions(request: HttpRequest, resume: Resume) -> bool:
-        return resume.owner == request.user
-
     def get_edit_url(self, resume_id: int) -> str:
         return reverse(
             f"django_resume:{self.plugin_name}-edit", kwargs={"resume_id": resume_id}
@@ -239,6 +235,10 @@ class SimpleInline:
         return reverse(
             f"django_resume:{self.plugin_name}-post", kwargs={"resume_id": resume_id}
         )
+
+    @staticmethod
+    def check_permissions(request: HttpRequest, resume: Resume) -> bool:
+        return resume.owner == request.user
 
     def get_resume_or_error(self, request: HttpRequest, resume_id: int) -> Resume:
         """Returns the resume or generates a 404 or 403 response."""
@@ -529,7 +529,7 @@ class ListAdmin:
         self.form_classes = form_classes
         self.data = data
 
-    def get_change_url(self, resume_id):
+    def get_change_url(self, resume_id: int) -> str:
         """
         Main admin view for this plugin. This view should display a list of item
         forms with update buttons for existing items and a button to get a form to
@@ -551,26 +551,26 @@ class ListAdmin:
             '<a href="{}">{}</a>', url, f"Edit {self.plugin_verbose_name}"
         )
 
-    def get_change_flat_post_url(self, resume_id):
+    def get_change_flat_post_url(self, resume_id: int) -> str:
         """Used for create and update flat data."""
         return reverse(
             f"admin:{self.plugin_name}-admin-flat-post", kwargs={"resume_id": resume_id}
         )
 
-    def get_change_item_post_url(self, resume_id):
+    def get_change_item_post_url(self, resume_id: int) -> str:
         """Used for create and update item."""
         return reverse(
             f"admin:{self.plugin_name}-admin-item-post", kwargs={"resume_id": resume_id}
         )
 
-    def get_delete_item_url(self, resume_id, item_id):
+    def get_delete_item_url(self, resume_id: int, item_id: str) -> str:
         """Used for delete item."""
         return reverse(
             f"admin:{self.plugin_name}-admin-item-delete",
             kwargs={"resume_id": resume_id, "item_id": item_id},
         )
 
-    def get_item_add_form_url(self, resume_id):
+    def get_item_add_form_url(self, resume_id: int) -> str:
         """
         Returns the url of a view that returns a form to add a new item. The resume_id
         is needed to be able to add the right post url to the form.
@@ -581,9 +581,24 @@ class ListAdmin:
 
     # crud views
 
-    def get_add_item_form_view(self, request, resume_id):
+    @staticmethod
+    def check_permissions(request: HttpRequest, resume: Resume) -> bool:
+        is_owner = resume.owner == request.user
+        is_staff = request.user.is_staff
+        return is_owner and is_staff
+
+    def get_resume_or_error(self, request: HttpRequest, resume_id: int) -> Resume:
+        """Returns the resume or generates a 404 or 403 response."""
+        resume = get_object_or_404(Resume, id=resume_id)
+        if not self.check_permissions(request, resume):
+            raise PermissionDenied("Permission denied")
+        return resume
+
+    def get_add_item_form_view(
+        self, request: HttpRequest, resume_id: int
+    ) -> HttpResponse:
         """Return a single empty form to add a new item."""
-        resume = get_object_or_404(Resume, pk=resume_id)
+        resume = self.get_resume_or_error(request, resume_id)
         form_class = self.form_classes["item"]
         existing_items = self.data.get_data(resume).get("items", [])
         form = form_class(initial={}, resume=resume, existing_items=existing_items)
@@ -591,9 +606,9 @@ class ListAdmin:
         context = {"form": form}
         return render(request, self.admin_item_change_form_template, context)
 
-    def get_change_view(self, request, resume_id):
+    def get_change_view(self, request: HttpRequest, resume_id: int) -> HttpResponse:
         """Return the main admin view for this plugin."""
-        resume = get_object_or_404(Resume, pk=resume_id)
+        resume = self.get_resume_or_error(request, resume_id)
         context = {
             "title": f"{self.plugin_verbose_name} for {resume.name}",
             "resume": resume,
@@ -636,9 +651,9 @@ class ListAdmin:
         context["item_forms"] = item_forms
         return render(request, self.admin_change_form_template, context)
 
-    def post_item_view(self, request, resume_id):
+    def post_item_view(self, request: HttpRequest, resume_id: int) -> HttpResponse:
         """Handle post requests to create or update a single item."""
-        resume = get_object_or_404(Resume, id=resume_id)
+        resume = self.get_resume_or_error(request, resume_id)
         form_class = self.form_classes["item"]
         existing_items = self.data.get_data(resume).get("items", [])
         form = form_class(request.POST, resume=resume, existing_items=existing_items)
@@ -673,9 +688,9 @@ class ListAdmin:
             form.delete_url = self.get_delete_item_url(resume.id, item_id)
         return render(request, self.admin_item_change_form_template, context)
 
-    def post_flat_view(self, request, resume_id):
+    def post_flat_view(self, request: HttpRequest, resume_id: int) -> HttpResponse:
         """Handle post requests to update flat data."""
-        resume = get_object_or_404(Resume, id=resume_id)
+        resume = self.get_resume_or_error(request, resume_id)
         form_class = self.form_classes["flat"]
         form = form_class(request.POST)
         form.post_url = self.get_change_flat_post_url(resume.pk)
@@ -685,9 +700,11 @@ class ListAdmin:
             resume.save()
         return render(request, self.admin_flat_form_template, context)
 
-    def delete_item_view(self, _request, resume_id, item_id):
+    def delete_item_view(
+        self, request: HttpRequest, resume_id: int, item_id: str
+    ) -> HttpResponse:
         """Delete an item from the items list of this plugin."""
-        resume = get_object_or_404(Resume, pk=resume_id)
+        resume = self.get_resume_or_error(request, resume_id)
         resume = self.data.delete(resume, {"id": item_id})
         resume.save()
         return HttpResponse(status=200)
@@ -753,19 +770,19 @@ class ListInline:
 
     # urls
 
-    def get_edit_flat_post_url(self, resume_id):
+    def get_edit_flat_post_url(self, resume_id: int) -> str:
         return reverse(
             f"django_resume:{self.plugin_name}-edit-flat-post",
             kwargs={"resume_id": resume_id},
         )
 
-    def get_edit_flat_url(self, resume_id):
+    def get_edit_flat_url(self, resume_id: int) -> str:
         return reverse(
             f"django_resume:{self.plugin_name}-edit-flat",
             kwargs={"resume_id": resume_id},
         )
 
-    def get_edit_item_url(self, resume_id, item_id=None):
+    def get_edit_item_url(self, resume_id: int, item_id=None) -> str:
         if item_id is None:
             return reverse(
                 f"django_resume:{self.plugin_name}-add-item",
@@ -777,13 +794,13 @@ class ListInline:
                 kwargs={"resume_id": resume_id, "item_id": item_id},
             )
 
-    def get_post_item_url(self, resume_id):
+    def get_post_item_url(self, resume_id: int) -> str:
         return reverse(
             f"django_resume:{self.plugin_name}-item-post",
             kwargs={"resume_id": resume_id},
         )
 
-    def get_delete_item_url(self, resume_id, item_id):
+    def get_delete_item_url(self, resume_id: int, item_id: str) -> str:
         return reverse(
             f"django_resume:{self.plugin_name}-delete-item",
             kwargs={"resume_id": resume_id, "item_id": item_id},
@@ -791,8 +808,20 @@ class ListInline:
 
     # crud views
 
-    def get_edit_flat_view(self, request, resume_id):
+    @staticmethod
+    def check_permissions(request: HttpRequest, resume: Resume) -> bool:
+        return resume.owner == request.user
+
+    def get_resume_or_error(self, request: HttpRequest, resume_id: int) -> Resume:
+        """Returns the resume or generates a 404 or 403 response."""
         resume = get_object_or_404(Resume, id=resume_id)
+        if not self.check_permissions(request, resume):
+            raise PermissionDenied("Permission denied")
+        return resume
+
+    def get_edit_flat_view(self, request: HttpRequest, resume_id: int) -> HttpResponse:
+        """Return a form to edit the flat data (not items) of this plugin."""
+        resume = self.get_resume_or_error(request, resume_id)
         plugin_data = self.data.get_data(resume)
         flat_form_class = self.form_classes["flat"]
         flat_form = flat_form_class(initial=plugin_data.get("flat", {}))
@@ -803,8 +832,9 @@ class ListInline:
         }
         return render(request, self.templates.flat_form, context=context)
 
-    def post_edit_flat_view(self, request, resume_id):
-        resume = get_object_or_404(Resume, id=resume_id)
+    def post_edit_flat_view(self, request: HttpRequest, resume_id: int) -> HttpResponse:
+        """Handle post requests to update flat data."""
+        resume = self.get_resume_or_error(request, resume_id)
         flat_form_class = self.form_classes["flat"]
         plugin_data = self.data.get_data(resume)
         flat_form = flat_form_class(request.POST, initial=plugin_data.get("flat", {}))
@@ -824,8 +854,11 @@ class ListInline:
             response = render(request, self.templates.flat_form, context=context)
             return response
 
-    def get_item_view(self, request, resume_id, item_id=None):
-        resume = get_object_or_404(Resume, id=resume_id)
+    def get_item_view(
+        self, request: HttpRequest, resume_id: int, item_id=None
+    ) -> HttpResponse:
+        """Return a form to edit an item."""
+        resume = self.get_resume_or_error(request, resume_id)
         plugin_data = self.data.get_data(resume)
         existing_items = plugin_data.get("items", [])
         form_class = self.form_classes["item"]
@@ -840,9 +873,9 @@ class ListInline:
         context = {"form": form, "plugin_name": self.plugin_name}
         return render(request, self.templates.item_form, context=context)
 
-    def post_item_view(self, request, resume_id):
-        print("in post item view!")
-        resume = get_object_or_404(Resume, id=resume_id)
+    def post_item_view(self, request: HttpRequest, resume_id: int) -> HttpResponse:
+        """Handle post requests to create or update a single item."""
+        resume = self.get_resume_or_error(request, resume_id)
         form_class = self.form_classes["item"]
         existing_items = self.data.get_data(resume).get("items", [])
         form = form_class(request.POST, resume=resume, existing_items=existing_items)
@@ -887,15 +920,17 @@ class ListInline:
             # form is invalid
             return render(request, self.templates.item_form, context)
 
-    def delete_item_view(self, _request, resume_id, item_id):
+    def delete_item_view(
+        self, request: HttpRequest, resume_id: int, item_id: str
+    ) -> HttpResponse:
         """Delete an item from the items list of this plugin."""
-        resume = get_object_or_404(Resume, pk=resume_id)
+        resume = self.get_resume_or_error(request, resume_id)
         resume = self.data.delete(resume, {"id": item_id})
         resume.save()
         return HttpResponse(status=200)
 
     # urlpatterns
-    def get_urls(self):
+    def get_urls(self) -> URLPatterns:
         plugin_name = self.plugin_name
         urls = [
             # flat

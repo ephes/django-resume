@@ -12,9 +12,11 @@ from django_resume.plugins import EmployedTimelinePlugin
 
 @pytest.mark.django_db
 def test_get_add_form(admin_client, resume):
-    # Given a resume in the database and a timeline plugin
+    # Given a resume in the database and a timeline plugin and an authenticated staff user
+    resume.owner.is_staff = True
     resume.owner.save()
     resume.save()
+    admin_client.force_login(resume.owner)
     plugin = EmployedTimelinePlugin()
     add_form_url = plugin.admin.get_item_add_form_url(resume.id)
 
@@ -35,9 +37,11 @@ def test_get_add_form(admin_client, resume):
 
 @pytest.mark.django_db
 def test_create_item(admin_client, resume, timeline_item_data):
-    # Given a resume in the database and a timeline plugin
+    # Given a resume in the database and a timeline plugin and an authenticated staff user
+    resume.owner.is_staff = True
     resume.owner.save()
     resume.save()
+    admin_client.force_login(resume.owner)
     plugin = EmployedTimelinePlugin()
     post_url = plugin.admin.get_change_item_post_url(resume.id)
 
@@ -66,6 +70,7 @@ def test_create_item(admin_client, resume, timeline_item_data):
 def test_update_item(admin_client, resume_with_timeline_item, timeline_item_data):
     # Given a resume in the database with a timeline item
     resume: Resume = resume_with_timeline_item
+    admin_client.force_login(resume.owner)
     plugin = EmployedTimelinePlugin()
 
     plugin_data = plugin.data.get_data(resume)
@@ -91,6 +96,7 @@ def test_update_item(admin_client, resume_with_timeline_item, timeline_item_data
 def test_delete_item(admin_client, resume_with_timeline_item):
     # Given a resume in the database with a timeline item
     resume: Resume = resume_with_timeline_item
+    admin_client.force_login(resume.owner)
     plugin = EmployedTimelinePlugin()
 
     # When we delete the timeline item
@@ -111,9 +117,11 @@ def test_delete_item(admin_client, resume_with_timeline_item):
 
 @pytest.mark.django_db
 def test_update_flat_view(admin_client, resume):
-    # Given a resume in the database and a timeline plugin
+    # Given a resume in the database and a timeline plugin and an authenticated staff user
+    resume.owner.is_staff = True
     resume.owner.save()
     resume.save()
+    admin_client.force_login(resume.owner)
     plugin = EmployedTimelinePlugin()
     post_url = plugin.admin.get_change_flat_post_url(resume.id)
 
@@ -141,9 +149,11 @@ def test_add_and_update_via_main_change_view(admin_client, resume, timeline_item
 
     This test is to ensure that this won't happen again.
     """
-    # Given a resume in the database and a timeline plugin
+    # Given a resume in the database and a timeline plugin and an authenticated staff user
+    resume.owner.is_staff = True
     resume.owner.save()
     resume.save()
+    admin_client.force_login(resume.owner)
     plugin = EmployedTimelinePlugin()
     change_view_url = plugin.admin.get_change_url(resume.id)
     # When we get the change view

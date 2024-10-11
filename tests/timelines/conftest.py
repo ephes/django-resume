@@ -11,6 +11,7 @@ def resume_with_timeline_item(resume, timeline_item_data):
     form = TimelineItemForm(data=timeline_item_data, resume=resume)
     assert form.is_valid()
     resume = plugin.data.create(resume, form.cleaned_data)
+    resume.owner.is_staff = True
     resume.owner.save()
     resume.save()
     return resume

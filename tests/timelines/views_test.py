@@ -10,9 +10,10 @@ from django_resume.plugins import EmployedTimelinePlugin
 
 @pytest.mark.django_db
 def test_edit_timeline_title(client, resume):
-    # Given a resume in the database and a timeline plugin
+    # Given a resume in the database and a timeline plugin and an authenticated user
     resume.owner.save()
     resume.save()
+    client.force_login(resume.owner)
     plugin = EmployedTimelinePlugin()
 
     # When we get the title edit view
@@ -56,9 +57,10 @@ def test_edit_timeline_title(client, resume):
 
 @pytest.mark.django_db
 def test_get_add_item_form(client, resume):
-    # Given a resume in the database and a timeline plugin
+    # Given a resume in the database and a timeline plugin and an authenticated user
     resume.owner.save()
     resume.save()
+    client.force_login(resume.owner)
     plugin = EmployedTimelinePlugin()
 
     # When we get the add item form
@@ -73,8 +75,9 @@ def test_get_add_item_form(client, resume):
 
 @pytest.mark.django_db
 def test_get_update_item_form(client, resume_with_timeline_item):
-    # Given a resume in the database and a timeline plugin with an item
+    # Given a resume in the database and a timeline plugin with an item and an authenticated user
     resume: Resume = resume_with_timeline_item
+    client.force_login(resume.owner)
     plugin = EmployedTimelinePlugin()
     plugin_data = plugin.data.get_data(resume)
     [item] = plugin_data["items"]
@@ -90,9 +93,10 @@ def test_get_update_item_form(client, resume_with_timeline_item):
 
 @pytest.mark.django_db
 def test_create_item(client, resume, timeline_item_data):
-    # Given a resume in the database and a timeline plugin
+    # Given a resume in the database and a timeline plugin and an authenticated user
     resume.owner.save()
     resume.save()
+    client.force_login(resume.owner)
     plugin = EmployedTimelinePlugin()
 
     # When we post a new item
@@ -118,6 +122,7 @@ def test_create_item(client, resume, timeline_item_data):
 def test_update_item(client, resume_with_timeline_item, timeline_item_data):
     # Given a resume in the database and a timeline plugin with an item
     resume: Resume = resume_with_timeline_item
+    client.force_login(resume.owner)
     plugin = EmployedTimelinePlugin()
     plugin_data = plugin.data.get_data(resume)
     [item] = plugin_data["items"]
@@ -146,6 +151,7 @@ def test_update_item(client, resume_with_timeline_item, timeline_item_data):
 def test_delete_item(client, resume_with_timeline_item):
     # Given a resume in the database and a timeline plugin with an item
     resume: Resume = resume_with_timeline_item
+    client.force_login(resume.owner)
     plugin = EmployedTimelinePlugin()
     plugin_data = plugin.data.get_data(resume)
     [item] = plugin_data["items"]
