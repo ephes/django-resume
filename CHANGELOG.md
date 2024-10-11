@@ -3,6 +3,7 @@
 
 ### Features
 
+- Added a resume detail page used as a cover letter
 - Added add resume button to the main page
 
 0.1.2 - 2024-10-11

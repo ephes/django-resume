@@ -1,0 +1,14 @@
+<section id="cover" class="stack">
+  {% if show_edit_button %}
+    <div class="cluster">
+      <h2>{{ cover.title }}</h2>
+      <svg class="edit-icon-small" hx-get="{{ cover.edit_url }}" hx-target="#cover" hx-swap="outerHTML">
+        <use href="#edit"></use>
+      </svg>
+    </div>
+    <p>{{ cover.text }}</p>
+  {% else %}
+    <h2>{{ cover.title }}</h2>
+    <p>{{ cover.text }}</p>
+  {% endif %}
+</section>

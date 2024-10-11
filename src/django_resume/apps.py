@@ -16,6 +16,7 @@ class ResumeConfig(AppConfig):
             AboutPlugin,
             SkillsPlugin,
             IdentityPlugin,
+            CoverPlugin,
             plugin_registry,
         )
 
@@ -27,6 +28,7 @@ class ResumeConfig(AppConfig):
         plugin_registry.register(SkillsPlugin)
         plugin_registry.register(TokenPlugin)
         plugin_registry.register(IdentityPlugin)
+        plugin_registry.register(CoverPlugin)
 
     def ready(self):
         self.register_plugins()

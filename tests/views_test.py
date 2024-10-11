@@ -16,6 +16,26 @@ def test_index_view(client):
 
 
 @pytest.mark.django_db
+def test_resume_detail_view(client, resume):
+    # Given a resume in the database
+    resume.owner.save()
+    resume.save()
+
+    # When we access the cv page
+    detail_url = reverse("resume:detail", kwargs={"slug": resume.slug})
+    r = client.get(detail_url)
+
+    # Then the response should be successful
+    assert r.status_code == 200
+
+    # And the cv template should be used
+    assert "django_resume/plain/detail.html" in set([t.name for t in r.templates])
+
+    # And the resume should be in the context
+    assert r.context["resume"] == resume
+
+
+@pytest.mark.django_db
 def test_cv_editable_only_for_authenticated_users(client, resume):
     # Given a resume in the database and the token plugin deactivated
     resume.owner.save()
