@@ -8,6 +8,7 @@ from django.http import HttpResponse, HttpRequest
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse, path, URLPattern
 from django.utils.html import format_html
+from django.core.exceptions import PermissionDenied
 
 from ..models import Resume
 
@@ -207,18 +208,26 @@ class SimpleInline:
         self.get_context = get_context
         self.check_permissions = check_permissions
 
-    def get_edit_url(self, resume_id):
+    def get_edit_url(self, resume_id: int) -> str:
         return reverse(
             f"django_resume:{self.plugin_name}-edit", kwargs={"resume_id": resume_id}
         )
 
-    def get_post_url(self, resume_id):
+    def get_post_url(self, resume_id: int) -> str:
         return reverse(
             f"django_resume:{self.plugin_name}-post", kwargs={"resume_id": resume_id}
         )
 
-    def get_edit_view(self, request, resume_id):
+    def get_resume_or_error(self, request: HttpRequest, resume_id: int) -> Resume:
+        """Returns the resume or generates a 404 or 403 response."""
         resume = get_object_or_404(Resume, id=resume_id)
+        if not self.check_permissions(request, resume):
+            raise PermissionDenied("Permission denied")
+        return resume
+
+    def get_edit_view(self, request: HttpRequest, resume_id: int) -> HttpResponse:
+        """Return the inline edit form for the plugin."""
+        resume = self.get_resume_or_error(request, resume_id)
         plugin_data = self.data.get_data(resume)
         print("get edit view!")
         form = self.form_class(initial=plugin_data)
@@ -226,10 +235,12 @@ class SimpleInline:
         context = {"form": form}
         return render(request, self.templates.form, context)
 
-    def post_view(self, request, resume_id) -> HttpResponse:
-        resume = get_object_or_404(Resume, id=resume_id)
-        if not self.check_permissions(request, resume):
-            return HttpResponse(status=403, reason="Permission denied")
+    def post_view(self, request: HttpRequest, resume_id: int) -> HttpResponse:
+        """
+        Handle post requests to update the plugin data and returns either the main template or
+        the form with errors.
+        """
+        resume = self.get_resume_or_error(request, resume_id)
         plugin_data = self.data.get_data(resume)
         form_class = self.form_class
         print("post view: ", request.POST, request.FILES)
@@ -251,12 +262,15 @@ class SimpleInline:
         return render(request, self.templates.form, context)
 
     def get_urls(self) -> URLPatterns:
+        """
+        Return a list of urls that are used to manage the plugin data inline.
+        """
         plugin_name = self.plugin_name
         urls: URLPatterns = [
             # flat
             path(
                 f"<int:resume_id>/plugin/{plugin_name}/edit/",
-                self.get_edit_view,
+                login_required(self.get_edit_view),
                 name=f"{plugin_name}-edit",
             ),
             path(

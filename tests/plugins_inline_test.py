@@ -11,6 +11,7 @@ def test_get_edit_view(client, resume):
     resume.owner.save()
     resume.save()
     plugin_registry.register(SimplePlugin)
+    client.force_login(resume.owner)
 
     # When we get the edit form
     plugin = plugin_registry.get_plugin(SimplePlugin.name)
@@ -61,6 +62,24 @@ def test_post_view_not_authorized(client, resume, django_user_model):
 
     # Then the response should be a 403 permission denied
     assert r.status_code == 403
+
+
+@pytest.mark.django_db
+def test_post_view_resume_not_found(client, resume):
+    # Given a resume in the database and a simple plugin in the registry
+    resume.owner.save()
+    resume.save()
+    plugin_registry.register(SimplePlugin)
+    client.force_login(resume.owner)
+
+    # When we post the form without being authenticated
+    plugin = plugin_registry.get_plugin(SimplePlugin.name)
+    url = plugin.inline.get_post_url(23)
+    json_data = json.dumps({"foo": "bar"})
+    r = client.post(url, {"plugin_data": json_data})
+
+    # Then the response should be a 404 not found
+    assert r.status_code == 404
 
 
 @pytest.mark.django_db
