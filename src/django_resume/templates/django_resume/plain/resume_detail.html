@@ -1,34 +1,20 @@
+{% extends "./base.html" %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Curriculum Vitae of {{ identity.name }}</title>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+{% block title %}Resume of {{ identity.name }}{% endblock title %}
+
+{% block meta %}
+  {{ block.super }}
   <meta name="author" content="{{ identity.name }}">
   <meta name="description" content="{{ about.text }}">
-  <meta name="robots" content="index">
-  <link rel="stylesheet" type="text/css" href="{% static "django_resume/css/styles.css" %}">
-  <link media="print" rel="stylesheet" href="{% static "django_resume/css/print.css" %}"/>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <noscript>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..500&display=swap" rel="stylesheet">
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inconsolata:wght@200..900&family=Martian+Mono:wght@100..800&display=swap"
-      rel="stylesheet">
-  </noscript>
-  {% if is_editable %}
-    <script src="https://unpkg.com/htmx.org@2.0.3"></script>
-    <link rel="stylesheet" type="text/css" href="{% static "django_resume/css/edit.css" %}">
+{% endblock meta %}
+
+{% block body %}
+  {% if show_edit_button %}
+    <body class="center" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+  {% else %}
+    <body class="center">
   {% endif %}
-</head>
-{% if show_edit_button %}
-  <body class="center" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
-{% else %}
-  <body class="center">
-{% endif %}
 {% include "./icons.svg" %}
 <header>
   <h1>
@@ -64,5 +50,4 @@
 {% if show_edit_button %}
   <script src="{% static "django_resume/js/edit.js" %}"></script>
 {% endif %}
-</body>
-</html>
+{% endblock body %}
