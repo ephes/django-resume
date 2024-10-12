@@ -11,6 +11,13 @@
     color: inherit; /* Use the same text color */
 }
 
+input {
+    border: calc(0.7 * var(--border-thin)) solid var(--font-color);
+    padding: var(--s-2);
+    border-radius: var(--s-2);
+    min-width: 35ch;
+}
+
 .error {
     font-size: var(--s0);
     color: red;
@@ -41,15 +48,33 @@
 }
 
 .deletable-ul {
-    list-style-type: none;
-    padding-inline-start: var(--s0);
+    padding: 0;
+}
+
+.deletable-li::before {
+    content: '›'; /* Bullet or custom symbol */
+    color: black; /* Customize the color */
+    font-size: var(--s1);
 }
 
 .deletable-li {
     display: flex;
-    cursor: pointer;
+    flex-direction: row;
+    justify-content: flex-start;
     align-items: center;
     gap: var(--s-2);
+    padding: var(--s-2);
+    border-bottom: calc(0.7 * var(--border-thin)) solid var(--font-color);
+}
+
+.resume-delete-button {
+    margin-inline-start: auto;
+    background: none;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 /* for the delete button of badges */

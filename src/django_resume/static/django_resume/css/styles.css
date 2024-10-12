@@ -45,6 +45,12 @@ body {
   background-position: top left;
 }
 
+.container {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
 h1, h2, h3, h4, h5, h6 {
   font-family: "Inter", monospace;
   font-weight: 600;
@@ -55,9 +61,15 @@ h1, h2, h3, h4, h5, h6 {
   margin: 0; /* Removes default margin to remove gaps between sections */
 }
 
-p, ul {
+p, ul, label {
   margin: 0;  /* Removes default margin to remove gaps between sections */
   word-spacing: -0.3ch; /* Adds space between words */
+}
+
+hr {
+    height: 1px; /* or however thick you want the hr */
+    background: repeating-linear-gradient(to right, black 0, black 2px, transparent 2px, transparent 6px);
+    border: none; /* Remove border to avoid conflicts */
 }
 
 * {
@@ -363,4 +375,12 @@ h3 {
 section {
   padding-block-start: var(--s1);
   padding-block-end: var(--s1);
+}
+
+.footer-with-background {
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    text-align: center;
+  margin-block-start: auto;
 }
