@@ -2,18 +2,10 @@
 {% load static %}
 
 {% block body %}
-  <body class="center">
+  <body class="center" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
     <header>
-      <h1>Resume List</h1>
+      <h1>My Resumes</h1>
     </header>
-    <main>
-      <ul>
-        {% for resume in resumes %}
-          <li>
-            <a href="{% url 'django_resume:detail' resume.slug %}">{{ resume.name }}</a>
-          </li>
-        {% endfor %}
-      </ul>
-    </main>
+    {% include "./resume_list_main.html" %}
   </body>
 {% endblock body %}

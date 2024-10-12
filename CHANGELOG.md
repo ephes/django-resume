@@ -4,7 +4,8 @@
 ### Features
 
 - Added a resume detail page used as a cover letter
-- Added add resume button to the main page
+- Added add resume button to the main page / resume list
+- Added delete buttons to the resume list
 - Added a base template for the resume pages
 - Do not require token for CV when user is logged in
 - Better print styles for the CV
