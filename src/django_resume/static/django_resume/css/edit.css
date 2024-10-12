@@ -40,6 +40,18 @@
     width: calc(1.2 * 1cap);
 }
 
+.deletable-ul {
+    list-style-type: none;
+    padding-inline-start: var(--s0);
+}
+
+.deletable-li {
+    display: flex;
+    cursor: pointer;
+    align-items: center;
+    gap: var(--s-2);
+}
+
 /* for the delete button of badges */
 
 .badge {
@@ -66,7 +78,7 @@
     color: #ff0000; /* Optional: change color on hover */
 }
 
-.resume-add-button {
+.svg-button {
   background: none;
   border: none;
   padding: 0;

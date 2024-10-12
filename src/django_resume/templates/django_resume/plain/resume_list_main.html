@@ -1,22 +1,24 @@
 <main id="main-resumes-list" class="stack-large">
   <h2>Edit or Remove from List</h2>
-  <ul id="resume-list">
+  <ul id="resume-list" class="deletable-ul">
     {% for resume in resumes %}
-      <li id="resume-{{ resume.slug }}">
-        <div class="cluster">
-          {{ resume.name }}:
-          <a href="{% url 'django_resume:detail' resume.slug %}">Cover</a>
-          <a href="{% url 'django_resume:cv' resume.slug %}">CV</a>
+      <li id="resume-{{ resume.slug }}" class="deletable-li">
+        <button
+          class="svg-button"
+          hx-delete="{% url 'django_resume:delete' resume.slug %}"
+          hx-target="#resume-{{ resume.slug }}"
+          hx-swap="delete"
+        >
           <svg
             class="edit-icon-small"
-            style="color: red !important; margin-inline-start: auto; margin-inline-end: 30ch;"
-            hx-delete="{% url 'django_resume:delete' resume.slug %}"
-            hx-target="#resume-{{ resume.slug }}"
-            hx-swap="delete"
+            style="color: red !important;"
           >
             <use href="#delete"></use>
           </svg>
-        </div>
+        </button>
+        {{ resume.name }}:
+        <a href="{% url 'django_resume:detail' resume.slug %}">Cover</a>
+        <a href="{% url 'django_resume:cv' resume.slug %}">CV</a>
       </li>
     {% endfor %}
   </ul>
@@ -38,7 +40,7 @@
         <p class="error">{{ error|escape }}</p>
       {% endfor %}
       <div class="cluster">
-        <button type="submit" class="resume-add-button">
+        <button type="submit" class="svg-button">
           <svg class="edit-icon-small">
             <use href="#add"></use>
           </svg>
