@@ -3,8 +3,12 @@
   <ul id="resume-list" class="deletable-ul">
     {% for resume in resumes %}
       <li id="resume-{{ resume.slug }}" class="deletable-li">
+        {{ resume.name }}:
+        <a class="underlined" href="{% url 'django_resume:detail' resume.slug %}">Cover</a>
+        |
+        <a class="underlined" href="{% url 'django_resume:cv' resume.slug %}">CV</a>
         <button
-          class="svg-button"
+          class="resume-delete-button"
           hx-delete="{% url 'django_resume:delete' resume.slug %}"
           hx-target="#resume-{{ resume.slug }}"
           hx-swap="delete"
@@ -16,24 +20,22 @@
             <use href="#delete"></use>
           </svg>
         </button>
-        {{ resume.name }}:
-        <a href="{% url 'django_resume:detail' resume.slug %}">Cover</a>
-        <a href="{% url 'django_resume:cv' resume.slug %}">CV</a>
       </li>
     {% endfor %}
   </ul>
+  <hr/>
   <div class="stack">
     <h3>Create a new resume</h3>
     <form hx-post='{% url "django_resume:list" %}' hx-target="#main-resumes-list" hx-swap="outerHTML" class="stack">
       <span class="cluster">
-        <label for="name">Name of the resume</label>
+        <label for="name">Name of the resume:</label>
         <input type="text" name="name" placeholder="Some person or team"/>
       </span>
       {% for error in form.name.errors %}
         <p class="error">{{ error|escape }}</p>
       {% endfor %}
       <span class="cluster">
-        <label for="slug">Slug of the resume</label>
+        <label for="slug">Slug of the resume:</label>
         <input type="text" name="slug" placeholder="unique-slug"/>
       </span>
       {% for error in form.slug.errors %}
