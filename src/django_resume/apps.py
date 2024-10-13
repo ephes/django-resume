@@ -17,15 +17,18 @@ class ResumeConfig(AppConfig):
             SkillsPlugin,
             IdentityPlugin,
             CoverPlugin,
+            ThemePlugin,
             plugin_registry,
         )
 
+        print("theme plugin", ThemePlugin)
         plugin_registry.register(FreelanceTimelinePlugin)
         plugin_registry.register(EmployedTimelinePlugin)
         plugin_registry.register(EducationPlugin)
         plugin_registry.register(ProjectsPlugin)
         plugin_registry.register(AboutPlugin)
         plugin_registry.register(SkillsPlugin)
+        plugin_registry.register(ThemePlugin)
         plugin_registry.register(TokenPlugin)
         plugin_registry.register(IdentityPlugin)
         plugin_registry.register(CoverPlugin)

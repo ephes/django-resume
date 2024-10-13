@@ -18,6 +18,15 @@ input {
     min-width: 35ch;
 }
 
+select {
+    border: calc(0.7 * var(--border-thin)) solid var(--font-color);
+    padding: var(--s-2);
+    border-radius: var(--s-2);
+    min-width: 10ch;
+    max-width: 20ch;
+    background-color: transparent;
+}
+
 .textarea {
     border: calc(0.7 * var(--border-thin)) solid var(--font-color);
     padding: var(--s-2);

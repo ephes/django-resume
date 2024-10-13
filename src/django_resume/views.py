@@ -76,7 +76,7 @@ def resume_detail(request: HttpRequest, slug: str) -> HttpResponse:
         "edit_url": edit_url,
         "show_url": show_url,
     }
-    plugin_names = ["about", "identity", "cover"]
+    plugin_names = ["about", "identity", "cover", "theme"]
     for name in plugin_names:
         plugin = plugin_registry.get_plugin(name)
         context[plugin.name] = plugin.get_context(
