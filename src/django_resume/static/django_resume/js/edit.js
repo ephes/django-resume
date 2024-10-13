@@ -14,7 +14,13 @@ function registerClickListenerForHiddenForm(pluginId, submitId, formId, initialI
         }
         editableElements.forEach((field) => {
             const fieldName = field.dataset.field;
-            const fieldValue = field.textContent.trim();
+            const fieldType = field.dataset.type;
+            let fieldValue;
+            if (fieldType === "html") {
+                fieldValue = field.innerHTML.trim();
+            } else {
+                fieldValue = field.textContent.trim();
+            }
             formValues[fieldName] = fieldValue;
             const hiddenInput = formElement.querySelector(`input[type="hidden"][data-field="${fieldName}"]`);
             if (hiddenInput) {

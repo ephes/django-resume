@@ -18,6 +18,14 @@ input {
     min-width: 35ch;
 }
 
+.textarea {
+    border: calc(0.7 * var(--border-thin)) solid var(--font-color);
+    padding: var(--s-2);
+    border-radius: var(--s-2);
+    min-width: 35ch;
+    min-height: calc(10 * var(--s2));
+}
+
 .error {
     font-size: var(--s0);
     color: red;

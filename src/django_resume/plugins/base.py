@@ -255,7 +255,6 @@ class SimpleInline:
         """Return the inline edit form for the plugin."""
         resume = self.get_resume_or_error(request, resume_id)
         plugin_data = self.data.get_data(resume)
-        print("get edit view!")
         form = self.form_class(initial=plugin_data)
         setattr(form, "post_url", self.get_post_url(resume.pk))  # make mypy happy
         context = {"form": form}
@@ -277,11 +276,12 @@ class SimpleInline:
             # update the plugin data and render the main template
             resume = self.data.update(resume, form.cleaned_data)
             resume.save()
+            # update the context with the new plugin data from plugin
+            updated_plugin_data = self.data.get_data(resume)
             context[self.plugin_name] = self.get_context(
-                request, form.cleaned_data, resume.pk, context=context
+                request, updated_plugin_data, resume.pk, context=context
             )
             context["show_edit_button"] = True
-            context[self.plugin_name].update(form.cleaned_data)
             context[self.plugin_name]["edit_url"] = self.get_edit_url(resume.pk)
             return render(request, self.templates.main, context)
         # render the form again with errors

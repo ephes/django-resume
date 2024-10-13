@@ -10,6 +10,7 @@
 - Do not require token for CV when user is logged in
 - Better print styles for the CV
 - Scroll animate project-boxes up
+- Super simple markdown support for cover letter text
 
 0.1.2 - 2024-10-11
 ==================

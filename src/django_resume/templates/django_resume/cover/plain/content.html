@@ -6,9 +6,9 @@
         <use href="#edit"></use>
       </svg>
     </div>
-    <p>{{ cover.text }}</p>
+    <p>{{ cover.text|safe }}</p>
   {% else %}
     <h2>{{ cover.title }}</h2>
-    <p>{{ cover.text }}</p>
+    <p>{{ cover.text|safe }}</p>
   {% endif %}
 </section>
