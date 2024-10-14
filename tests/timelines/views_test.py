@@ -15,6 +15,8 @@ def test_edit_timeline_title(client, resume):
     resume.save()
     client.force_login(resume.owner)
     plugin = EmployedTimelinePlugin()
+    print("plugin templates: ", plugin.templates)
+    print("template path: ", plugin.templates.flat_form)
 
     # When we get the title edit view
     title_edit_url = plugin.inline.get_edit_flat_url(resume.pk)

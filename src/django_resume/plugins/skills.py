@@ -2,7 +2,7 @@ import json
 
 from django import forms
 
-from .base import SimplePlugin, SimpleTemplates
+from .base import SimplePlugin
 
 
 class SkillsForm(forms.Form):
@@ -25,8 +25,4 @@ class SkillsForm(forms.Form):
 class SkillsPlugin(SimplePlugin):
     name: str = "skills"
     verbose_name: str = "Skills"
-    templates = SimpleTemplates(
-        main="django_resume/skills/plain/content.html",
-        form="django_resume/skills/plain/form.html",
-    )
     admin_form_class = inline_form_class = SkillsForm

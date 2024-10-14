@@ -21,7 +21,6 @@ class ResumeConfig(AppConfig):
             plugin_registry,
         )
 
-        print("theme plugin", ThemePlugin)
         plugin_registry.register(FreelanceTimelinePlugin)
         plugin_registry.register(EmployedTimelinePlugin)
         plugin_registry.register(EducationPlugin)

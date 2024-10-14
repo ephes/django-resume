@@ -3,7 +3,25 @@ from typing import Type, Any
 
 from django import forms
 
-from .base import ListPlugin, ListItemFormMixin, ListTemplates, ListInline
+from .base import (
+    ListPlugin,
+    ListItemFormMixin,
+    ListInline,
+    ListThemedTemplates,
+    ThemedTemplates,
+)
+
+
+class TimelineThemedTemplates(ListThemedTemplates):
+    """
+    Handle the template paths for the timeline plugin. This is a special case, because
+    there are plugins with different names that use the same templates. So we need to
+    override the plugin name in the template path.
+    """
+
+    def get_template_path(self, template_name: str) -> str:
+        template_name = self.template_names[template_name]
+        return f"django_resume/plugins/timelines/{self.theme}/{template_name}"
 
 
 class TimelineItemForm(ListItemFormMixin, forms.Form):
@@ -115,13 +133,7 @@ class TimelineMixin:
     name: str
     verbose_name: str
     inline: ListInline
-    templates = ListTemplates(
-        main="django_resume/timelines/plain/content.html",
-        flat="django_resume/timelines/plain/flat.html",
-        flat_form="django_resume/timelines/plain/flat_form.html",
-        item="django_resume/timelines/plain/item.html",
-        item_form="django_resume/timelines/plain/item_form.html",
-    )
+    template_class: type[ThemedTemplates] = TimelineThemedTemplates
 
     @staticmethod
     def get_form_classes() -> dict[str, Type[forms.Form]]:

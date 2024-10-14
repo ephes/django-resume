@@ -1,6 +1,6 @@
 from django import forms
 
-from .base import SimplePlugin, SimpleTemplates
+from .base import SimplePlugin
 
 
 class AboutForm(forms.Form):
@@ -15,8 +15,4 @@ class AboutForm(forms.Form):
 class AboutPlugin(SimplePlugin):
     name: str = "about"
     verbose_name: str = "About"
-    templates = SimpleTemplates(
-        main="django_resume/about/plain/content.html",
-        form="django_resume/about/plain/form.html",
-    )
     admin_form_class = inline_form_class = AboutForm

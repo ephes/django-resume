@@ -1,7 +1,7 @@
 from django import forms
 from django.http import HttpRequest
 
-from .base import SimplePlugin, SimpleTemplates, ContextDict
+from .base import SimplePlugin, ContextDict
 from ..markdown import (
     markdown_to_html,
     textarea_input_to_markdown,
@@ -36,10 +36,6 @@ class CoverForm(forms.Form):
 class CoverPlugin(SimplePlugin):
     name: str = "cover"
     verbose_name: str = "Cover Letter"
-    templates = SimpleTemplates(
-        main="django_resume/cover/plain/content.html",
-        form="django_resume/cover/plain/form.html",
-    )
     admin_form_class = inline_form_class = CoverForm
 
     def get_context(
@@ -50,6 +46,7 @@ class CoverPlugin(SimplePlugin):
         *,
         context: ContextDict,
         edit: bool = False,
+        theme: str = "plain",
     ) -> ContextDict:
         context = super().get_context(
             _request, plugin_data, resume_pk, context=context, edit=edit

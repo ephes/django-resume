@@ -4,7 +4,7 @@ from typing import Type, Any
 
 from django import forms
 
-from .base import ListPlugin, ListItemFormMixin, ListTemplates, ListInline
+from .base import ListPlugin, ListItemFormMixin, ListInline
 
 
 class ProjectItemForm(ListItemFormMixin, forms.Form):
@@ -108,13 +108,6 @@ class ProjectsPlugin(ListPlugin):
     name: str = "projects"
     verbose_name: str = "Projects"
     inline: ListInline
-    templates = ListTemplates(
-        main="django_resume/projects/plain/content.html",
-        flat="django_resume/projects/plain/flat.html",
-        flat_form="django_resume/projects/plain/flat_form.html",
-        item="django_resume/projects/plain/item.html",
-        item_form="django_resume/projects/plain/item_form.html",
-    )
     flat_form_class = ProjectFlatForm
 
     @staticmethod

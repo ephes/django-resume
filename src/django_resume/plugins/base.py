@@ -206,10 +206,68 @@ class SimpleAdmin:
         return urls
 
 
-class SimpleTemplates:
-    def __init__(self, *, main: str, form: str):
-        self.main = main
-        self.form = form
+class ThemedTemplates:
+    """
+    Manages template paths for a plugin with theme-based customization.
+
+    By default, it uses the "plain" theme, but the theme and plugin name can be set
+    during initialization or later. Template paths are dynamically constructed
+    based on the plugin name, theme, and provided template names.
+
+    Additionally, the template paths are stored as attributes using `setattr`,
+    making them directly accessible in Django templates, e.g., `templates.main`.
+
+    Attributes:
+        plugin_name: The name of the plugin, default is "simple_plugin".
+        template_names: A dictionary mapping template types to file names.
+        theme: The current theme, default is "plain".
+    """
+
+    def __init__(
+        self,
+        *,
+        plugin_name: str = "simple_plugin",
+        template_names: dict[str, str] | None = None,
+        theme: str = "plain",
+    ):
+        if template_names is None:
+            template_names = self.get_default_template_names()
+        self.template_names = template_names
+        self.theme = theme
+        self.plugin_name = plugin_name
+        self.set_plugin_name_and_theme(plugin_name, theme)
+
+    @staticmethod
+    def get_default_template_names() -> dict[str, str]:
+        return {}
+
+    def get_template_path(self, template_name: str) -> str:
+        assert self.template_names is not None  # type guard
+        template_name = self.template_names[template_name]
+        return f"django_resume/plugins/{self.plugin_name}/{self.theme}/{template_name}"
+
+    def set_plugin_name_and_theme(self, plugin_name: str, theme: str):
+        self.plugin_name = plugin_name
+        self.theme = theme
+        assert self.template_names is not None  # type guard
+        for attr_name in self.template_names.keys():
+            setattr(self, attr_name, self.get_template_path(attr_name))
+
+    def __getattr__(self, item: str) -> str:
+        """This is mainly to make mypy happy"""
+        if item in self.template_names:
+            return self.get_template_path(item)
+        raise AttributeError(
+            f"'{self.__class__.__name__}' object has no attribute '{item}'"
+        )
+
+
+class SimpleThemedTemplates(ThemedTemplates):
+    """Handle Template paths for SimplePlugin instances."""
+
+    @staticmethod
+    def get_default_template_names() -> dict[str, str]:
+        return {"main": "content.html", "form": "form.html"}
 
 
 class SimpleInline:
@@ -220,7 +278,7 @@ class SimpleInline:
         plugin_verbose_name: str,
         form_class: type[forms.Form],
         data: SimpleData,
-        templates: SimpleTemplates,
+        templates: SimpleThemedTemplates,
         get_context: Callable,
     ):
         self.plugin_name = plugin_name
@@ -317,15 +375,16 @@ class SimplePlugin:
 
     name = "simple_plugin"
     verbose_name = "Simple Plugin"
-    templates: SimpleTemplates = SimpleTemplates(
-        # those two templates are just a dummies - overwrite them
-        main="django_resume/simple_plugin/plain/content.html",
-        form="django_resume/simple_plugin/plain/form.html",
-    )
+    template_class: type[ThemedTemplates] = SimpleThemedTemplates
 
     def __init__(self):
         super().__init__()
         self.data = data = SimpleData(plugin_name=self.name)
+        self.templates = self.template_class(
+            plugin_name=self.name,
+            template_names={"main": "content.html", "form": "form.html"},
+        )
+        self.templates.set_plugin_name_and_theme(self.name, "plain")
         self.admin = SimpleAdmin(
             plugin_name=self.name,
             plugin_verbose_name=self.verbose_name,
@@ -351,6 +410,7 @@ class SimplePlugin:
         *,
         context: ContextDict,
         edit: bool = False,
+        theme: str = "plain",
     ) -> ContextDict:
         """This method returns the context of the plugin for inline editing."""
         if plugin_data == {}:
@@ -361,6 +421,9 @@ class SimplePlugin:
                 for field_name, field in form.fields.items()
             }
             plugin_data = initial_values
+
+        self.templates.set_plugin_name_and_theme(self.name, theme)
+        print("plugin and main template: ", self.name, self.templates.main)
         context.update(plugin_data)
         context["edit_url"] = self.inline.get_edit_url(resume_pk)
         context["show_edit_button"] = edit
@@ -423,15 +486,18 @@ class ListItemFormMixin(forms.Form):
         return self.initial["id"]
 
 
-class ListTemplates:
-    def __init__(
-        self, *, main: str, flat: str, flat_form: str, item: str, item_form: str
-    ):
-        self.main = main
-        self.flat = flat
-        self.flat_form = flat_form
-        self.item = item
-        self.item_form = item_form
+class ListThemedTemplates(ThemedTemplates):
+    """Handle Template paths for ListPlugin instances."""
+
+    @staticmethod
+    def get_default_template_names() -> dict[str, str]:
+        return {
+            "main": "content.html",
+            "flat": "flat.html",
+            "flat_form": "flat_form.html",
+            "item": "item.html",
+            "item_form": "item_form.html",
+        }
 
 
 class ListData:
@@ -764,7 +830,7 @@ class ListInline:
         plugin_verbose_name: str,
         form_classes: dict,
         data: ListData,
-        templates: ListTemplates,
+        templates: ListThemedTemplates,
     ):
         self.plugin_name = plugin_name
         self.plugin_verbose_name = plugin_verbose_name
@@ -983,13 +1049,22 @@ class ListPlugin:
 
     name = "list_plugin"
     verbose_name = "List Plugin"
-    templates: ListTemplates = ListTemplates(
-        main="", flat="", flat_form="", item="", item_form=""
-    )  # overwrite this
+    template_class: type[ThemedTemplates] = ListThemedTemplates
 
     def __init__(self):
         super().__init__()
         self.data = data = ListData(plugin_name=self.name)
+        self.templates = self.template_class(
+            plugin_name=self.name,
+            template_names={
+                "main": "content.html",
+                "flat": "flat.html",
+                "flat_form": "flat_form.html",
+                "item": "item.html",
+                "item_form": "item_form.html",
+            },
+            theme="plain",
+        )
         form_classes = self.get_form_classes()
         self.admin = ListAdmin(
             plugin_name=self.name,
@@ -1025,6 +1100,7 @@ class ListPlugin:
         *,
         context: ContextDict,
         edit: bool = False,
+        theme: str = "plain",
     ) -> ContextDict:
         if plugin_data.get("flat", {}) == {}:
             # no flat data yet, use initial data from inline form
@@ -1034,6 +1110,7 @@ class ListPlugin:
                 for field_name, field in form.fields.items()
             }
             plugin_data["flat"] = initial_values
+        self.templates.set_plugin_name_and_theme(self.name, theme)
         # add flat data to context
         context.update(plugin_data["flat"])
 

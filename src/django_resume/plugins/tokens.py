@@ -123,6 +123,7 @@ class TokenPlugin(ListPlugin):
         *,
         context: dict,
         edit: bool = False,
+        theme: str = "plain",
     ) -> dict:
         self.check_permissions(request, plugin_data)
         return {}

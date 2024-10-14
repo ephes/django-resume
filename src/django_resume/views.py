@@ -28,6 +28,9 @@ def resume_cv(request: HttpRequest, slug: str) -> HttpResponse:
     By default, you need a token to be able to see the CV.
     """
     resume = get_object_or_404(Resume.objects.select_related("owner"), slug=slug)
+    current_theme = (
+        plugin_registry.get_plugin("theme").get_data(resume).get("name", "plain")
+    )
 
     edit = bool(dict(request.GET).get("edit", False))
     is_editable = request.user.is_authenticated and resume.owner == request.user
@@ -52,7 +55,9 @@ def resume_cv(request: HttpRequest, slug: str) -> HttpResponse:
             context={},
             edit=show_edit_button,
         )
-    return render(request, "django_resume/plain/resume_cv.html", context=context)
+    return render(
+        request, f"django_resume/pages/{current_theme}/resume_cv.html", context=context
+    )
 
 
 def resume_detail(request: HttpRequest, slug: str) -> HttpResponse:
@@ -62,6 +67,9 @@ def resume_detail(request: HttpRequest, slug: str) -> HttpResponse:
     At the moment, it is used for the cover letter.
     """
     resume = get_object_or_404(Resume.objects.select_related("owner"), slug=slug)
+    current_theme = (
+        plugin_registry.get_plugin("theme").get_data(resume).get("name", "plain")
+    )
 
     edit = bool(dict(request.GET).get("edit", False))
     is_editable = request.user.is_authenticated and resume.owner == request.user
@@ -85,8 +93,13 @@ def resume_detail(request: HttpRequest, slug: str) -> HttpResponse:
             resume.pk,
             context={},
             edit=show_edit_button,
+            theme=current_theme,
         )
-    return render(request, "django_resume/plain/resume_detail.html", context=context)
+    return render(
+        request,
+        f"django_resume/pages/{current_theme}/resume_detail.html",
+        context=context,
+    )
 
 
 class ResumeForm(forms.ModelForm):
@@ -119,11 +132,13 @@ def resume_list(request: HttpRequest) -> HttpResponse:
             resume.save()
             context["new_resume"] = resume
         return render(
-            request, "django_resume/plain/resume_list_main.html", context=context
+            request, "django_resume/pages/plain/resume_list_main.html", context=context
         )
     else:
         # just render the complete template on GET
-        return render(request, "django_resume/plain/resume_list.html", context=context)
+        return render(
+            request, "django_resume/pages/plain/resume_list.html", context=context
+        )
 
 
 @login_required

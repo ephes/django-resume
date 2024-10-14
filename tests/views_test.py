@@ -26,7 +26,9 @@ def test_get_resume_list_view(client, resume):
     assert r.status_code == 200
 
     # And the list template should be used
-    assert "django_resume/plain/resume_list.html" in set([t.name for t in r.templates])
+    assert "django_resume/pages/plain/resume_list.html" in set(
+        [t.name for t in r.templates]
+    )
 
     # And the resume list should be editable
     assert r.context["is_editable"]
@@ -125,7 +127,7 @@ def test_resume_detail_view(client, resume):
     assert r.status_code == 200
 
     # And the cv template should be used
-    assert "django_resume/plain/resume_detail.html" in set(
+    assert "django_resume/pages/plain/resume_detail.html" in set(
         [t.name for t in r.templates]
     )
 

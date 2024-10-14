@@ -4,7 +4,7 @@ from django.core.files.storage import default_storage
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.http import HttpRequest
 
-from .base import SimplePlugin, SimpleTemplates, ContextDict
+from .base import SimplePlugin, ContextDict
 
 
 class CustomFileObject:
@@ -129,10 +129,6 @@ class IdentityForm(forms.Form):
 class IdentityPlugin(SimplePlugin):
     name: str = "identity"
     verbose_name: str = "Identity Information"
-    templates = SimpleTemplates(
-        main="django_resume/identity/plain/content.html",
-        form="django_resume/identity/plain/form.html",
-    )
     admin_form_class = inline_form_class = IdentityForm
 
     def get_context(
@@ -143,6 +139,7 @@ class IdentityPlugin(SimplePlugin):
         *,
         context: ContextDict,
         edit: bool = False,
+        theme: str = "plain",
     ) -> ContextDict:
         context = super().get_context(
             _request, plugin_data, resume_pk, context=context, edit=edit
