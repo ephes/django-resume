@@ -17,7 +17,7 @@ class CoverForm(forms.Form):
     )
     text = forms.CharField(
         label="Cover Letter Text",
-        max_length=1024,
+        max_length=4096,
         initial="Some cover letter text...",
         widget=forms.Textarea(),
     )
