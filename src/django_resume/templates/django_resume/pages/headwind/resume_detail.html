@@ -1,0 +1,32 @@
+{% extends "./base.html" %}
+{% load static %}
+
+{% block title %}Resume of {{ identity.name }}{% endblock title %}
+
+{% block meta %}
+  {{ block.super }}
+  <meta name="author" content="{{ identity.name }}">
+  <meta name="description" content="{{ about.text }}">
+{% endblock meta %}
+
+{% block content %}
+  <div class="py-10">
+    <header>
+      <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <h1 class="text-3xl font-bold leading-tight tracking-tight text-gray-900">Cover Letter</h1>
+      </div>
+    </header>
+    <main>
+      <div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <p>
+          <a href="{% url "django_resume:cv" slug=resume.slug %}">Link to CV!</a>
+        </p>
+        {% include theme.templates.main %}
+        {% include cover.templates.main %}
+      </div>
+    </main>
+  </div>
+  {% if show_edit_button %}
+    <script src="{% static "django_resume/js/edit.js" %}"></script>
+  {% endif %}
+{% endblock content %}

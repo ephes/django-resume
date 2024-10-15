@@ -270,6 +270,10 @@ class SimpleThemedTemplates(ThemedTemplates):
         return {"main": "content.html", "form": "form.html"}
 
 
+def get_current_theme(resume: Resume) -> str:
+    return resume.plugin_data.get("theme", {}).get("name", "plain")
+
+
 class SimpleInline:
     def __init__(
         self,
@@ -312,6 +316,9 @@ class SimpleInline:
     def get_edit_view(self, request: HttpRequest, resume_id: int) -> HttpResponse:
         """Return the inline edit form for the plugin."""
         resume = self.get_resume_or_error(request, resume_id)
+        self.templates.set_plugin_name_and_theme(
+            self.plugin_name, get_current_theme(resume)
+        )
         plugin_data = self.data.get_data(resume)
         form = self.form_class(initial=plugin_data)
         setattr(form, "post_url", self.get_post_url(resume.pk))  # make mypy happy
@@ -324,9 +331,13 @@ class SimpleInline:
         the form with errors.
         """
         resume = self.get_resume_or_error(request, resume_id)
+        current_theme = get_current_theme(resume)
+        self.templates.set_plugin_name_and_theme(
+            self.plugin_name, get_current_theme(resume)
+        )
         plugin_data = self.data.get_data(resume)
         form_class = self.form_class
-        print("post view: ", request.POST, request.FILES)
+        # print("post view: ", request.POST, request.FILES)
         form = form_class(request.POST, request.FILES, initial=plugin_data)
         setattr(form, "post_url", self.get_post_url(resume.pk))  # make mypy happy
         context: dict[str, Any] = {"form": form}
@@ -337,10 +348,16 @@ class SimpleInline:
             # update the context with the new plugin data from plugin
             updated_plugin_data = self.data.get_data(resume)
             context[self.plugin_name] = self.get_context(
-                request, updated_plugin_data, resume.pk, context=context
+                # passing current_theme is really important!
+                request,
+                updated_plugin_data,
+                resume.pk,
+                context=context,
+                theme=current_theme,
             )
             context["show_edit_button"] = True
             context[self.plugin_name]["edit_url"] = self.get_edit_url(resume.pk)
+            print("render template: ", self.templates.main)
             return render(request, self.templates.main, context)
         # render the form again with errors
         return render(request, self.templates.form, context)
@@ -423,7 +440,6 @@ class SimplePlugin:
             plugin_data = initial_values
 
         self.templates.set_plugin_name_and_theme(self.name, theme)
-        print("plugin and main template: ", self.name, self.templates.main)
         context.update(plugin_data)
         context["edit_url"] = self.inline.get_edit_url(resume_pk)
         context["show_edit_button"] = edit

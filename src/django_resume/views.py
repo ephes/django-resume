@@ -60,6 +60,7 @@ def resume_cv(request: HttpRequest, slug: str) -> HttpResponse:
     )
 
 
+@require_http_methods(["GET"])
 def resume_detail(request: HttpRequest, slug: str) -> HttpResponse:
     """
     The main resume detail view.

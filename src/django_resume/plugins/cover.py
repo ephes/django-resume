@@ -49,7 +49,7 @@ class CoverPlugin(SimplePlugin):
         theme: str = "plain",
     ) -> ContextDict:
         context = super().get_context(
-            _request, plugin_data, resume_pk, context=context, edit=edit
+            _request, plugin_data, resume_pk, context=context, edit=edit, theme=theme
         )
         cover_text = plugin_data.get("text")
         print("cover_text", cover_text)

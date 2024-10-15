@@ -6,14 +6,12 @@
     hx-target="#theme"
     hx-swap="outerHTML"
   >
-{#    <input type="hidden" data-field="name" name="name" value="{{ form.theme.value }}">#}
     <h2>Theme</h2>
     <label for="name">Choose a theme</label>
     <select id="name" name="name">
       <option value="plain">Plain</option>
-      <option value="tailwind">Tailwind</option>
+      <option value="headwind">Tailwind</option>
     </select>
-{#    <p contenteditable="true" data-field="name">{{ form.name.value }}</p>#}
     {% for error in form.theme.errors %}
       <p class="error">{{ error|escape }}</p>
     {% endfor %}

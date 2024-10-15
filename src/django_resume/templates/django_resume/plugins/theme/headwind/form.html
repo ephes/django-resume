@@ -1,0 +1,36 @@
+<section id="theme" class="mt-8">
+  <form
+    id="form-theme"
+    hx-post="{{ form.post_url }}"
+    hx-target="#theme"
+    hx-swap="outerHTML"
+  >
+    <h2 class="text-xl font-semibold text-gray-800 mb-4">Theme</h2>
+    <label for="name" class="block text-sm font-medium text-gray-700">Choose a theme</label>
+    <select
+      id="name"
+      name="name"
+      class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+    >
+      <option value="plain" {% if form.theme.value == 'plain' %}selected{% endif %}>Plain</option>
+      <option value="headwind" {% if form.theme.value == 'headwind' %}selected{% endif %}>Tailwind</option>
+    </select>
+    {% for error in form.theme.errors %}
+      <p class="mt-2 text-sm text-red-600">{{ error|escape }}</p>
+    {% endfor %}
+    <div class="mt-4 flex justify-end">
+      <button
+        id="submit-theme"
+        type="submit"
+        class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+      >
+        <!-- Check Icon -->
+        <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+             xmlns="http://www.w3.org/2000/svg">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path>
+        </svg>
+        Save
+      </button>
+    </div>
+  </form>
+</section>

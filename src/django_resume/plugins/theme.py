@@ -28,7 +28,7 @@ class ThemePlugin(SimplePlugin):
         theme: str = "plain",
     ) -> ContextDict:
         context = super().get_context(
-            _request, plugin_data, resume_pk, context=context, edit=edit
+            _request, plugin_data, resume_pk, context=context, edit=edit, theme=theme
         )
         if context.get("name") is None:
             context["name"] = "plain"
