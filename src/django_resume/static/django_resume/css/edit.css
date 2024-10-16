@@ -35,6 +35,20 @@ select {
     min-height: calc(10 * var(--s2));
 }
 
+.heading-with-checkbox {
+    display: flex;
+    align-items: baseline;
+    gap: var(--s-2);
+}
+
+.large-checkbox {
+    width: var(--s1);
+    height: var(--s1);
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+}
+
 .error {
     font-size: var(--s0);
     color: red;
