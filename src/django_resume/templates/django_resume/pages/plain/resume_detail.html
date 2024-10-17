@@ -33,14 +33,16 @@
         >
       {% endif %}
     {% endif %}
-    Cover Letter
+    Hire Me!
   </h1>
 </header>
 <main>
   <p>
     <a href="{% url "django_resume:cv" slug=resume.slug %}">Link to CV!</a>
   </p>
-  {% include theme.templates.main %}
+  {% if show_edit_button %}
+    {% include theme.templates.main %}
+  {% endif %}
   {% include cover.templates.main %}
 </main>
 <footer class="no-print">
