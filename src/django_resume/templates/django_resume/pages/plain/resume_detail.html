@@ -16,25 +16,8 @@
     <body class="center">
   {% endif %}
 <header>
-  <h1 class="heading-with-checkbox">
-    {% if is_editable %}
-      {% if not show_edit_button %}
-        <input
-          type="checkbox"
-          class="large-checkbox"
-          onclick="window.location.href='{{ edit_url }}'"
-        >
-      {% else %}
-        <input
-          type="checkbox"
-          checked
-          class="large-checkbox"
-          onclick="window.location.href='{{ show_url }}'"
-        >
-      {% endif %}
-    {% endif %}
-    Hire Me!
-  </h1>
+  {% if is_editable %}{% include "./edit_panel.html" %}{% endif %}
+  <h1>Hire Me!</h1>
 </header>
 <main>
   <p>
@@ -46,7 +29,7 @@
   {% include cover.templates.main %}
 </main>
 <footer class="no-print">
-  <p>This is a footer!</p>
+  <p>Interested? Let's talk!</p>
 </footer>
 {% if show_edit_button %}
   <script src="{% static "django_resume/js/edit.js" %}"></script>

@@ -1,0 +1,19 @@
+<div class="fixed-on-top no-print">
+  <div class="center">
+    <div class="edit-panel">
+      <label class="with-icon cluster">
+        {% if not show_edit_button %}
+          <input class="large-checkbox" type="checkbox" id="edit-mode"
+                 onclick="window.location.href='{{ edit_url }}'">
+        {% else %}
+          <input class="large-checkbox" type="checkbox" checked id="edit-mode"
+                 onclick="window.location.href='{{ show_url }}'">
+        {% endif %}
+        Edit Mode
+        <svg class="edit-icon">
+          <use href="#edit"></use>
+        </svg>
+      </label>
+    </div>
+  </div>
+</div>

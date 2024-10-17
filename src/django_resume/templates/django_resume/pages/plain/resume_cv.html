@@ -16,26 +16,8 @@
     <body class="center">
   {% endif %}
 <header>
-  <h1>
-    <span class="with-edit-icon-big">
-      {% if is_editable %}
-        {% if not show_edit_button %}
-          <a href="{{ edit_url }}">
-            <svg class="edit-icon-big no-print">
-              <use href="#edit"></use>
-            </svg>
-          </a>
-        {% else %}
-          <a href="{{ show_url }}">
-            <svg class="edit-icon-big no-print">
-              <use href="#show"></use>
-            </svg>
-          </a>
-        {% endif %}
-      {% endif %}
-      Curriculum Vitae
-    </span>
-  </h1>
+  {% if is_editable %}{% include "./edit_panel.html" %}{% endif %}
+  <h1>Curriculum Vitae</h1>
 </header>
 <main>
   {% include identity.templates.main %}
