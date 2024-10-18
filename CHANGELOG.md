@@ -1,9 +1,11 @@
-0.1.4 - 2024-10-14
+0.1.4 - 2024-10-18
 ==================
 
 ### Features
 
 - Theme switching is now possible
+- Better looking edit panel
+- New url for CV + redirect to old url
 
 0.1.3 - 2024-10-13
 ==================
