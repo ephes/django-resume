@@ -20,16 +20,20 @@
   <h1>Hire Me!</h1>
 </header>
 <main>
-  <p>
-    <a href="{% url "django_resume:cv" slug=resume.slug %}">Link to CV!</a>
-  </p>
   {% if show_edit_button %}
     {% include theme.templates.main %}
   {% endif %}
   {% include cover.templates.main %}
 </main>
 <footer class="no-print">
-  <p>Interested? Let's talk!</p>
+  <div class="contact">
+    <a class="underlined" href="mailto:{{ identity.email }}">
+      <b>Interested? Let's talk!</b>
+    </a>
+  </div>
+  <div class="contact">
+    <a class="underlined" href="{% url "django_resume:cv" slug=resume.slug %}">Link to CV!</a>
+  </div>
 </footer>
 {% if show_edit_button %}
   <script src="{% static "django_resume/js/edit.js" %}"></script>
