@@ -9,9 +9,9 @@
   {{ form.as_p }}
   <div class="submit-row">
     {% if form.is_new %}
-      <button type="submit">Add</button>
+      <button class="update_item" type="submit">Add</button>
     {% else %}
-      <button type="submit">Update</button>
+      <button class="update_item" type="submit">Update</button>
     {% endif %}
     <a
       {% if form.delete_url %}

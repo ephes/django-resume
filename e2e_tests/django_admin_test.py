@@ -86,7 +86,7 @@ def test_create_resume_cover_letter(
     page.fill("textarea#id_text", "Your cover letter content here")
 
     # And I click on the "Update" button
-    page.click('button[type="submit"]:has-text("Update")')
+    page.click('button.update_flat:has-text("Update")')
 
     # Then if I go to the resume detail page
     resume_path = reverse("django_resume:detail", args=["john-doe"])
@@ -98,3 +98,57 @@ def test_create_resume_cover_letter(
 
     # And I should see the cover letter content
     assert page.locator("p:has-text('Your cover letter content here')").count() > 0
+
+
+def test_edit_freelance_timeline_title(
+    page_with_resume: Page, admin_index_url: str, base_url: str
+):
+    # Given a resume exists and I am on the resume detail page
+    page = page_with_resume
+
+    # When I click on the "Edit Freelance Timeline" link
+    page.click('a:has-text("Edit Freelance Timeline")')
+
+    # And I fill out the flat form and click update
+    page.fill("input#id_title", "The Freelance Timeline")
+    page.click('button[type="submit"]:has-text("Update")')
+
+    # Then if I go to the resume cv page
+    resume_cv_path = reverse("django_resume:cv", args=["john-doe"])
+    resume_cv_url = base_url + resume_cv_path
+    page.goto(resume_cv_url)
+
+    # the title should be "The Freelance Timeline"
+    assert page.locator("h2:has-text('The Freelance Timeline')").count() > 0
+
+
+def test_add_freelance_timeline_item(
+    page_with_resume: Page, admin_index_url: str, base_url: str
+):
+    # Given a resume exists and I am on the resume detail page
+    page = page_with_resume
+
+    # When I click on the "Edit Freelance Timeline" link
+    page.click('a:has-text("Edit Freelance Timeline")')
+
+    # And add a new item
+    page.click('button:has-text("Add Item")')
+
+    # And fill out the form
+    page.fill('input[name="role"]', "Software Developer")
+    page.fill("input#id_company_name", "Acme Corp")
+    page.fill("input#id_company_url", "https://acme.example.com")
+    page.fill("textarea#id_description", "Some description of the job")
+    page.fill("input#id_start", "2022")
+    page.fill("input#id_end", "2023")
+
+    # And click on the "Update" button
+    page.click('button.update_item:has-text("Update")')
+
+    # Then if I go to the resume cv page
+    resume_cv_path = reverse("django_resume:cv", args=["john-doe"])
+    resume_cv_url = base_url + resume_cv_path
+    page.goto(resume_cv_url)
+
+    # the title should be "The Freelance Timeline"
+    assert page.text_content("div.sub-line") == "Software Developer"
