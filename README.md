@@ -64,3 +64,8 @@ Run playwright tests in head-full mode:
 ```shell
 pytest e2e_tests --headed --slowmo 1000
 ```
+
+Cleanup the test database after running the tests:
+```shell
+python manage.py remove_all_resumes
+```
