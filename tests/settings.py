@@ -53,7 +53,3 @@ STATICFILES_FINDERS = [
     "django.contrib.staticfiles.finders.FileSystemFinder",
     "django.contrib.staticfiles.finders.AppDirectoriesFinder",
 ]
-
-ALLOWED_HOSTS = ["*"]
-
-DEBUG = False
