@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "django>=5.1.1",
+    "pytest-playwright>=0.5.2",
 ]
 
 [build-system]
@@ -24,6 +25,7 @@ dev-dependencies = [
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "tests.settings"
+base_url = "http://localhost:8000"
 testpaths = ["tests"]
 
 [tool.mypy]
