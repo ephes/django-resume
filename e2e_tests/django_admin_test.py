@@ -1,17 +1,31 @@
+from django.urls import reverse
 from playwright.sync_api import Page, expect
 
-from .pages import AdminPage
 
+def test_admin_index_page(logged_in_page: Page, admin_index_url: str):
+    page = logged_in_page
 
-def test_admin_index_page(page: Page, admin_index: AdminPage):
     # Then the title should be "Site administration | Django site admin"
     expect(page).to_have_title("Site administration | Django site admin")
-
     # And there should be a "Resume" section
     assert page.locator("th#django_resume-resume").count() > 0
 
 
-def test_create_resume_via_admin(page: Page, admin_index: AdminPage):
+def remove_resume(page: Page, name: str) -> None:
+    """Remove the resume with the given name."""
+    page.click("th#django_resume-resume a")
+    page.click(
+        f'input.action-select[aria-label="Select this object for an action - {name}"]'
+    )
+    page.select_option('select[name="action"]', "delete_selected")
+    page.click('button.button[title="Run the selected action"]')
+    page.click('input[type="submit"][value="Yes, I’m sure"]')
+
+
+def test_create_resume_via_admin(logged_in_page: Page, admin_index_url: str):
+    page = logged_in_page
+    page.goto(admin_index_url)
+
     # When I click on the "Resume" section
     page.click("th#django_resume-resume a")
 
@@ -33,4 +47,53 @@ def test_create_resume_via_admin(page: Page, admin_index: AdminPage):
     assert page.locator('th.field-__str__ a:has-text("John doe")').count() > 0
 
     # Remove the resume so the test can be run again
-    admin_index.remove_resume(page, "John Doe")
+    remove_resume(page, "John Doe")
+
+
+def create_resume(page: Page, name: str, slug: str, owner: str) -> None:
+    """Create a resume with the given name, slug, and owner."""
+    page.click("th#django_resume-resume a")
+    page.click("ul.object-tools a.addlink")
+    page.fill('input[name="name"]', name)
+    page.fill('input[name="slug"]', slug)
+    page.select_option('select[name="owner"]', label=owner)
+    page.click('input[type="submit"]')
+
+
+def test_create_resume_cover_letter(
+    logged_in_page: Page, admin_index_url: str, base_url: str
+):
+    page = logged_in_page
+    page.goto(admin_index_url)
+
+    # When I create a resume a new resume
+    create_resume(page, "John Doe", "john-doe", "playwright")
+
+    # And I click on the "John Doe" link
+    page.click('th.field-__str__ a:has-text("John Doe")')
+    resume_url = page.url
+
+    # And I click on the "Edit Cover Letter" link
+    page.click('a:has-text("Edit Cover Letter")')
+
+    # And I fill out the form
+    page.fill('input[name="title"]', "Some Cover Letter Title")
+    page.fill("textarea#id_text", "Your cover letter content here")
+
+    # And I click on the "Update" button
+    page.click('button[type="submit"]:has-text("Update")')
+
+    # Then if I go to the resume detail page
+    resume_path = reverse("django_resume:detail", args=["john-doe"])
+    resume_url = base_url + resume_path
+    page.goto(resume_url)
+
+    # Then I should see the cover letter title
+    assert page.locator("h2:has-text('Some Cover Letter Title')").count() > 0
+
+    # And I should see the cover letter content
+    assert page.locator("p:has-text('Your cover letter content here')").count() > 0
+
+    # Remove the resume so the test can be run again
+    page.goto(admin_index_url)
+    remove_resume(page, "John Doe")
