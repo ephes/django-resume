@@ -1,3 +1,4 @@
+import pytest
 from django.urls import reverse
 from playwright.sync_api import Page, expect
 
@@ -60,20 +61,24 @@ def create_resume(page: Page, name: str, slug: str, owner: str) -> None:
     page.click('input[type="submit"]')
 
 
-def test_create_resume_cover_letter(
-    logged_in_page: Page, admin_index_url: str, base_url: str
-):
+@pytest.fixture
+def page_with_resume(logged_in_page: Page, admin_index_url: str) -> Page:
     page = logged_in_page
     page.goto(admin_index_url)
-
-    # When I create a resume a new resume
     create_resume(page, "John Doe", "john-doe", "playwright")
-
-    # And I click on the "John Doe" link
     page.click('th.field-__str__ a:has-text("John Doe")')
-    resume_url = page.url
+    yield page
+    page.goto(admin_index_url)
+    remove_resume(page, "John Doe")
 
-    # And I click on the "Edit Cover Letter" link
+
+def test_create_resume_cover_letter(
+    page_with_resume: Page, admin_index_url: str, base_url: str
+):
+    # Given a resume exists and I am on the resume detail page
+    page = page_with_resume
+
+    # When I click on the "Edit Cover Letter" link
     page.click('a:has-text("Edit Cover Letter")')
 
     # And I fill out the form
@@ -93,7 +98,3 @@ def test_create_resume_cover_letter(
 
     # And I should see the cover letter content
     assert page.locator("p:has-text('Your cover letter content here')").count() > 0
-
-    # Remove the resume so the test can be run again
-    page.goto(admin_index_url)
-    remove_resume(page, "John Doe")
