@@ -11,8 +11,10 @@ TEST_USER = {
 
 
 @pytest.fixture
-def admin_index_page(base_url: str, page: Page) -> pages.AdminPage:
+def admin_index(base_url: str, page: Page) -> pages.AdminPage:
     username, password = TEST_USER["username"], TEST_USER["password"]
-    return pages.AdminPage(
+    admin_index = pages.AdminPage(
         base_url=base_url, username=username, password=password, page=page
     )
+    admin_index.login()
+    return admin_index

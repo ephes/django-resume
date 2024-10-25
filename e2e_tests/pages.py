@@ -14,10 +14,10 @@ class AdminPage:
         self.base_url = base_url
         self.username = username
         self.password = password
-        admin_url = reverse("admin:index")
+        admin_url = reverse("admin:login")
         self.url = base_url + admin_url
 
-    def load(self) -> None:
+    def login(self) -> None:
         self.page.goto(self.url)
         self.page.fill("#id_username", self.username)
         self.page.fill("#id_password", self.password)

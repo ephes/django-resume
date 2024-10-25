@@ -3,10 +3,7 @@ from playwright.sync_api import Page, expect
 from .pages import AdminPage
 
 
-def test_admin_index_page(page: Page, admin_index_page: AdminPage):
-    # Given the admin index page is loaded
-    admin_index_page.load()
-
+def test_admin_index_page(page: Page, admin_index: AdminPage):
     # Then the title should be "Site administration | Django site admin"
     expect(page).to_have_title("Site administration | Django site admin")
 
@@ -14,10 +11,7 @@ def test_admin_index_page(page: Page, admin_index_page: AdminPage):
     assert page.locator("th#django_resume-resume").count() > 0
 
 
-def test_create_resume_via_admin(page: Page, admin_index_page: AdminPage):
-    # Log in via the admin index page
-    admin_index_page.load()
-
+def test_create_resume_via_admin(page: Page, admin_index: AdminPage):
     # When I click on the "Resume" section
     page.click("th#django_resume-resume a")
 
