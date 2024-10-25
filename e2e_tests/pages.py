@@ -22,3 +22,13 @@ class AdminPage:
         self.page.fill("#id_username", self.username)
         self.page.fill("#id_password", self.password)
         self.page.click('input[type="submit"][value="Log in"]')
+
+    def remove_resume(self, page: Page, name: str):
+        """Remove the resume with the given name."""
+        page.click("th#django_resume-resume a")
+        page.click(
+            f'input.action-select[aria-label="Select this object for an action - {name}"]'
+        )
+        page.select_option('select[name="action"]', "delete_selected")
+        page.click('button.button[title="Run the selected action"]')
+        page.click('input[type="submit"][value="Yes, I’m sure"]')

@@ -31,3 +31,6 @@ def test_create_resume_via_admin(page: Page, admin_index: AdminPage):
 
     # And I should see the new resume in the list
     assert page.locator('th.field-__str__ a:has-text("John doe")').count() > 0
+
+    # Remove the resume so the test can be run again
+    admin_index.remove_resume(page, "John Doe")
