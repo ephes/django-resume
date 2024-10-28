@@ -86,7 +86,7 @@ def test_create_resume_cover_letter(
     page.fill("textarea#id_text", "Your cover letter content here")
 
     # And I click on the "Update" button
-    page.click('button.update_flat:has-text("Update")')
+    page.click('button:has-text("Update")')
 
     # Then if I go to the resume detail page
     resume_path = reverse("django_resume:detail", args=["john-doe"])
