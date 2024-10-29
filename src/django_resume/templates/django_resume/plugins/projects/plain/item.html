@@ -7,7 +7,7 @@
       </svg>
     </a>
   </div>
-  <p>{{ project.description }}</p>
+  <p>{{ project.description|safe }}</p>
   {% if show_edit_button %}
     <div class="edit-icons">
       <svg class="edit-icon-small" hx-get="{{ project.edit_url }}" hx-target="#projects-item-{{ project.id }}"

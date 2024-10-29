@@ -3,8 +3,19 @@ import json
 from typing import Type
 
 from django import forms
+from django.http import HttpRequest
 
 from .base import ListPlugin, ListItemFormMixin, ListInline, ContextDict
+
+from ..markdown import (
+    markdown_to_html,
+    textarea_input_to_markdown,
+    markdown_to_textarea_input,
+)
+
+
+def link_handler(text, url):
+    return f'<a href="{url}" class="underlined">{text}</a>'
 
 
 class ProjectItemForm(ListItemFormMixin, forms.Form):
@@ -20,6 +31,10 @@ class ProjectItemForm(ListItemFormMixin, forms.Form):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.set_initial_position()
+        # Transform initial text from markdown to textarea input.
+        self.initial["description"] = markdown_to_textarea_input(
+            self.initial.get("description", "")
+        )
 
     def badges_as_json(self):
         """
@@ -46,7 +61,9 @@ class ProjectItemForm(ListItemFormMixin, forms.Form):
             "id": item["id"],
             "url": item["url"],
             "title": item["title"],
-            "description": item["description"],
+            "description": markdown_to_html(
+                item["description"], handlers={"link": link_handler}
+            ),
             "badges": item["badges"],
             "edit_url": context["edit_url"],
             "delete_url": context["delete_url"],
@@ -75,6 +92,9 @@ class ProjectItemForm(ListItemFormMixin, forms.Form):
             print("No Senor! Validation Error!")
             raise forms.ValidationError("No Senor!")
         return title
+
+    def clean_description(self) -> str:
+        return textarea_input_to_markdown(self.cleaned_data["description"])
 
     def clean_position(self):
         position = self.cleaned_data.get("position", 0)
@@ -113,3 +133,29 @@ class ProjectsPlugin(ListPlugin):
     @staticmethod
     def get_form_classes() -> dict[str, Type[forms.Form]]:
         return {"item": ProjectItemForm, "flat": ProjectFlatForm}
+
+    def get_context(
+        self,
+        _request: HttpRequest,
+        plugin_data: dict,
+        resume_pk: int,
+        *,
+        context: ContextDict,
+        edit: bool = False,
+        theme: str = "plain",
+    ) -> ContextDict:
+        context = super().get_context(
+            _request,
+            plugin_data,
+            resume_pk,
+            context=context,
+            edit=edit,
+            theme=theme,
+        )
+        # convert markdown to html for rendering
+        items = plugin_data.get("items", [])
+        for item in items:
+            item["description"] = markdown_to_html(
+                item["description"], handlers={"link": link_handler}
+            )
+        return context
