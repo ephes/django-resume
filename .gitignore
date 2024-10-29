@@ -21,3 +21,6 @@ example/db.sqlite3
 
 # Javascript
 node_modules/
+
+# playwright
+e2e_tests/auth.json

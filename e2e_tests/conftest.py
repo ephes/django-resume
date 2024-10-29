@@ -34,7 +34,9 @@ def save_auth_state(base_url: str, browser: Browser):
 
 @pytest.fixture
 def logged_in_page(browser: Browser, save_auth_state, admin_index_url: str) -> Page:
-    context = browser.new_context(storage_state="auth.json")  # Load the saved state
+    context = browser.new_context(
+        storage_state="e2e_tests/auth.json"
+    )  # Load the saved state
     page = context.new_page()
     page.goto(admin_index_url)
     yield page
