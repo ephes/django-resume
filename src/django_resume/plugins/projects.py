@@ -1,10 +1,10 @@
 import json
 
-from typing import Type, Any
+from typing import Type
 
 from django import forms
 
-from .base import ListPlugin, ListItemFormMixin, ListInline
+from .base import ListPlugin, ListItemFormMixin, ListInline, ContextDict
 
 
 class ProjectItemForm(ListItemFormMixin, forms.Form):
@@ -32,7 +32,7 @@ class ProjectItemForm(ListItemFormMixin, forms.Form):
         return json.dumps(self.initial_badges)
 
     @staticmethod
-    def get_initial() -> dict[str, Any]:
+    def get_initial() -> ContextDict:
         """Just some default values."""
         return {
             "title": "Project Title",
@@ -41,7 +41,7 @@ class ProjectItemForm(ListItemFormMixin, forms.Form):
             "badges": ProjectItemForm.initial_badges,
         }
 
-    def set_context(self, item: dict, context: dict[str, Any]) -> dict[str, Any]:
+    def set_context(self, item: dict, context: ContextDict) -> ContextDict:
         context["project"] = {
             "id": item["id"],
             "url": item["url"],
@@ -98,7 +98,7 @@ class ProjectFlatForm(forms.Form):
     )
 
     @staticmethod
-    def set_context(item: dict, context: dict[str, Any]) -> dict[str, Any]:
+    def set_context(item: dict, context: ContextDict) -> ContextDict:
         context["projects"] = {"title": item.get("title", "")}
         context["projects"]["edit_flat_url"] = context["edit_flat_url"]
         return context

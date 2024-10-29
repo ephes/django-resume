@@ -37,7 +37,7 @@ def markdown_to_html(text):
     # Links [text](url)
     text = re.sub(r"\[(.*?)\]\((.*?)\)", r'<a href="\2">\1</a>', text)
 
-    # Paragraphs
-    text = re.sub(r"(^|\n)([^\n]+)\n", r"\1<p>\2</p>\n", text)
+    # Paragraphs (exclude lines starting with heading tags)
+    text = re.sub(r"(^|\n)(?!<h[1-6]>)([^\n]+)\n", r"\1<p>\2</p>\n", text)
 
     return text

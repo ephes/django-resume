@@ -1,0 +1,21 @@
+<div id="cover-item-{{ item.id }}" aria-label="{{ item.title }}" class="stack">
+  <h3>{{ item.title }}</h3>
+  <p>{{ item.text|safe }}</p>
+  {% if show_edit_button %}
+    <div class="edit-icons">
+      <svg class="edit-icon-small" hx-get="{{ item.edit_url }}" hx-target="#cover-item-{{ item.id }}"
+           hx-swap="outerHTML">
+        <use href="#edit"></use>
+      </svg>
+      <svg
+        class="edit-icon-small"
+        style="color: red !important;"
+        hx-delete="{{ item.delete_url }}"
+        hx-target="#cover-item-{{ item.id }}"
+        hx-swap="delete"
+      >
+        <use href="#delete"></use>
+      </svg>
+    </div>
+  {% endif %}
+</div>

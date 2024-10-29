@@ -1169,7 +1169,8 @@ class ListPlugin:
     def get_inline_urls(self) -> URLPatterns:
         return self.inline.get_urls()
 
-    def get_form_classes(self) -> dict[str, type[forms.Form]]:
+    @staticmethod
+    def get_form_classes() -> dict[str, type[forms.Form]]:
         """Please implement this method."""
         return {}
 

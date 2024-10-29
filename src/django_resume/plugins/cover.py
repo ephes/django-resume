@@ -1,7 +1,10 @@
+from typing import Type
+
 from django import forms
 from django.http import HttpRequest
 
-from .base import SimplePlugin, ContextDict
+from .base import ListPlugin, ListItemFormMixin, ListInline, ContextDict
+
 from ..markdown import (
     markdown_to_html,
     textarea_input_to_markdown,
@@ -9,7 +12,7 @@ from ..markdown import (
 )
 
 
-class CoverForm(forms.Form):
+class CoverItemForm(ListItemFormMixin, forms.Form):
     title = forms.CharField(
         label="Cover Letter Title",
         max_length=256,
@@ -32,11 +35,45 @@ class CoverForm(forms.Form):
         text = textarea_input_to_markdown(text)
         return text
 
+    @staticmethod
+    def get_initial() -> ContextDict:
+        """Just some default values."""
+        return {
+            "title": "Cover item title",
+            "text": "Some cover paragraph...",
+        }
 
-class CoverPlugin(SimplePlugin):
+    def set_context(self, item: dict, context: ContextDict) -> ContextDict:
+        context["item"] = {
+            "id": item["id"],
+            "title": item["title"],
+            "text": item["text"],
+            "edit_url": context["edit_url"],
+            "delete_url": context["delete_url"],
+        }
+        return context
+
+
+class CoverFlatForm(forms.Form):
+    title = forms.CharField(
+        widget=forms.TextInput(), required=False, max_length=50, initial="Cover Title"
+    )
+
+    @staticmethod
+    def set_context(item: dict, context: ContextDict) -> ContextDict:
+        context["cover"] = {"title": item.get("title", "")}
+        context["cover"]["edit_flat_url"] = context["edit_flat_url"]
+        return context
+
+
+class CoverPlugin(ListPlugin):
     name: str = "cover"
     verbose_name: str = "Cover Letter"
-    admin_form_class = inline_form_class = CoverForm
+    inline: ListInline
+
+    @staticmethod
+    def get_form_classes() -> dict[str, Type[forms.Form]]:
+        return {"item": CoverItemForm, "flat": CoverFlatForm}
 
     def get_context(
         self,
@@ -51,8 +88,8 @@ class CoverPlugin(SimplePlugin):
         context = super().get_context(
             _request, plugin_data, resume_pk, context=context, edit=edit, theme=theme
         )
-        cover_text = plugin_data.get("text")
-        print("cover_text", cover_text)
-        if cover_text is not None:
-            context["text"] = markdown_to_html(cover_text)
+        # convert markdown to html for rendering
+        items = plugin_data.get("items", [])
+        for item in items:
+            item["text"] = markdown_to_html(item["text"])
         return context

@@ -1,0 +1,12 @@
+{% if show_edit_button %}
+  <div class="with-edit-icon-big">
+    <svg class="edit-icon-h1" hx-get="{{ cover.edit_flat_url }}" hx-target="closest div" hx-swap="outerHTML">
+      <use href="#edit"></use>
+    </svg>
+    <h1>{{ cover.title }}</h1>
+  </div>
+{% else %}
+  <div>
+    <h1>{{ cover.title }}</h1>
+  </div>
+{% endif %}

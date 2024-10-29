@@ -1,3 +1,17 @@
+.editable-h1 {
+    font-size: calc(2.5 * var(--s0));
+    font-family: inherit; /* Ensure the same font is used */
+    font-weight: 600;
+    border: none; /* Remove input field border */
+    padding: 0; /* Match the spacing of the <h1> */
+    margin: 0; /* Remove margin */
+    background: transparent; /* Make background transparent */
+    outline: none; /* Remove focus outline */
+    color: inherit; /* Use the same text color */
+    text-align: end;
+    line-height: inherit;
+}
+
 .editable-h2 {
     font-size: var(--s1);
     font-family: inherit; /* Ensure the same font is used */
@@ -32,7 +46,7 @@ select {
     padding: var(--s-2);
     border-radius: var(--s-2);
     min-width: 35ch;
-    min-height: calc(10 * var(--s2));
+    min-height: calc(7 * var(--s2));
 }
 
 .heading-with-checkbox {
@@ -128,6 +142,7 @@ input[type="checkbox"]:checked::before {
 .edit-icon-small {
     width: 1.5em;
     height: 1.5em;
+    cursor: pointer;
 }
 
 .with-edit-icon-big {
@@ -139,6 +154,13 @@ input[type="checkbox"]:checked::before {
 .edit-icon-big {
     height: calc(1.2 * 1cap);
     width: calc(1.2 * 1cap);
+    cursor: pointer;
+}
+
+.edit-icon-h1 {
+    height: calc(2 * var(--s0));
+    width: calc(2 * var(--s0));
+    cursor: pointer;
 }
 
 .deletable-ul {

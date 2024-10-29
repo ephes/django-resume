@@ -40,6 +40,21 @@ def test_markdown_link():
 
     # When the markdown is converted to HTML
     html = markdown_to_html(markdown)
+    print("html", html)
 
     # Then the HTML should contain the correct elements
     assert '<a href="https://example.com">foobar</a>' in html
+
+
+# def test_weird_markdown_link():
+#     # Given a markdown string with a link
+#     markdown = """
+# ### Get in Touch
+# Feel free to reach out to me via [email](mailto:jochen-resume@wersdoerfer.de), connect with me on [GitHub](https://github.com/ephes) or—God forbid—[LinkedIn](https://www.linkedin.com/in/jochen-wersdoerfer/), or follow me on [Mastodon](https://fedi.wersdoerfer.de/@jochen).
+#     """
+#     # When the markdown is converted to HTML
+#     html = markdown_to_html(markdown)
+#     print("html", html)
+#
+#     # Then the HTML should contain the correct elements
+#     assert False
