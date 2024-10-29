@@ -1,7 +1,8 @@
 import json
-from typing import Type, Any
+from typing import Type, Any, cast
 
 from django import forms
+from django.http import HttpRequest
 
 from .base import (
     ListPlugin,
@@ -9,7 +10,18 @@ from .base import (
     ListInline,
     ListThemedTemplates,
     ThemedTemplates,
+    ContextDict,
 )
+
+from ..markdown import (
+    markdown_to_html,
+    textarea_input_to_markdown,
+    markdown_to_textarea_input,
+)
+
+
+def link_handler(text, url):
+    return f'<a href="{url}" class="underlined">{text}</a>'
 
 
 class TimelineThemedTemplates(ListThemedTemplates):
@@ -40,10 +52,15 @@ class TimelineItemForm(ListItemFormMixin, forms.Form):
         widget=forms.TextInput(), required=False, initial=initial_badges
     )
     position = forms.IntegerField(widget=forms.NumberInput(), required=False)
+    initial: dict[str, Any]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.set_initial_position()
+        # Transform initial text from markdown to textarea input.
+        self.initial["description"] = markdown_to_textarea_input(
+            self.initial.get("description", "")
+        )
 
     def badges_as_json(self):
         """
@@ -76,7 +93,9 @@ class TimelineItemForm(ListItemFormMixin, forms.Form):
             "role": item["role"],
             "start": item["start"],
             "end": item["end"],
-            "description": item["description"],
+            "description": markdown_to_html(
+                item["description"], handlers={"link": link_handler}
+            ),
             "badges": item["badges"],
             "edit_url": context["edit_url"],
             "delete_url": context["delete_url"],
@@ -84,24 +103,27 @@ class TimelineItemForm(ListItemFormMixin, forms.Form):
         return context
 
     @staticmethod
-    def get_max_position(items):
+    def get_max_position(items) -> int:
         """Return the maximum position value from the existing items."""
         positions = [item.get("position", 0) for item in items]
         return max(positions) if positions else -1
 
-    def set_initial_position(self):
+    def set_initial_position(self) -> None:
         """Set the position to the next available position."""
         if "position" not in self.initial:
             self.initial["position"] = self.get_max_position(self.existing_items) + 1
 
-    def clean_title(self):
+    def clean_title(self) -> str:
         title = self.cleaned_data["title"]
         if title == "Senor Developer":
             print("No Senor! Validation Error!")
             raise forms.ValidationError("No Senor!")
         return title
 
-    def clean_position(self):
+    def clean_description(self) -> str:
+        return textarea_input_to_markdown(self.cleaned_data["description"])
+
+    def clean_position(self) -> int:
         position = self.cleaned_data.get("position", 0)
         if position < 0:
             raise forms.ValidationError("Position must be a positive integer.")
@@ -138,6 +160,34 @@ class TimelineMixin:
     @staticmethod
     def get_form_classes() -> dict[str, Type[forms.Form]]:
         return {"item": TimelineItemForm, "flat": TimelineFlatForm}
+
+    def get_context(
+        self,
+        _request: HttpRequest,
+        plugin_data: dict,
+        resume_pk: int,
+        *,
+        context: ContextDict,
+        edit: bool = False,
+        theme: str = "plain",
+    ) -> ContextDict:
+        list_plugin = cast(ListPlugin, self)
+        context = ListPlugin.get_context(
+            list_plugin,
+            _request,
+            plugin_data,
+            resume_pk,
+            context=context,
+            edit=edit,
+            theme=theme,
+        )
+        # convert markdown to html for rendering
+        items = plugin_data.get("items", [])
+        for item in items:
+            item["description"] = markdown_to_html(
+                item["description"], handlers={"link": link_handler}
+            )
+        return context
 
 
 class FreelanceTimelinePlugin(TimelineMixin, ListPlugin):

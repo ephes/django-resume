@@ -58,7 +58,7 @@
   {% for error in form.role.errors %}
     <p class="error">{{ error|escape }}</p>
   {% endfor %}
-  <p contenteditable="true" data-field="description">{{ form.description.value|safe }}</p>
+  <p contenteditable="true" class="textarea" data-field="description" data-type="html">{{ form.description.value|safe }}</p>
   {% for error in form.description.errors %}
     <p class="error">{{ error|escape }}</p>
   {% endfor %}

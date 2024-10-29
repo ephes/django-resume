@@ -966,7 +966,7 @@ class ListInline:
         existing_items = self.data.get_data(resume).get("items", [])
         form = form_class(request.POST, resume=resume, existing_items=existing_items)
         form.post_url = self.get_post_item_url(resume.pk)
-        context = {"form": form}
+        context = {"form": form, "plugin_name": self.plugin_name}
         if form.is_valid():
             # try to find out whether we are updating an existing item or creating a new one
             existing = True
