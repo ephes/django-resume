@@ -47,7 +47,7 @@ class CoverItemForm(ListItemFormMixin, forms.Form):
         context["item"] = {
             "id": item["id"],
             "title": item["title"],
-            "text": item["text"],
+            "text": markdown_to_html(item["text"]),
             "edit_url": context["edit_url"],
             "delete_url": context["delete_url"],
         }
