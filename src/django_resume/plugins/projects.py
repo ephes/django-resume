@@ -129,6 +129,7 @@ class ProjectsPlugin(ListPlugin):
     verbose_name: str = "Projects"
     inline: ListInline
     flat_form_class = ProjectFlatForm
+    sort_by_reverse_position: bool = False
 
     @staticmethod
     def get_form_classes() -> dict[str, Type[forms.Form]]:

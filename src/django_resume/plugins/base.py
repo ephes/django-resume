@@ -1066,6 +1066,7 @@ class ListPlugin:
     name = "list_plugin"
     verbose_name = "List Plugin"
     template_class: type[ThemedTemplates] = ListThemedTemplates
+    sort_by_reverse_position: bool = True
 
     def __init__(self):
         super().__init__()
@@ -1131,7 +1132,7 @@ class ListPlugin:
         context.update(plugin_data["flat"])
 
         ordered_entries = self.items_ordered_by_position(
-            plugin_data.get("items", []), reverse=True
+            plugin_data.get("items", []), reverse=self.sort_by_reverse_position
         )
         if edit:
             # if there should be edit buttons, add the edit URLs to each entry
