@@ -116,6 +116,10 @@ a.underlined:hover::after {
   transition: width 0.3s ease; /* Only apply transition on hover */
 }
 
+p.pretty {
+  text-wrap: pretty;
+}
+
 svg {
   vertical-align: middle; /* Adjusts the vertical alignment */
 }

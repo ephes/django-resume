@@ -12,6 +12,10 @@ from ..markdown import (
 )
 
 
+def link_handler(text, url):
+    return f'<a href="{url}" class="underlined">{text}</a>'
+
+
 class CoverItemForm(ListItemFormMixin, forms.Form):
     title = forms.CharField(
         label="Cover Letter Title",
@@ -47,7 +51,7 @@ class CoverItemForm(ListItemFormMixin, forms.Form):
         context["item"] = {
             "id": item["id"],
             "title": item["title"],
-            "text": markdown_to_html(item["text"]),
+            "text": markdown_to_html(item["text"], handlers={"link": link_handler}),
             "edit_url": context["edit_url"],
             "delete_url": context["delete_url"],
         }
@@ -91,5 +95,7 @@ class CoverPlugin(ListPlugin):
         # convert markdown to html for rendering
         items = plugin_data.get("items", [])
         for item in items:
-            item["text"] = markdown_to_html(item["text"])
+            item["text"] = markdown_to_html(
+                item["text"], handlers={"link": link_handler}
+            )
         return context

@@ -46,6 +46,20 @@ def test_markdown_link():
     assert '<a href="https://example.com">foobar</a>' in html
 
 
+def test_markdown_with_customized_link():
+    # Given a markdown string with a link
+    markdown = "Foobar baz [foobar](https://example.com) blub blah"
+
+    # When the markdown is converted to HTML with a custom link handler
+    def link_handler(text, url):
+        return f'<a href="{url}" target="_blank">{text}</a>'
+
+    html = markdown_to_html(markdown, handlers={"link": link_handler})
+
+    # Then the HTML should contain the correct elements
+    assert '<a href="https://example.com" target="_blank">foobar</a>' in html
+
+
 # def test_weird_markdown_link():
 #     # Given a markdown string with a link
 #     markdown = """

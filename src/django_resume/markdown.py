@@ -1,4 +1,5 @@
 import re
+from typing import Callable
 
 
 def textarea_input_to_markdown(text):
@@ -19,25 +20,70 @@ def markdown_to_textarea_input(text):
     return text
 
 
-def markdown_to_html(text):
+def markdown_to_html(text, handlers: dict[str, Callable] | None = None):
+    """
+    Really simple markdown to HTML converter.
+
+    You can pass a dictionary of handlers to customize the output.
+    """
+    if handlers is None:
+        handlers = {}
+
     # Headings
+    def render_heading(m):
+        level = len(m.group(1))
+        content = m.group(2).strip()
+        if "heading" in handlers:
+            return handlers["heading"](level, content)
+        else:
+            return f"<h{level}>{content}</h{level}>"
+
     text = re.sub(
         r"^(#{1,6})\s*(.*)",
-        lambda m: f"<h{len(m.group(1))}>{m.group(2)}</h{len(m.group(1))}>",
+        render_heading,
         text,
         flags=re.MULTILINE,
     )
 
     # Bold
-    text = re.sub(r"\*\*(.*?)\*\*", r"<strong>\1</strong>", text)
+    def render_bold(m):
+        content = m.group(1)
+        if "bold" in handlers:
+            return handlers["bold"](content)
+        else:
+            return f"<strong>{content}</strong>"
+
+    text = re.sub(r"\*\*(.*?)\*\*", render_bold, text)
 
     # Italic
-    text = re.sub(r"\*(.*?)\*", r"<em>\1</em>", text)
+    def render_italic(m):
+        content = m.group(1)
+        if "italic" in handlers:
+            return handlers["italic"](content)
+        else:
+            return f"<em>{content}</em>"
 
-    # Links [text](url)
-    text = re.sub(r"\[(.*?)\]\((.*?)\)", r'<a href="\2">\1</a>', text)
+    text = re.sub(r"\*(.*?)\*", render_italic, text)
+
+    # Links
+    def render_link(m):
+        link_text = m.group(1)
+        url = m.group(2)
+        if "link" in handlers:
+            return handlers["link"](link_text, url)
+        else:
+            return f'<a href="{url}">{link_text}</a>'
+
+    text = re.sub(r"\[(.*?)\]\((.*?)\)", render_link, text)
 
     # Paragraphs (exclude lines starting with heading tags)
-    text = re.sub(r"(^|\n)(?!<h[1-6]>)([^\n]+)\n", r"\1<p>\2</p>\n", text)
+    def render_paragraph(m):
+        content = m.group(2).strip()
+        if "paragraph" in handlers:
+            return handlers["paragraph"](content)
+        else:
+            return f"{m.group(1)}<p>{content}</p>\n"
+
+    text = re.sub(r"(^|\n)(?!<h[1-6]>)([^\n]+)\n", render_paragraph, text)
 
     return text
