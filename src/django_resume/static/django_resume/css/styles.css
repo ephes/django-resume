@@ -120,6 +120,11 @@ p.pretty {
   text-wrap: pretty;
 }
 
+#cover-items > div:first-child h3 {
+  /* First h3 in the cover section */
+  font-size: 1.4rem;
+}
+
 svg {
   vertical-align: middle; /* Adjusts the vertical alignment */
 }
