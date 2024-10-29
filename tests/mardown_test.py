@@ -60,15 +60,12 @@ def test_markdown_with_customized_link():
     assert '<a href="https://example.com" target="_blank">foobar</a>' in html
 
 
-# def test_weird_markdown_link():
-#     # Given a markdown string with a link
-#     markdown = """
-# ### Get in Touch
-# Feel free to reach out to me via [email](mailto:jochen-resume@wersdoerfer.de), connect with me on [GitHub](https://github.com/ephes) or—God forbid—[LinkedIn](https://www.linkedin.com/in/jochen-wersdoerfer/), or follow me on [Mastodon](https://fedi.wersdoerfer.de/@jochen).
-#     """
-#     # When the markdown is converted to HTML
-#     html = markdown_to_html(markdown)
-#     print("html", html)
-#
-#     # Then the HTML should contain the correct elements
-#     assert False
+def test_markdown_with_newlines_to_html():
+    # Given a markdown string with a newline
+    markdown = "Some text\nwith a line break"
+
+    # When the markdown is converted to HTML
+    html = markdown_to_html(markdown)
+
+    # Then the HTML should contain the correct elements
+    assert "Some text<br>with a line break" in html

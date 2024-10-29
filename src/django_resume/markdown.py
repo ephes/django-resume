@@ -76,14 +76,7 @@ def markdown_to_html(text, handlers: dict[str, Callable] | None = None):
 
     text = re.sub(r"\[(.*?)\]\((.*?)\)", render_link, text)
 
-    # Paragraphs (exclude lines starting with heading tags)
-    def render_paragraph(m):
-        content = m.group(2).strip()
-        if "paragraph" in handlers:
-            return handlers["paragraph"](content)
-        else:
-            return f"{m.group(1)}<p>{content}</p>\n"
-
-    text = re.sub(r"(^|\n)(?!<h[1-6]>)([^\n]+)\n", render_paragraph, text)
+    # Just replace newlines with <br>
+    text = text.replace("\n", "<br>")
 
     return text

@@ -16,7 +16,7 @@
     <p class="error">{{ error|escape }}</p>
   {% endfor %}
   <p class="textarea" contenteditable="true" data-field="text" data-type="html">
-    {{ form.text.value }}
+    {{ form.text.value|safe }}
   </p>
   {% for error in form.text.errors %}
     <p class="error">{{ error|escape }}</p>
