@@ -81,12 +81,20 @@ def test_create_resume_cover_letter(
     # When I click on the "Edit Cover Letter" link
     page.click('a:has-text("Edit Cover Letter")')
 
-    # And I fill out the form
+    # And I fill out the flat form
     page.fill('input[name="title"]', "Some Cover Letter Title")
-    page.fill("textarea#id_text", "Your cover letter content here")
 
     # And I click on the "Update" button
     page.click('button:has-text("Update")')
+
+    # And add a new item
+    page.click('button:has-text("Add Item")')
+
+    # And I fill out an item form
+    page.locator("#id_title").nth(1).fill("Added Cover Section Title")
+    page.fill("#id_text", "Your cover letter content here")
+
+    page.click('button.update_item:has-text("Update")')
 
     # Then if I go to the resume detail page
     resume_path = reverse("django_resume:detail", args=["john-doe"])
@@ -94,7 +102,10 @@ def test_create_resume_cover_letter(
     page.goto(resume_url)
 
     # Then I should see the cover letter title
-    assert page.locator("h2:has-text('Some Cover Letter Title')").count() > 0
+    assert page.locator("h1:has-text('Some Cover Letter Title')").count() > 0
+
+    # And I should see the cover letter section title
+    assert page.locator("h3:has-text('Added Cover Section Title')").count() > 0
 
     # And I should see the cover letter content
     assert page.locator("p:has-text('Your cover letter content here')").count() > 0
