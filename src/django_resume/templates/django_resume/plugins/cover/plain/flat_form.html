@@ -19,12 +19,10 @@
     {% endfor %}
   </header>
   <div class="stack">
-    <div id="avatar-container" class="avatar-container">
+    <div id="avatar-container" class="avatar-container cover-avatar-edit-container">
       {% if form.avatar_img.value %}
         <div class="stack">
-          <img class="avatar editable-avatar" src="{{ form.avatar_img_url }}" alt="{{ form.avatar_alt.value }}"
-               width="110"
-               height="146">
+          <img class="avatar cover-avatar-image editable-avatar" src="{{ form.avatar_img_url }}" alt="{{ form.avatar_alt.value }}">
           <p contenteditable="true" data-field="avatar_alt" style="max-width: 110px">{{ form.avatar_alt.value }}</p>
           {% for error in form.avatar_alt.errors %}
             <p class="error">{{ error|escape }}</p>
@@ -32,7 +30,7 @@
         </div>
       {% else %}
         <div class="stack">
-          <svg class="avatar editable-avatar" width="110" height="146">
+          <svg class="avatar editable-avatar">
             <use href="#avatar"></use>
           </svg>
           {% for error in form.avatar_img.errors %}

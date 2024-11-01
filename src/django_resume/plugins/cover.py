@@ -125,6 +125,8 @@ class CoverPlugin(ListPlugin):
             item["text"] = markdown_to_html(
                 item["text"], handlers={"link": link_handler}
             )
+        # first item is special because it should float around the avatar image
+        context["first_item"] = items[0] if items else None
         # add avatar image url
         context["avatar_img_url"] = default_storage.url(
             plugin_data.get("flat", {}).get("avatar_img", "")

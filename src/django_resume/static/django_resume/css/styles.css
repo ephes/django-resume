@@ -127,9 +127,9 @@ p.pretty {
     text-wrap: pretty;
 }
 
-#cover-items > div:first-child h3 {
-    /* First h3 in the cover section */
+.first-cover-headline {
     font-size: 1.4rem;
+    margin-block-end: var(--s0);
 }
 
 svg {
@@ -416,4 +416,30 @@ section {
     border: 1px solid var(--color-grey);
     border-radius: var(--s-2);
     padding: var(--s-1);
+}
+
+.float-right {
+    float: right;
+}
+
+.cover-avatar-container {
+    width: 15vw;
+    min-width: 100px;
+    max-width: 130px;
+    margin-left: var(--s1);
+    margin-bottom: var(--s1);
+    margin-right: var(--s1);
+    transform: rotate(8deg);
+    box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.3); /* X offset, Y offset, blur radius, shadow color */
+}
+
+.cover-avatar-edit-container {
+    width: 15vw;
+    min-width: 100px;
+    max-width: 130px;
+    margin-left: auto;
+}
+
+.cover-avatar-image {
+    width: 100%;
 }
