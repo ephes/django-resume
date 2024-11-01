@@ -34,12 +34,10 @@ function registerClickListenerForHiddenForm(pluginId, submitId, formId, initialI
 function registerClickListenerForAvatar() {
     function addContainerEventListeners(el) {
         el.addEventListener('click', function (event) {
-            console.log("avatar container clicked");
             avatarFileInput.click();
         });
 
         el.addEventListener('dragover', function (event) {
-            console.log("drag over");
             event.preventDefault();
             avatarContainer.classList.add('drag-over');
         });
@@ -49,7 +47,6 @@ function registerClickListenerForAvatar() {
         });
 
         el.addEventListener('drop', function (event) {
-            console.log("image dropped");
             event.preventDefault();
             avatarContainer.classList.remove('drag-over');
             const file = event.dataTransfer.files[0];
@@ -83,7 +80,6 @@ function registerClickListenerForAvatar() {
         const reader = new FileReader();
         reader.onload = function (event) {
             // Check if the avatarContainer is an <img> or <svg>
-            console.log("avatar container: ", avatarContainer.tagName.toLowerCase());
             const result = event.target.result;  // Data URL of the selected image
             if (avatarContainer.tagName.toLowerCase() === 'svg') {
                 // Create a new <img> element to replace the <svg>
@@ -91,8 +87,8 @@ function registerClickListenerForAvatar() {
                 imgElement.classList.add('avatar')
                 imgElement.classList.add('editable-avatar');  // Add the same class
                 imgElement.src = result;  // Set the data URL as the src
-                imgElement.width = 110;
-                imgElement.height = 110;
+                imgElement.width = avatarContainer.getAttribute('width');
+                imgElement.height = avatarContainer.getAttribute('height');
 
                 // Replace the <svg> with the new <img>
                 avatarContainer.parentNode.replaceChild(imgElement, avatarContainer);
@@ -189,7 +185,6 @@ class BadgeEditor extends HTMLElement {
         const badgeNames = Array.from(badgesList.querySelectorAll('.badge-name'))
             .map(el => el.textContent.trim());
 
-        // console.log("update hidden badges list: ", badgeNames);
         hiddenBadgesList.value = JSON.stringify(badgeNames);
     };
 

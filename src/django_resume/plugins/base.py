@@ -923,7 +923,9 @@ class ListInline:
         resume = self.get_resume_or_error(request, resume_id)
         flat_form_class = self.form_classes["flat"]
         plugin_data = self.data.get_data(resume)
-        flat_form = flat_form_class(request.POST, initial=plugin_data.get("flat", {}))
+        flat_form = flat_form_class(
+            request.POST, request.FILES, initial=plugin_data.get("flat", {})
+        )
         context: dict[str, Any] = {}
         if flat_form.is_valid():
             resume = self.data.update_flat(resume, flat_form.cleaned_data)
@@ -964,7 +966,9 @@ class ListInline:
         resume = self.get_resume_or_error(request, resume_id)
         form_class = self.form_classes["item"]
         existing_items = self.data.get_data(resume).get("items", [])
-        form = form_class(request.POST, resume=resume, existing_items=existing_items)
+        form = form_class(
+            request.POST, request.FILES, resume=resume, existing_items=existing_items
+        )
         form.post_url = self.get_post_item_url(resume.pk)
         context = {"form": form, "plugin_name": self.plugin_name}
         if form.is_valid():

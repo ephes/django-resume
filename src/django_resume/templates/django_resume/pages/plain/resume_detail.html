@@ -15,10 +15,8 @@
   {% else %}
     <body class="center">
   {% endif %}
-<header>
-  {% if is_editable %}{% include "./edit_panel.html" %}{% endif %}
-  {% include cover.templates.flat %}
-</header>
+{% if is_editable %}{% include "./edit_panel.html" %}{% endif %}
+{% include cover.templates.flat %}
 <main>
   {% if show_edit_button %}
     {% include theme.templates.main %}

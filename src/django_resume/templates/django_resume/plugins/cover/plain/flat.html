@@ -1,12 +1,27 @@
-{% if show_edit_button %}
-  <div class="with-edit-icon-big">
-    <svg class="edit-icon-h1" hx-get="{{ cover.edit_flat_url }}" hx-target="closest div" hx-swap="outerHTML">
-      <use href="#edit"></use>
-    </svg>
-    <h1>{{ cover.title }}</h1>
+<section id="cover-flat">
+  <header>
+    {% if show_edit_button %}
+      <div class="with-edit-icon-big">
+        <svg class="edit-icon-h1" hx-get="{{ cover.edit_flat_url }}" hx-target="#cover-flat" hx-swap="outerHTML">
+          <use href="#edit"></use>
+        </svg>
+        <h1>{{ cover.title }}</h1>
+      </div>
+    {% else %}
+      <div>
+        <h1>{{ cover.title }}</h1>
+      </div>
+    {% endif %}
+  </header>
+  <div class="avatar-container">
+    {% if cover.avatar_img %}
+      <img class="avatar" src="{{ cover.avatar_img_url }}" alt="{{ cover.avatar_alt }}" width="110" height="146">
+    {% else %}
+      <svg class="avatar" width="110" height="110">
+        <use href="#avatar"></use>
+      </svg>
+    {% endif %}
   </div>
-{% else %}
-  <div>
-    <h1>{{ cover.title }}</h1>
-  </div>
-{% endif %}
+</section>
+
+
