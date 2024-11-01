@@ -36,7 +36,7 @@
           {% for error in form.avatar_img.errors %}
             <p class="error">{{ error|escape }}</p>
           {% endfor %}
-          <p contenteditable="true" data-field="avatar_alt" style="max-width: 110px">{{ form.avatar_alt.value }}</p>
+          <p contenteditable="true" data-field="avatar_alt">{{ form.avatar_alt.value }}</p>
           {% for error in form.avatar_alt.errors %}
             <p class="error">{{ error|escape }}</p>
           {% endfor %}
