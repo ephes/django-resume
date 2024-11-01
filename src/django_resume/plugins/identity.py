@@ -1,22 +1,12 @@
 from django import forms
-from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
-from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.http import HttpRequest
 
 from .base import SimplePlugin, ContextDict
+from ..images import ImageFormMixin
 
 
-class CustomFileObject:
-    def __init__(self, filename):
-        self.name = filename
-        self.url = default_storage.url(filename)
-
-    def __str__(self):
-        return self.name
-
-
-class IdentityForm(forms.Form):
+class IdentityForm(ImageFormMixin, forms.Form):
     name = forms.CharField(label="Your name", max_length=100, initial="Your name")
     pronouns = forms.CharField(
         label="Pronouns", max_length=100, initial="your/pronouns"
@@ -75,54 +65,11 @@ class IdentityForm(forms.Form):
         initial="https://fosstodon.org/@foobar",
         assume_scheme="https",
     )
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        initial_avatar_img_filename = self.initial.get("avatar_img")
-        print("initial avatar img: ", initial_avatar_img_filename)
-        if initial_avatar_img_filename is not None:
-            self.fields["avatar_img"].initial = CustomFileObject(
-                initial_avatar_img_filename
-            )
-            print("initial avatar img: ", self.fields["avatar_img"].initial)
+    image_fields = [("avatar_img", "clear_avatar")]
 
     @property
     def avatar_img_url(self):
-        return default_storage.url(self.initial.get("avatar_img", ""))
-
-    def clean(self):
-        # super ugly - FIXME
-        cleaned_data = super().clean()
-        avatar_img = cleaned_data.get("avatar_img")
-        clear_avatar = cleaned_data.get("clear_avatar")
-
-        avatar_handled = False
-        just_clear_the_avatar = clear_avatar and not hasattr(
-            avatar_img, "temporary_file_path"
-        )
-        if just_clear_the_avatar:
-            cleaned_data["avatar_img"] = None
-            avatar_handled = True
-
-        set_new_avatar_image = (
-            isinstance(avatar_img, InMemoryUploadedFile) and not avatar_handled
-        )
-        if set_new_avatar_image:
-            if avatar_img.size > 2 * 1024 * 1024:
-                raise forms.ValidationError("Image file too large ( > 2mb )")
-            cleaned_data["avatar_img"] = default_storage.save(
-                f"uploads/{avatar_img.name}", ContentFile(avatar_img.read())
-            )
-            avatar_handled = True
-
-        keep_current_avatar = (
-            not clear_avatar and isinstance(avatar_img, str) and not avatar_handled
-        )
-        if keep_current_avatar:
-            cleaned_data["avatar_img"] = avatar_img
-
-        del cleaned_data["clear_avatar"]  # reset the clear_avatar field
-        return cleaned_data
+        return self.get_image_url_for_field(self.initial.get("avatar_img", ""))
 
 
 class IdentityPlugin(SimplePlugin):
