@@ -95,7 +95,6 @@ class IdentityForm(forms.Form):
         cleaned_data = super().clean()
         avatar_img = cleaned_data.get("avatar_img")
         clear_avatar = cleaned_data.get("clear_avatar")
-        print("cleaned_data: ", cleaned_data)
 
         avatar_handled = False
         just_clear_the_avatar = clear_avatar and not hasattr(
