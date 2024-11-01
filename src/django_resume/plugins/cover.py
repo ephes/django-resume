@@ -1,11 +1,8 @@
 from typing import Type
 
 from django import forms
-from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.http import HttpRequest
-from django.core.files.uploadedfile import InMemoryUploadedFile
-
 
 from .base import ListPlugin, ListItemFormMixin, ListInline, ContextDict
 
@@ -14,19 +11,11 @@ from ..markdown import (
     textarea_input_to_markdown,
     markdown_to_textarea_input,
 )
+from ..images import ImageFormMixin
 
 
 def link_handler(text, url):
     return f'<a href="{url}" class="underlined">{text}</a>'
-
-
-class CustomFileObject:
-    def __init__(self, filename):
-        self.name = filename
-        self.url = default_storage.url(filename)
-
-    def __str__(self):
-        return self.name
 
 
 class CoverItemForm(ListItemFormMixin, forms.Form):
@@ -71,7 +60,7 @@ class CoverItemForm(ListItemFormMixin, forms.Form):
         return context
 
 
-class CoverFlatForm(forms.Form):
+class CoverFlatForm(ImageFormMixin, forms.Form):
     title = forms.CharField(
         widget=forms.TextInput(), required=False, max_length=50, initial="Cover Title"
     )
@@ -80,29 +69,24 @@ class CoverFlatForm(forms.Form):
         max_length=100,
         required=False,
     )
+    clear_avatar = forms.BooleanField(
+        widget=forms.CheckboxInput, initial=False, required=False
+    )
     avatar_alt = forms.CharField(
         label="Profile photo alt text",
         max_length=100,
         initial="Profile photo",
         required=False,
     )
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Set initial image
-        initial_avatar_img_filename = self.initial.get("avatar_img")
-        if initial_avatar_img_filename is not None:
-            self.fields["avatar_img"].initial = CustomFileObject(
-                initial_avatar_img_filename
-            )
+    image_fields = [("avatar_img", "clear_avatar")]
 
     @property
     def avatar_img_url(self):
-        return default_storage.url(self.initial.get("avatar_img", ""))
+        return self.get_image_url_for_field(self.initial.get("avatar_img", ""))
 
     @staticmethod
     def set_context(item: dict, context: ContextDict) -> ContextDict:
-        image_url = default_storage.url(item.get("avatar_img", ""))
+        image_url = ImageFormMixin.get_image_url_for_field(item.get("avatar_img", ""))
         context["cover"] = {
             "title": item.get("title", ""),
             "avatar_alt": item.get("avatar_alt", ""),
@@ -111,26 +95,6 @@ class CoverFlatForm(forms.Form):
             "edit_flat_url": context["edit_flat_url"],
         }
         return context
-
-    def clean(self):
-        # super ugly - FIXME
-        cleaned_data = super().clean()
-        avatar_img = cleaned_data.get("avatar_img")
-
-        set_new_avatar_image = isinstance(avatar_img, InMemoryUploadedFile)
-        if set_new_avatar_image:
-            if avatar_img.size > 2 * 1024 * 1024:
-                raise forms.ValidationError("Image file too large ( > 2mb )")
-            cleaned_data["avatar_img"] = default_storage.save(
-                f"uploads/{avatar_img.name}", ContentFile(avatar_img.read())
-            )
-
-        keep_current_avatar = isinstance(avatar_img, str)
-
-        if keep_current_avatar:
-            cleaned_data["avatar_img"] = avatar_img
-
-        return cleaned_data
 
 
 class CoverPlugin(ListPlugin):
