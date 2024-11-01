@@ -1,5 +1,5 @@
 from collections.abc import Iterable
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from django import forms
 from django.core.files.base import ContentFile
@@ -42,7 +42,8 @@ class ImageFormMixin:
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        initial: dict[str, Any] | None = self.initial  # noqa
+        if TYPE_CHECKING:
+            initial: dict[str, Any] | None = self.initial  # noqa
         for field_name, _clear in self.image_fields:
             if self.initial is None:
                 continue
