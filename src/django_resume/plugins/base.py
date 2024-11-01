@@ -170,7 +170,7 @@ class SimpleAdmin:
         the form with errors.
         """
         resume = self.get_resume_or_error(request, resume_id)
-        form = self.form_class(request.POST)
+        form = self.form_class(request.POST, request.FILES)
         setattr(
             form, "post_url", self.get_change_post_url(resume.pk)
         )  # make mypy happy
@@ -742,7 +742,9 @@ class ListAdmin:
         resume = self.get_resume_or_error(request, resume_id)
         form_class = self.form_classes["item"]
         existing_items = self.data.get_data(resume).get("items", [])
-        form = form_class(request.POST, resume=resume, existing_items=existing_items)
+        form = form_class(
+            request.POST, request.FILES, resume=resume, existing_items=existing_items
+        )
         form.post_url = self.get_change_item_post_url(resume.pk)
         context = {"form": form}
         if form.is_valid():
@@ -778,7 +780,7 @@ class ListAdmin:
         """Handle post requests to update flat data."""
         resume = self.get_resume_or_error(request, resume_id)
         form_class = self.form_classes["flat"]
-        form = form_class(request.POST)
+        form = form_class(request.POST, request.FILES)
         form.post_url = self.get_change_flat_post_url(resume.pk)
         context = {"form": form}
         if form.is_valid():
