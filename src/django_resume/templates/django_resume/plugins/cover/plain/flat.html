@@ -5,11 +5,11 @@
         <svg class="edit-icon-h1" hx-get="{{ cover.edit_flat_url }}" hx-target="#cover-flat" hx-swap="outerHTML">
           <use href="#edit"></use>
         </svg>
-        <h1>{{ cover.title }}</h1>
+        <h1 class="cover-title">{{ cover.title }}</h1>
       </div>
     {% else %}
       <div>
-        <h1>{{ cover.title }}</h1>
+        <h1 class="cover-title">{{ cover.title }}</h1>
       </div>
     {% endif %}
   </header>

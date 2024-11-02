@@ -127,9 +127,14 @@ p.pretty {
     text-wrap: pretty;
 }
 
+.cover-title {
+    /*margin-block-start: var(--s1);*/
+    margin-block-end: var(--s1);
+}
 .first-cover-headline {
     font-size: 1.4rem;
     margin-block-end: var(--s0);
+    margin-block-start: var(--s2);
 }
 
 svg {
@@ -431,6 +436,7 @@ section {
     margin-right: var(--s1);
     transform: rotate(8deg);
     box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.3); /* X offset, Y offset, blur radius, shadow color */
+    border: white 5px solid;
 }
 
 .cover-avatar-edit-container {
