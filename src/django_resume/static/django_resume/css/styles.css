@@ -128,9 +128,9 @@ p.pretty {
 }
 
 .cover-title {
-    /*margin-block-start: var(--s1);*/
     margin-block-end: var(--s1);
 }
+
 .first-cover-headline {
     font-size: 1.4rem;
     margin-block-end: var(--s0);
@@ -391,6 +391,7 @@ header {
 
 h1 {
     font-size: calc(2.5 * var(--s0));
+    line-height: calc(2.5 * var(--s0));
     font-weight: 600;
 }
 
