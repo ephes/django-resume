@@ -1,4 +1,4 @@
-<section id="cover-flat">
+<editable-form id="cover-flat">
   <form
     id="form-cover"
     hx-post="{{ edit_flat_post_url }}"
@@ -60,10 +60,9 @@
               evt.detail.target.id === 'cover-flat'
           ) {
               if (document.getElementById('submit-cover')) {
-                  registerClickListenerForHiddenForm("cover-flat", "submit-cover", "form-cover");
                   registerClickListenerForAvatar();
               }
           }
       });
   </script>
-</section>
+</editable-form>

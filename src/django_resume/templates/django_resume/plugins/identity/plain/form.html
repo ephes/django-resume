@@ -1,4 +1,4 @@
-<section id="identity">
+<editable-form id="identity">
   <form
     id="form-identity"
     hx-post="{{ form.post_url }}"
@@ -135,10 +135,9 @@
               evt.detail.target.id === 'identity'
           ) {
               if (document.getElementById('submit-identity')) {
-                  registerClickListenerForHiddenForm("identity", "submit-identity", "form-identity");
                   registerClickListenerForAvatar();
               }
           }
       });
   </script>
-</section>
+</editable-form>

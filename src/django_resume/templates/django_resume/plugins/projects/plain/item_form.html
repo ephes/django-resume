@@ -1,4 +1,4 @@
-<div id="{{ plugin_name }}-item-{{ form.item_id }}" class="project-box stack stack-card">
+<editable-form id="{{ plugin_name }}-item-{{ form.item_id }}" class="project-box stack stack-card">
   {#  This is a hidden form that will be submitted by the button below.#}
   <form
     id="{{ plugin_name }}-form-{{ form.item_id }}"
@@ -46,25 +46,4 @@
       <use href="#ok"></use>
     </svg>  
   </button>
-  <script>
-      // Listen for htmx events to re-initialize when content is swapped
-      document.body.addEventListener('htmx:afterSwap', function (evt) {
-          console.log("target id: ", evt.detail.target.id, );
-          if (
-              evt.detail &&
-              evt.detail.target &&
-              (evt.detail.target.id === "{{ plugin_name }}-item-{{ form.item_id }}" ||
-               evt.detail.target.id === "projects-grid")
-          ) {
-              if (document.getElementById("{{ plugin_name }}-submit-item-{{ form.item_id }}")) {
-                  registerClickListenerForHiddenForm(
-                      "{{ plugin_name }}-item-{{ form.item_id }}",
-                      "{{ plugin_name }}-submit-item-{{ form.item_id }}",
-                      "{{ plugin_name }}-form-{{ form.item_id }}",
-                      "{{ form.item_id }}"
-                  );
-              }
-          }
-      });
-  </script>
-</div>
+</editable-form>

@@ -1,4 +1,4 @@
-<section id="skills" class="stack">
+<editable-form id="skills" class="stack">
   {#  This is a hidden form that will be submitted by the button below.#}
   <form
     id="form-skills"
@@ -27,18 +27,4 @@
       </svg>
     </button>
   </div>
-  <script>
-      // Listen for htmx events to re-initialize when content is swapped
-      document.body.addEventListener('htmx:afterSwap', function (evt) {
-          if (
-              evt.detail &&
-              evt.detail.target &&
-              evt.detail.target.id === 'skills'
-          ) {
-              if (document.getElementById('submit-skills')) {
-                  registerClickListenerForHiddenForm('skills', 'submit-skills', 'form-skills');
-              }
-          }
-      });
-  </script>
-</section>
+</editable-form>

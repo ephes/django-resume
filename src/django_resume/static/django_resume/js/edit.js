@@ -1,35 +1,52 @@
-/*
-If then submit button is clicked, then collect all the data from the contenteditable elements
-and copy them to the hidden input fields in the form. Then submit the form using htmx.
- */
+class EditableForm extends HTMLElement {
+    /*
+    If then submit button is clicked, then collect all the data from the contenteditable elements
+    and copy them to the hidden input fields in the form. Then submit the form using htmx.
+     */
 
-function registerClickListenerForHiddenForm(pluginId, submitId, formId, initialId = null) {
-    document.getElementById(submitId).addEventListener("click", function (e) {
-        const pluginElement = document.getElementById(pluginId);
-        const formElement = document.getElementById(formId);
-        const editableElements = pluginElement.querySelectorAll("[contenteditable=true]");
-        const formValues = {};
-        if (initialId != null) {
-            formValues["id"] = initialId;
-        }
-        editableElements.forEach((field) => {
-            const fieldName = field.dataset.field;
-            const fieldType = field.dataset.type;
-            let fieldValue;
-            if (fieldType === "html") {
-                fieldValue = field.innerHTML.trim();
-            } else {
-                fieldValue = field.textContent.trim();
-            }
-            formValues[fieldName] = fieldValue;
-            const hiddenInput = formElement.querySelector(`input[type="hidden"][data-field="${fieldName}"]`);
-            if (hiddenInput) {
-                hiddenInput.value = fieldValue;
-            }
+    constructor() {
+        super();
+        // Optionally, attach a shadow DOM if you want to encapsulate styles and markup further
+        // this.attachShadow({ mode: 'open' });
+    }
+
+    connectedCallback() {
+        // Access elements within the component
+        const formElement = this.querySelector('form');
+        const submitButton = this.querySelector('button[type="submit"]');
+        const contentEditableElements = this.querySelectorAll('[contenteditable="true"]');
+
+        submitButton.addEventListener('click', (e) => {
+            e.preventDefault(); // Prevent the default form submission
+
+            // Collect data from contenteditable elements
+            contentEditableElements.forEach((field) => {
+                const fieldName = field.dataset.field;
+                const fieldType = field.dataset.type;
+                let fieldValue;
+
+                if (fieldType === "html") {
+                    fieldValue = field.innerHTML.trim();
+                } else {
+                    fieldValue = field.textContent.trim();
+                }
+
+                // Update the corresponding hidden input field
+                const hiddenInput = formElement.querySelector(`input[type="hidden"][data-field="${fieldName}"]`);
+                if (hiddenInput) {
+                    hiddenInput.value = fieldValue;
+                }
+            });
+
+            // Submit the form using htmx
+            htmx.trigger(formElement, 'submit');
         });
-        htmx.trigger(formElement, "submit");
-    });
+    }
 }
+
+// Define the custom element
+customElements.define('editable-form', EditableForm);
+
 
 function registerClickListenerForAvatar() {
     function addContainerEventListeners(el) {
