@@ -22,7 +22,7 @@
     <div id="avatar-container" class="avatar-container cover-avatar-edit-container">
       {% if form.avatar_img.value %}
         <div class="stack">
-          <img class="avatar cover-avatar-image editable-avatar" src="{{ form.avatar_img_url }}" alt="{{ form.avatar_alt.value }}">
+          <img class="avatar cover-avatar-image editable-avatar" data-field="avatar_img" src="{{ form.avatar_img_url }}" alt="{{ form.avatar_alt.value }}">
           <p contenteditable="true" data-field="avatar_alt" style="max-width: 110px">{{ form.avatar_alt.value }}</p>
           {% for error in form.avatar_alt.errors %}
             <p class="error">{{ error|escape }}</p>
@@ -30,7 +30,7 @@
         </div>
       {% else %}
         <div class="stack">
-          <svg class="avatar editable-avatar">
+          <svg class="avatar editable-avatar" data-field="avatar_img">
             <use href="#avatar"></use>
           </svg>
           {% for error in form.avatar_img.errors %}
@@ -51,18 +51,4 @@
       </button>
     </div>
   </div>
-  <script>
-      // Listen for htmx events to re-initialize when content is swapped
-      document.body.addEventListener('htmx:afterSwap', function (evt) {
-          if (
-              evt.detail &&
-              evt.detail.target &&
-              evt.detail.target.id === 'cover-flat'
-          ) {
-              if (document.getElementById('submit-cover')) {
-                  registerClickListenerForAvatar();
-              }
-          }
-      });
-  </script>
 </editable-form>

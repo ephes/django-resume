@@ -1,13 +1,6 @@
 class EditableForm extends HTMLElement {
-    /*
-    If then submit button is clicked, then collect all the data from the contenteditable elements
-    and copy them to the hidden input fields in the form. Then submit the form using htmx.
-     */
-
     constructor() {
         super();
-        // Optionally, attach a shadow DOM if you want to encapsulate styles and markup further
-        // this.attachShadow({ mode: 'open' });
     }
 
     connectedCallback() {
@@ -41,92 +34,104 @@ class EditableForm extends HTMLElement {
             // Submit the form using htmx
             htmx.trigger(formElement, 'submit');
         });
+
+        // Handle file inputs and their preview elements
+        const fileInputs = this.querySelectorAll('input[type="file"]');
+
+        fileInputs.forEach((fileInput) => {
+            this.setupFileInput(fileInput);
+        });
+    }
+
+    setupFileInput(fileInput) {
+        const fieldName = fileInput.name;
+        let previewElements = Array.from(this.querySelectorAll(`.editable-avatar[data-field="${fieldName}"]`));
+
+        const addEventListenersToPreviewElement = (previewElement) => {
+            previewElement.addEventListener('click', () => {
+                fileInput.click();
+            });
+
+            previewElement.addEventListener('dragover', (event) => {
+                event.preventDefault();
+                previewElement.classList.add('drag-over');
+            });
+
+            previewElement.addEventListener('dragleave', () => {
+                previewElement.classList.remove('drag-over');
+            });
+
+            previewElement.addEventListener('drop', (event) => {
+                event.preventDefault();
+                previewElement.classList.remove('drag-over');
+                const file = event.dataTransfer.files[0];
+                if (file) {
+                    handleFileUpload(file);
+                    updateFileInput(file);
+                }
+            });
+        };
+
+        const handleFileUpload = (file) => {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const result = event.target.result;
+
+                previewElements.forEach((previewElement) => {
+                    if (previewElement.tagName.toLowerCase() === 'svg') {
+                        const imgElement = document.createElement('img');
+                        imgElement.classList = previewElement.classList;
+                        imgElement.dataset.field = previewElement.dataset.field;
+                        imgElement.src = result;
+
+                        if (previewElement.hasAttribute('width')) {
+                            imgElement.setAttribute('width', previewElement.getAttribute('width'));
+                        }
+                        if (previewElement.hasAttribute('height')) {
+                            imgElement.setAttribute('height', previewElement.getAttribute('height'));
+                        }
+
+                        previewElement.parentNode.replaceChild(imgElement, previewElement);
+
+                        const index = previewElements.indexOf(previewElement);
+                        previewElements[index] = imgElement;
+
+                        addEventListenersToPreviewElement(imgElement);
+                    } else {
+                        previewElement.src = result;
+                    }
+                });
+            };
+            reader.readAsDataURL(file);
+        };
+
+        const updateFileInput = (file) => {
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
+
+            try {
+                fileInput.files = dataTransfer.files;
+            } catch (error) {
+                // Handle the error during tests or in environments where assignment fails
+                // Optionally, log the error or ignore it
+            }
+        }
+
+        previewElements.forEach((previewElement) => {
+            addEventListenersToPreviewElement(previewElement);
+        });
+
+        fileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                handleFileUpload(file);
+            }
+        });
     }
 }
 
 // Define the custom element
 customElements.define('editable-form', EditableForm);
-
-
-function registerClickListenerForAvatar() {
-    function addContainerEventListeners(el) {
-        el.addEventListener('click', function (event) {
-            avatarFileInput.click();
-        });
-
-        el.addEventListener('dragover', function (event) {
-            event.preventDefault();
-            avatarContainer.classList.add('drag-over');
-        });
-
-        el.addEventListener('dragleave', function () {
-            avatarContainer.classList.remove('drag-over');
-        });
-
-        el.addEventListener('drop', function (event) {
-            event.preventDefault();
-            avatarContainer.classList.remove('drag-over');
-            const file = event.dataTransfer.files[0];
-            if (file) {
-                previewImage(file);
-                updateFileInput(file); // Assign the dropped file to the file input
-            }
-        });
-    }
-
-    let avatarContainer = document.querySelector("img.editable-avatar, svg.editable-avatar");
-    const avatarFileInput = document.getElementById("avatar-img");
-    addContainerEventListeners(avatarContainer);
-
-    avatarFileInput.addEventListener('change', function (event) {
-        handleFileUpload(event.target.files[0]);
-        previewImage(event.target.files[0]);
-    });
-
-    // Handle the file (either from drag-drop or file input)
-    function handleFileUpload(file) {
-        const reader = new FileReader();
-        reader.onload = function (event) {
-            // Preview the image
-            avatarContainer.src = event.target.result;
-        }
-        reader.readAsDataURL(file);
-    }
-
-    function previewImage(file) {
-        const reader = new FileReader();
-        reader.onload = function (event) {
-            // Check if the avatarContainer is an <img> or <svg>
-            const result = event.target.result;  // Data URL of the selected image
-            if (avatarContainer.tagName.toLowerCase() === 'svg') {
-                // Create a new <img> element to replace the <svg>
-                const imgElement = document.createElement('img');
-                imgElement.classList.add('avatar')
-                imgElement.classList.add('editable-avatar');  // Add the same class
-                imgElement.src = result;  // Set the data URL as the src
-                imgElement.width = avatarContainer.getAttribute('width');
-                imgElement.height = avatarContainer.getAttribute('height');
-
-                // Replace the <svg> with the new <img>
-                avatarContainer.parentNode.replaceChild(imgElement, avatarContainer);
-
-                // Update avatarContainer to reference the new img element and add event listeners
-                avatarContainer = imgElement;
-                addContainerEventListeners(avatarContainer);
-            } else {
-                // If it's already an <img>, just update the src
-                avatarContainer.src = result;
-            }
-        };
-        reader.readAsDataURL(file);  // Read file as data URL for preview
-    }
-
-    function updateFileInput(file) {
-        const dataTransfer = new DataTransfer();
-        dataTransfer.items.add(file);
-        avatarFileInput.files = dataTransfer.files; // Set the new file list to the input
-    }
-}
 
 
 /**
