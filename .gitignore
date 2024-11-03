@@ -24,3 +24,6 @@ node_modules/
 
 # playwright
 auth.json
+
+# media for e2e tests
+e2e_tests/media/

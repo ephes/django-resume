@@ -16,6 +16,12 @@ def admin_index_url(base_url: str) -> str:
     return base_url + admin_path
 
 
+@pytest.fixture
+def resume_list_url(base_url: str) -> str:
+    list_path = reverse("django_resume:list")
+    return base_url + list_path
+
+
 @pytest.fixture(scope="session")
 def save_auth_state(base_url: str, browser: Browser):
     page = browser.new_page()
