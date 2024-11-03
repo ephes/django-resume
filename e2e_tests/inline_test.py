@@ -126,3 +126,39 @@ def test_create_resume_cover_letter_inline(
     # Then I should see the new cover item
     assert page.locator("h3:has-text('Cover item title')").is_visible()
     assert page.locator("p:has-text('Cover paragraph content...')").is_visible()
+
+
+def test_create_resume_cv_inline(
+    page_with_resume: Page, admin_index_url: str, base_url: str
+):
+    # Given a resume exists and I am on the resume detail page
+    page = page_with_resume
+
+    # When I click on the "Edit CV" link
+    page.click("a.underlined[href='/resume/john-doe/cv/']")
+
+    # And I click on the "Edit Mode" checkbox
+    checkbox = page.locator("#edit-mode")
+    checkbox.click()
+
+    # And I click on the timeline "Edit" button
+    page.locator("#freelance_timeline .edit-icon-small").first.click()
+
+    # And I fill out the inline form and submit it
+    page.locator('input.editable-h2[name="title"]').fill("New Timeline Title")
+    page.locator('button[type="submit"]').click()
+
+    # Then I should see the new timeline title
+    assert page.locator("h2:has-text('New Timeline Title')").is_visible()
+
+    # When I click on the "Add Item" button
+    page.locator("#add-freelance_timeline-icon").click()
+
+    # And I fill out the inline form and submit it
+    page.locator('[contenteditable="true"][data-field="company_name"]').fill(
+        "New Company Name"
+    )
+    page.locator('button[type="submit"]').click()
+
+    # Then I should see the new timeline item
+    assert page.locator("h3:has-text('New Company Name')").is_visible()
