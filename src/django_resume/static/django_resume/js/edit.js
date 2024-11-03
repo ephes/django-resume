@@ -153,7 +153,7 @@ class BadgeEditor extends HTMLElement {
                 <ul class="cluster cluster-list">
                     <!-- Badges will be inserted here -->
                     <li>
-                        <input type="text" placeholder="Add badge">
+                        <input type="text" class="small-input" placeholder="Add badge">
                         <button type="button">Add</button>
                     </li>        
                 </ul>

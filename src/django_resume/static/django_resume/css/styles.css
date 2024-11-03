@@ -450,3 +450,8 @@ section {
 .cover-avatar-image {
     width: 100%;
 }
+
+.small-input {
+    min-width: 10px;
+    max-width: 20ch;
+}

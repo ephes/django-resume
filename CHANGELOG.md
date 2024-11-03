@@ -3,6 +3,7 @@
 
 ### Fixes
 - Some minor style fixes
+- Fixed the input field overflow in the project item badge editor
 
 0.1.4 - 2024-11-01
 ==================
