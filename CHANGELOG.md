@@ -1,6 +1,10 @@
 0.1.5 - 2024-11-07
 ==================
 
+### Features
+- Added a new custom 403 page for the CV page when there's no token with a 
+  mailto link to the owner of the CV to request access
+
 ### Fixes
 - Some minor style fixes
 - Fixed the input field overflow in the project item badge editor

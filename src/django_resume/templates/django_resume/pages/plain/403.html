@@ -1,0 +1,14 @@
+{% extends "./base.html" %}
+
+{% block body %}
+  <body class="center">
+    <main class="stack-large">
+      <h1>Access Token Needed for CV</h1>
+      <p>
+        Hi there! It looks like you’ll need an access token to view this page. Just send a quick email to
+        <a href="mailto:{{ identity.email }}?subject=Token%20Request&body=I'd%20like%20to%20get%20an%20cv%20access%20token.">{{ identity.name }}</a>,
+        and he’ll be happy to help you get access!
+      </p>
+    </main>
+  </body>
+{% endblock body %}

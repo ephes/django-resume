@@ -2,12 +2,14 @@ from typing import Any
 
 from django.contrib.auth.decorators import login_required
 from django import forms
+from django.core.exceptions import PermissionDenied
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render, get_object_or_404
 from django.views.decorators.http import require_http_methods
 
 from .models import Resume
 from .plugins import plugin_registry
+from .plugins.base import ContextDict
 
 
 def get_edit_and_show_urls(request: HttpRequest) -> tuple[str, str]:
@@ -19,6 +21,21 @@ def get_edit_and_show_urls(request: HttpRequest) -> tuple[str, str]:
     query_params["edit"] = "true"
     edit_url = f"{request.path}?{query_params.urlencode()}"
     return edit_url, show_url
+
+
+def get_context_from_plugins(
+    request: HttpRequest, resume: Resume, context: ContextDict
+) -> ContextDict:
+    show_edit_button = context.get("show_edit_button", False)
+    for plugin in plugin_registry.get_all_plugins():
+        context[plugin.name] = plugin.get_context(
+            request,
+            plugin.get_data(resume),
+            resume.pk,
+            context={},
+            edit=show_edit_button,
+        )
+    return context
 
 
 def resume_cv(request: HttpRequest, slug: str) -> HttpResponse:
@@ -47,13 +64,23 @@ def resume_cv(request: HttpRequest, slug: str) -> HttpResponse:
         "edit_url": edit_url,
         "show_url": show_url,
     }
-    for plugin in plugin_registry.get_all_plugins():
-        context[plugin.name] = plugin.get_context(
+    try:
+        context = get_context_from_plugins(request, resume, context)
+    except PermissionDenied:
+        # invalid or missing token for example
+        identity_plugin = plugin_registry.get_plugin("identity")
+        context["identity"] = identity_plugin.get_context(
             request,
-            plugin.get_data(resume),
+            identity_plugin.get_data(resume),
             resume.pk,
-            context={},
-            edit=show_edit_button,
+            context=context,
+            edit=False,
+        )
+        return render(
+            request,
+            f"django_resume/pages/{current_theme}/403.html",
+            context=context,
+            status=403,
         )
     return render(
         request, f"django_resume/pages/{current_theme}/resume_cv.html", context=context

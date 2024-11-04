@@ -136,6 +136,34 @@ def test_resume_detail_view(client, resume):
 
 
 @pytest.mark.django_db
+def test_get_cv_view(client, resume):
+    # Given a resume in the database and the token plugin activated
+    resume.owner.save()
+    resume.save()
+    plugin_registry.register(TokenPlugin)
+
+    # When we access the cv page without a token
+    cv_url = reverse("resume:cv", kwargs={"slug": resume.slug})
+    r = client.get(cv_url)
+
+    # Then the response should be a 403
+    assert r.status_code == 403
+
+    # With a custom error message
+    content = r.content.decode("utf-8")
+    assert "Access Token Needed for CV" in content
+
+    # When we access the cv page with a token
+    token = "testtoken"
+    resume.plugin_data["token"] = {"items": [{"token": token}]}
+    resume.save()
+    r = client.get(f"{cv_url}?token={token}")
+
+    # Then the response should be successful
+    assert r.status_code == 200
+
+
+@pytest.mark.django_db
 def test_cv_editable_only_for_authenticated_users(client, resume):
     # Given a resume in the database and the token plugin deactivated
     resume.owner.save()
