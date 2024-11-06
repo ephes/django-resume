@@ -1,0 +1,29 @@
+<section id="permission_denied">
+  <header>
+    {% if show_edit_button %}
+      <div class="with-edit-icon-big">
+        <svg class="edit-icon-h1" hx-get="{{ permission_denied.edit_url }}" hx-target="#permission_denied" hx-swap="outerHTML">
+          <use href="#edit"></use>
+        </svg>
+        <h1 class="title">{{ permission_denied.title }}</h1>
+      </div>
+    {% else %}
+      <div>
+        <h1 class="title">{{ permission_denied.title }}</h1>
+      </div>
+    {% endif %}
+  </header>
+  <div class="avatar-container float-right cover-avatar-container">
+    {% if permission_denied.avatar_img %}
+      <img class="cover-avatar-image" src="{{ permission_denied.avatar_img_url }}" alt="{{ permission_denied.avatar_alt }}">
+    {% else %}
+      <svg class="avatar" width="auto" height="3vw">
+        <use href="#avatar"></use>
+      </svg>
+    {% endif %}
+  </div>
+  <h3 class="first-cover-headline">{{ permission_denied.sub_title }}</h3>
+  <p class="pretty">
+    {{ permission_denied.text|safe}}
+  </p>
+</section>

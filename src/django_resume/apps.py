@@ -11,6 +11,7 @@ class ResumeConfig(AppConfig):
             FreelanceTimelinePlugin,
             EmployedTimelinePlugin,
             TokenPlugin,
+            PermissionDeniedPlugin,
             ProjectsPlugin,
             EducationPlugin,
             AboutPlugin,
@@ -24,6 +25,7 @@ class ResumeConfig(AppConfig):
         plugin_registry.register(FreelanceTimelinePlugin)
         plugin_registry.register(EmployedTimelinePlugin)
         plugin_registry.register(EducationPlugin)
+        plugin_registry.register(PermissionDeniedPlugin)
         plugin_registry.register(ProjectsPlugin)
         plugin_registry.register(AboutPlugin)
         plugin_registry.register(SkillsPlugin)

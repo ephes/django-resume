@@ -183,3 +183,42 @@ def resume_delete(request: HttpRequest, slug: str) -> HttpResponse:
 
     resume.delete()
     return HttpResponse(status=200)  # 200 instead of 204 for htmx compatibility
+
+
+@login_required
+@require_http_methods(["GET"])
+def cv_403(request: HttpRequest, slug: str) -> HttpResponse:
+    """
+    Inline edit view for the 403 page.
+
+    Only the owner of the resume can see this view.
+    """
+    resume = get_object_or_404(Resume, slug=slug)
+    if resume.owner != request.user:
+        return HttpResponse(status=403)
+
+    current_theme = (
+        plugin_registry.get_plugin("theme").get_data(resume).get("name", "plain")
+    )
+    edit = bool(dict(request.GET).get("edit", False))
+    edit_url, show_url = get_edit_and_show_urls(request)
+    print("edit_url", edit_url)
+    print("show_url", show_url)
+    context = {
+        "resume": resume,
+        "is_editable": True,
+        "show_edit_button": edit,
+        "edit_url": edit_url,
+        "show_url": show_url,
+    }
+    permission_denied_plugin = plugin_registry.get_plugin("permission_denied")
+    context["permission_denied"] = permission_denied_plugin.get_context(
+        request,
+        permission_denied_plugin.get_data(resume),
+        resume.pk,
+        context={},
+        edit=edit,
+    )
+    return render(
+        request, f"django_resume/pages/{current_theme}/cv_403.html", context=context
+    )

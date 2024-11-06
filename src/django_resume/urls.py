@@ -19,4 +19,5 @@ urlpatterns = [
     path("<slug:slug>/", views.resume_detail, name="detail"),
     path("<slug:slug>/cv/", views.resume_cv, name="cv"),
     path("cv/<slug:slug>/", CvRedirectView.as_view(), name="cv-redirect"),
+    path("<slug:slug>/403/", views.cv_403, name="403"),
 ]
