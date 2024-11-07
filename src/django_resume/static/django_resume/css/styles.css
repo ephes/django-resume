@@ -66,6 +66,7 @@ h1, h2, h3, h4, h5, h6 {
     font-optical-sizing: auto;
     color: var(--color-black);
     margin: 0; /* Removes default margin to remove gaps between sections */
+    word-spacing: -0.3ch; /* Adds space between words */
 }
 
 p, ul, label {
