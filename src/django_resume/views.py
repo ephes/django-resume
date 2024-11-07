@@ -202,8 +202,6 @@ def cv_403(request: HttpRequest, slug: str) -> HttpResponse:
     )
     edit = bool(dict(request.GET).get("edit", False))
     edit_url, show_url = get_edit_and_show_urls(request)
-    print("edit_url", edit_url)
-    print("show_url", show_url)
     context = {
         "resume": resume,
         "is_editable": True,
