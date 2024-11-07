@@ -147,7 +147,7 @@ input[type="checkbox"]:checked::before {
 
 .with-edit-icon-big {
     display: inline-flex;
-    align-items: center;
+    align-items: start;
     gap: var(--s-2);
 }
 
@@ -160,6 +160,7 @@ input[type="checkbox"]:checked::before {
 .edit-icon-h1 {
     height: calc(2 * var(--s0));
     width: calc(2 * var(--s0));
+    margin-top: calc(0.1 * var(--s0));
     cursor: pointer;
 }
 
