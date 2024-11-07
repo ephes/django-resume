@@ -7,7 +7,7 @@ from . import views
 class CvRedirectView(RedirectView):
     permanent = True
 
-    def get_redirect_url(self, *args, **kwargs):
+    def get_redirect_url(self, *args, **kwargs) -> str:
         slug = kwargs["slug"]
         return reverse("django_resume:cv", kwargs={"slug": slug})
 

@@ -5,8 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "django>=5.1.1",
-    "pytest-playwright>=0.5.2",
+    "django>=4.2",
 ]
 
 [build-system]
@@ -16,11 +15,12 @@ include = ["src/django_resume"]
 
 [tool.uv]
 dev-dependencies = [
-    "pytest>=8.3.3",
-    "pytest-django>=4.9.0",
-    "django-extensions>=3.2.3",
-    "django-stubs[compatible-mypy]>=5.0.4",
-    "coverage>=7.6.1",
+    "pytest>=8",
+    "pytest-django>=4",
+    "django-extensions>=3",
+    "django-stubs[compatible-mypy]>=5",
+    "coverage>=7",
+    "pytest-playwright>=0.5",
 ]
 
 [tool.pytest.ini_options]

@@ -1,5 +1,5 @@
 from collections.abc import Iterable
-from typing import Any, TYPE_CHECKING
+from typing import Any, cast
 
 from django import forms
 from django.core.files.base import ContentFile
@@ -18,7 +18,7 @@ class CustomFileObject:
         self.name = filename
         self.url = default_storage.url(filename)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name
 
 
@@ -40,14 +40,13 @@ class ImageFormMixin:
     fields: dict
     image_fields: Iterable[tuple[str, str]] = []  # [("image_field", "clear_field")]
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        if TYPE_CHECKING:
-            initial: dict[str, Any] | None = self.initial  # noqa
+        initial = cast(dict[str, Any], self.initial)  # type: ignore
         for field_name, _clear in self.image_fields:
-            if self.initial is None:
+            if initial is None:
                 continue
-            initial_filename = self.initial.get(field_name)
+            initial_filename = initial.get(field_name)
             if initial_filename is not None:
                 self.fields[field_name].initial = CustomFileObject(initial_filename)
 
@@ -87,8 +86,8 @@ class ImageFormMixin:
         del cleaned_data[clear_field]  # reset the clear image field
         return cleaned_data
 
-    def clean(self):
-        cleaned_data = super().clean()
+    def clean(self) -> dict[str, Any]:
+        cleaned_data = super().clean()  # type: ignore
         for image_field, clear_field in self.image_fields:
             cleaned_data = self.do_clean_image_field(
                 cleaned_data, image_field, clear_field

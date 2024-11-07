@@ -45,9 +45,6 @@ def resume_cv(request: HttpRequest, slug: str) -> HttpResponse:
     By default, you need a token to be able to see the CV.
     """
     resume = get_object_or_404(Resume.objects.select_related("owner"), slug=slug)
-    current_theme = (
-        plugin_registry.get_plugin("theme").get_data(resume).get("name", "plain")
-    )
 
     edit = bool(dict(request.GET).get("edit", False))
     is_editable = request.user.is_authenticated and resume.owner == request.user
@@ -68,22 +65,16 @@ def resume_cv(request: HttpRequest, slug: str) -> HttpResponse:
         context = get_context_from_plugins(request, resume, context)
     except PermissionDenied:
         # invalid or missing token for example
-        identity_plugin = plugin_registry.get_plugin("identity")
-        context["identity"] = identity_plugin.get_context(
-            request,
-            identity_plugin.get_data(resume),
-            resume.pk,
-            context=context,
-            edit=False,
-        )
         return render(
             request,
-            f"django_resume/pages/{current_theme}/cv_403.html",
+            f"django_resume/pages/{resume.current_theme}/cv_403.html",
             context=context,
             status=403,
         )
     return render(
-        request, f"django_resume/pages/{current_theme}/resume_cv.html", context=context
+        request,
+        f"django_resume/pages/{resume.current_theme}/resume_cv.html",
+        context=context,
     )
 
 
@@ -95,9 +86,6 @@ def resume_detail(request: HttpRequest, slug: str) -> HttpResponse:
     At the moment, it is used for the cover letter.
     """
     resume = get_object_or_404(Resume.objects.select_related("owner"), slug=slug)
-    current_theme = (
-        plugin_registry.get_plugin("theme").get_data(resume).get("name", "plain")
-    )
 
     edit = bool(dict(request.GET).get("edit", False))
     is_editable = request.user.is_authenticated and resume.owner == request.user
@@ -115,17 +103,19 @@ def resume_detail(request: HttpRequest, slug: str) -> HttpResponse:
     plugin_names = ["about", "identity", "cover", "theme"]
     for name in plugin_names:
         plugin = plugin_registry.get_plugin(name)
+        if plugin is None:
+            continue
         context[plugin.name] = plugin.get_context(
             request,
             plugin.get_data(resume),
             resume.pk,
             context={},
             edit=show_edit_button,
-            theme=current_theme,
+            theme=resume.current_theme,
         )
     return render(
         request,
-        f"django_resume/pages/{current_theme}/resume_detail.html",
+        f"django_resume/pages/{resume.current_theme}/resume_detail.html",
         context=context,
     )
 
@@ -197,9 +187,6 @@ def cv_403(request: HttpRequest, slug: str) -> HttpResponse:
     if resume.owner != request.user:
         return HttpResponse(status=403)
 
-    current_theme = (
-        plugin_registry.get_plugin("theme").get_data(resume).get("name", "plain")
-    )
     edit = bool(dict(request.GET).get("edit", False))
     edit_url, show_url = get_edit_and_show_urls(request)
     context = {
@@ -210,6 +197,8 @@ def cv_403(request: HttpRequest, slug: str) -> HttpResponse:
         "show_url": show_url,
     }
     permission_denied_plugin = plugin_registry.get_plugin("permission_denied")
+    if permission_denied_plugin is None:
+        return HttpResponse(status=404)
     context["permission_denied"] = permission_denied_plugin.get_context(
         request,
         permission_denied_plugin.get_data(resume),
@@ -218,5 +207,7 @@ def cv_403(request: HttpRequest, slug: str) -> HttpResponse:
         edit=edit,
     )
     return render(
-        request, f"django_resume/pages/{current_theme}/cv_403.html", context=context
+        request,
+        f"django_resume/pages/{resume.current_theme}/cv_403.html",
+        context=context,
     )

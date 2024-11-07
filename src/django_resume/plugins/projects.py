@@ -1,6 +1,6 @@
 import json
 
-from typing import Type
+from typing import Type, cast, Any
 
 from django import forms
 from django.http import HttpRequest
@@ -14,7 +14,7 @@ from ..markdown import (
 )
 
 
-def link_handler(text, url):
+def link_handler(text: str, url: str) -> str:
     return f'<a href="{url}" class="underlined">{text}</a>'
 
 
@@ -28,15 +28,17 @@ class ProjectItemForm(ListItemFormMixin, forms.Form):
     )
     position = forms.IntegerField(widget=forms.NumberInput(), required=False)
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.set_initial_position()
         # Transform initial text from markdown to textarea input.
-        self.initial["description"] = markdown_to_textarea_input(
+        initial = cast(dict[str, Any], self.initial)
+        initial["description"] = markdown_to_textarea_input(
             self.initial.get("description", "")
         )
+        self.initial = initial
 
-    def badges_as_json(self):
+    def badges_as_json(self) -> str:
         """
         Return the initial badges which should already be a normal list of strings
         or the initial_badged list for the first render of the form encoded as json.
@@ -70,23 +72,27 @@ class ProjectItemForm(ListItemFormMixin, forms.Form):
         }
         return context
 
-    def set_initial_badges(self):
+    def set_initial_badges(self) -> None:
         """Transform the list of badges into a comma-separated string."""
-        if "badges" in self.initial and isinstance(self.initial["badges"], list):
-            self.initial["badges"] = ",".join(self.initial["badges"])
+        initial = cast(dict[str, Any], self.initial)
+        if "badges" in initial and isinstance(initial["badges"], list):
+            initial["badges"] = ",".join(initial["badges"])
+        self.initial = initial
 
     @staticmethod
-    def get_max_position(items):
+    def get_max_position(items: list[dict]) -> int:
         """Return the maximum position value from the existing items."""
         positions = [item.get("position", 0) for item in items]
         return max(positions) if positions else -1
 
-    def set_initial_position(self):
+    def set_initial_position(self) -> None:
         """Set the position to the next available position."""
-        if "position" not in self.initial:
-            self.initial["position"] = self.get_max_position(self.existing_items) + 1
+        initial = cast(dict[str, Any], self.initial)
+        if "position" not in initial:
+            initial["position"] = self.get_max_position(self.existing_items) + 1
+        self.initial = initial
 
-    def clean_title(self):
+    def clean_title(self) -> str:
         title = self.cleaned_data["title"]
         if title == "Senor Developer":
             print("No Senor! Validation Error!")
@@ -96,7 +102,7 @@ class ProjectItemForm(ListItemFormMixin, forms.Form):
     def clean_description(self) -> str:
         return textarea_input_to_markdown(self.cleaned_data["description"])
 
-    def clean_position(self):
+    def clean_position(self) -> int:
         position = self.cleaned_data.get("position", 0)
         if position < 0:
             raise forms.ValidationError("Position must be a positive integer.")

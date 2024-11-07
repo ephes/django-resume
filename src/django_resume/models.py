@@ -10,10 +10,10 @@ class Resume(models.Model):
 
     objects: models.Manager["Resume"]  # make mypy happy
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<{self.name}>"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name
 
     @property
@@ -22,7 +22,17 @@ class Resume(models.Model):
 
         return TokenPlugin.token_is_required(self.plugin_data.get(TokenPlugin.name, {}))
 
-    def save(self, *args, **kwargs):
+    @property
+    def current_theme(self) -> str:
+        from .plugins import plugin_registry
+        from .plugins.theme import ThemePlugin
+
+        theme_plugin = plugin_registry.get_plugin(ThemePlugin.name)
+        if theme_plugin is not None:
+            return theme_plugin.get_data(self).get("name", "plain")
+        return "plain"
+
+    def save(self, *args, **kwargs) -> None:
         if self.plugin_data is None:
             self.plugin_data = {}
         super().save(*args, **kwargs)

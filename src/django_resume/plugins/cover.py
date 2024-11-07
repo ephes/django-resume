@@ -1,4 +1,4 @@
-from typing import Type
+from typing import Type, cast, Any
 
 from django import forms
 from django.core.files.storage import default_storage
@@ -14,7 +14,7 @@ from ..markdown import (
 from ..images import ImageFormMixin
 
 
-def link_handler(text, url):
+def link_handler(text: str, url: str) -> str:
     return f'<a href="{url}" class="underlined">{text}</a>'
 
 
@@ -31,12 +31,14 @@ class CoverItemForm(ListItemFormMixin, forms.Form):
         widget=forms.Textarea(),
     )
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         # Transform initial text from markdown to textarea input.
-        self.initial["text"] = markdown_to_textarea_input(self.initial.get("text", ""))
+        initial = cast(dict[str, Any], self.initial)
+        initial["text"] = markdown_to_textarea_input(self.initial.get("text", ""))
+        self.initial = initial
 
-    def clean_text(self):
+    def clean_text(self) -> str:
         text = self.cleaned_data["text"]
         text = textarea_input_to_markdown(text)
         return text
@@ -81,7 +83,7 @@ class CoverFlatForm(ImageFormMixin, forms.Form):
     image_fields = [("avatar_img", "clear_avatar")]
 
     @property
-    def avatar_img_url(self):
+    def avatar_img_url(self) -> str:
         return self.get_image_url_for_field(self.initial.get("avatar_img", ""))
 
     @staticmethod

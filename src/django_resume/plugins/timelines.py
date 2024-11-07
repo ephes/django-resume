@@ -20,7 +20,7 @@ from ..markdown import (
 )
 
 
-def link_handler(text, url):
+def link_handler(text: str, url: str) -> str:
     return f'<a href="{url}" class="underlined">{text}</a>'
 
 
@@ -54,15 +54,17 @@ class TimelineItemForm(ListItemFormMixin, forms.Form):
     position = forms.IntegerField(widget=forms.NumberInput(), required=False)
     initial: dict[str, Any]
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.set_initial_position()
         # Transform initial text from markdown to textarea input.
-        self.initial["description"] = markdown_to_textarea_input(
-            self.initial.get("description", "")
+        initial = cast(dict[str, Any], self.initial)
+        initial["description"] = markdown_to_textarea_input(
+            initial.get("description", "")
         )
+        self.initial = initial
 
-    def badges_as_json(self):
+    def badges_as_json(self) -> str:
         """
         Return the initial badges which should already be a normal list of strings
         or the initial_badged list for the first render of the form encoded as json.

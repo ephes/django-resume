@@ -68,7 +68,7 @@ class IdentityForm(ImageFormMixin, forms.Form):
     image_fields = [("avatar_img", "clear_avatar")]
 
     @property
-    def avatar_img_url(self):
+    def avatar_img_url(self) -> str:
         return self.get_image_url_for_field(self.initial.get("avatar_img", ""))
 
 

@@ -1,6 +1,6 @@
 from uuid import uuid4
 
-from typing import Protocol, runtime_checkable, Callable, TypeAlias, Any
+from typing import Protocol, runtime_checkable, Callable, TypeAlias, Any, cast
 
 from django import forms
 from django.contrib.auth.decorators import login_required
@@ -55,6 +55,7 @@ class Plugin(Protocol):
         *,
         context: dict,
         edit: bool = False,
+        theme: str = "plain",
     ) -> object:
         """Return the object which is stored in context for the plugin."""
         ...  # pragma: no cover
@@ -357,7 +358,6 @@ class SimpleInline:
             )
             context["show_edit_button"] = True
             context[self.plugin_name]["edit_url"] = self.get_edit_url(resume.pk)
-            print("render template: ", self.templates.main)
             return render(request, self.templates.main, context)
         # render the form again with errors
         return render(request, self.templates.form, context)
@@ -482,24 +482,25 @@ class ListItemFormMixin(forms.Form):
         super().__init__(*args, **kwargs)
 
     @property
-    def is_new(self):
+    def is_new(self) -> bool:
         """Used to determine if the form is for a new item or an existing one."""
         if self.is_bound:
             return False
         return not self.initial.get("id", False)
 
     @property
-    def item_id(self):
+    def item_id(self) -> str:
         """
         Use an uuid for the item id if there is no id in the initial data. This is to
         allow the htmx delete button to work even when there are multiple new item
         forms on the page.
         """
         if self.is_bound:
-            return self.cleaned_data.get("id", uuid4())
-        if self.initial.get("id") is None:
-            self.initial["id"] = uuid4()
-        return self.initial["id"]
+            return str(self.cleaned_data.get("id", uuid4()))
+        initial = cast(dict[str, Any], self.initial)
+        if initial.get("id") is None:
+            initial["id"] = str(uuid4())
+        return initial["id"]
 
 
 class ListThemedTemplates(ThemedTemplates):
@@ -523,7 +524,7 @@ class ListData:
     Simple crud operations are supported.
     """
 
-    def __init__(self, *, plugin_name: str):
+    def __init__(self, *, plugin_name: str) -> None:
         self.plugin_name = plugin_name
 
     # read
@@ -609,7 +610,7 @@ class ListAdmin:
         plugin_verbose_name,
         form_classes: dict,
         data: ListData,
-    ):
+    ) -> None:
         self.plugin_name = plugin_name
         self.plugin_verbose_name = plugin_verbose_name
         self.form_classes = form_classes
@@ -849,7 +850,7 @@ class ListInline:
         form_classes: dict,
         data: ListData,
         templates: ListThemedTemplates,
-    ):
+    ) -> None:
         self.plugin_name = plugin_name
         self.plugin_verbose_name = plugin_verbose_name
         self.form_classes = form_classes
@@ -1150,7 +1151,6 @@ class ListPlugin:
                 entry["delete_url"] = self.inline.get_delete_item_url(
                     resume_pk, item_id=entry["id"]
                 )
-        print("edit flat post: ", self.inline.get_edit_flat_post_url(resume_pk))
         context.update(
             {
                 "plugin_name": self.name,

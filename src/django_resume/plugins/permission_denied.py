@@ -11,7 +11,7 @@ from ..markdown import (
 )
 
 
-def link_handler(text, url):
+def link_handler(text: str, url: str) -> str:
     return f'<a href="{url}" class="underlined">{text}</a>'
 
 

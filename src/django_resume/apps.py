@@ -6,33 +6,24 @@ class ResumeConfig(AppConfig):
     name = "django_resume"
 
     @staticmethod
-    def register_plugins():
-        from .plugins import (
-            FreelanceTimelinePlugin,
-            EmployedTimelinePlugin,
-            TokenPlugin,
-            PermissionDeniedPlugin,
-            ProjectsPlugin,
-            EducationPlugin,
-            AboutPlugin,
-            SkillsPlugin,
-            IdentityPlugin,
-            CoverPlugin,
-            ThemePlugin,
-            plugin_registry,
+    def register_plugins() -> None:
+        from . import plugins
+
+        plugins.plugin_registry.register_plugin_list(
+            [
+                plugins.FreelanceTimelinePlugin,
+                plugins.EmployedTimelinePlugin,
+                plugins.EducationPlugin,
+                plugins.PermissionDeniedPlugin,
+                plugins.ProjectsPlugin,
+                plugins.AboutPlugin,
+                plugins.SkillsPlugin,
+                plugins.ThemePlugin,
+                plugins.TokenPlugin,
+                plugins.IdentityPlugin,
+                plugins.CoverPlugin,
+            ]
         )
 
-        plugin_registry.register(FreelanceTimelinePlugin)
-        plugin_registry.register(EmployedTimelinePlugin)
-        plugin_registry.register(EducationPlugin)
-        plugin_registry.register(PermissionDeniedPlugin)
-        plugin_registry.register(ProjectsPlugin)
-        plugin_registry.register(AboutPlugin)
-        plugin_registry.register(SkillsPlugin)
-        plugin_registry.register(ThemePlugin)
-        plugin_registry.register(TokenPlugin)
-        plugin_registry.register(IdentityPlugin)
-        plugin_registry.register(CoverPlugin)
-
-    def ready(self):
+    def ready(self) -> None:
         self.register_plugins()

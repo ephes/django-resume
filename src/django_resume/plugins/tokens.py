@@ -7,18 +7,19 @@ from django.core.exceptions import PermissionDenied
 from django.http import HttpRequest
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.safestring import mark_safe
+from django.utils.safestring import mark_safe, SafeString
 
 from .base import ListPlugin, ListItemFormMixin
+from ..models import Resume
 
 
-def generate_random_string(length=20):
+def generate_random_string(length=20) -> str:
     return "".join(random.choices(string.ascii_letters + string.digits, k=length))
 
 
 class HTMLLinkWidget(forms.Widget):
-    def render(self, name, value, attrs=None, renderer=None):
-        return mark_safe(value) if value else ""
+    def render(self, name, value, attrs=None, renderer=None) -> SafeString:
+        return mark_safe(value) if value else mark_safe("")
 
 
 class TokenItemForm(ListItemFormMixin, forms.Form):
@@ -27,7 +28,7 @@ class TokenItemForm(ListItemFormMixin, forms.Form):
     created = forms.DateTimeField(widget=forms.HiddenInput(), required=False)
     cv_link = forms.CharField(required=False, label="CV Link", widget=HTMLLinkWidget())
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
         if not self.initial.get("token"):
@@ -35,32 +36,34 @@ class TokenItemForm(ListItemFormMixin, forms.Form):
         self.token = self.initial.get("token") or self.fields["token"].initial
 
         if "created" in self.initial and isinstance(self.initial["created"], str):
-            self.initial["created"] = datetime.fromisoformat(self.initial["created"])
+            self.initial["created"] = datetime.fromisoformat(self.initial["created"])  # type: ignore
         else:
             # Set the 'created' field to the current time if it's not already set
             self.fields["created"].initial = timezone.now()
 
         self.generate_cv_link(self.resume)
 
-    def generate_cv_link(self, resume):
+    def generate_cv_link(self, resume: Resume) -> None:
         base_url = reverse("django_resume:cv", kwargs={"slug": resume.slug})
         link = f"{base_url}?token={self.token}"
         self.fields["cv_link"].initial = mark_safe(
             f'<a href="{link}" target="_blank">{link}</a>'
         )
 
-    def clean_token(self):
+    def clean_token(self) -> str:
         token = self.cleaned_data["token"]
         if not token:
             raise forms.ValidationError("Token required.")
         return token
 
-    def clean_created(self):
+    def clean_created(self) -> str:
         created = self.cleaned_data["created"]
         return created.isoformat()
 
-    def clean(self):
+    def clean(self) -> dict:
         cleaned_data = super().clean()
+        if cleaned_data is None:
+            return {}
         cleaned_data.pop("cv_link", None)  # Remove 'cv_link' from cleaned_data
         return cleaned_data
 
@@ -87,14 +90,15 @@ class TokenPlugin(ListPlugin):
     flat_form_template = "django_resume/plain/token_flat_form.html"
 
     @staticmethod
-    def get_admin_item_form():
+    def get_admin_item_form() -> type[forms.Form]:
         return TokenItemForm
 
     @staticmethod
-    def get_admin_form():
+    def get_admin_form() -> type[forms.Form]:
         return TokenForm
 
-    def get_form_classes(self):
+    @staticmethod
+    def get_form_classes() -> dict[str, type[forms.Form]]:
         return {"item": TokenItemForm, "flat": TokenForm}
 
     @staticmethod

@@ -2,7 +2,7 @@ import re
 from typing import Callable
 
 
-def textarea_input_to_markdown(text):
+def textarea_input_to_markdown(text: str) -> str:
     # <br> to \n
     text = text.replace("<br>", "\n")
 
@@ -13,14 +13,14 @@ def textarea_input_to_markdown(text):
     return text
 
 
-def markdown_to_textarea_input(text):
+def markdown_to_textarea_input(text: str) -> str:
     # \n to <br>
     text = text.replace("\n", "<br>")
 
     return text
 
 
-def markdown_to_html(text, handlers: dict[str, Callable] | None = None):
+def markdown_to_html(text: str, handlers: dict[str, Callable] | None = None) -> str:
     """
     Really simple markdown to HTML converter.
 
