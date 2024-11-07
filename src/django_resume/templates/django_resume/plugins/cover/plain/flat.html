@@ -13,15 +13,14 @@
       </div>
     {% endif %}
   </header>
-  <div class="avatar-container float-right cover-avatar-container">
-    {% if cover.avatar_img %}
+  {% if cover.avatar_img %}
+    <div class="avatar-container float-right cover-avatar-container">
       <img class="cover-avatar-image" src="{{ cover.avatar_img_url }}" alt="{{ cover.avatar_alt }}">
-    {% else %}
       <svg class="avatar" width="auto" height="3vw">
         <use href="#avatar"></use>
       </svg>
-    {% endif %}
-  </div>
+    </div>
+  {% endif %}
   {% if not show_edit_button %}
     <h3 class="first-cover-headline">{{ cover.first_item.title }}</h3>
     <p class="pretty">
