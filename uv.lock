@@ -191,7 +191,6 @@ version = "0.1.4"
 source = { editable = "." }
 dependencies = [
     { name = "django" },
-    { name = "pytest-playwright" },
 ]
 
 [package.dev-dependencies]
@@ -201,21 +200,20 @@ dev = [
     { name = "django-stubs", extra = ["compatible-mypy"] },
     { name = "pytest" },
     { name = "pytest-django" },
+    { name = "pytest-playwright" },
 ]
 
 [package.metadata]
-requires-dist = [
-    { name = "django", specifier = ">=5.1.1" },
-    { name = "pytest-playwright", specifier = ">=0.5.2" },
-]
+requires-dist = [{ name = "django", specifier = ">=4.2" }]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "coverage", specifier = ">=7.6.1" },
-    { name = "django-extensions", specifier = ">=3.2.3" },
-    { name = "django-stubs", extras = ["compatible-mypy"], specifier = ">=5.0.4" },
-    { name = "pytest", specifier = ">=8.3.3" },
-    { name = "pytest-django", specifier = ">=4.9.0" },
+    { name = "coverage", specifier = ">=7" },
+    { name = "django-extensions", specifier = ">=3" },
+    { name = "django-stubs", extras = ["compatible-mypy"], specifier = ">=5" },
+    { name = "pytest", specifier = ">=8" },
+    { name = "pytest-django", specifier = ">=4" },
+    { name = "pytest-playwright", specifier = ">=0.5" },
 ]
 
 [[package]]
