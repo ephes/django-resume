@@ -16,6 +16,12 @@ class Resume(models.Model):
     def __str__(self):
         return self.name
 
+    @property
+    def token_is_required(self) -> bool:
+        from .plugins.tokens import TokenPlugin
+
+        return TokenPlugin.token_is_required(self.plugin_data.get(TokenPlugin.name, {}))
+
     def save(self, *args, **kwargs):
         if self.plugin_data is None:
             self.plugin_data = {}

@@ -98,10 +98,14 @@ class TokenPlugin(ListPlugin):
         return {"item": TokenItemForm, "flat": TokenForm}
 
     @staticmethod
-    def check_permissions(request: HttpRequest, plugin_data: dict) -> None:
-        token_required = plugin_data.get("flat", {"token_required": True}).get(
+    def token_is_required(plugin_data: dict) -> bool:
+        return plugin_data.get("flat", {"token_required": True}).get(
             "token_required", True
         )
+
+    @staticmethod
+    def check_permissions(request: HttpRequest, plugin_data: dict) -> None:
+        token_required = TokenPlugin.token_is_required(plugin_data)
         if not token_required or request.user.is_authenticated:
             return None
         form = TokenViaGetForm(request.GET)

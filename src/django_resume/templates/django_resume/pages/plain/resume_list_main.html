@@ -7,8 +7,10 @@
         <a class="underlined" href="{% url 'django_resume:detail' resume.slug %}">Cover</a>
         |
         <a class="underlined" href="{% url 'django_resume:cv' resume.slug %}">CV</a>
-        |
-        <a class="underlined" href="{% url 'django_resume:403' resume.slug %}">403</a>
+        {% if resume.token_is_required %}
+          |
+          <a class="underlined" href="{% url 'django_resume:403' resume.slug %}">403</a>
+        {% endif %}
         <button
           class="resume-delete-button"
           hx-delete="{% url 'django_resume:delete' resume.slug %}"
