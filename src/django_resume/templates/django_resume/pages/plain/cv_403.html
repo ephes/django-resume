@@ -9,7 +9,9 @@
   {% else %}
     <body class="center">
   {% endif %}
-{% include "./edit_panel.html" %}
+  {% if is_editable %}
+    {% include "./edit_panel.html" %}
+  {% endif %}
 <main>
   {% include permission_denied.templates.main %}
 </main>

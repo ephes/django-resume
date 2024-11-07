@@ -78,7 +78,7 @@ def resume_cv(request: HttpRequest, slug: str) -> HttpResponse:
         )
         return render(
             request,
-            f"django_resume/pages/{current_theme}/403.html",
+            f"django_resume/pages/{current_theme}/cv_403.html",
             context=context,
             status=403,
         )
