@@ -2,10 +2,12 @@
 :root {
     font-family: "Martian Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     font-optical-sizing: auto;
-    font-weight: 100;
+    font-weight: 200;
     font-style: normal;
     font-variation-settings: "wdth" 87.5;
     --font-color: #66727f;
+    /*--word-spacing: -0.3ch;*/
+    --word-spacing: normal;
     color: var(--font-color);
     font-size: 15px;
     line-height: 1.4rem;
@@ -20,7 +22,7 @@
     --color-brightblue-transparent: #0071c7;
     --color-darkblue: rgba(0, 113, 199, 0.7);
     --color-darkblue-transparent: rgba(52, 136, 218, 0.3);
-    --measure: 75ch;
+    --measure: 70ch;
     --ratio: 1.5;
     --border-thin: 1px;
     --border-color: #e3e3e3;
@@ -66,12 +68,12 @@ h1, h2, h3, h4, h5, h6 {
     font-optical-sizing: auto;
     color: var(--color-black);
     margin: 0; /* Removes default margin to remove gaps between sections */
-    word-spacing: -0.3ch; /* Adds space between words */
+    word-spacing: var(--word-spacing); /* Adds space between words */
 }
 
 p, ul, label {
     margin: 0; /* Removes default margin to remove gaps between sections */
-    word-spacing: -0.3ch; /* Adds space between words */
+    word-spacing: var(--word-spacing); /* Adds space between words */
 }
 
 hr {

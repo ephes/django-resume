@@ -12,19 +12,32 @@
     <link rel="stylesheet" type="text/css" href="{% static "django_resume/css/styles.css" %}">
     <link media="print" rel="stylesheet" href="{% static "django_resume/css/print.css" %}"/>
     {% if is_editable %}
-      <script src="https://unpkg.com/htmx.org@2.0.3" integrity="sha384-0895/pl2MU10Hqc6jd4RvrthNlDiE9U1tWmX7WRESftEDRosgxNsQG/Ze9YMRzHq" crossorigin="anonymous"></script>
+      <script src="https://unpkg.com/htmx.org@2.0.3"
+              integrity="sha384-0895/pl2MU10Hqc6jd4RvrthNlDiE9U1tWmX7WRESftEDRosgxNsQG/Ze9YMRzHq"
+              crossorigin="anonymous"></script>
       <link rel="stylesheet" type="text/css" href="{% static "django_resume/css/edit.css" %}">
     {% endif %}
   {% endblock styles %}
   {% block fonts %}
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <noscript>
-      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..500&display=swap" rel="stylesheet">
-      <link
-        href="https://fonts.googleapis.com/css2?family=Inconsolata:wght@200..900&family=Martian+Mono:wght@100..800&display=swap"
-        rel="stylesheet">
-    </noscript>
+    <style>
+        @font-face {
+            font-family: 'Inter';
+            font-style: normal;
+            font-weight: 600;
+            font-display: swap;
+            src: url({% static "django_resume/fonts/inter_600.woff2" %}) format('woff2'),
+            url({% static "django_resume/fonts/inter_600.ttf" %}) format('truetype');
+        }
+        @font-face {
+            font-family: 'Martian Mono';
+            font-style: normal;
+            font-weight: 200;
+            font-stretch: normal;
+            font-display: swap;
+            src: url({% static "django_resume/fonts/martian_mono_200.woff2" %}) format('woff2'),
+            url({% static "django_resume/fonts/martian_mono_200.ttf" %}) format('truetype');
+        }
+    </style>
   {% endblock fonts %}
   {% include "./icons.svg" %}
 </head>
