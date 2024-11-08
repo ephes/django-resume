@@ -1,3 +1,10 @@
+0.1.7 - 2024-11-08
+==================
+
+### Fixes
+- Avoid h1 -> h3
+- Reserve space for image to avoid layout shift
+
 0.1.6 - 2024-11-08
 ==================
 
