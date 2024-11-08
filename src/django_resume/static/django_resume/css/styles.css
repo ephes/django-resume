@@ -5,12 +5,10 @@
     font-weight: 200;
     font-style: normal;
     font-variation-settings: "wdth" 87.5;
-    --font-color: #66727f;
-    /*--word-spacing: -0.3ch;*/
-    --word-spacing: normal;
+    --font-color: #555e6a;
     color: var(--font-color);
-    font-size: 15px;
-    line-height: 1.4rem;
+    font-size: 14px;
+    line-height: 1.5rem;
     --color-black: black;
     --color-white: white;
     --color-ultralightgrey: rgb(235, 236, 241);
@@ -68,12 +66,12 @@ h1, h2, h3, h4, h5, h6 {
     font-optical-sizing: auto;
     color: var(--color-black);
     margin: 0; /* Removes default margin to remove gaps between sections */
-    word-spacing: var(--word-spacing); /* Adds space between words */
+    /*word-spacing: var(--word-spacing); !* Adds space between words *!*/
 }
 
 p, ul, label {
     margin: 0; /* Removes default margin to remove gaps between sections */
-    word-spacing: var(--word-spacing); /* Adds space between words */
+    word-spacing: -0.2ch; /* Adds space between words */
 }
 
 hr {
@@ -131,7 +129,7 @@ p.pretty {
 }
 
 .cover-title {
-    margin-block-end: var(--s1);
+    /*margin-block-end: var(--s1);*/
 }
 
 .first-cover-headline {
@@ -383,6 +381,7 @@ svg {
 .sub-line {
     font-size: calc(1.1 * var(--s0));
     color: var(--color-black);
+    font-weight: 300;
 }
 
 header {
