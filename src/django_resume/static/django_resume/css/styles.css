@@ -431,9 +431,11 @@ section {
 }
 
 .cover-avatar-container {
+    overflow: hidden;
     width: 15vw;
     min-width: 100px;
     max-width: 130px;
+    aspect-ratio: 4 / 5.5;
     margin-left: var(--s1);
     margin-bottom: var(--s1);
     margin-right: var(--s1);
@@ -450,7 +452,9 @@ section {
 }
 
 .cover-avatar-image {
+    height: auto;
     width: 100%;
+    object-fit: cover;
 }
 
 .small-input {
