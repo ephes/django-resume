@@ -19,6 +19,9 @@
     {% endif %}
   {% endblock styles %}
   {% block fonts %}
+    <link href="{% static "django_resume/fonts/inter_600.woff2" %}" rel="preload" as="font" type="font/woff2" crossorigin="anonymous">
+    <link href="{% static "django_resume/fonts/martian_mono_200.woff2" %}" rel="preload" as="font" type="font/woff2" crossorigin="anonymous">
+    <link href="{% static "django_resume/fonts/martian_mono_300.woff2" %}" rel="preload" as="font" type="font/woff2" crossorigin="anonymous">
     <style>
         @font-face {
             font-family: 'Inter';

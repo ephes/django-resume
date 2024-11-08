@@ -15,10 +15,10 @@
   </header>
   {% if cover.avatar_img %}
     <div class="avatar-container float-right cover-avatar-container">
-      <img class="cover-avatar-image" src="{{ cover.avatar_img_url }}" alt="{{ cover.avatar_alt }}">
-      <svg class="avatar" width="auto" height="3vw">
-        <use href="#avatar"></use>
-      </svg>
+      <img
+        class="cover-avatar-image"
+        src="{{ cover.avatar_img_url }}" alt="{{ cover.avatar_alt }}"
+      >
     </div>
   {% endif %}
   {% if not show_edit_button %}
