@@ -1,4 +1,4 @@
-0.1.5 - 2024-11-07
+0.1.5 - 2024-11-08
 ==================
 
 ### Features
@@ -9,6 +9,7 @@
 - Some minor style fixes
 - Fixed the input field overflow in the project item badge editor
 - New e2e tests for inline editing
+- Use the correct fonts (inter + martian mono)
 
 0.1.4 - 2024-11-01
 ==================
