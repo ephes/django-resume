@@ -47,7 +47,7 @@ def get_image_metadata_from_bytesio(
                     b = input.read(1)
                 while ord(b) == 0xFF:
                     b = input.read(1)
-                if ord(b) >= 0xC0 and ord(b) <= 0xC3:
+                if 0xC0 <= ord(b) <= 0xC3:
                     input.read(3)
                     h, w = struct.unpack(">HH", input.read(4))
                     break
