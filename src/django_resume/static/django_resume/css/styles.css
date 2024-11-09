@@ -38,13 +38,6 @@
     --s5: calc(var(--s4) * var(--ratio));
 }
 
-body {
-    background-image: url('/static/django_resume/img/white-linen.png');
-    background-repeat: repeat;
-    background-size: 560px;
-    background-position: top left;
-}
-
 .container {
     display: flex;
     flex-direction: column;

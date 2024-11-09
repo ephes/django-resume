@@ -1,3 +1,9 @@
+0.1.8 - 2024-11-09
+==================
+
+### Refactor
+- Move definition of the background pattern to html to be able to use the static template tag
+
 0.1.7 - 2024-11-08
 ==================
 

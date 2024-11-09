@@ -49,6 +49,12 @@
             src: url({% static "django_resume/fonts/martian_mono_300.woff2" %}) format('woff2'),
             url({% static "django_resume/fonts/martian_mono_300.ttf" %}) format('truetype');
         }
+        body {
+            background-image: url({% static "django_resume/img/white-linen.png" %});
+            background-repeat: repeat;
+            background-size: 560px;
+            background-position: top left;
+        }
     </style>
   {% endblock fonts %}
   {% include "./icons.svg" %}
