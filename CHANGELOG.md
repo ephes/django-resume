@@ -1,3 +1,9 @@
+0.1.9 - 2024-11-09
+==================
+
+### Refactor
+- Simplify some image recognition code
+
 0.1.8 - 2024-11-09
 ==================
 
