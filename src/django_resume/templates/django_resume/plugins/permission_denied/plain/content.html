@@ -15,7 +15,15 @@
   </header>
   <div class="avatar-container float-right cover-avatar-container">
     {% if permission_denied.avatar_img %}
-      <img class="cover-avatar-image" src="{{ permission_denied.avatar_img_url }}" alt="{{ permission_denied.avatar_alt }}">
+      <img
+        class="cover-avatar-image"
+        {% if cover.avatar_img_width %}
+          width="{{ cover.avatar_img_width }}"
+          height="{{ cover.avatar_img_height }}"
+        {%  endif %}
+        src="{{ permission_denied.avatar_img_url }}"
+        alt="{{ permission_denied.avatar_alt }}"
+      >
     {% else %}
       <svg class="avatar" width="auto" height="3vw">
         <use href="#avatar"></use>

@@ -4,6 +4,9 @@
 ### Refactor
 - Move definition of the background pattern to html to be able to use the static template tag
 
+### Features
+- Image dimensions for cover and permission denied image
+
 0.1.7 - 2024-11-08
 ==================
 

@@ -17,6 +17,10 @@
     <div class="avatar-container float-right cover-avatar-container">
       <img
         class="cover-avatar-image"
+        {% if cover.avatar_img_width %}
+          width="{{ cover.avatar_img_width }}"
+          height="{{ cover.avatar_img_height }}"
+        {%  endif %}
         src="{{ cover.avatar_img_url }}" alt="{{ cover.avatar_alt }}"
       >
     </div>
