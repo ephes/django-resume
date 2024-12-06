@@ -1,3 +1,12 @@
+0.1.10 - 2024-12-06
+==================
+
+### Features
+- Make the title of the about section on the CV editable
+
+### Fixes
+- Fix 2 playwright tests
+
 0.1.9 - 2024-11-09
 ==================
 
