@@ -105,7 +105,7 @@ def test_create_resume_cover_letter(
     assert page.locator("h1:has-text('Some Cover Letter Title')").count() > 0
 
     # And I should see the cover letter section title
-    assert page.locator("h3:has-text('Added Cover Section Title')").count() > 0
+    assert page.locator("h2:has-text('Added Cover Section Title')").count() > 0
 
     # And I should see the cover letter content
     assert page.locator("p:has-text('Your cover letter content here')").count() > 0

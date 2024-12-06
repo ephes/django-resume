@@ -1,6 +1,6 @@
 import pytest
 
-from playwright.sync_api import Page
+from playwright.sync_api import Page, expect
 
 
 def test_resume_list_page(logged_in_page: Page, resume_list_url: str):
@@ -149,7 +149,8 @@ def test_create_resume_cv_inline(
     page.locator('button[type="submit"]').click()
 
     # Then I should see the new timeline title
-    assert page.locator("h2:has-text('New Timeline Title')").is_visible()
+    new_item = page.locator("h2:has-text('New Timeline Title')")
+    expect(new_item).to_be_visible()  # expect waits for the element to be visible
 
     # When I click on the "Add Item" button
     page.locator("#add-freelance_timeline-icon").click()
