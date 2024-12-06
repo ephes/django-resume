@@ -1,5 +1,11 @@
+0.1.11 - 2024-12-06
+===================
+
+### Fixes
+- Fix package builds
+
 0.1.10 - 2024-12-06
-==================
+===================
 
 ### Features
 - Make the title of the about section on the CV editable

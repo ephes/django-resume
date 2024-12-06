@@ -1,6 +1,6 @@
 [project]
 name = "django-resume"
-version = "0.1.10"
+version = "0.1.11"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -11,7 +11,12 @@ dependencies = [
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
-include = ["src/django_resume"]
+
+[tool.hatch.build.targets.sdist]
+packages = ["src/django_resume"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/django_resume"]
 
 [tool.uv]
 dev-dependencies = [
