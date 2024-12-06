@@ -69,3 +69,14 @@ Cleanup the test database after running the tests:
 ```shell
 python manage.py remove_all_resumes
 ```
+
+## Build + Publish the package
+
+```
+uv build --sdist --wheel
+```
+
+Publish the package to test.pypi.org:
+```shell
+uv publish --token token
+```
