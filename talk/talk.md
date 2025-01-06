@@ -3,17 +3,9 @@
 
 --- <!-- Slide 1 -->
 
-> UIs are big, messy, mutable, stateful bags of sadness.   --[Josh Abernathy](http://joshaber.github.io/2015/01/30/why-react-native-matters/)
-
-# This alone is more than enough to get you in deep trouble.
-
-- HTML
-- CSS
-- Django
-
---- <!-- Slide 2 -->
-
 # The Mainstream Approach
+
+ > The Programmers’ Credo: we do these things not because they are easy, but because we thought they were going to be easy --[Pinboard](https://x.com/Pinboard/status/761656824202276864)
 
 Maybe scatter all the words over a slide?
 
@@ -30,9 +22,19 @@ Separated over at least 2 Teams. Deployed to Kubernetes.
 
 Anecdote: One of the developers put their Python in a weirdly named virtualenv and the tailwind build step ran over it on every change which led to taking 40s instead of a few milliseconds for each. Spoiler: It was the Frontend Dev who was not aware of virtualenvs which made him kind of less productive (found out via pair programming - do it!).
 
+--- <!-- Slide 2 -->
+
+> UIs are big, messy, mutable, stateful bags of sadness.   --[Josh Abernathy](http://joshaber.github.io/2015/01/30/why-react-native-matters/)
+
+# This alone is more than enough to get you in deep trouble.
+
+- HTML
+- CSS
+- Django
+
 --- <!-- Slide 3 -->
 
-# How far can we go with the Things on the First Slide?
+# How far can we go with the Things on the Last Slide?
 
 - Use browser features before reaching for frameworks
 - Server-side rendering is often enough
@@ -46,8 +48,12 @@ Anecdote: One of the developers put their Python in a weirdly named virtualenv a
 Just a simple Django app that allows you to create a resume and CV.
 
 - Short Demo?
+- How is this possible?
 
 --- <!-- Slide 5 -->
+
+# Simplifying Data Management with JSONField
+
 
 
 
