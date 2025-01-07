@@ -3,7 +3,15 @@
 
 --- <!-- Slide 1 -->
 
-# The Mainstream Approach
+# Who am I?
+
+--- <!-- Slide 2 -->
+
+# What this talk is about
+
+--- <!-- Slide 3 -->
+
+# The Mainstream Approach / maybe two slides
 
  > The Programmers’ Credo: we do these things not because they are easy, but because we thought they were going to be easy --[Pinboard](https://x.com/Pinboard/status/761656824202276864)
 
@@ -22,7 +30,7 @@ Separated over at least 2 Teams. Deployed to Kubernetes.
 
 Anecdote: One of the developers put their Python in a weirdly named virtualenv and the tailwind build step ran over it on every change which led to taking 40s instead of a few milliseconds for each. Spoiler: It was the Frontend Dev who was not aware of virtualenvs which made him kind of less productive (found out via pair programming - do it!).
 
---- <!-- Slide 2 -->
+--- <!-- Slide 4 -->
 
 > UIs are big, messy, mutable, stateful bags of sadness.   --[Josh Abernathy](http://joshaber.github.io/2015/01/30/why-react-native-matters/)
 
@@ -32,16 +40,16 @@ Anecdote: One of the developers put their Python in a weirdly named virtualenv a
 - CSS
 - Django
 
---- <!-- Slide 3 -->
+--- <!-- Slide 5 -->
 
-# How far can we go with the Things on the Last Slide?
+# How far can we go with the Things on the previous Slide?
 
 - Use browser features before reaching for frameworks
 - Server-side rendering is often enough
 - HTMX + Web Components = powerful combination
 - JSON storage enables flexibility without complexity
 
---- <!-- Slide 4 -->
+--- <!-- Slide 6 -->
 
 # django-resume
 
