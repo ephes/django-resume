@@ -15,20 +15,20 @@ pytest
 
 ## Run mypy
 
-```bash
+```shell
 uv run mypy src
 ```
 
 ## Run coverage
 
-```bash
+```shell
 coverage run -m pytest
 coverage report
 ```
 
 ## Run the javascript tests
 
-```bash
+```shell
 npx vitest run
 ```
 
