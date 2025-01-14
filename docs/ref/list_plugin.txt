@@ -1,0 +1,203 @@
+====================
+The ListPlugin Class
+====================
+.. module:: django_resume.plugins
+   :noindex:
+
+.. admonition:: About this document
+
+   This reference covers the ``ListPlugin`` class and its related components.
+   They implement a plugin that displays a list of items with simple CRUD (Create,
+   Read, Update, Delete) operations, both in the Django admin and via inline editing
+   on the website.
+
+Plugin Overview
+===============
+
+``ListPlugin``
+--------------
+
+A plugin class designed to manage **lists** of JSON-serializable items, each of
+which must have an ``"id"`` key. It also supports **flat** data, stored under
+the ``plugin_data['flat']`` key. Items can be created, updated, or deleted via
+admin or inline views.
+
+**Key Attributes:**
+
+- **name**: A short string identifying the plugin, defaulting to ``"list_plugin"``.
+- **verbose_name**: A human-readable display name, defaulting to ``"List Plugin"``.
+- **template_class**: Handles theme-based template resolution. Defaults to
+  :class:`ListThemedTemplates`.
+- **sort_by_reverse_position**: A boolean indicating whether items should be
+  sorted in reverse order (by the ``"position"`` key). Defaults to ``True``.
+
+**Main Components:**
+
+- **Data Handling**: :class:`ListData` manages CRUD operations on plugin data
+  (stored in ``Resume.plugin_data["list_plugin"]`` by default).
+- **Admin Editing**: :class:`ListAdmin` provides Django admin views for listing
+  items, adding new items, etc.
+- **Inline Editing**: :class:`ListInline` offers front-end (inline) views for
+  editing data on the website itself.
+
+Construction and Initialization
+===============================
+
+**__init__()**
+
+Initializes the plugin:
+
+1. Instantiates :class:`ListData` for storing and retrieving plugin data.
+2. Creates :attr:`templates` by calling :attr:`template_class` with the plugin
+   name and a dictionary of default template names (``"flat_form"``, ``"item_form"``,
+   etc.).
+3. Calls :meth:`.get_form_classes()` to obtain a dict of form classes used for
+   flat data and list items. These are stored in:
+   - :attr:`admin` (:class:`ListAdmin`) for Django admin.
+   - :attr:`inline` (:class:`ListInline`) for inline editing.
+
+Usage
+-----
+
+You typically register ``ListPlugin`` with the plugin registry, so that django-resume
+can detect and display it:
+
+.. code-block:: python
+
+   from django_resume.plugins.plugin_registry import plugin_registry
+   from .list_plugin import ListPlugin
+
+   plugin_registry.register(ListPlugin)
+
+Plugin Methods
+==============
+
+Below are the core methods that integrate ``ListPlugin`` into django-resume.
+
+**get_form_classes()**
+
+Returns a dictionary mapping strings (like ``"flat"`` or ``"item"``) to Django
+:class:`~django.forms.Form` classes. By default, returns an empty dict. Override
+this or set it on a subclass to provide actual forms for items and flat data.
+
+**get_data(resume)**
+
+Retrieves the plugin’s data dictionary from the given :class:`~django_resume.models.Resume`.
+Internally delegates to :meth:`ListData.get_data`.
+
+.. code-block:: python
+
+   def get_data(self, resume: Resume) -> dict:
+       return self.data.get_data(resume)
+
+**get_context(_request, plugin_data, resume_pk, *, context, edit=False, theme="plain")**
+
+Builds the plugin context for display on the website (inline editing). For example,
+if no ``"flat"`` data exists, it populates it with initial form data. It updates
+the context with ordered items (using :meth:`items_ordered_by_position`) and adds
+edit or delete URLs if editing is enabled.
+
+- **_request**: The current ``HttpRequest``. Typically unused here.
+- **plugin_data** (dict): Data from the resume’s ``plugin_data`` for this plugin.
+- **resume_pk** (int): The primary key of the :class:`Resume`.
+- **context** (dict): An existing context dict to be updated.
+- **edit** (bool): Whether the user is allowed to see edit controls (buttons, etc.).
+- **theme** (str): Theme name. Default is ``"plain"``.
+
+**items_ordered_by_position(items, reverse=False)**
+
+A static helper method that sorts a list of items by the ``"position"`` key (default 0).
+If :attr:`sort_by_reverse_position` is True, it will use reverse sorting by default
+in :meth:`get_context`.
+
+Admin and Inline Integration
+============================
+
+**get_admin_urls(admin_view)**
+
+Returns the URL patterns (a list of :func:`django.urls.path`) used for admin-side
+management, e.g.:
+
+- ``<resume_id>/plugin/list_plugin/change/``
+- ``<resume_id>/plugin/list_plugin/item/post/``
+- etc.
+
+Internally delegates to :attr:`admin` (an instance of :class:`ListAdmin`).
+
+**get_admin_link(resume_id)**
+
+Returns an HTML string linking to the admin view for a given resume ID. Renders
+an empty string if ``resume_id`` is ``None``.
+
+**get_inline_urls()**
+
+Returns the URL patterns for inline editing. Internally delegates to :attr:`inline`
+(an instance of :class:`ListInline`).
+
+Example Subclass
+================
+
+.. code-block:: python
+
+   from django import forms
+   from django_resume.plugins.list_plugin import ListPlugin, ListItemFormMixin
+
+   class MyItemForm(ListItemFormMixin):
+       title = forms.CharField(max_length=100, initial="My Title")
+       position = forms.IntegerField(initial=0)
+
+   class MyListPlugin(ListPlugin):
+       name = "my_list_plugin"
+       verbose_name = "My List Plugin"
+
+       @staticmethod
+       def get_form_classes() -> dict[str, type[forms.Form]]:
+           # Provide a "flat" form and an "item" form
+           return {
+               "flat": forms.Form,        # or your custom flat form
+               "item": MyItemForm,
+           }
+
+       # Optionally override get_context, etc.
+
+In this example:
+
+- ``MyListPlugin`` is registered with django-resume the same way as other plugins.
+- ``get_form_classes()`` returns a dictionary with a key ``"item"`` referencing
+  our custom ``MyItemForm`` (subclassing :class:`ListItemFormMixin`).
+- We can also add or override methods to customize how the plugin data is presented.
+
+Additional Classes
+==================
+
+``ListData``
+------------
+Handles the actual CRUD logic on the plugin data. For example, :meth:`ListData.create`
+appends a new item dict, while :meth:`ListData.delete` removes an item from the list
+by matching on its ``"id"``.
+
+``ListAdmin``
+-------------
+Defines Django admin views (using :meth:`ListAdmin.get_change_view`, etc.) to
+display, edit, and remove list items. Produces URLs for admin operations like
+``.../item/post/``, ``.../item/add/``, etc.
+
+``ListInline``
+--------------
+Contains the inline editing logic for the website. For instance:
+- ``get_edit_flat_view`` returns a form to edit “flat” data (non-list data).
+- ``get_item_view`` returns a form to add or edit a single item.
+- ``post_item_view`` processes that form data, creating or updating items in the plugin’s list.
+
+``ListThemedTemplates``
+-----------------------
+A subclass of :class:`ThemedTemplates` that provides default template names
+(``"flat.html"``, ``"item_form.html"``, etc.) for rendering lists and items.
+
+Summary
+=======
+By combining :class:`ListPlugin` with appropriate forms, you can create custom
+plugins that display and manage lists of user-defined items—both in the Django
+admin and inline on the website. This approach ensures your plugin’s data is
+always stored consistently in ``Resume.plugin_data``, with minimal duplication
+of logic between admin and front-end editing.
