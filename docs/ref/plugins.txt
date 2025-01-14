@@ -1,6 +1,6 @@
-===============
+==============
 The Plugin API
-===============
+==============
 .. module:: django_resume.plugins
 
 .. admonition:: About this document
@@ -10,7 +10,7 @@ The Plugin API
    included in a django-resume project.
 
 Plugin Attributes
-================
+=================
 
 Each plugin provides several class attributes to identify and configure it in
 the plugin registry.
