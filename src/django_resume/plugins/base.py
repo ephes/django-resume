@@ -22,7 +22,6 @@ ContextDict: TypeAlias = dict[str, Any]
 class Plugin(Protocol):
     name: str
     verbose_name: str
-    form_classes: FormClasses
 
     def get_admin_urls(self, admin_view: Callable) -> URLPatterns:
         """Return a list of urls that are used to manage the plugin data in the Django admin interface."""
@@ -34,13 +33,6 @@ class Plugin(Protocol):
 
     def get_inline_urls(self) -> URLPatterns:
         """Return a list of urls that are used to manage the plugin data inline."""
-        ...  # pragma: no cover
-
-    def get_form_classes(self) -> FormClasses:
-        """
-        Return a dictionary of form classes that are used to manage the plugin data.
-        Overwrite this method or set the form_classes attribute.
-        """
         ...  # pragma: no cover
 
     def get_data(self, resume: Resume) -> dict:
