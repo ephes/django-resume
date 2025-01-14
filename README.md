@@ -32,6 +32,12 @@ coverage report
 npx vitest run
 ```
 
+## Update javascript dependencies
+
+```shell
+npm update
+```
+
 ## Run end to end tests
 
 Install browsers for playwright:
