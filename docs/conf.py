@@ -6,7 +6,7 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = "Django Resume"
+project = "django-resume"
 copyright = "2025, Jochen Wersdörfer"
 author = "Jochen Wersdörfer"
 release = "0.1.11"
