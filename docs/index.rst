@@ -21,6 +21,12 @@ documentation for details.
 
 .. toctree::
     :maxdepth: 1
+    :caption: Reference Documentation
+
+    ref/plugins
+
+.. toctree::
+    :maxdepth: 1
     :caption: Developer Documentation
 
     develop
