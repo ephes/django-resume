@@ -26,6 +26,7 @@ documentation for details.
     ref/resume
     ref/plugins
     ref/registry
+    ref/views
 
 .. toctree::
     :maxdepth: 1
