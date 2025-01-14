@@ -1,0 +1,140 @@
+===============
+The Plugin API
+===============
+.. module:: django_resume.plugins
+
+.. admonition:: About this document
+
+   This reference covers the main classes and methods of django-resume’s plugin
+   architecture. It assumes familiarity with how plugins are registered and
+   included in a django-resume project.
+
+Plugin Attributes
+================
+
+Each plugin provides several class attributes to identify and configure it in
+the plugin registry.
+
+.. attribute:: name
+
+   A string used to identify the plugin in the plugin registry. This must be
+   unique among all installed plugins.
+
+.. attribute:: verbose_name
+
+   A human-readable name for the plugin. Used in the Django admin interface and
+   other user-facing areas.
+
+Plugin Methods
+==============
+
+Plugins must implement or can optionally override the following methods to
+integrate seamlessly with django-resume:
+
+.. method:: get_context(request, plugin_data, resume_pk, *, context, edit=False, theme="plain")
+
+   Returns the object (often a dictionary) to be stored in the template context
+   under this plugin’s key. Typical usage is to take the plugin’s data (e.g.,
+   from the database or a form) and prepare it for display.
+
+   .. note::
+
+      The ``resume_pk`` parameter must be passed because it might be needed to
+      generate edit URLs or other links that are unique to the current resume.
+      Often, ``resume_pk`` is **not** included in ``plugin_data``, so it’s important
+      to have it as a separate parameter.
+
+   :param request: The current ``HttpRequest`` instance.
+   :param plugin_data: A ``dict`` containing the plugin’s data (if any).
+   :param resume_pk: The primary key of the parent ``Resume`` object.
+   :param context: The existing template context for the resume.
+   :param edit: A boolean indicating whether the resume is in edit mode.
+   :param theme: The string name of the current resume theme, e.g. ``"plain"``.
+   :return: An object (commonly a dictionary) that is merged into the overall
+            resume’s context.
+
+.. method:: get_data(resume)
+
+   Returns the plugin’s data for the given resume. This typically returns
+   a dictionary that can be rendered or manipulated by the plugin’s forms.
+
+   :param resume: A ``Resume`` instance.
+   :return: A ``dict`` containing the plugin’s data for the specified resume.
+
+.. method:: get_admin_link(resume_id)
+
+   Returns a string of HTML linking to the plugin’s admin change view, typically
+   used in Django admin to allow quick editing of plugin data.
+
+   :param resume_id: The primary key of the ``Resume`` object.
+   :return: A string containing HTML markup for a link.
+
+.. method:: get_admin_urls(admin_view)
+
+   Returns the URL patterns required for the plugin’s admin interface. Typically,
+   this is a list of Django :func:`~django.urls.path` entries for editing or
+   viewing plugin-specific data in the admin.
+
+   :param admin_view: A callable usually wrapped with Django’s admin decorators.
+   :return: A list (or ``list-like``) of URLs (patterns) used by the plugin’s
+            admin functionality.
+
+.. method:: get_inline_urls()
+
+   Returns URL patterns used to manage the plugin’s data “inline,” outside of
+   the full Django admin. This is especially useful for front-end editing
+   (inline editing) or simpler UIs.
+
+   :return: A list (or ``list-like``) of URLs (patterns) for inline editing.
+
+Usage Example
+=============
+
+Below is a minimal plugin demonstrating how to implement these methods. By default,
+the ``name`` and ``verbose_name`` fields are required, along with definitions for
+``get_context``, ``get_data``, ``get_admin_link``, ``get_admin_urls``, and
+``get_inline_urls``:
+
+.. code-block:: python
+
+   class SomeNewPlugin:
+       name: str = "some_new_plugin"
+       verbose_name: str = "Some New Plugin"
+
+       def get_context(self, request, plugin_data, resume_pk, *, context, edit=False, theme="plain"):
+           # Return a dictionary or other object to merge into the resume's context
+           # Note: resume_pk may be needed to generate resume-specific URLs
+           return {"some_data": plugin_data.get("some_key", "default")}
+
+       def get_data(self, resume):
+           # Return the plugin data from the resume
+           return resume.plugin_data.get(self.name, {})
+
+       def get_admin_link(self, resume_id):
+           # Typically returns an HTML <a> element linking to a change form
+           url = reverse(f"admin:{self.name}-admin-change", kwargs={"resume_id": resume_id})
+           return format_html('<a href="{}">Edit {}</a>', url, self.verbose_name)
+
+       def get_admin_urls(self, admin_view):
+           return [
+               path(
+                   f"<int:resume_id>/plugin/{self.name}/change/",
+                   admin_view(self.some_admin_view),
+                   name=f"{self.name}-admin-change",
+               ),
+               # add more URLs as needed
+           ]
+
+       def get_inline_urls(self):
+           return [
+               path(
+                   f"<int:resume_id>/plugin/{self.name}/edit/",
+                   self.some_inline_view,
+                   name=f"{self.name}-edit",
+               ),
+               # add more URLs as needed
+           ]
+
+By adhering to these method signatures, django-resume can detect and manage your
+plugin automatically, making its data available in both the admin interface and
+the front-end inline editing views.
