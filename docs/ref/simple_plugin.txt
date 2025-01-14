@@ -1,0 +1,120 @@
+======================
+The SimplePlugin Class
+======================
+.. module:: django_resume.plugins
+   :noindex:
+
+.. admonition:: About this document
+
+   This reference covers the ``SimplePlugin`` class, which implements a basic
+   plugin for managing JSON-serializable data.
+
+Overview
+========
+
+``SimplePlugin``
+----------------
+
+A basic plugin class that manages data in a single dictionary. Each instance provides:
+
+- **name** (str): The plugin’s identifier, defaulting to ``"simple_plugin"``.
+- **verbose_name** (str): A user-friendly display name, defaulting to ``"Simple Plugin"``.
+- **template_class** (type): A class handling theme-based template customization
+  (default: :class:`SimpleThemedTemplates`).
+- **admin** (:class:`SimpleAdmin`): Manages admin-side editing of plugin data.
+- **inline** (:class:`SimpleInline`): Manages inline editing of plugin data.
+
+Plugin Methods
+==============
+
+**__init__()**
+
+Initializes the plugin. Creates a :class:`SimpleData` instance for JSON storage,
+sets up the plugin’s template paths, and instantiates ``SimpleAdmin`` and
+``SimpleInline`` objects.
+
+**get_context(_request, plugin_data, resume_pk, *, context, edit=False, theme="plain")**
+
+Returns the plugin’s inline-editing context. If ``plugin_data`` is empty, it
+fetches default initial values from the inline form.
+
+- **_request**: A ``HttpRequest`` (generally unused here).
+- **plugin_data** (dict): Data relevant to this plugin.
+- **resume_pk** (int): The primary key of the associated :class:`Resume`.
+- **context** (dict): An existing context dictionary to be updated.
+- **edit** (bool): Whether the resume is in edit mode.
+- **theme** (str): The current resume theme. Defaults to ``"plain"``.
+- **Returns**: A context dictionary merged with plugin data, plus an ``edit_url`` key
+  and references to the plugin’s templates.
+
+**get_admin_form_class()**
+
+Returns a Django form class for admin editing. Defaults to :class:`SimpleJsonForm`.
+Override by setting an ``admin_form_class`` attribute or overriding the method.
+
+**get_inline_form_class()**
+
+Returns a Django form class for inline editing. Defaults to :class:`SimpleJsonForm`.
+Override by setting an ``inline_form_class`` attribute or overriding the method.
+
+**get_admin_urls(admin_view)**
+
+Returns the URL patterns used to manage this plugin’s data in the admin interface.
+Internally delegates to the plugin’s ``admin`` property (an instance of
+:class:`SimpleAdmin`).
+
+**get_admin_link(resume_id)**
+
+Returns an HTML link to the admin change view for this plugin and resume ID. If
+``resume_id`` is ``None``, returns an empty string.
+
+**get_inline_urls()**
+
+Returns the URL patterns used to manage this plugin’s data inline. Delegates to
+the plugin’s ``inline`` property (an instance of :class:`SimpleInline`).
+
+**get_data(resume)**
+
+Retrieves plugin data from the specified :class:`~django_resume.models.Resume`.
+Returns a dictionary, possibly empty if no data is stored.
+
+Usage Examples
+==============
+Below is a minimal usage example showing how to subclass ``SimplePlugin``.
+
+.. code-block:: python
+
+   from django import forms
+   from django.core.files.storage import default_storage
+   from django.http import HttpRequest
+   from django_resume.plugins.base import SimplePlugin, ContextDict
+
+   class IdentityForm(forms.Form):
+       name = forms.CharField(...)
+       # more fields here
+
+   class IdentityPlugin(SimplePlugin):
+       name = "identity"
+       verbose_name = "Identity Information"
+       admin_form_class = inline_form_class = IdentityForm
+
+       def get_context(
+           self,
+           _request: HttpRequest,
+           plugin_data: dict,
+           resume_pk: int,
+           *,
+           context: ContextDict,
+           edit: bool = False,
+           theme: str = "plain",
+       ) -> ContextDict:
+           context = super().get_context(
+               _request, plugin_data, resume_pk, context=context, edit=edit, theme=theme
+           )
+           avatar_path = plugin_data.get("avatar_img", "")
+           context["avatar_img_url"] = default_storage.url(avatar_path)
+           return context
+
+This plugin modifies the context to include an ``avatar_img_url`` for display.
+``admin_form_class`` and ``inline_form_class`` are both overridden to use
+``IdentityForm``.

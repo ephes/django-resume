@@ -25,6 +25,7 @@ documentation for details.
 
     ref/resume
     ref/plugins
+    ref/simple_plugin
     ref/registry
     ref/views
 
