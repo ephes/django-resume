@@ -1,3 +1,5 @@
+.. _plugin-api-reference:
+
 ==============
 The Plugin API
 ==============

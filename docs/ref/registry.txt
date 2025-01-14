@@ -1,0 +1,178 @@
+===================
+The Plugin Registry
+===================
+
+.. module:: django_resume.plugins
+
+.. admonition:: About this document
+
+   This reference covers the :class:`PluginRegistry` used by django-resume to
+   manage and look up plugins. See the :ref:`plugin-api-reference` for more details.
+
+
+Overview
+========
+
+.. class:: PluginRegistry()
+
+   A registry for plugins used in django-resume. This class is instantiated
+   as a global singleton (:data:`plugin_registry`) so that plugins are centrally
+   managed and easily accessed by the application.
+
+   .. attribute:: plugins
+
+      A dictionary mapping plugin names (``plugin.name``) to instantiated
+      plugin objects. This is populated by calls to :meth:`register` or
+      :meth:`register_plugin_list`.
+
+   The main methods provided by :class:`PluginRegistry` are:
+
+   .. method:: register(plugin_class)
+
+      Instantiates the given plugin class and adds it to the internal
+      :attr:`plugins` dictionary under ``plugin.name``. It also retrieves
+      the inline URLs from the plugin via :meth:`Plugin.get_inline_urls`
+      and appends them to the global ``urlpatterns`` in
+      :mod:`django_resume.urls`.
+
+      :param plugin_class: A subclass of :class:`Plugin <django_resume.plugins.base.Plugin>`.
+
+      **Example**::
+
+         from django_resume.plugins import plugin_registry
+         from .my_plugins import MyAwesomePlugin
+
+         plugin_registry.register(MyAwesomePlugin)
+
+      After calling ``register(MyAwesomePlugin)``, you can retrieve the plugin
+      via :meth:`.get_plugin` using the name ``"my_awesome_plugin"``.
+
+   .. method:: register_plugin_list(plugin_classes)
+
+      Accepts a list of plugin classes and calls :meth:`.register` on each of
+      them. This is commonly used at application startup (e.g., in an
+      ``apps.py``) to bulk-register a set of plugin classes.
+
+      :param plugin_classes: A list of plugin classes to register.
+
+      **Example**::
+
+         plugin_registry.register_plugin_list([
+             MyAwesomePlugin,
+             MyOtherPlugin
+         ])
+
+   .. method:: unregister(plugin_class)
+
+      Removes the given plugin from the internal :attr:`plugins` dictionary,
+      effectively disabling it. If the plugin was never registered, or its
+      name is not found, a KeyError will be raised.
+
+      :param plugin_class: The plugin class (type) to unregister.
+
+      **Example**::
+
+         from .my_plugins import MyAwesomePlugin
+         plugin_registry.unregister(MyAwesomePlugin)
+
+   .. method:: get_plugin(name)
+
+      Retrieves a registered plugin by its ``plugin.name`` string. Returns the
+      plugin instance if found, or ``None`` otherwise.
+
+      :param name: The string name of the plugin.
+      :return: A plugin instance, or ``None``.
+
+      **Example**::
+
+         plugin = plugin_registry.get_plugin("my_awesome_plugin")
+         if plugin is not None:
+             # Interact with the plugin
+             data = plugin.get_data(...)
+
+   .. method:: get_all_plugins()
+
+      Returns a :class:`~collections.abc.ValuesView` of all registered plugin
+      instances, allowing easy iteration over all active plugins.
+
+      :return: A ``ValuesView`` containing all plugin instances.
+
+      **Example**::
+
+         for plugin in plugin_registry.get_all_plugins():
+             print("Found plugin:", plugin.name)
+
+Usage Examples
+==============
+
+Registering Plugins at Application Startup
+------------------------------------------
+
+Typically, plugins are registered within the Django ``AppConfig`` class in
+the :meth:`~django.apps.AppConfig.ready` method. For example:
+
+.. code-block:: python
+
+   # apps.py in django_resume
+   from django.apps import AppConfig
+
+   class ResumeConfig(AppConfig):
+       ...
+
+       @staticmethod
+       def register_plugins() -> None:
+           from . import plugins
+           plugins.plugin_registry.register_plugin_list([
+               plugins.SomePlugin,
+               plugins.AnotherPlugin,
+           ])
+
+       def ready(self) -> None:
+           self.register_plugins()
+
+In this snippet, ``plugins.plugin_registry`` is the global instance of
+:class:`PluginRegistry`. Its :meth:`.register_plugin_list` method registers each
+plugin, instantiating them and adding them to the ``urlpatterns`` via each
+plugin’s inline URLs.
+
+Accessing Plugins in Views
+--------------------------
+
+Once plugins are registered, you can look them up in your views using
+:meth:`.get_plugin`. For example:
+
+.. code-block:: python
+
+   from django_resume.plugins import plugin_registry
+
+   def my_view(request):
+       plugin = plugin_registry.get_plugin("some_plugin_name")
+       if plugin is not None:
+           data = plugin.get_data(...)
+           # do something with data
+       ...
+
+Or you may iterate through all plugins:
+
+.. code-block:: python
+
+   def another_view(request):
+       for plugin in plugin_registry.get_all_plugins():
+           context_data = plugin.get_context(request, plugin.get_data(...), ...)
+           # Merge context_data into your view context
+       ...
+
+Singleton Registry
+------------------
+
+The :data:`plugin_registry` variable at module-level is a singleton instance of
+:class:`PluginRegistry`. Since Python modules are imported once per Python
+process, this registry remains consistent across the entire application runtime.
+Because of that, you typically do not need (and should not create) multiple
+instances of :class:`PluginRegistry`.
+
+.. data:: plugin_registry
+
+   A module-level, singleton instance of :class:`PluginRegistry`. This instance
+   is shared by all code that imports it, ensuring a single global store of
+   registered plugins.

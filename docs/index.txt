@@ -24,6 +24,7 @@ documentation for details.
     :caption: Reference Documentation
 
     ref/plugins
+    ref/registry
 
 .. toctree::
     :maxdepth: 1
