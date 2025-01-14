@@ -1,0 +1,30 @@
+Installation
+============
+
+Requirements
+------------
+
+Python 3.10 to 3.13 supported.
+
+Django 4.2 to 5.1 supported.
+
+Installation
+------------
+
+1. Install with **pip**:
+
+   .. code-block:: sh
+
+       python -m pip install django-resume
+
+2. Add django-htmx to your ``INSTALLED_APPS``:
+
+   .. code-block:: python
+
+       INSTALLED_APPS = [
+           ...,
+           "django_resume",
+           ...,
+       ]
+
+
