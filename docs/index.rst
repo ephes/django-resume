@@ -15,9 +15,9 @@ documentation for details.
    :maxdepth: 1
    :caption: Contents:
 
-   installation
+   guide/installation
    changelog
-   usage
+   guide/usage
 
 .. toctree::
     :maxdepth: 1
@@ -29,4 +29,4 @@ documentation for details.
     :maxdepth: 1
     :caption: Developer Documentation
 
-    develop
+    dev/develop
