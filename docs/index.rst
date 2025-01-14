@@ -18,3 +18,8 @@ documentation for details.
    installation
    changelog
 
+.. toctree::
+    :maxdepth: 1
+    :caption: Developer Documentation
+
+    develop

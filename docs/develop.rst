@@ -1,0 +1,149 @@
+===============================
+Tests / MyPy / Package Building
+===============================
+
+Clone the repository
+--------------------
+
+Get the source code using the following command:
+
+.. code-block:: sh
+
+    $ git clone https://github.com/ephes/django-resume.git
+
+Switch to the django-resume directory:
+
+.. code-block:: sh
+
+    $ cd django-resume
+
+Install the pre-commit hooks
+----------------------------
+
+.. code-block:: sh
+
+    $ uv run pre-commit install
+
+Install the Package using uv
+----------------------------
+
+.. code-block:: sh
+
+    $ uv pip install -e .[dev]
+
+Run the Migrations
+------------------
+
+.. code-block:: sh
+
+    $ uv run python manage.py migrate
+
+Run the Python Tests
+--------------------
+
+.. code-block:: sh
+
+    $ uv run pytest
+
+Coverage
+--------
+
+.. code-block:: sh
+
+    $ uv run coverage run -m pytest
+    $ uv run coverage report
+
+Run the Static Analysis
+-----------------------
+
+.. code-block:: sh
+
+    $ uv run mypy src
+
+Install the JavaScript Dependencies
+-----------------------------------
+
+.. code-block:: sh
+
+    $ npm install
+
+Run the JavaScript Tests
+------------------------
+
+.. code-block:: sh
+
+    $ npx vitest run
+
+End to End Tests
+----------------
+
+Install browsers for playwright:
+
+.. code-block:: sh
+
+    $ playwright install
+
+
+Create a testuser for the e2e tests user, using the password `password`:
+
+.. code-block:: sh
+
+    $ DJANGO_SUPERUSER_USERNAME=playwright \
+      DJANGO_SUPERUSER_EMAIL=playwright@example.com \
+      DJANGO_SUPERUSER_PASSWORD=password \
+      uv run python manage.py createsuperuser --noinput
+
+Start the development server like this to use the playwright settings (mainly setting DEBUG = True to have the static files served by Django):
+
+.. code-block:: sh
+
+    $ uv run python manage.py runserver 0.0.0.0:8000 --settings=tests.playwright_settings
+
+The `base_url` is set via `tool.pytest.ini_options` in `pyproject.toml`.
+
+Run the e2e tests with:
+
+.. code-block:: sh
+
+    $ uv run pytest e2e_tests
+
+Run playwright tests in head-full mode:
+
+.. code-block:: sh
+
+    $ uv run pytest e2e_tests --headed --slowmo 1000
+
+Cleanup the test database after running the tests:
+
+.. code-block:: sh
+
+    $ uv run python manage.py remove_all_resumes
+
+Update Javascript Dependencies
+------------------------------
+
+Check with `npm outdated` if there are any outdated dependencies. If there are, update them:
+
+.. code-block:: sh
+
+    $ npm update
+
+Build + Publish the package
+---------------------------
+
+.. code-block:: sh
+
+    $ uv build
+
+Publish the package to `pypi.org`:
+
+.. code-block:: sh
+
+    $ uv publish --token your_token
+
+
+
+
+
+
+
