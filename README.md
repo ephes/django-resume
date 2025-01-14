@@ -7,6 +7,13 @@ A pluggable framework for managing your resume
 pip install django-resume
 ```
 
+## Installation for development
+
+```shell
+git clone git@github.com:ephes/django-resume.git
+uv pip install -e .[dev]
+```
+
 ## Running Tests
 
 ```bash

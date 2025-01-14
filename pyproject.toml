@@ -18,13 +18,14 @@ packages = ["src/django_resume"]
 [tool.hatch.build.targets.wheel]
 packages = ["django_resume"]
 
-[tool.uv]
-dev-dependencies = [
-    "pytest>=8",
-    "pytest-django>=4",
+[project.optional-dependencies]
+dev = [
+    "coverage>=7",
     "django-extensions>=3",
     "django-stubs[compatible-mypy]>=5",
-    "coverage>=7",
+    "furo",  # documentation
+    "pytest>=8",
+    "pytest-django>=4",
     "pytest-playwright>=0.5",
 ]
 
