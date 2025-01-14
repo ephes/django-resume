@@ -16,7 +16,7 @@ build-backend = "hatchling.build"
 packages = ["src/django_resume"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/django_resume"]
+packages = ["django_resume"]
 
 [tool.uv]
 dev-dependencies = [
