@@ -1,0 +1,229 @@
+=========
+The Views
+=========
+
+.. module:: django_resume.views
+
+.. admonition:: About this document
+
+   This section covers the core views in django-resume for displaying, creating,
+   and deleting resumes. It also includes a redirect view for convenience.
+
+Overview
+========
+
+All views listed here are defined in ``django_resume.views``. The URL patterns
+are found in ``django_resume.urls`` (shown below for reference):
+
+.. code-block:: python
+
+   from django.urls import path, reverse
+   from django.views.generic import RedirectView
+   from . import views
+
+   class CvRedirectView(RedirectView):
+       permanent = True
+
+       def get_redirect_url(self, *args, **kwargs) -> str:
+           slug = kwargs["slug"]
+           return reverse("django_resume:cv", kwargs={"slug": slug})
+
+   app_name = "django_resume"
+   urlpatterns = [
+       path("", views.resume_list, name="list"),
+       path("<slug:slug>/delete/", views.resume_delete, name="delete"),
+       path("<slug:slug>/", views.resume_detail, name="detail"),
+       path("<slug:slug>/cv/", views.resume_cv, name="cv"),
+       path("cv/<slug:slug>/", CvRedirectView.as_view(), name="cv-redirect"),
+       path("<slug:slug>/403/", views.cv_403, name="403"),
+   ]
+
+
+``resume_list(request)``
+------------------------
+.. function:: resume_list(request: HttpRequest) -> HttpResponse
+
+   Displays a list of resumes belonging to the currently authenticated user. It
+   also provides a form for creating new resumes.
+
+   **URL name**: ``django_resume:list``
+   **Methods**: ``GET``, ``POST``
+   **Requires**: Authentication (via :func:`django.contrib.auth.decorators.login_required`)
+   **Templates**:
+
+   - On ``GET`` requests: ``django_resume/pages/plain/resume_list.html``
+   - On ``POST`` requests: ``django_resume/pages/plain/resume_list_main.html``
+
+   **Behavior**:
+
+   - When requesting via ``GET``, displays a list of the user’s resumes and an empty
+     :class:`~django_resume.views.ResumeForm` for creating a new resume.
+   - When requesting via ``POST``, processes the submitted form data.
+     If valid, a new :class:`~django_resume.models.Resume` is created, owned
+     by the current user. The template re-renders with the newly created
+     resume’s info.
+
+   **Example**::
+
+      from django.urls import reverse
+      from django.test import Client
+
+      client = Client()
+      client.login(username="alice", password="password")
+
+      # GET usage
+      response = client.get(reverse("django_resume:list"))
+      assert response.status_code == 200
+
+      # POST usage to create a new resume
+      response = client.post(
+          reverse("django_resume:list"),
+          data={"name": "My New Resume", "slug": "my-new-resume"}
+      )
+      assert response.status_code == 200
+
+
+``resume_delete(request, slug)``
+--------------------------------
+.. function:: resume_delete(request: HttpRequest, slug: str) -> HttpResponse
+
+   Deletes the specified resume if it belongs to the currently authenticated user.
+
+   **URL name**: ``django_resume:delete``
+   **Methods**: ``DELETE``
+   **Requires**: Authentication (via :func:`django.contrib.auth.decorators.login_required`)
+   **Template**: None (returns an HTTP status code)
+
+   **Behavior**:
+
+   - Fetches the :class:`~django_resume.models.Resume` by ``slug``.
+   - If the resume’s owner matches the current user, it deletes the resume.
+   - Responds with a 403 (Forbidden) if ownership does not match.
+   - Returns HTTP 200 on success (rather than 204) for HTMX compatibility.
+
+   **Example**::
+
+      from django.urls import reverse
+      from django.test import Client
+
+      client = Client()
+      client.login(username="alice", password="password")
+      response = client.delete(reverse("django_resume:delete", args=["my-resume"]))
+      assert response.status_code == 200
+
+
+``resume_detail(request, slug)``
+--------------------------------
+.. function:: resume_detail(request: HttpRequest, slug: str) -> HttpResponse
+
+   Displays the "detail" view of a resume. Often used for a cover letter or
+   high-level resume info, along with select plugin data.
+
+   **URL name**: ``django_resume:detail``
+   **Methods**: ``GET``
+   **Template**:
+   ``django_resume/pages/{resume.current_theme}/resume_detail.html``
+
+   **Behavior**:
+
+   - Fetches the :class:`~django_resume.models.Resume` by ``slug``.
+   - If ``?edit=true`` is present in the query, shows “edit” modes if the user
+     is authenticated and is the owner.
+   - Integrates plugin data for a subset of plugin names (``["about", "identity",
+     "cover", "theme"]``). If these plugins are registered, their data is added
+     to the template context.
+
+   **Example**::
+
+      from django.urls import reverse
+      from django.test import Client
+
+      client = Client()
+      response = client.get("/django-resume/my-resume/")
+      assert response.status_code == 200
+      # The response includes the "cover" plugin's data if installed.
+
+
+``resume_cv(request, slug)``
+----------------------------
+.. function:: resume_cv(request: HttpRequest, slug: str) -> HttpResponse
+
+   Renders a specialized “CV” (Curriculum Vitae) view of the resume, with
+   plugin data injected for each registered plugin.
+
+   **URL name**: ``django_resume:cv``
+   **Methods**: ``GET``
+   **Template**:
+   ``django_resume/pages/{resume.current_theme}/resume_cv.html``
+
+   **Behavior**:
+
+   - Fetches the :class:`~django_resume.models.Resume` by ``slug``.
+   - If ``?edit=true`` is present, toggles an edit mode for owners.
+   - Loads data from **all** plugins by iterating
+     :meth:`~django_resume.plugins.PluginRegistry.get_all_plugins`.
+   - Each plugin’s context is merged into the template context under the plugin’s
+     name key (``context[plugin.name]``).
+   - If permissions fail (e.g., token check fails), raises a 403 and renders a
+     specialized template (``cv_403.html``).
+
+   **Example**::
+
+      client = Client()
+      response = client.get("/django-resume/my-resume/cv/")
+      assert response.status_code == 200
+      # Renders the user’s resume in CV format, including all plugin contexts.
+
+
+``cv_403(request, slug)``
+-------------------------
+.. function:: cv_403(request: HttpRequest, slug: str) -> HttpResponse
+
+   A special view for inline editing of the 403 (Forbidden) page. Useful if
+   a user wants to customize the message shown when someone lacks permission
+   to view their CV.
+
+   **URL name**: ``django_resume:403``
+   **Methods**: ``GET``
+   **Requires**: Authentication (only resume owners can edit their 403 page)
+   **Template**:
+   ``django_resume/pages/{resume.current_theme}/cv_403.html``
+
+   **Behavior**:
+
+   - Fetches the specified :class:`~django_resume.models.Resume`.
+   - If the current user is not the owner, returns a 403 response immediately.
+   - Otherwise, retrieves the ``permission_denied`` plugin (if available) via
+     :meth:`~django_resume.plugins.PluginRegistry.get_plugin`.
+   - Passes plugin data into the template context, where the 403 message can be
+     customized by the user.
+
+   **Example**::
+
+      client = Client()
+      client.login(username="alice", password="password")
+      response = client.get("/django-resume/my-resume/403/")
+      assert response.status_code == 200
+
+
+``CvRedirectView``
+------------------
+.. class:: CvRedirectView
+
+   Inherits from :class:`django.views.generic.RedirectView`. Redirects from a
+   URL structure of ``/cv/<slug:slug>/`` to ``/<slug:slug>/cv/``.
+
+   **URL name**: ``django_resume:cv-redirect``
+   **Methods**: ``GET``
+   **Template**: None (redirect response)
+
+   **Behavior**:
+   - Resolves the final CV URL via :func:`~django.urls.reverse`, pointing to ``django_resume:cv`` with the same ``slug``.
+   - Returns a permanent redirect (HTTP 301) by default.
+
+   **Example**::
+
+      client = Client()
+      response = client.get("/django-resume/cv/my-resume/")
+      assert response.status_code == 301
+      assert response["Location"] == "/django-resume/my-resume/cv/"
