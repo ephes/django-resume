@@ -1,0 +1,145 @@
+================
+The Resume Model
+================
+.. module:: django_resume.models
+
+.. admonition:: About this document
+
+   This section covers the core ``Resume`` model, which represents a user’s
+   resume (CV) within django-resume. It includes references to plugin data
+   stored in ``plugin_data``, theme selection, and optional token requirements.
+
+Model Overview
+==============
+
+.. class:: Resume
+
+   Inherits from :class:`django.db.models.Model`. Stores high-level information
+   about a resume, including its name, URL slug, owner, and related plugin data.
+
+   **Fields:**
+
+   .. attribute:: name
+      :type: CharField
+
+      A short descriptive name for the resume. Has a maximum length of 255
+      characters.
+
+   .. attribute:: slug
+      :type: SlugField
+
+      A unique identifier for building URLs. Must be unique across all
+      ``Resume`` objects. Typically derived from ``name``, but can be edited
+      independently.
+
+   .. attribute:: owner
+      :type: ForeignKey to ``get_user_model()``
+
+      A reference to the user who owns the resume. If the user is deleted,
+      all related ``Resume`` objects are deleted as well.
+
+   .. attribute:: plugin_data
+      :type: JSONField
+
+      A JSON-compatible dictionary of plugin-specific data. Defaults to an
+      empty dictionary. Any custom plugin logic for a particular resume can
+      be stored here. For instance, a theme name or cover letter text might
+      be stored in ``plugin_data``.
+
+   .. attribute:: objects
+      :type: models.Manager
+
+      The default model manager used for queries.
+
+   **Dunder methods:**
+
+   .. method:: __repr__(self) -> str
+
+      Returns a compact representation of the resume object,
+      i.e. ``<Some Resume Name>``.
+
+   .. method:: __str__(self) -> str
+
+      Returns the ``name`` field as the user-friendly string representation.
+
+Usage
+-----
+
+Typical usage involves fetching a resume by slug or PK, then reading or updating
+the ``plugin_data`` field with plugin-specific logic. For example:
+
+.. code-block:: python
+
+   from django.shortcuts import get_object_or_404
+   from django_resume.models import Resume
+
+   def show_resume(request, slug):
+       resume = get_object_or_404(Resume, slug=slug)
+       print(resume.plugin_data)  # e.g., {"theme": {"name": "dark"}, ...}
+       return ...
+
+Properties
+==========
+
+.. attribute:: token_is_required
+
+   A boolean indicating whether token-based authentication is required for
+   this resume. Internally, it delegates the check to the
+   :class:`~django_resume.plugins.tokens.TokenPlugin`, inspecting any relevant
+   token data stored in ``plugin_data``.
+
+   **Returns:**
+      ``True`` if a token is needed to access the resume, ``False`` otherwise.
+
+.. attribute:: current_theme
+
+   A string indicating the resume’s current theme. Delegates to the
+   :class:`~django_resume.plugins.theme.ThemePlugin`, stored in ``plugin_data``.
+
+   **Returns:**
+      A string representing the current theme’s name, e.g. ``"plain"``,
+      ``"dark"``, etc. Defaults to ``"plain"`` if no plugin data is found.
+
+Methods
+=======
+
+.. method:: save(*args, **kwargs)
+
+   Overridden from :meth:`django.db.models.Model.save` to ensure
+   ``plugin_data`` is never ``None``. If ``plugin_data`` is not set, it's
+   assigned an empty dictionary before calling the parent implementation.
+
+   **Parameters:**
+      - *args, **kwargs: Passed on to the parent ``save`` method.
+
+   **Example**::
+
+      resume = Resume(name="My CV", slug="my-cv", owner=user)
+      resume.save()  # ensures plugin_data is an empty dict if unset
+
+Example
+=======
+
+.. code-block:: python
+
+   from django_resume.models import Resume
+   from django.contrib.auth import get_user_model
+
+   User = get_user_model()
+
+   # Creating a resume
+   user = User.objects.get(username="alice")
+   resume = Resume.objects.create(
+       name="Alice's Resume",
+       slug="alice-resume",
+       owner=user
+   )
+
+   # Updating plugin_data
+   resume.plugin_data["cover"] = {"text": "Hello, I'm Alice!"}
+   resume.save()
+
+   # Accessing properties
+   if resume.token_is_required:
+       print("A token is required to view this resume.")
+   print("Theme:", resume.current_theme)

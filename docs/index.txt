@@ -23,6 +23,7 @@ documentation for details.
     :maxdepth: 1
     :caption: Reference Documentation
 
+    ref/resume
     ref/plugins
     ref/registry
 
