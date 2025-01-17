@@ -5,13 +5,25 @@
 
 # Who am I?
 
+- Django Developer since 2013
+- Python-Podcast Host
+- Creator of [django-resume](https://github.com/ephes/django-resume)
+
 --- <!-- Slide 2 -->
 
-# What this talk is about
+# What to Expect
+
+- Why modern web development became so complex
+- How to build interactive sites with less overhead
+- A case study with django-resume
 
 --- <!-- Slide 3 -->
 
 # The Mainstream Approach / maybe two slides
+
+Hmm, maybe a picture of a rocket - or challanger?
+
+Or better: a person sitting in a heap of stuff trying to assemble an IKEA shelf having only an imbus key and a hammer.
 
  > The Programmers’ Credo: we do these things not because they are easy, but because we thought they were going to be easy --[Pinboard](https://x.com/Pinboard/status/761656824202276864)
 
@@ -30,7 +42,23 @@ Separated over at least 2 Teams. Deployed to Kubernetes.
 
 Anecdote: One of the developers put their Python in a weirdly named virtualenv and the tailwind build step ran over it on every change which led to taking 40s instead of a few milliseconds for each. Spoiler: It was the Frontend Dev who was not aware of virtualenvs which made him kind of less productive (found out via pair programming - do it!).
 
+Secure file download problem:
+https://www.wimdeblauwe.com/blog/2024/12/31/problems-i-no-longer-have-by-using-server-side-rendering/
+
 --- <!-- Slide 4 -->
+
+# What We Want
+
+- Fast, responsive applications
+- Smooth page transitions
+- Good developer experience
+- SEO friendly
+- Maintainable code
+- Real-time updates
+
+--- <!-- Slide 5 -->
+
+
 
 > UIs are big, messy, mutable, stateful bags of sadness.   --[Josh Abernathy](http://joshaber.github.io/2015/01/30/why-react-native-matters/)
 
