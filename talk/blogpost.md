@@ -4,6 +4,8 @@
 
 ### Motivation: The complexity of SPAs versus the elegance of a lean Django app
 
+> Developers are drawn to complexity like moths to a flame, often with the same result. --Neal Ford
+
 The web development world often finds itself caught between two extremes: the sleek, dynamic allure of Single Page
 Applications (SPAs) and the simplicity and reliability of traditional server-side rendering. SPAs, with their app-like
 experiences and fluid interactions, have become the default choice for many modern developers. They promise user
@@ -24,6 +26,9 @@ modern web techniques with a "back to basics" approach, challenging the notion t
 modern web experiences.
 
 ## The birth of django-resume: A side project to manage resumes with simplicity
+
+> I have been asked to stop referring to LinkedIn as "Grindr for
+> Business" --[ncl](https://corteximplant.com/@ncl/112636282694430649)
 
 As a freelance developer, I’ve often faced the challenge of keeping my professional profile updated across multiple
 platforms like LinkedIn, freelancer websites, and personal portfolios. Each platform has its quirks, and ensuring
@@ -218,16 +223,14 @@ flowchart LR
 
     AppConfig["App / Config Startup"]
     Views["App / Views"]
-
-    %% Registration Flow
-    AppConfig -->|"register_plugin_list([...])"| PluginRegistry
-    PluginDefinitions -->|"register(...) / register_plugin_list(...) calls"| PluginRegistry
-    PluginRegistry -->|"stores plugin objects"| B
-    PluginRegistry -->|"adds inline URLs"| C
-
-    %% Retrieval Flow
-    Views -->|"get_plugin('my_awesome_plugin') / get_all_plugins()"| PluginRegistry
-    PluginRegistry -->|"returns plugin instances"| Views
+%% Registration Flow
+    AppConfig -->|" register_plugin_list([...]) "| PluginRegistry
+    PluginDefinitions -->|" register(...) / register_plugin_list(...) calls "| PluginRegistry
+    PluginRegistry -->|" stores plugin objects "| B
+    PluginRegistry -->|" adds inline URLs "| C
+%% Retrieval Flow
+    Views -->|" get_plugin('my_awesome_plugin') / get_all_plugins() "| PluginRegistry
+    PluginRegistry -->|" returns plugin instances "| Views
 ```
 
 #### Using JSONField as the Core Data Store
