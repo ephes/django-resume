@@ -6,7 +6,7 @@
 
 ## Who am I?
 
-> Be nice to us folks who wear glasses. We paid money to see you. --BobGolen
+> Be nice to us folks who wear glasses. We paid money to see you. --Bob Golen
 
 - Django Developer since 2013
 - Python-Podcast Host
@@ -175,7 +175,7 @@ embrace the cascade - imagine that!
 --- <!-- Slide 7 -->
 One of them will win!
 
-![One of them will win!](three-headed_dragon_htmx.jpg)
+![One of them will win!](img/three-headed_dragon_htmx.jpg)
 
 And htmx isn't alone in this game. You've got Livewire over in Laravel-land,
 Hotwire in the Rails world, and Liveview strutting its stuff in Phoenix. They're
@@ -230,17 +230,20 @@ thought to myself: I could knock this out with Django. I mean, how hard could it
 
 ## Notes
 
-What are the core functional requirements beyond the obvious needs for speed, polish, and user experience? At its heart,
-this project needs to solve a key problem: managing CV updates in a single, centralized location. Currently, each
-freelancing platform handles resumes differently, and LinkedIn adds its own layer of complexity. I want to integrate my
-resume directly into my website rather than maintaining it as a separate document. Building this as a Django app means I
-can seamlessly incorporate it into my existing site.
+What are the core functional requirements beyond the obvious needs for speed, polish,
+and user experience? At its heart,this project needs to solve a key problem: managing CV
+updates in a single, centralized location. Currently, each freelancing platform handles
+resumes differently, and LinkedIn adds its own layer of complexity. I want to integrate
+myresume directly into my website rather than maintaining it as a separate document.
+Building this as a Django app means Ican seamlessly incorporate it into my existing
+site.
 
-While my immediate focus is on supporting software freelancers, django-resume should be flexible enough to serve a
-broader audience. Academics might need to showcase their publications, designers their portfolios, and other
-professionals their specific achievements. Rather than implementing every possible use case myself, the solution is to
-make django-resume highly customizable and extensible. The priority is creating a framework that makes it simple for
-users to add and adapt features to their needs.
+While my immediate focus is on supporting software freelancers, django-resume should be
+flexible enough to serve a broader audience. Academics might need to showcase their
+publications, designers their portfolios, and other professionals their specific
+achievements. Rather than implementing every possible use case myself, the solution is
+tomake django-resume highly customizable and extensible. The priority is creating a
+framework that makes it simple for users to add and adapt features to their needs.
 
 --- <!-- Slide 10 -->
 
@@ -261,16 +264,21 @@ users to add and adapt features to their needs.
 
 ## Notes
 
-So how do we achieve that? We'll just use a plugin architecture. I'm a big fan of relational databases
-and Django's ORM. But allowing plugins to define their own models? That's probably getting complicated
-quite fast. Instead, we'll store all plugin data in a single JSONField. It's not perfect and has some
-drawbacks, but it's a simple solution that works for small data sets that could be easily fetched in
-one go from the database. Each plugin gets its own namespace in the JSONField, so there's no risk of
-data collisions. And the best part? No additional models or migrations needed. Just define a Django
-Form for validation, and you're good to go.
+How can we implement this flexibility? The solution is a plugin architecture. While I
+strongly favor relational databases and Django's ORM, allowing plugins to define their
+own models could quickly become unwieldy. Instead, we'll store all plugin data in a
+single JSONField. Though this approach has certain limitations, it's an elegant solution
+for managing smaller datasets that can be efficiently retrieved in a single database
+query. Each plugin maintains its own namespace within the JSONField, preventing data
+conflicts. This approach eliminates the need for additional models or migrations.
 
-When it comes to rendering and editing plugin data, we'll use templates. They're the perfect tool for
+For data structure definition and validation, we'll leverage Django Forms. The only
+requirement is that all data must be JSON-serializable.
 
+The rendering and editing system will be template-based. Each plugin requires a minimum
+of two templates: one for rendering the data as HTML, and another for providing the data
+editing interface. The core of each plugin includes aget_context method that generates a
+dictionary of data to be included in the template rendering context.
 
 --- <!-- Slide 11 -->
 
@@ -290,6 +298,30 @@ When it comes to rendering and editing plugin data, we'll use templates. They're
     - Web Components are:
         - Built into the browser → No extra JavaScript framework
         - Standards-based → Durable & future-proof
+
+## Notes
+
+While htmx excels at partial page updates, some scenarios require additional frontend
+logic. Consider managing dynamic elements like skills or tag lists. Though we could
+implement this functionality with htmx, it would necessitate complex server-side logic to
+handle partially edited lists. A simpler backend approach is to use a single view that
+processes complete plugin data and either saves it (returning rendered HTML) or returns
+the edit interface with any validation errors. This streamlined backend approach does
+require some frontend logic for dynamic list management, which is where web components
+come in.
+
+We've implemented a custom `<badge-editor>` element to handle dynamic lists. It manages
+list updates locally and consolidates changes into a single server request when the user
+saves their changes. Similarly, our `<editable-form>`element connects contenteditable
+fields with hidden form inputs, enabling inline editing without custom form styling.
+
+Why not opt for a full Single Page Application (SPA)? The advantages of web components
+are compelling: they're native browser features requiring no additional JavaScript
+frameworks, they're based on web standards ensuring longevity and future compatibility,
+and they provide the perfect balance of frontend functionality without the overhead of a
+full SPA.While writing web components requires more boilerplate code compared to React
+or Vue components, we can leverage LLMs to generate this code and assist with unit test
+creation.
 
 --- <!-- Slide 12 -->
 
@@ -313,6 +345,23 @@ When it comes to rendering and editing plugin data, we'll use templates. They're
         - Forms, templates, and registry setup
         - Example prompt: "Create a plugin for certifications (name, issuer, date)"
     - Saves time and lowers the barrier for customization
+
+## Notes
+
+LLMs offer multiple ways to enhance our development process, beyond just generating web
+component boilerplate. One fundamental application is generating sample data. LLMs excel
+at creating content that conforms to predefined structures, so we can feed them our
+JSONField schema and receive perfectly structured example data in return.
+
+We can take this integration even further. Earlier, we discussed the importance of
+maintaining a simple plugin interface to facilitate resume customization for diverse
+users. Since we already have a collection of plugins, we could have django-resume
+generate pairs of prompts and corresponding plugin implementations to serve as context
+for the LLM. This would enable few-shot learning - for instance, when a user requests "
+Create a plugin for publications (title, authors,date)", the LLM can reference existing
+implementations to generate appropriate code. This approach could significantly lower the
+barrier to customization, making it easier for users to extend their resumes with new
+plugins.
 
 --- <!-- Slide 13 -->
 
