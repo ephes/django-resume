@@ -11,7 +11,7 @@ def test_markdown_textarea_input_to_markdown():
     # When the textarea input is converted to markdown
     text = textarea_input_to_markdown(textarea_input)
     # Then the markdown should contain a newline and no div elements
-    assert text == "Some text\nwith a line break and a div foobar"
+    assert text == "Some text\nwith a line break and a \ndiv foobar"
 
 
 def test_markdown_to_textarea_input():

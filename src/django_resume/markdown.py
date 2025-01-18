@@ -3,14 +3,23 @@ from typing import Callable
 
 
 def textarea_input_to_markdown(text: str) -> str:
-    # <br> to \n
-    text = text.replace("<br>", "\n")
+    # Replace div tags with newlines
+    content = re.sub(r"<div>", "\n", text, flags=re.IGNORECASE)
+    content = re.sub(r"</div>", "", content, flags=re.IGNORECASE)
 
-    # remove <div> and </div>
-    text = text.replace("<div>", "")
-    print("remove: ", text)
-    text = text.replace("</div>", "")
-    return text
+    # Replace <br> and <br/> with newlines
+    content = re.sub(r"<br\s*/?>", "\n", content, flags=re.IGNORECASE)
+
+    # Remove any remaining HTML tags
+    content = re.sub(r"<[^>]+>", "", content)
+
+    # Fix multiple newlines (more than 2) to maximum 2 newlines
+    content = re.sub(r"\n{3,}", "\n\n", content)
+
+    # Trim whitespace
+    content = content.strip()
+
+    return content
 
 
 def markdown_to_textarea_input(text: str) -> str:
