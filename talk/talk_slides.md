@@ -404,9 +404,6 @@ plugins.
     - Podcast: [Python Podcast](https://python-podcast.de/show/)
     - Blog: [Ephes Blog](https://wersdoerfer.de/blogs/ephes_blog/)
 
-# Quotes to use
 
-> Everything that irritates us about others can lead us to an understanding of
-> ourselves. --[Carl Jung](https://wist.info/jung-carl/39693/)
 
 
