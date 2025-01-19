@@ -14,6 +14,11 @@
 
 ## Notes
 
+Hey everyone! I'm Jochen Wersdoerfer, a freelance developer based in Düsseldorf. 
+I've been working with Django since 2013 and host the german speaking Python Podcast.
+Today  I'll be showing you django-resume, a project I created that demonstrates 
+lean web development principles.
+
 --- <!-- Slide 2 -->
 
 # What to Expect
@@ -21,10 +26,16 @@
 > Developers are drawn to complexity like moths to a flame, often with the same result. --Neal Ford
 
 - What's up with modern web development?
-- How to build interactive sites with less overhead
-- A case study / demo with `django-resume`
+- Building interactive websites without the bloat
+- Live demo: Keeping it simple with `django-resume`
 
 ## Notes
+
+Today we'll be taking a look at modern web development and asking some important 
+questions: Why has everything become so complex? More importantly, I'll show you 
+how we can create interactive websites without all the heavy lifting. We'll put 
+these ideas into practice with a live demo of django-resume, exploring how to 
+keep things lean and efficient.
 
 --- <!-- Slide 3 -->
 
@@ -392,18 +403,22 @@ plugins.
 > The B in Benoit B. Mandelbrot stands for Benoit B.
 > Mandelbrot. [Steve Lord](https://bladerunner.social/@stevelord/111127300258697213)
 
-- **Questions?**
+- **Have Questions?** I'm happy to answer them!
 
-- **How to Get Involved**
-    - Contribute to [django-resume on GitHub](https://github.com/ephes/django-resume)
-    - Share feedback or suggest features.
+- **Want to Get Involved?**
+    - Check out [django-resume on GitHub](https://github.com/ephes/django-resume)
+    - Got ideas? I'd love your feedback!
 
-- **Stay Connected**
+- **Find Me Online**
     - GitHub: [ephes](https://github.com/ephes)
     - Fediverse: [@jochen@wersdoerfer.de](https://wersdoerfer.de/@jochen)
-    - Podcast: [Python Podcast](https://python-podcast.de/show/)
-    - Blog: [Ephes Blog](https://wersdoerfer.de/blogs/ephes_blog/)
+    - Python Podcast: [Listen here](https://python-podcast.de/show/)
+    - Blog: [wersdoerfer.de/blogs/ephes_blog/](https://wersdoerfer.de/blogs/ephes_blog/)
 
+## Notes
 
-
+Thanks for being here today! I hope you found our exploration of lean Django 
+development useful. Whether you have questions, want to contribute to django-resume, 
+or just want to chat about Python, I'd love to hear from you. You can find me on 
+any of the platforms above. So, what questions do you have for me?
 
