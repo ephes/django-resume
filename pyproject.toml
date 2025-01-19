@@ -8,6 +8,10 @@ dependencies = [
     "django>=4.2",
 ]
 
+[project.urls]
+Documentation = "https://django-resume.readthedocs.io/en/latest/"
+Source = "https://github.com/ephes/django-resume"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
