@@ -2,7 +2,8 @@
 The Plugin Registry
 ===================
 
-.. module:: django_resume.plugins
+.. module:: django_resume.plugins.registry
+   :synopsis: Centralized registry for managing and looking up plugins.
 
 .. admonition:: About this document
 

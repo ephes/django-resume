@@ -110,7 +110,7 @@ Methods
    assigned an empty dictionary before calling the parent implementation.
 
    **Parameters:**
-      - *args, **kwargs: Passed on to the parent ``save`` method.
+      - `*args, **kwargs`: Passed on to the parent ``save`` method.
 
    **Example**::
 
