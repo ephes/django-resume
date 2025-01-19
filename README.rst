@@ -1,0 +1,20 @@
+=============
+django-resume
+=============
+
+.. image:: https://img.shields.io/readthedocs/django-resume?style=for-the-badge
+   :target: https://django-resume.readthedocs.io/en/latest/
+
+.. image:: https://img.shields.io/pypi/v/django-resume.svg?style=for-the-badge
+   :target: https://pypi.org/project/django-resume/
+
+.. image:: https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white&style=for-the-badge
+   :target: https://github.com/pre-commit/pre-commit
+   :alt: pre-commit
+
+A pluggable framework for managing your resume in Django.
+
+Documentation
+-------------
+
+Please see https://django-resume.readthedocs.io/ .
