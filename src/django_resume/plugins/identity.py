@@ -76,6 +76,25 @@ class IdentityPlugin(SimplePlugin):
     name: str = "identity"
     verbose_name: str = "Identity Information"
     admin_form_class = inline_form_class = IdentityForm
+    prompt = """
+        Create a django-resume plugin to display and manage a person’s profile information. The plugin
+        should include fields for the user’s name, pronouns, tagline, location, email, phone
+        number, and social media links such as GitHub, LinkedIn, and Mastodon. Additionally, an
+        avatar image can be uploaded to personalize the profile further.
+        
+        The plugin presents the profile with the user’s name as a heading, followed by pronouns,
+        a tagline, and a location link. Contact details and social media icons are displayed as
+        clickable links. An avatar image, if provided, is shown alongside the profile
+        information; otherwise, a default placeholder is used.
+        
+        The editing interface allows users to update their profile details inline, including
+        changing the avatar image, updating contact links, and modifying text content. Changes
+        take effect only after submitting the form, ensuring data integrity and preventing
+        accidental modifications.
+        
+        This plugin offers an intuitive way to manage and display profile information, providing
+        a professional and visually appealing representation of an individual.    
+    """
 
     def get_context(
         self,

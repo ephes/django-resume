@@ -78,6 +78,38 @@ class PermissionDeniedPlugin(SimplePlugin):
     name: str = "permission_denied"
     verbose_name: str = "Permission Denied"
     admin_form_class = inline_form_class = PermissionDeniedForm
+    prompt = """
+        Create a django-resume plugin that displays an error message when a user attempts to access a
+        page without proper authentication. The plugin should provide customizable fields for
+        the title, subtitle, email, message, and profile image. The title should contain a brief
+        heading explaining the restricted access. The subtitle should provide a concise message
+        guiding the user on how to gain access. The email field should include a contact email
+        address for requesting access. The message field should contain detailed information
+        that may include links using markdown formatting. The profile image field should allow
+        for an optional avatar representing the page owner or support contact.
+        
+        The plugin should be titled “Permission Denied” and should be displayed with a
+        structured layout. The title should be prominently shown as an H1 heading, followed by
+        the subtitle as an H2 heading. The message should support markdown formatting to allow
+        clickable links. The email address should be displayed in an editable text field so that
+        users can copy or modify it if needed. If an avatar image is provided, it should be
+        displayed to the right of the message; otherwise, a default placeholder icon should be
+        used.
+        
+        The editing interface should allow users to update the title, subtitle, email, and
+        message content inline. The avatar image should be selectable via file upload, with an
+        option to remove it if desired. Input validation should be applied to ensure proper
+        formatting of each field.
+        
+        In terms of rendering behavior, the title and message content should be aligned to the
+        left, while the avatar and optional date fields should be positioned on the right. If
+        start and end dates are provided, they should be displayed in the format “YYYY” or
+        “YYYY-MM”. The message text should retain line breaks and properly handle links using
+        markdown formatting.
+        
+        The plugin should provide a user-friendly experience with clear guidance for
+        unauthorized visitors and simple contact options for requesting access.
+    """
 
     def get_context(
         self,

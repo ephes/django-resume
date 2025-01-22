@@ -409,6 +409,21 @@ class SimplePlugin:
             get_context=self.get_context,
         )
 
+    def get_prompt(self) -> str:
+        """Implement this method to return the prompt for the plugin."""
+        import textwrap
+
+        if hasattr(self, "prompt"):
+            cleaned_prompt = textwrap.dedent(self.prompt).strip()
+            formatted_prompt = textwrap.fill(cleaned_prompt, width=80)
+            return formatted_prompt
+        return "Edit me!"
+
+    def get_llm_context(self):
+        return {
+            "prompt": self.get_prompt(),
+        }
+
     # plugin protocol methods
 
     def get_context(
