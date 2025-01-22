@@ -31,3 +31,6 @@ e2e_tests/media/
 # vim
 *.swp
 *.swo
+
+# macos
+.DS_STORE
