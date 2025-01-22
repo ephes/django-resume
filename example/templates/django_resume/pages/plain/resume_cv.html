@@ -22,7 +22,9 @@
 <main>
   {% include identity.templates.main %}
   {% include about.templates.main %}
-  {% include pyramid.templates.main %}
+  {% if pyramid %}
+      {% include pyramid.templates.main %}
+  {% endif %}
   {% include freelance_timeline.templates.main with timeline=freelance_timeline page_break_before=False %}
   {% include employed_timeline.templates.main with timeline=employed_timeline page_break_before=True %}
   {% include education.templates.main %}
