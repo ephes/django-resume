@@ -29,6 +29,7 @@ class Command(BaseCommand):
         plugin_file_name = f"{plugin_name}.py"
         plugin_source = plugin_data[plugin_file_name]
         plugin_path = Path.cwd() / "core" / "plugins" / plugin_file_name
+        plugin_path.parent.mkdir(parents=True, exist_ok=True)
         plugin_path.write_text(plugin_source)
 
         # content template
