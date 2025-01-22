@@ -23,19 +23,21 @@ This is the prompt for the plugin:
 
 {{ prompt | safe }}
 
-This is the source code for the plugin itself:
+This is the source code for the implemented plugin using ===name=== markers. The
+first marker just contains the name of the plugin. The rest paths for the files that
+need to be created:
 
-{{ plugin_source | safe }}
+==={{ plugin.name }}===
+ 
+==={{ plugin.name }}.py===
 
-This is the source code for the form class:
+{{ module_source | safe }}
 
-{{ form_source | safe }}
-
-This is the main template for the plugin:
+===django_resume/plugins/{{ plugin.name }}/plain/content.html===
 
 {{ content_template | safe }}
 
-This is the form template for the plugin:
+===django_resume/plugins/{{ plugin.name }}/plain/form.html===
 
 {{ form_template | safe }}
 """)
@@ -54,13 +56,27 @@ def get_source_from_plugin(plugin: SimplePlugin) -> str:
     return modified_source
 
 
+def get_module_source(plugin: SimplePlugin) -> str:
+    # Get the class of the instance
+    cls = type(plugin)
+    # Find the module the class belongs to
+    module = inspect.getmodule(cls)
+    if module is None:
+        raise ValueError("Module could not be determined for the given instance.")
+    # Get the full source code of the module
+    source_code = inspect.getsource(module)
+    return source_code
+
+
 def render_plugin_context_template(plugin: SimplePlugin) -> str:
     """
     This function takes a SimplePlugin instance and returns a string that is a
     rendered Django template rendered with the plugin's context.
     """
+
     context = {
         "plugin": plugin,
+        "module_source": get_module_source(plugin),
         "plugin_source": get_source_from_plugin(plugin),
         "form_source": inspect.getsource(plugin.inline.form_class),
         "prompt": mark_safe(plugin.get_prompt()),
@@ -81,16 +97,27 @@ complete_simple_context_template = Template("""
 {% endfor %}
 
 After reviewing the examples above, which are separated by the --- markers, you should
-have a clear understanding of how to create a new plugin.
+have a clear understanding of how to create a new plugin. Note that in order to make
+the import of SimplePlugin work, use the following import statement:
+
+from django_resume.plugins import SimplePlugin
+
+Instead of
+
+from .base import SimplePlugin
 
 Could you generate a new plugin, including the templates and form, following the same
 format as the provided examples—meaning as plain text—for the following prompt:
 
-Create a django-resume plugin that allows users to add details about the current state
-of their burial pyramid. The plugin should include fields for the pyramid’s name,
-location, and height. The name and location should be required fields, while the
-height should be optional. Additionally, there should be a field for the year construction
-started.
+Create a django-resume plugin named "pyramid" that allows users to add details about
+the current state of their burial pyramid. The headline for the plugin is the name
+of the pyramid. The plugin should include fields for the pyramid’s name, location,
+and height. The name and location should be required fields, while the height should be optional.
+But if a height is given, it should be invalid if it is below 50 meters raising a ValidationError 
+that says: Your puny pyramid is pathetic! Additionally, there should be a field for the
+year construction started. The construction year should have a default value of -2500 and be left
+aligned while the location should be left aligned and the height centered. And make sure
+that the forms cleaned_data attribute is really json serializable.
 """)
 
 
