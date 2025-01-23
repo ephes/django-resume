@@ -11,10 +11,18 @@ from ...plugins.registry import plugin_registry, PluginRegistry
 
 
 def get_simple_plugins(registry: PluginRegistry) -> list[SimplePlugin]:
+    allowed_plugin_names = {
+        "education",
+        "permission_denied",
+        "about",
+        "skills",
+        "theme",
+        "identity",
+    }
     return [
         plugin
         for plugin in registry.get_all_plugins()
-        if isinstance(plugin, SimplePlugin)
+        if isinstance(plugin, SimplePlugin) and plugin.name in allowed_plugin_names
     ]
 
 
@@ -64,8 +72,17 @@ def get_module_source(plugin: SimplePlugin) -> str:
     if module is None:
         raise ValueError("Module could not be determined for the given instance.")
     # Get the full source code of the module
-    source_code = inspect.getsource(module)
-    return source_code
+    source = inspect.getsource(module)
+    # Replace relative imports with absolute imports
+    source = source.replace(
+        "from .base import SimplePlugin",
+        "from django_resume.plugins import SimplePlugin",
+    )
+    # Exclude the prompt attribute from the source code
+    attribute_to_exclude = "prompt"
+    pattern = rf'^\s*{attribute_to_exclude}\s*=\s*(""".*?""")\s*?$'
+    source = re.sub(pattern, "", source, flags=re.DOTALL | re.MULTILINE)
+    return source
 
 
 def render_plugin_context_template(plugin: SimplePlugin) -> str:
@@ -97,14 +114,7 @@ complete_simple_context_template = Template("""
 {% endfor %}
 
 After reviewing the examples above, which are separated by the --- markers, you should
-have a clear understanding of how to create a new plugin. Note that in order to make
-the import of SimplePlugin work, use the following import statement:
-
-from django_resume.plugins import SimplePlugin
-
-Instead of
-
-from .base import SimplePlugin
+have a clear understanding of how to create a new plugin. 
 
 Could you generate a new plugin, including the templates and form, following the same
 format as the provided examples—meaning as plain text—for the following prompt:
