@@ -38,6 +38,10 @@
     --s5: calc(var(--s4) * var(--ratio));
 }
 
+@view-transition {
+  navigation: auto;
+}
+
 .container {
     display: flex;
     flex-direction: column;

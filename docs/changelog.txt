@@ -10,6 +10,8 @@ Features
 * #2: Add some documentation
   * Minimal installation instructions
   * Changelog moved to docs and was converted to reStructuredText
+* #3: Context for few shot learning to write plugins from a prompt
+* Minimal CSS to enable cross-fade view transitions on navigation via links
 
 Fixes
 ^^^^^
