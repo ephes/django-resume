@@ -15,7 +15,8 @@ Features
 
 Fixes
 ^^^^^
-* Fix building wheel
+* Fixed building wheel
+* Fixed an styling issue with the about plugin title
 
 0.1.10 - 2024-12-06
 -------------------
