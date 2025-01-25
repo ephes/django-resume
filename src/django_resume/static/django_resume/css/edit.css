@@ -265,3 +265,8 @@ img.editable-avatar.drag-over,
 svg.editable-avatar.drag-over {
     border: 2px solid #007bff; /* A thicker border on hover */
 }
+
+editable-form#about [contenteditable="true"] {
+    /* Avoid about title deforming blue border box because its too big */
+    padding: var(--s-2);
+}
