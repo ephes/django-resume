@@ -2,7 +2,7 @@
 name = "django-resume"
 version = "0.1.11"
 description = "Add your description here"
-readme = "README.md"
+readme = "README.rst"
 requires-python = ">=3.10"
 dependencies = [
     "django>=4.2",
