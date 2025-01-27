@@ -27,13 +27,13 @@ def get_simple_plugins(registry: PluginRegistry) -> list[SimplePlugin]:
 
 
 simple_plugin_template = Template("""
-This is the prompt for the plugin:
+Example{{ index }}: {{ plugin.verbose_name }} Plugin
+
+Prompt:
 
 {{ prompt | safe }}
 
-This is the source code for the implemented plugin using ===name=== markers. The
-first marker just contains the name of the plugin. The rest paths for the files that
-need to be created:
+Generated Output:
 
 ==={{ plugin.name }}===
  
@@ -53,6 +53,7 @@ need to be created:
 
 def source_from_template_path(template_path: str) -> str:
     template = get_template(template_path)
+    assert hasattr(template, "template")
     return template.template.source
 
 
@@ -108,26 +109,60 @@ def render_plugin_context_template(plugin: SimplePlugin) -> str:
 
 
 complete_simple_context_template = Template("""
+Prompt for Generating a New Django-Resume Plugin
+
+After reviewing the examples below, which are separated by --- markers, you should have a clear understanding of how to create a new plugin. Each plugin consists of multiple sections marked with ===, representing the plugin name, source code, and templates.
+
+Please follow this format to generate a new plugin:
+1. Plugin Name:
+    - Format: ===plugin_name===
+    - Example: ===education===
+2. Python Plugin File:
+    - Format: ===plugin_name.py===
+    - Should include:
+    - Django form definition with required fields and validations.
+    - A SimplePlugin subclass with metadata such as name and verbose_name.
+    - Validation logic to ensure all fields are properly handled.
+3. Content Template:
+    - Format: ===django_resume/plugins/plugin_name/plain/content.html===
+    - Should define:
+    - Proper rendering of the plugin data with field placeholders.
+    - Support for conditional editing icons.
+    - Appropriate HTML structure and alignment.
+4. Form Template:
+    - Format: ===django_resume/plugins/plugin_name/plain/form.html===
+    - Should provide:
+    - Editable fields using contenteditable="true".
+    - A submit button with a visually appropriate layout.
+    - When using the editable-form web component, input fields should only be in
+      the form, not in the content section. In the content section editable fields
+      are just those with the contenteditable attribute. There should be exactly
+      the same number of editable fields in the form as in the content section.
+5. Output:
+    - Please dont output markdown. Just plain text between the === markers.
+    - Please no content after the last Django template content.c
+
+Task: Generate a New Plugin
+
+Create a django-resume plugin to add details about a burial pyramid.
+The plugin should be named "pyramid" with the verbose name "Burial Pyramid".
+The plugin should include fields for the pyramid’s name, location, height,
+and the year construction started. The pyramid name, location and height are
+required fields. The height must be at least 50 meters. Otherwise, it should
+raise a validation error saying “Your puny pyramid is pathetic!” The
+construction year should default to -2500.
+
+When displayed, the plugin should show the pyramid’s name as the headline.
+Please try to make the rendered html look nice. The form’s cleaned data must
+be JSON serializable.
+
+Few-Shot Examples:
 {% for plugin_context in plugin_contexts %}
 {{ plugin_context | safe }}
+{% if not forloop.last %}
 ---
+{% endif %}
 {% endfor %}
-
-After reviewing the examples above, which are separated by the --- markers, you should
-have a clear understanding of how to create a new plugin. 
-
-Could you generate a new plugin, including the templates and form, following the same
-format as the provided examples—meaning as plain text—for the following prompt:
-
-Create a django-resume plugin named "pyramid" that allows users to add details about
-the current state of their burial pyramid. The headline for the plugin is the name
-of the pyramid. The plugin should include fields for the pyramid’s name, location,
-and height. The name and location should be required fields, while the height should be optional.
-But if a height is given, it should be invalid if it is below 50 meters raising a ValidationError 
-that says: Your puny pyramid is pathetic! Additionally, there should be a field for the
-year construction started. The construction year should have a default value of -2500 and be left
-aligned while the location should be left aligned and the height centered. And make sure
-that the forms cleaned_data attribute is really json serializable.
 """)
 
 

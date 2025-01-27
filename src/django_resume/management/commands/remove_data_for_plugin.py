@@ -15,12 +15,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         plugin_name = options["plugin_name"]
-        for resume in Resume.objects.all():
-            plugin_data = resume.plugin_data
-            plugin_data.pop(plugin_name, None)
-            assert plugin_name not in plugin_data
-            resume.plugin_data = plugin_data
-            resume.save()
+        Resume.objects.remove_plugin_data_by_name(plugin_name)
         self.stdout.write(
             self.style.SUCCESS(
                 f"Successfully deleted all data for plugin: {plugin_name}"
