@@ -22,6 +22,12 @@
 <main>
   {% include identity.templates.main %}
   {% include about.templates.main %}
+  {% if db_plugins %}
+      {% load plugin_tags %}
+      {% for plugin in db_plugins %}
+          {% render_template_string plugin.templates.string_templates.main %}
+      {% endfor %}
+  {% endif %}
   {% include freelance_timeline.templates.main with timeline=freelance_timeline page_break_before=False %}
   {% include employed_timeline.templates.main with timeline=employed_timeline page_break_before=True %}
   {% include education.templates.main %}

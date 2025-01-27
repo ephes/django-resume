@@ -29,6 +29,7 @@ documentation for details.
     ref/list_plugin
     ref/registry
     ref/views
+    ref/settings
 
 .. toctree::
     :maxdepth: 1

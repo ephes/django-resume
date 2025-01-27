@@ -55,6 +55,7 @@ def resume_cv(request: HttpRequest, slug: str) -> HttpResponse:
         "resume": resume,
         "timelines": [],
         "projects": [],
+        "db_plugins": plugin_registry.get_all_db_plugins(),
         # needed to include edit styles in the base template
         "show_edit_button": show_edit_button,
         "is_editable": is_editable,

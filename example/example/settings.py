@@ -72,7 +72,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "example.wsgi.application"
 
-
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
@@ -133,3 +132,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # Media files
 MEDIA_URL = "/media/"
 MEDIA_ROOT = str(BASE_DIR / "media/")
+
+
+# Django Resume settings
+DJANGO_RESUME_DB_PLUGINS = True

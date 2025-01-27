@@ -6,6 +6,7 @@ from django import forms
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, HttpRequest
 from django.shortcuts import get_object_or_404, render
+from django.template import TemplateDoesNotExist, Template, Context
 from django.urls import reverse, path, URLPattern
 from django.utils.html import format_html
 from django.core.exceptions import PermissionDenied
@@ -255,12 +256,75 @@ class ThemedTemplates:
         )
 
 
+class SimpleStringTemplates:
+    """Holding the string templates for SimplePlugin instances."""
+
+    def __init__(self, *, main: str, form: str):
+        self.main = main
+        self.form = form
+
+
+class SimpleTemplateName:
+    def __init__(self, template_name: str):
+        if template_name not in ["main", "form"]:
+            raise ValueError("template_type must be 'main' or 'form'")
+        self.template_name = template_name
+
+    @property
+    def is_form(self) -> bool:
+        return self.template_name == "form"
+
+    def __repr__(self):
+        return self.template_name
+
+
 class SimpleThemedTemplates(ThemedTemplates):
-    """Handle Template paths for SimplePlugin instances."""
+    """
+    Handle Template paths for SimplePlugin instances.
+
+    The form_template and main_template attributes are used when there
+    are no template files on disk. This happens when the plugin is defined
+    in the database alone.
+    """
+
+    string_templates: SimpleStringTemplates | None = None
 
     @staticmethod
     def get_default_template_names() -> dict[str, str]:
         return {"main": "content.html", "form": "form.html"}
+
+    def set_string_templates(self, string_templates: SimpleStringTemplates):
+        self.string_templates = string_templates
+
+    def render_via_path(
+        self, request: HttpRequest, template_name: SimpleTemplateName, context: dict
+    ) -> HttpResponse:
+        template = self.form if template_name.is_form else self.main
+        return render(request, template, context)
+
+    def render_via_string(
+        self, template_name: SimpleTemplateName, context: dict
+    ) -> HttpResponse:
+        assert self.string_templates is not None  # type guard
+        template_string = (
+            self.string_templates.form
+            if template_name.is_form
+            else self.string_templates.main
+        )
+        if template_string is not None:
+            template = Template(template_string)
+            rendered = template.render(Context(context))
+            return HttpResponse(rendered)
+        else:
+            raise TemplateDoesNotExist(f"Template {template_name} does not exist")
+
+    def render(
+        self, request: HttpRequest, template_name: SimpleTemplateName, context: dict
+    ) -> HttpResponse:
+        try:
+            return self.render_via_path(request, template_name, context)
+        except (TemplateDoesNotExist, AttributeError):
+            return self.render_via_string(template_name, context)
 
 
 def get_current_theme(resume: Resume) -> str:
@@ -316,7 +380,8 @@ class SimpleInline:
         form = self.form_class(initial=plugin_data)
         setattr(form, "post_url", self.get_post_url(resume.pk))  # make mypy happy
         context = {"form": form}
-        return render(request, self.templates.form, context)
+        print("get edit view!")
+        return self.templates.render(request, SimpleTemplateName("form"), context)
 
     def post_view(self, request: HttpRequest, resume_id: int) -> HttpResponse:
         """
@@ -350,9 +415,9 @@ class SimpleInline:
             )
             context["show_edit_button"] = True
             context[self.plugin_name]["edit_url"] = self.get_edit_url(resume.pk)
-            return render(request, self.templates.main, context)
+            return self.templates.render(request, SimpleTemplateName("main"), context)
         # render the form again with errors
-        return render(request, self.templates.form, context)
+        return self.templates.render(request, SimpleTemplateName("form"), context)
 
     def get_urls(self) -> URLPatterns:
         """
@@ -385,6 +450,7 @@ class SimplePlugin:
     name = "simple_plugin"
     verbose_name = "Simple Plugin"
     template_class: type[ThemedTemplates] = SimpleThemedTemplates
+    init_hooks: list[Callable] = []
 
     def __init__(self):
         super().__init__()
@@ -408,6 +474,8 @@ class SimplePlugin:
             templates=self.templates,
             get_context=self.get_context,
         )
+        for hook in self.init_hooks:
+            hook(self)
 
     def get_prompt(self) -> str:
         """Implement this method to return the prompt for the plugin."""
@@ -563,7 +631,6 @@ class ListData:
         """Update an item in the items list of this plugin."""
         plugin_data = self.get_data(resume)
         items = plugin_data.get("items", [])
-        print(items, data)
         for item in items:
             if item["id"] == data["id"]:
                 item.update(data)

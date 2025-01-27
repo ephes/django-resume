@@ -1,5 +1,23 @@
+import sys
+import importlib.util
+
+from typing import TYPE_CHECKING
+
 from django.db import models
 from django.contrib.auth import get_user_model
+
+if TYPE_CHECKING:
+    from .plugins import SimplePlugin
+
+
+class ResumeManager(models.Manager["Resume"]):
+    def remove_plugin_data_by_name(self, plugin_name: str) -> None:
+        for resume in self.all():
+            plugin_data = resume.plugin_data
+            plugin_data.pop(plugin_name, None)
+            assert plugin_name not in plugin_data
+            resume.plugin_data = plugin_data
+            resume.save()
 
 
 class Resume(models.Model):
@@ -8,7 +26,7 @@ class Resume(models.Model):
     owner = models.ForeignKey(get_user_model(), on_delete=models.CASCADE)
     plugin_data = models.JSONField(default=dict, blank=True, null=False)
 
-    objects: models.Manager["Resume"]  # make mypy happy
+    objects: ResumeManager = ResumeManager()
 
     def __repr__(self) -> str:
         return f"<{self.name}>"
@@ -36,3 +54,50 @@ class Resume(models.Model):
         if self.plugin_data is None:
             self.plugin_data = {}
         super().save(*args, **kwargs)
+
+
+class Plugin(models.Model):
+    name = models.CharField(max_length=255)
+    model = models.CharField(max_length=255, null=True, blank=True)
+    prompt = models.TextField()
+    module = models.TextField()
+    form_template = models.TextField()
+    content_template = models.TextField()
+
+    def __repr__(self) -> str:
+        return f"<{self.name}>"
+
+    def __str__(self) -> str:
+        return self.name
+
+    def to_plugin(self) -> "SimplePlugin":
+        """
+        Dynamically create a plugin from the model data.
+        """
+        spec = importlib.util.spec_from_loader(self.name, loader=None)
+        module = importlib.util.module_from_spec(spec)  # type: ignore
+
+        exec(self.module, module.__dict__)
+
+        # Add to sys.modules so it can be imported elsewhere
+        sys.modules[self.name] = module
+
+        # Use the module
+        from .plugins.base import SimpleStringTemplates
+
+        simple_string_templates = SimpleStringTemplates(
+            main=self.content_template, form=self.form_template
+        )
+
+        def set_string_templates_hook(self_plugin):
+            self_plugin.templates.set_string_templates(simple_string_templates)
+
+        [plugin_class_name] = [
+            symbol
+            for symbol in dir(module)
+            if str(symbol).endswith("Plugin") and not str(symbol) == "SimplePlugin"
+        ]
+        getattr(module, plugin_class_name).init_hooks.append(set_string_templates_hook)
+        plugin = getattr(module, plugin_class_name)
+
+        return plugin

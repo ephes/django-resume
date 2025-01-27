@@ -1,0 +1,11 @@
+========
+Settings
+========
+
+There is one setting to enable database enabled plugins. You can turn it on by adding
+
+.. code-block:: python
+
+    DJANGO_RESUME_DB_PLUGINS = True
+
+Be warned that this setting is experimental.
