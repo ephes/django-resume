@@ -380,7 +380,6 @@ class SimpleInline:
         form = self.form_class(initial=plugin_data)
         setattr(form, "post_url", self.get_post_url(resume.pk))  # make mypy happy
         context = {"form": form}
-        print("get edit view!")
         return self.templates.render(request, SimpleTemplateName("form"), context)
 
     def post_view(self, request: HttpRequest, resume_id: int) -> HttpResponse:
