@@ -14,8 +14,14 @@ class CvRedirectView(RedirectView):
 
 app_name = "django_resume"
 urlpatterns = [
+    # resumes
     path("", views.resume_list, name="list"),
     path("<slug:slug>/delete/", views.resume_delete, name="delete"),
+    # plugins
+    path("plugins/", views.plugin_list, name="plugin-list"),
+    path("plugins/<slug:name>/", views.plugin_detail, name="plugin-detail"),
+    path("plugins/<slug:name>/delete/", views.plugin_delete, name="plugin-delete"),
+    # cover, cv and 403 pages
     path("<slug:slug>/", views.resume_detail, name="detail"),
     path("<slug:slug>/cv/", views.resume_cv, name="cv"),
     path("cv/<slug:slug>/", CvRedirectView.as_view(), name="cv-redirect"),

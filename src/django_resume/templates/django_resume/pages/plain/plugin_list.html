@@ -1,0 +1,22 @@
+{% extends "./base.html" %}
+{% load static %}
+
+{% block body %}
+  <body class="center" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+  <div class="container">
+    <header>
+      <h1>My Plugins</h1>
+    </header>
+    <div class="content">
+      {% include "./plugin_list_main.html" %}
+      <footer class="footer-with-background">
+        <img
+          src="{% static 'django_resume/img/jochen-illustration-footer.png' %}"
+          alt="Resume Footer"
+          class="footer-image"
+        >
+      </footer>
+    </div>
+  </div>
+  </body>
+{% endblock body %}

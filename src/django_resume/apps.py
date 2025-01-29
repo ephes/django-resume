@@ -33,8 +33,9 @@ class ResumeConfig(AppConfig):
 
         modules_from_models = []
         for plugin_model in Plugin.objects.all():
-            plugin = plugin_model.to_plugin()
-            modules_from_models.append(plugin)
+            if plugin_model.is_active:
+                plugin = plugin_model.to_plugin()
+                modules_from_models.append(plugin)
         plugins.plugin_registry.register_db_plugin_list(modules_from_models)
 
     def ready(self) -> None:

@@ -1,0 +1,44 @@
+<main id="main-plugins-list" class="stack-large">
+  <h2>Edit or Remove from List</h2>
+  <ul id="plugin-list" class="deletable-ul">
+    {% for plugin in plugins %}
+      <li id="plugin-{{ plugin.name }}" class="deletable-li">
+        <a class="underlined" href="{% url 'django_resume:plugin-detail' plugin.name %}">{{ plugin.name }}</a>
+        <button
+          class="plugin-delete-button"
+                          hx-delete="{% url 'django_resume:plugin-delete' plugin.name %}"
+          hx-target="#plugin-{{ plugin.name }}"
+          hx-swap="delete"
+        >
+          <svg
+            class="edit-icon-small"
+            style="color: red !important;"
+          >
+            <use href="#delete"></use>
+          </svg>
+        </button>
+      </li>
+    {% endfor %}
+  </ul>
+  <hr/>
+  <div class="stack">
+    <h3>Create a new plugin</h3>
+    <form hx-post='{% url "django_resume:plugin-list" %}' hx-target="#main-plugins-list" hx-swap="outerHTML"
+          class="stack">
+            <span class="cluster">
+              <label for="name">Name of the plugin:</label>
+              <input type="text" name="name" placeholder="Some plugin"/>
+            </span>
+      {% for error in form.name.errors %}
+        <p class="error">{{ error|escape }}</p>
+      {% endfor %}
+      <div class="cluster">
+        <button type="submit" class="svg-button">
+          <svg class="edit-icon-small">
+            <use href="#add"></use>
+          </svg>
+        </button>
+      </div>
+    </form>
+  </div>
+</main>

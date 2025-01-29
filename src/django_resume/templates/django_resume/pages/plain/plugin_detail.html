@@ -1,0 +1,20 @@
+{% extends "./base.html" %}
+{% load static %}
+
+{% block title %}Plugin {{ plugin.name }}{% endblock title %}
+{% block styles %}
+  {{ block.super }}
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+{% endblock styles %}
+
+{% block body %}
+  <body class="center" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+  <header>
+    <h1>{{ plugin.name }}</h1>
+  </header>
+  {% include "./plugin_detail_main.html" %}
+  <footer class="no-print">
+  </footer>
+  <script src="{% static "django_resume/js/edit.js" %}"></script>
+{% endblock body %}

@@ -5,8 +5,10 @@ from typing import TYPE_CHECKING
 
 from django.db import models
 from django.contrib.auth import get_user_model
+from django.utils.translation import gettext as _
 
 if TYPE_CHECKING:
+    from typing import Type
     from .plugins import SimplePlugin
 
 
@@ -57,12 +59,27 @@ class Resume(models.Model):
 
 
 class Plugin(models.Model):
-    name = models.CharField(max_length=255)
-    model = models.CharField(max_length=255, null=True, blank=True)
-    prompt = models.TextField()
-    module = models.TextField()
-    form_template = models.TextField()
-    content_template = models.TextField()
+    class ModelName(models.TextChoices):
+        GPT4OMINI = "4o-mini", _("gpt-4o-mini")
+        GPT4O = "4o", _("gpt-4o")
+        GPTO1MINI = "o1-mini", _("gpt-o1-mini")
+        GPTO1 = "o1", _("gpt-o1")
+        HAIKU35 = "claude-3.5-haiku", _("claude-3.5-haiku")
+        SONNET35 = "claude-3.5-sonnet", _("claude-3.5-sonnet")
+
+    name = models.CharField(max_length=255, unique=True)
+    model = models.CharField(
+        max_length=30,
+        choices=ModelName.choices,
+        default=ModelName.GPT4OMINI,
+        blank=True,
+    )
+    prompt = models.TextField(default="", blank=True)
+    module = models.TextField(default="", blank=True)
+    form_template = models.TextField(default="", blank=True)
+    content_template = models.TextField(default="", blank=True)
+    plugin_data = models.JSONField(default=dict, blank=True, null=False)
+    is_active = models.BooleanField(default=False)
 
     def __repr__(self) -> str:
         return f"<{self.name}>"
@@ -70,7 +87,7 @@ class Plugin(models.Model):
     def __str__(self) -> str:
         return self.name
 
-    def to_plugin(self) -> "SimplePlugin":
+    def to_plugin(self) -> "Type[SimplePlugin]":
         """
         Dynamically create a plugin from the model data.
         """

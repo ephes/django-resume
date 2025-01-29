@@ -184,7 +184,8 @@ input[type="checkbox"]:checked::before {
     border-bottom: calc(0.7 * var(--border-thin)) solid var(--font-color);
 }
 
-.resume-delete-button {
+.resume-delete-button,
+.plugin-delete-button {
     margin-inline-start: auto;
     background: none;
     border: none;

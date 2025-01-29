@@ -142,8 +142,9 @@ Please follow this format to generate a new plugin:
       are just those with the contenteditable attribute. There should be exactly
       the same number of editable fields in the form as in the content section.
 5. Output:
-    - Please dont output markdown. Just plain text between the === markers.
-    - Please no content after the last Django template content.c
+    - Please do not output markdown (no ```python, no ```html). Just plain text
+      between the === markers.
+    - Please no content after the last Django template content. 
 
 Task: Generate a New Plugin
 
@@ -204,9 +205,9 @@ def parse_llm_output_as_simple_plugin(llm_output: str) -> dict:
     }
 
 
-def generate_simple_plugin(prompt: str) -> Plugin:
+def generate_simple_plugin(prompt: str, model_name: str = "gpt-4o-mini") -> Plugin:
     simple_plugin_context = get_simple_plugin_context(prompt)
-    llm_output = context_to_output_via_llm(simple_plugin_context)
+    llm_output = context_to_output_via_llm(simple_plugin_context, model_name=model_name)
     parsed_output = parse_llm_output_as_simple_plugin(llm_output)
     plugin = Plugin(
         name=parsed_output["name"],

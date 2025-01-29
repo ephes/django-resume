@@ -8,6 +8,18 @@ class EditableForm extends HTMLElement {
         const formElement = this.querySelector('form');
         const submitButton = this.querySelector('button[type="submit"]');
         const contentEditableElements = this.querySelectorAll('[contenteditable="true"]');
+        const checkbox = this.querySelector('input[type="checkbox"]');
+
+        // Handle checkbox separately since it's a special case
+        if (checkbox) {
+            checkbox.addEventListener('change', (e) => {
+                const hiddenInput = formElement.querySelector(`input[type="hidden"][data-field="${checkbox.dataset.field}"]`);
+                if (hiddenInput) {
+                    // Use "on" when checked, which is what Django expects from checkbox inputs
+                    hiddenInput.value = checkbox.checked ? "on" : "";
+                }
+            });
+        }
 
         submitButton.addEventListener('click', (e) => {
             e.preventDefault(); // Prevent the default form submission
