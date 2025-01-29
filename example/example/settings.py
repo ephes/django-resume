@@ -135,4 +135,4 @@ MEDIA_ROOT = str(BASE_DIR / "media/")
 
 
 # Django Resume settings
-DJANGO_RESUME_DB_PLUGINS = True
+# DJANGO_RESUME_DB_PLUGINS = True
