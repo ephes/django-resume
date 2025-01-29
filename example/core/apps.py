@@ -49,6 +49,6 @@ class CoreConfig(AppConfig):
         else:
             print("No valid plugins found.")
 
-    def ready(self) -> None:
-        self.register_all_local_plugins()
-        print("core ready!")
+    # def ready(self) -> None:
+    #     self.register_all_local_plugins()
+    #     print("core ready!")
