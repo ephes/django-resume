@@ -111,7 +111,13 @@
       </select>
     </section>
     <section>
-      <h3>Plugin Source Code</h3>
+      <h3>Plugin Data</h3>
+      <pre>
+        <code>{{ plugin.plugin_data | pprint }}</code>
+      </pre>
+    </section>
+    <section>
+      <h3>Plugin Source Module (PluginForm and PluginClass)</h3>
       <pre>
         <code contenteditable="true" data-field="module" class="textarea">{{ plugin.module }}</code>
       </pre>
@@ -120,7 +126,7 @@
       {% endfor %}
     </section>
     <section>
-      <h3>Content Template</h3>
+      <h3>Django Template for Rendering Plugin Data to HTML</h3>
       <pre>
         <code contenteditable="true" data-field="content_template">{{ plugin.content_template }}</code>
       </pre>
@@ -129,7 +135,7 @@
       {% endfor %}
     </section>
     <section>
-      <h3>Form Template</h3>
+      <h3>Django Template for Editing Plugin Data Inline</h3>
       <pre>
         <code contenteditable="true" data-field="form_template">{{ plugin.form_template }}</code>
       </pre>
