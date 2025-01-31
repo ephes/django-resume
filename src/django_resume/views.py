@@ -276,8 +276,12 @@ def plugin_detail(request: HttpRequest, name: str) -> HttpResponse:
     try:
         my_plugin = get_preview_plugin(plugin)
         my_plugin_context = my_plugin.get_context(
-            request, my_plugin.get_data(plugin), plugin.pk, context={}, edit=True
-        )  # type: ignore
+            request,
+            my_plugin.get_data(plugin),
+            plugin.pk,
+            context={},
+            edit=True,  # type: ignore
+        )
     except (ValueError, NoReverseMatch, ImportError):
         my_plugin = None
         my_plugin_context = {}
