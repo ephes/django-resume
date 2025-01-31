@@ -277,7 +277,7 @@ def plugin_detail(request: HttpRequest, name: str) -> HttpResponse:
         my_plugin = get_preview_plugin(plugin)
         my_plugin_context = my_plugin.get_context(
             request,
-            my_plugin.get_data(plugin),
+            my_plugin.get_data(plugin),  # type: ignore
             plugin.pk,
             context={},
             edit=True,  # type: ignore
