@@ -308,11 +308,12 @@ def plugin_detail(request: HttpRequest, name: str) -> HttpResponse:
         form = PluginForm(request.POST, instance=plugin)
         context["form"] = form
         if form.is_valid():
-            plugin = form.save()
             if form.cleaned_data.get("llm", False):
                 # generate code, content and form templates from prompt
                 plugin = generate_simple_plugin_from_prompt(plugin)
-                plugin.save()
+            plugin = form.save()
+            # re-register the plugin (this does not really work atm, just restart the dev server)
+            plugin_registry.register_db_plugin(plugin.to_plugin())
             context["new_plugin"] = plugin
         return render(
             request,
