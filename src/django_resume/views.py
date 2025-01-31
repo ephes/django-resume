@@ -280,7 +280,7 @@ def plugin_detail(request: HttpRequest, name: str) -> HttpResponse:
             my_plugin.get_data(plugin),  # type: ignore
             plugin.pk,
             context={},
-            edit=True,  # type: ignore
+            edit=True,
         )
     except (ValueError, NoReverseMatch, ImportError):
         my_plugin = None
