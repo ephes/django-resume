@@ -112,6 +112,15 @@ def render_plugin_context_template(plugin: SimplePlugin) -> str:
 
 
 complete_simple_context_template = Template("""
+
+Here's some CSS you can use to style your Django templates:
+
+{{ plain_css | safe }}
+
+And here's some additional CSS that might come in handy for the editing interface:
+
+{{ plain_edit_css | safe }}
+
 Prompt for Generating a New Django-Resume Plugin
 
 After reviewing the examples below, which are separated by --- markers, you should have a clear understanding of how to create a new plugin. Each plugin consists of multiple sections marked with ===, representing the plugin name, source code, and templates.
