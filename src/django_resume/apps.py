@@ -26,19 +26,9 @@ class ResumeConfig(AppConfig):
             ]
         )
 
-    @staticmethod
-    def register_plugin_models() -> None:
-        from . import plugins
-        from .models import Plugin
-
-        modules_from_models = []
-        for plugin_model in Plugin.objects.all():
-            if plugin_model.is_active:
-                plugin = plugin_model.to_plugin()
-                modules_from_models.append(plugin)
-        plugins.plugin_registry.register_db_plugin_list(modules_from_models)
-
     def ready(self) -> None:
         self.register_plugins()
         if getattr(settings, "DJANGO_RESUME_DB_PLUGINS", False):
-            self.register_plugin_models()
+            from .models import Plugin
+
+            Plugin.objects.register_plugin_models()

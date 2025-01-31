@@ -58,6 +58,18 @@ class Resume(models.Model):
         super().save(*args, **kwargs)
 
 
+class PluginManager(models.Manager["Plugin"]):
+    def register_plugin_models(self) -> None:
+        from . import plugins
+
+        modules_from_models = []
+        for plugin_model in self.all():
+            if plugin_model.is_active:
+                plugin = plugin_model.to_plugin()
+                modules_from_models.append(plugin)
+        plugins.plugin_registry.register_db_plugin_list(modules_from_models)
+
+
 class Plugin(models.Model):
     class ModelName(models.TextChoices):
         GPT4OMINI = "4o-mini", _("gpt-4o-mini")
@@ -80,6 +92,8 @@ class Plugin(models.Model):
     content_template = models.TextField(default="", blank=True)
     plugin_data = models.JSONField(default=dict, blank=True, null=False)
     is_active = models.BooleanField(default=False)
+
+    objects: PluginManager = PluginManager()
 
     def __repr__(self) -> str:
         return f"<{self.name}>"
