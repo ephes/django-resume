@@ -123,7 +123,8 @@ Please follow this format to generate a new plugin:
 2. Python Plugin File:
     - Format: ===plugin_name.py===
     - Should include:
-    - Django form definition with required fields and validations.
+    - Django form definition with required fields and validations. The form should not use fields that
+      are not JSON serializable like DecimalField for example.
     - A SimplePlugin subclass with metadata such as name and verbose_name.
     - Validation logic to ensure all fields are properly handled.
 3. Content Template:
