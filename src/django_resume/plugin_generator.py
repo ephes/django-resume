@@ -2,6 +2,8 @@ import re
 import llm
 import inspect
 
+from pathlib import Path
+
 from django.template import Template, Context
 from django.template.loader import get_template
 from django.utils.safestring import mark_safe
@@ -173,11 +175,24 @@ Few-Shot Examples:
 """)
 
 
+def get_plain_css_context() -> dict:
+    plain_css_path = (
+        Path(__file__).parent / "static" / "django_resume" / "css" / "styles.css"
+    )
+    plain_edit_css_path = (
+        Path(__file__).parent / "static" / "django_resume" / "css" / "edit.css"
+    )
+    return {
+        "plain_css": plain_css_path.read_text(),
+        "plain_edit_css": plain_edit_css_path.read_text(),
+    }
+
+
 def render_few_shot_context(prompt: str, plugin_contexts: list[str]) -> str:
     context = {
         "plugin_contexts": plugin_contexts,
         "prompt": prompt,
-    }
+    } | get_plain_css_context()
     return complete_simple_context_template.render(Context(context))
 
 
