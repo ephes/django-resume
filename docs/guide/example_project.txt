@@ -1,0 +1,41 @@
+Example Project
+===============
+
+You can use the following example project to get started with django-resume.
+
+Set up the project
+------------------
+
+Clone the repository:
+
+.. code-block:: sh
+
+    $ git clone git@github.com:ephes/django-resume.git
+
+
+Set up the virtual environment:
+
+.. code-block:: sh
+
+    $ cd django-resume
+    $ uv venv
+    $ uv pip install .[dev]
+
+Run the example project:
+
+.. code-block:: sh
+
+    $ cd example
+    $ uv manage.py runserver
+
+Log in via the admin interface:
+
+- `Local admin <http://localhost:8000/admin/>`_ (username: ``user``, password: ``password``)
+
+Visit the list of example resumes:
+
+- `Local resumes <http://localhost:8000/resume/>`_
+
+You can edit the example resumes either via the django admin interface or via
+the inline editing feature by clicking on the "Edit" button.
+

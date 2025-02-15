@@ -10,6 +10,7 @@ Features
 
 * Preview images for the README.rst
 * Links to the sample CV and Resume in the documentation
+* #3 How to run the example project
 
 0.1.12 - 2025-02-15
 -------------------

@@ -20,6 +20,7 @@ See it in action:
    guide/installation
    changelog
    guide/usage
+   guide/example_project
 
 .. toctree::
     :maxdepth: 1
