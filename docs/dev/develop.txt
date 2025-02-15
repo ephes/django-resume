@@ -149,9 +149,16 @@ Check with `npm outdated` if there are any outdated dependencies. If there are, 
 Build + Publish the package
 ---------------------------
 
+.. admonition:: wheel/sdist issues
+
+    `uv build` will build both a wheel and a sdist. But the wheel
+    will be empty. To build a wheel with the correct content, you
+    need to run `uv build --wheel` and `uv build --sdist` separately.
+
 .. code-block:: sh
 
-    $ uv build
+    $ uv build --wheel
+    $ uv build --sdist
 
 Publish the package to `pypi.org`:
 

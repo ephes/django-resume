@@ -2,7 +2,7 @@
 Changelog
 =========
 
-0.1.12 - 2025-02-16
+0.1.12 - 2025-02-15
 -------------------
 
 Features
@@ -13,6 +13,7 @@ Features
 Fixes
 ^^^^^
 * #4 If no token is required, the CV link is shown on the cover
+* need to build wheel and sdist separately (fixed documentation)
 
 0.1.11 - 2025-01-27
 -------------------
