@@ -9,6 +9,7 @@ Features
 ^^^^^^^^
 
 * Preview images for the README.rst
+* Links to the sample CV and Resume in the documentation
 
 0.1.12 - 2025-02-15
 -------------------
