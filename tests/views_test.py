@@ -117,22 +117,42 @@ def test_delete_resume_view(client, resume, django_user_model):
 def test_resume_detail_view(client, resume):
     # Given a resume in the database
     resume.owner.save()
+    print("token needed ", resume.token_is_required)
     resume.save()
 
-    # When we access the cv page
+    # When we access the cover page
     detail_url = reverse("resume:detail", kwargs={"slug": resume.slug})
     r = client.get(detail_url)
 
     # Then the response should be successful
     assert r.status_code == 200
 
-    # And the cv template should be used
+    # And the cover template should be used
     assert "django_resume/pages/plain/resume_detail.html" in set(
         [t.name for t in r.templates]
     )
 
     # And the resume should be in the context
     assert r.context["resume"] == resume
+
+    # And the CV link should not be in the content (token is required by default)
+    cv_link = reverse("resume:cv", kwargs={"slug": resume.slug})
+    content = r.content.decode("utf-8")
+    assert cv_link not in content
+
+    # Given a resume where the token is not required
+    resume.plugin_data[TokenPlugin.name] = {"flat": {"token_required": False}}
+    resume.save()
+
+    # When we access the cover page
+    r = client.get(detail_url)
+
+    # Then the response should be successful
+    assert r.status_code == 200
+
+    # And the CV link should be in the content
+    content = r.content.decode("utf-8")
+    assert cv_link in content
 
 
 @pytest.mark.django_db

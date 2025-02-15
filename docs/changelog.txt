@@ -10,6 +10,10 @@ Features
 
 * Added some bits on how to build the documentation
 
+Fixes
+^^^^^
+* #4 If no token is required, the CV link is shown on the cover
+
 0.1.11 - 2025-01-27
 -------------------
 

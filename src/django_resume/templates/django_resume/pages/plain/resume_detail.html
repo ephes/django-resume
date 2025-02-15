@@ -29,7 +29,7 @@
       <b>Interested? Let's talk!</b>
     </a>
   </div>
-  {% if user.is_authenticated %}
+  {% if user.is_authenticated or not resume.token_is_required %}
     <div class="contact">
       <a class="underlined" href="{% url "django_resume:cv" slug=resume.slug %}">Link to CV!</a>
     </div>
