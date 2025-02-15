@@ -45,6 +45,10 @@ DJANGO_SETTINGS_MODULE = "tests.settings"
 base_url = "http://localhost:8000"
 testpaths = ["tests"]
 
+filterwarnings = [
+    "ignore:Support for class-based `config` is deprecated:DeprecationWarning"
+]
+
 [tool.mypy]
 python_version = "3.13"
 ignore_missing_imports = true
