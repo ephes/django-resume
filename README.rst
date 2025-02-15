@@ -18,3 +18,9 @@ Documentation
 -------------
 
 Please see https://django-resume.readthedocs.io/ .
+
+Preview
+-------
+
+.. image:: images/wersdoerfer-de-resume-queen-cleo-cv.png
+   :alt: Preview of the resume
