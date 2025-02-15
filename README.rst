@@ -36,3 +36,12 @@ Click the image to view the complete, interactive resume on my website.
 .. image:: images/wersdoerfer-de-resume-queen-cleo-cover.png
    :alt: Preview of the Resume
    :target: https://wersdoerfer.de/resume/queen-cleo/
+
+Watch the Talk
+--------------
+
+For a quick introduction, you can watch the video on YouTube. 🍿
+
+.. image:: images/skip-the-overhead-preview.png
+   :alt: Watch the Talk
+   :target: https://fosdem.org/2025/schedule/event/fosdem-2025-6174-skip-the-overhead-lean-web-development-with-django/
