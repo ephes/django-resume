@@ -24,3 +24,4 @@ Preview
 
 .. image:: images/wersdoerfer-de-resume-queen-cleo-cv.png
    :alt: Preview of the resume
+   :target: https://wersdoerfer.de/resume/queen-cleo/cv/
