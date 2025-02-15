@@ -6,10 +6,12 @@
 django-resume documentation
 ===========================
 
-Add your content using ``reStructuredText`` syntax. See the
-`reStructuredText <https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html>`_
-documentation for details.
+Add your resume or CV to your Django website.
 
+See it in action:
+
+- `View a sample resume <https://wersdoerfer.de/resume/queen-cleo/>`_ (Resume format)
+- `View a sample CV <https://wersdoerfer.de/resume/queen-cleo/cv/>`_ (CV format)
 
 .. toctree::
    :maxdepth: 1
