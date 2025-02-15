@@ -2,6 +2,14 @@
 Changelog
 =========
 
+0.1.12 - 2025-02-16
+-------------------
+
+Features
+^^^^^^^^
+
+* Added some bits on how to build the documentation
+
 0.1.11 - 2025-01-27
 -------------------
 

@@ -1,6 +1,6 @@
-===============================
-Tests / MyPy / Package Building
-===============================
+======================================
+Tests / Docs / MyPy / Package Building
+======================================
 
 Clone the repository
 --------------------
@@ -118,6 +118,24 @@ Cleanup the test database after running the tests:
 .. code-block:: sh
 
     $ uv run python manage.py remove_all_resumes
+
+
+Build the Documentation
+-----------------------
+
+The documentation is built using Sphinx with the furo theme.
+To build the documentation, run the following commands:
+
+.. code-block:: sh
+
+    $ make -C docs clean
+    $ make -C docs html
+
+The documentation will be available in the `docs/_build/html` directory:
+
+.. code-block:: sh
+
+    $ open docs/_build/html/index.html
 
 Update Javascript Dependencies
 ------------------------------
