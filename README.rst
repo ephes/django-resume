@@ -19,9 +19,11 @@ Documentation
 
 Please see https://django-resume.readthedocs.io/ .
 
-Preview
--------
+CV Preview
+----------
+
+Click the image to view the complete, interactive CV on my website.
 
 .. image:: images/wersdoerfer-de-resume-queen-cleo-cv.png
-   :alt: Preview of the resume
+   :alt: Preview of the CV
    :target: https://wersdoerfer.de/resume/queen-cleo/cv/
