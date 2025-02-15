@@ -27,3 +27,12 @@ Click the image to view the complete, interactive CV on my website.
 .. image:: images/wersdoerfer-de-resume-queen-cleo-cv.png
    :alt: Preview of the CV
    :target: https://wersdoerfer.de/resume/queen-cleo/cv/
+
+Resume Preview
+--------------
+
+Click the image to view the complete, interactive resume on my website.
+
+.. image:: images/wersdoerfer-de-resume-queen-cleo-cover.png
+   :alt: Preview of the Resume
+   :target: https://wersdoerfer.de/resume/queen-cleo/
