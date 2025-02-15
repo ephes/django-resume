@@ -1,5 +1,4 @@
 import re
-import llm
 import inspect
 
 from pathlib import Path
@@ -204,6 +203,8 @@ def get_simple_plugin_context(prompt: str) -> str:
 
 
 def context_to_output_via_llm(context: str, model_name: str = "gpt-4o-mini") -> str:
+    import llm  # don't break Django application if llm is not installed
+
     model = llm.get_model(model_name)
     response = model.prompt(context)
     return response.text()
