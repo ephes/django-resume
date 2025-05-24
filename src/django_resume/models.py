@@ -74,14 +74,18 @@ class Plugin(models.Model):
     class ModelName(models.TextChoices):
         GPT4OMINI = "4o-mini", _("gpt-4o-mini")
         GPT4O = "4o", _("gpt-4o")
+        GPT41 = "4.1", _("gpt-4.1")
+        GPT41MINI = "4.1-mini", _("gpt-4.1-mini")
         GPTO1MINI = "o1-mini", _("gpt-o1-mini")
         GPTO1 = "o1", _("gpt-o1")
+        GPTO4MINI = "o4-mini", _("gpt-o4-mini")
         HAIKU35 = "claude-3.5-haiku", _("claude-3.5-haiku")
-        SONNET35 = "claude-3.5-sonnet", _("claude-3.5-sonnet")
+        SONNET37 = "claude-3.7-sonnet-latest", _("claude-3.7-sonnet")
+        SONNET4 = "claude-4-sonnet", _("claude-4-sonnet")
 
     name = models.CharField(max_length=255, unique=True)
     model = models.CharField(
-        max_length=30,
+        max_length=50,
         choices=ModelName.choices,
         default=ModelName.GPT4OMINI,
         blank=True,
