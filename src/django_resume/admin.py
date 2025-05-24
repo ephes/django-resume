@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.http import HttpRequest
 
-from .models import Resume
+from .models import Resume, Plugin as PluginModel
 from .plugins import plugin_registry
 from .plugins.base import Plugin, URLPatterns
 
@@ -45,4 +45,68 @@ class ResumeAdmin(admin.ModelAdmin):
         return readonly_fields
 
 
+class PluginAdmin(admin.ModelAdmin):
+    list_display = ("name", "model", "is_active", "has_content")
+    list_filter = ("is_active", "model")
+    list_editable = ("is_active",)
+    search_fields = ("name", "prompt")
+    actions = ["activate_plugins", "deactivate_plugins"]
+
+    fieldsets = (
+        (
+            "Basic Information",
+            {
+                "fields": ("name", "model", "is_active"),
+                "description": "Basic plugin configuration. Toggle is_active to enable/disable the plugin.",
+            },
+        ),
+        (
+            "Plugin Code",
+            {
+                "fields": ("prompt", "module"),
+                "classes": ("collapse",),
+                "description": "Plugin source code and generation prompt.",
+            },
+        ),
+        (
+            "Templates",
+            {
+                "fields": ("content_template", "form_template"),
+                "classes": ("collapse",),
+                "description": "Django templates for rendering and editing plugin data.",
+            },
+        ),
+        (
+            "Metadata",
+            {
+                "fields": ("plugin_data",),
+                "classes": ("collapse",),
+                "description": "JSON data for plugin configuration.",
+            },
+        ),
+    )
+
+    def has_content(self, obj):
+        """Check if plugin has both templates."""
+        return bool(obj.content_template and obj.form_template)
+
+    has_content.boolean = True
+    has_content.short_description = "Has Templates"
+
+    def activate_plugins(self, request, queryset):
+        """Bulk action to activate selected plugins."""
+        updated = queryset.update(is_active=True)
+        self.message_user(request, f"{updated} plugin(s) activated.")
+
+    activate_plugins.short_description = "Activate selected plugins"
+
+    def deactivate_plugins(self, request, queryset):
+        """Bulk action to deactivate selected plugins."""
+        updated = queryset.update(is_active=False)
+        self.message_user(request, f"{updated} plugin(s) deactivated.")
+
+    deactivate_plugins.short_description = "Deactivate selected plugins"
+
+
 admin.site.register(Resume, ResumeAdmin)
+admin.site.register(PluginModel, PluginAdmin)
