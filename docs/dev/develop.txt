@@ -22,14 +22,14 @@ Install the pre-commit hooks
 
 .. code-block:: sh
 
-    $ uv run pre-commit install
+    $ uvx run pre-commit install
 
 Install the Package using uv
 ----------------------------
 
 .. code-block:: sh
 
-    $ uv pip install -e .[dev]
+    $ uv sync
 
 Run the Migrations
 ------------------

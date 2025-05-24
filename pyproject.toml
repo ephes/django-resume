@@ -13,32 +13,8 @@ Documentation = "https://django-resume.readthedocs.io/en/latest/"
 Source = "https://github.com/ephes/django-resume"
 
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
-[tool.hatch.build]
-include = [
-    "src/django_resume/**/*.py",
-]
-
-[tool.hatch.build.targets.sdist]
-packages = ["src/django_resume"]
-
-[tool.hatch.build.targets.wheel]
-packages = ["src/django_resume"]
-
-[project.optional-dependencies]
-dev = [
-    "coverage>=7",
-    "django-extensions>=3",
-    "django-stubs[compatible-mypy]>=5",
-    "furo",  # documentation
-    "llm",  # generate db plugins from prompts
-    "llm-claude-3",  # llm plugin for anthropic models
-    "pytest>=8",
-    "pytest-django>=4",
-    "pytest-playwright>=0.5",
-]
+requires = ["uv_build>=0.7.8,<0.8.0"]
+build-backend = "uv_build"
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "tests.settings"
@@ -75,5 +51,14 @@ exclude_lines = [
 
 [dependency-groups]
 dev = [
+    "coverage>=7",
+    "django-extensions>=3",
+    "django-stubs[compatible-mypy]>=5",
+    "furo",  # documentation
+    "llm",  # generate db plugins from prompts
+    "llm-claude-3",  # llm plugin for anthropic models
+    "pytest>=8",
+    "pytest-django>=4",
+    "pytest-playwright>=0.5",
     "pytest-mock>=3.14.0",
 ]
