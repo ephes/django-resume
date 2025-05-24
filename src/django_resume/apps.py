@@ -32,3 +32,6 @@ class ResumeConfig(AppConfig):
             from .models import Plugin
 
             Plugin.objects.register_plugin_models()
+
+            # Import signals to connect them
+            from . import signals  # noqa: F401
