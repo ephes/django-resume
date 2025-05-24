@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import argparse
 import fnmatch
 import os
 import sys
@@ -7,8 +8,8 @@ from pathlib import Path
 
 
 def get_project_root():
-    # Since the script is now in scripts/, we need to go up one level
-    return Path(__file__).parent.parent.resolve()
+    # Since the script is now in src/django_resume/entrypoints/, we need to navigate up
+    return Path(__file__).parent.parent.parent.parent.resolve()
 
 
 def llm_content():
@@ -16,17 +17,29 @@ def llm_content():
     Output all relevant code / documentation in the project including
     the relative path and content of each file.
     """
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(
+        description="Output project files for LLM processing."
+    )
+    parser.add_argument(
+        "--paths-only",
+        action="store_true",
+        help="Only show file paths without their contents",
+    )
+    args = parser.parse_args()
 
-    def echo_filename_and_content(files):
-        """Print the relative path and content of each file."""
+    def echo_filename_and_content(files, paths_only=False):
+        """Print the relative path and optionally the content of each file."""
         for f in files:
-            print(f)
-            contents = f.read_text()
             relative_path = f.relative_to(project_root)
-            print(relative_path)
-            print("---")
-            print(contents)
-            print("---")
+            if paths_only:
+                print(relative_path)
+            else:
+                print(f)
+                print(relative_path)
+                print("---")
+                print(f.read_text())
+                print("---")
 
     project_root = Path(get_project_root())
     # Exclude files and directories. This is tuned to make the project fit into the
@@ -41,6 +54,7 @@ def llm_content():
         "vite",
         "htmlcov",
         "scripts",
+        "entrypoints",
     }
     patterns = ["*.py", "*.rst", "*.js", "*.ts", "*.html"]
     all_files = []
@@ -52,8 +66,9 @@ def llm_content():
             for filename in fnmatch.filter(files, pattern):
                 if filename not in exclude_files:
                     all_files.append(root / filename)
-    # print("\n".join([str(f) for f in all_files]))
-    echo_filename_and_content(all_files)
+
+    # Output files
+    echo_filename_and_content(all_files, args.paths_only)
     return 0
 
 

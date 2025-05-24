@@ -1,0 +1,1 @@
+"""Django resume development entrypoints."""
