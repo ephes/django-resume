@@ -62,3 +62,6 @@ dev = [
     "pytest-playwright>=0.5",
     "pytest-mock>=3.14.0",
 ]
+
+[project.scripts]
+llm-content = "django_resume.entrypoints.llm_content:llm_content"
