@@ -44,9 +44,18 @@ def llm_content():
     project_root = Path(get_project_root())
     # Exclude files and directories. This is tuned to make the project fit into the
     # 200k token limit of the claude 3 models.
-    exclude_files = {"llm_content.py"}
+    exclude_files = {
+        "llm_content.py",
+        "package-lock.json",
+        "uv.lock",
+    }
     exclude_dirs = {
         ".venv",
+        ".git",
+        ".idea",
+        ".mypy_cache",
+        ".pytest_cache",
+        ".ruff_cache",
         "migrations",
         "node_modules",
         "_build",
@@ -55,6 +64,7 @@ def llm_content():
         "htmlcov",
         "scripts",
         "entrypoints",
+        "dist",
     }
     patterns = ["*.py", "*.rst", "*.js", "*.ts", "*.html"]
     all_files = []
