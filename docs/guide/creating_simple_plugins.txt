@@ -1,0 +1,404 @@
+=====================================
+Tutorial: Creating a Simple Plugin
+=====================================
+
+.. admonition:: What you'll learn
+
+   In this tutorial, you'll learn how to create a simple custom plugin for django-resume
+   in your own Django project. We'll build a "Motto" plugin that displays 
+   an inspirational quote or personal motto on a resume.
+
+.. admonition:: Prerequisites
+
+   - Basic understanding of Django forms and templates
+   - Familiarity with Python classes and inheritance
+   - A Django project with django-resume installed as a third-party package
+
+.. admonition:: Working Example Available
+
+   A complete motto plugin implementation is already included in the django-resume 
+   example project. To see it in action, enable example plugins in your settings:
+   
+   .. code-block:: python
+   
+      # settings.py
+      DJANGO_RESUME_ENABLE_EXAMPLE_PLUGINS = True
+   
+   Then restart your server to see the motto and certifications plugins.
+
+Overview
+========
+
+Simple plugins in django-resume are Python classes that define how specific sections
+of a resume are displayed and edited. Each plugin handles its own data,
+provides a single form for editing, and renders content using templates.
+
+In this tutorial, we'll create a plugin to display a personal motto or inspirational
+quote, including the quote text and an optional attribution.
+
+Step 1: Understanding Simple vs List Plugins
+============================================
+
+django-resume provides two base plugin types:
+
+- **SimplePlugin**: For plugins with a single form and straightforward data structure (like "About", "Contact Info", or personal mottos)
+- **ListPlugin**: For plugins that manage lists of items (like multiple projects, certifications, or jobs)
+
+Since a motto is typically a single piece of content, we'll use ``SimplePlugin`` as our base.
+
+Step 2: Create the Plugin Module
+================================
+
+Create a new Django app or module in your project for custom plugins:
+
+.. code-block:: bash
+
+   # If you don't have a plugins app yet, create one
+   python manage.py startapp plugins
+   
+   # Or create a simple module directory
+   mkdir myproject/plugins
+   touch myproject/plugins/__init__.py
+   touch myproject/plugins/motto.py
+
+For this tutorial, we'll assume you have a ``plugins`` app or module in your project.
+
+Step 3: Define the Form
+=======================
+
+First, let's create a form to define what data our plugin will collect:
+
+.. code-block:: python
+
+   # myproject/plugins/motto.py (or plugins/motto.py)
+   from django import forms
+   from django_resume.plugins.base import SimplePlugin
+
+
+   class MottoForm(forms.Form):
+       """Form for the motto plugin."""
+       title = forms.CharField(
+           label="Section Title",
+           max_length=100,
+           initial="My Motto",
+           help_text="The heading for this section"
+       )
+       quote = forms.CharField(
+           label="Motto/Quote",
+           max_length=500,
+           widget=forms.Textarea(attrs={'rows': 3}),
+           initial="Stay curious, stay humble, keep learning.",
+           help_text="Your personal motto or favorite inspirational quote"
+       )
+       attribution = forms.CharField(
+           label="Attribution",
+           max_length=200,
+           required=False,
+           help_text="Author of the quote (optional)"
+       )
+
+Step 4: Implement the Plugin Class
+==================================
+
+Now let's create the main plugin class:
+
+.. code-block:: python
+
+   class MottoPlugin(SimplePlugin):
+       name: str = "motto"
+       verbose_name: str = "Personal Motto"
+       admin_form_class = inline_form_class = MottoForm
+       
+       # AI prompt for LLM-based content generation
+       prompt = """
+       Create a django-resume plugin to display a personal motto or inspirational quote.
+       The plugin should include the quote text and an optional attribution.
+       
+       The plugin should display the motto prominently with clean typography
+       and allow users to edit the content inline. Keep the design simple
+       and elegant.
+       """
+
+That's it! Simple plugins require much less code than list plugins because:
+
+- No need for position management
+- No need for individual item forms
+- No need for complex context setup
+- Single form handles all the data
+
+Step 5: Create Templates
+========================
+
+Create the template directory structure for your plugin in your project:
+
+.. code-block:: bash
+
+   # Create templates in your project's template directory
+   mkdir -p templates/django_resume/plugins/motto/plain
+
+Now create the content template:
+
+.. code-block:: html
+
+   <!-- templates/django_resume/plugins/motto/plain/content.html -->
+   <section id="motto" class="stack">
+     {% if show_edit_button %}
+       <div class="cluster">
+         <h2>{{ motto.title }}</h2>
+         <svg class="edit-icon-small" hx-get="{{ motto.edit_url }}" hx-target="#motto" hx-swap="outerHTML">
+           <use href="#edit"></use>
+         </svg>
+       </div>
+     {% else %}
+       <h2>{{ motto.title }}</h2>
+     {% endif %}
+     
+     <blockquote class="motto-quote">
+       <p>{{ motto.quote }}</p>
+       {% if motto.attribution %}
+         <cite>— {{ motto.attribution }}</cite>
+       {% endif %}
+     </blockquote>
+   </section>
+
+Create the form template:
+
+.. code-block:: html
+
+   <!-- templates/django_resume/plugins/motto/plain/form.html -->
+   <section id="motto" class="stack">
+     <form hx-post="{{ form.post_url }}" hx-target="#motto" hx-swap="outerHTML">
+       <div class="stack-small">
+         <div>
+           <label for="title">{{ form.title.label }}</label>
+           <input type="text" name="title" id="title" value="{{ form.title.value|default:'My Motto' }}">
+           {% for error in form.title.errors %}
+             <p class="error">{{ error|escape }}</p>
+           {% endfor %}
+         </div>
+         
+         <div>
+           <label for="quote">{{ form.quote.label }}</label>
+           <textarea name="quote" id="quote" rows="3">{{ form.quote.value|default:'Stay curious, stay humble, keep learning.' }}</textarea>
+           {% for error in form.quote.errors %}
+             <p class="error">{{ error|escape }}</p>
+           {% endfor %}
+         </div>
+         
+         <div>
+           <label for="attribution">{{ form.attribution.label }}</label>
+           <input type="text" name="attribution" id="attribution" value="{{ form.attribution.value|default:'' }}">
+           {% for error in form.attribution.errors %}
+             <p class="error">{{ error|escape }}</p>
+           {% endfor %}
+         </div>
+         
+         <button type="submit">
+           <svg class="edit-icon-small">
+             <use href="#ok"></use>
+           </svg>
+         </button>
+       </div>
+     </form>
+   </section>
+
+Step 6: Register Your Plugin
+=============================
+
+Register your custom plugin in your Django app. Choose the method that best fits your project structure.
+
+**Option A: Register in Django App Config (Recommended)**
+
+If you created a ``plugins`` app, register your plugin in its ``apps.py``:
+
+.. code-block:: python
+
+   # plugins/apps.py
+   from django.apps import AppConfig
+
+   class PluginsConfig(AppConfig):
+       default_auto_field = 'django.db.models.BigAutoField'
+       name = 'plugins'
+
+       def ready(self):
+           # Import and register your custom plugins
+           from django_resume.plugins import plugin_registry
+           from .motto import MottoPlugin
+           
+           plugin_registry.register(MottoPlugin)
+
+Make sure your ``plugins`` app is added to ``INSTALLED_APPS`` in your ``settings.py``:
+
+.. code-block:: python
+
+   # settings.py
+   INSTALLED_APPS = [
+       # ... other apps ...
+       'django_resume',
+       'plugins',  # Your custom plugins app
+   ]
+
+**Option B: Register in Your Main App's Ready Method**
+
+.. code-block:: python
+
+   # myproject/apps.py
+   from django.apps import AppConfig
+
+   class MyprojectConfig(AppConfig):
+       default_auto_field = 'django.db.models.BigAutoField'  
+       name = 'myproject'
+
+       def ready(self):
+           from django_resume.plugins import plugin_registry
+           from .plugins.motto import MottoPlugin
+           
+           plugin_registry.register(MottoPlugin)
+
+Step 7: Add Plugin to Resume Template
+=====================================
+
+**Important:** Simple plugins work differently than list plugins regarding template inclusion.
+
+**For CV Templates (Recommended)**
+
+The CV template (``resume_cv.html``) loads ALL registered plugins automatically via the ``get_context_from_plugins()`` function. Simply add your plugin to the CV template:
+
+.. code-block:: html
+
+   <!-- templates/django_resume/pages/plain/resume_cv.html -->
+   <!-- Copy the template from django-resume and add: -->
+   {% include motto.templates.main %}
+
+**For Detail Templates**
+
+The detail template (``resume_detail.html``) only loads specific hardcoded plugins: ``["about", "identity", "cover", "theme"]``. Your custom plugin will NOT appear automatically.
+
+**Template Context Variables**
+
+Your plugin data will be available in templates under the plugin name:
+
+.. code-block:: html
+
+   {{ motto.title }}        <!-- Section title -->
+   {{ motto.quote }}        <!-- Quote text -->
+   {{ motto.attribution }}  <!-- Attribution -->
+   {{ motto.edit_url }}     <!-- Edit URL for HTMX -->
+   {{ motto.templates.main }} <!-- Template path -->
+
+Step 8: Test Your Plugin
+========================
+
+Start your development server and test the plugin:
+
+.. code-block:: bash
+
+   python manage.py runserver
+
+Navigate to your resume and you should see the new Motto section.
+Test both the admin interface and inline editing functionality.
+
+Step 9: Add Styling (Optional)
+==============================
+
+Add CSS to style your plugin by creating styles in your project's CSS files:
+
+.. code-block:: css
+
+   /* Example styling using django-resume design system */
+   #motto .motto-quote {
+       font-style: italic;
+       margin: var(--s0) 0;
+       padding: var(--s0);
+       border-left: var(--border-thin) solid var(--color-brightblue);
+       background-color: var(--color-ultralightgrey);
+       border-radius: var(--s-4);
+   }
+
+   #motto .motto-quote p {
+       margin: 0 0 var(--s-1) 0;
+       font-weight: 300;
+       line-height: 1.4;
+   }
+
+   #motto .motto-quote cite {
+       font-size: var(--s-1);
+       color: var(--color-middlegrey);
+       font-style: normal;
+       display: block;
+       text-align: right;
+   }
+
+**Use Design System Variables**
+
+django-resume includes a comprehensive CSS design system with variables for spacing, colors, and typography. Use these variables instead of hardcoded values for consistency:
+
+- Spacing: ``var(--s-2)``, ``var(--s-1)``, ``var(--s0)``, ``var(--s1)``, ``var(--s2)``
+- Colors: ``var(--color-brightblue)``, ``var(--color-middlegrey)``, ``var(--color-ultralightgrey)``
+- Borders: ``var(--border-thin)``, ``var(--border-color)``
+
+Key Differences from List Plugins
+=================================
+
+Simple plugins are much easier to create because they:
+
+**Don't need:**
+- Position management (``set_initial_position``, ``get_max_position``)
+- Item-specific context setup (``set_context`` method)
+- Multiple form classes (just one form handles everything)
+- Complex template structure with separate item templates
+
+**Do need:**
+- Single form class that extends ``forms.Form``
+- Plugin class that extends ``SimplePlugin``
+- Two templates: ``content.html`` and ``form.html``
+- Registration in Django app config
+
+**Template Access:**
+- Data is accessed directly via plugin name: ``{{ motto.title }}``
+- Edit URL is available as ``{{ motto.edit_url }}``
+- Show edit button via ``{{ show_edit_button }}``
+
+Next Steps
+==========
+
+Congratulations! You've created a simple custom plugin. Here are some ways to extend it:
+
+1. **Add validation**: Ensure quote isn't too long for good display
+2. **Add formatting**: Support for italic/bold text in quotes
+3. **Add categories**: Different types of quotes (professional, personal, etc.)
+4. **Add multiple quotes**: Convert to a list plugin for multiple mottos
+
+For more complex plugins with lists of items, see:
+
+- :doc:`creating_list_plugins` - Tutorial for list-based plugins
+- :doc:`../ref/plugins` - Complete plugin API reference
+- :doc:`../ref/simple_plugin` - SimplePlugin-specific documentation
+
+Troubleshooting
+===============
+
+**Plugin not appearing in templates**
+   1. Check plugin registration in ``apps.py`` and restart your server
+   2. Verify you're using the CV template (``resume_cv.html``) which loads all plugins
+   3. If using detail template, your plugin won't appear unless explicitly added to the hardcoded list
+   4. Test plugin registration in Django shell: ``from django_resume.plugins import plugin_registry; print(plugin_registry.get_plugin('motto'))``
+
+**Templates not found**
+   Check that your template directory structure matches the expected pattern:
+   ``templates/django_resume/plugins/{plugin_name}/plain/content.html`` and ``form.html``
+
+**Context variables not working**
+   1. Ensure you're accessing data with the plugin name: ``{{ motto.title }}`` not ``{{ title }}``
+   2. Verify plugin is properly registered and appears in context debug output
+   3. Check that you're using the correct template (CV template loads all plugins automatically)
+
+**Edit button not working**
+   1. Verify HTMX attributes use specific targets: ``hx-target="#motto"`` not ``hx-target="closest section"``
+   2. Check that ``{{ motto.edit_url }}`` is not empty
+   3. Ensure CSRF token is properly configured in the page header
+
+**Styling issues**
+   1. Use django-resume CSS design system variables for consistency
+   2. Include your custom CSS in the template using ``{% load static %}`` and ``<link>`` tags
+   3. Check browser dev tools for CSS conflicts or missing styles

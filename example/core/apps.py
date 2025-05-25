@@ -50,5 +50,13 @@ class CoreConfig(AppConfig):
             print("No valid plugins found.")
 
     def ready(self) -> None:
-        self.register_all_local_plugins()
-        print("core ready!")
+        from django.conf import settings
+
+        # Only register example plugins if explicitly enabled
+        if getattr(settings, "DJANGO_RESUME_ENABLE_EXAMPLE_PLUGINS", False):
+            self.register_all_local_plugins()
+            print("core ready! Example plugins enabled.")
+        else:
+            print(
+                "core ready! Example plugins disabled (set DJANGO_RESUME_ENABLE_EXAMPLE_PLUGINS=True to enable)."
+            )

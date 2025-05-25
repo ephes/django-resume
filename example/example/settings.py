@@ -135,4 +135,8 @@ MEDIA_ROOT = str(BASE_DIR / "media/")
 
 
 # Django Resume settings
-# DJANGO_RESUME_DB_PLUGINS = True
+DJANGO_RESUME_DB_PLUGINS = False
+
+# Example project plugin settings
+# Set to True to enable example plugins (certifications, motto)
+DJANGO_RESUME_ENABLE_EXAMPLE_PLUGINS = False

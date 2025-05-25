@@ -1,0 +1,35 @@
+<section id="motto" class="stack">
+  <form hx-post="{{ form.post_url }}" hx-target="#motto" hx-swap="outerHTML">
+    <div class="stack-small">
+      <div>
+        <label for="title">{{ form.title.label }}</label>
+        <input type="text" name="title" id="title" value="{{ form.title.value|default:'My Motto' }}">
+        {% for error in form.title.errors %}
+          <p class="error">{{ error|escape }}</p>
+        {% endfor %}
+      </div>
+      
+      <div>
+        <label for="quote">{{ form.quote.label }}</label>
+        <textarea name="quote" id="quote" rows="3">{{ form.quote.value|default:'Stay curious, stay humble, keep learning.' }}</textarea>
+        {% for error in form.quote.errors %}
+          <p class="error">{{ error|escape }}</p>
+        {% endfor %}
+      </div>
+      
+      <div>
+        <label for="attribution">{{ form.attribution.label }}</label>
+        <input type="text" name="attribution" id="attribution" value="{{ form.attribution.value|default:'' }}">
+        {% for error in form.attribution.errors %}
+          <p class="error">{{ error|escape }}</p>
+        {% endfor %}
+      </div>
+      
+      <button type="submit">
+        <svg class="edit-icon-small">
+          <use href="#ok"></use>
+        </svg>
+      </button>
+    </div>
+  </form>
+</section>

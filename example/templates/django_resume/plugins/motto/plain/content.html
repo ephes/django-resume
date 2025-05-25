@@ -1,0 +1,19 @@
+<section id="motto" class="stack">
+  {% if show_edit_button %}
+    <div class="cluster">
+      <h2>{{ motto.title }}</h2>
+      <svg class="edit-icon-small" hx-get="{{ motto.edit_url }}" hx-target="#motto" hx-swap="outerHTML">
+        <use href="#edit"></use>
+      </svg>
+    </div>
+  {% else %}
+    <h2>{{ motto.title }}</h2>
+  {% endif %}
+  
+  <blockquote class="motto-quote">
+    <p>{{ motto.quote }}</p>
+    {% if motto.attribution %}
+      <cite>— {{ motto.attribution }}</cite>
+    {% endif %}
+  </blockquote>
+</section>

@@ -1,6 +1,11 @@
 {% extends "./base.html" %}
 {% load static %}
 
+{% block extra_css %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'css/custom.css' %}">
+{% endblock extra_css %}
+
 {% block title %}Curriculum Vitae of {{ identity.name }}{% endblock title %}
 
 {% block meta %}
@@ -22,6 +27,7 @@
 <main>
   {% include identity.templates.main %}
   {% include about.templates.main %}
+  {% if motto %}{% include motto.templates.main %}{% endif %}
   {% if db_plugins %}
       {% load plugin_tags %}
       {% for plugin in db_plugins %}
@@ -31,7 +37,7 @@
   {% include freelance_timeline.templates.main with timeline=freelance_timeline page_break_before=False %}
   {% include employed_timeline.templates.main with timeline=employed_timeline page_break_before=True %}
   {% include education.templates.main %}
-  {% include certifications.templates.main %}
+  {% if certifications %}{% include certifications.templates.main %}{% endif %}
   {% include skills.templates.main %}
   {% include projects.templates.main with projects=projects %}
 </main>

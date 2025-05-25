@@ -1,0 +1,25 @@
+/* Custom styles for example project plugins */
+
+/* Motto plugin styles */
+#motto .motto-quote {
+    font-style: italic;
+    margin: var(--s0) 0;
+    padding: var(--s0);
+    border-left: var(--border-thin) solid var(--color-brightblue);
+    background-color: var(--color-ultralightgrey);
+    border-radius: var(--s-4);
+}
+
+#motto .motto-quote p {
+    margin: 0 0 var(--s-1) 0;
+    font-weight: 300;
+    line-height: 1.4;
+}
+
+#motto .motto-quote cite {
+    font-size: var(--s-1);
+    color: var(--color-middlegrey);
+    font-style: normal;
+    display: block;
+    text-align: right;
+}

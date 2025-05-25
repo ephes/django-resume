@@ -1,0 +1,510 @@
+==================================
+Tutorial: Creating a List Plugin
+==================================
+
+.. admonition:: What you'll learn
+
+   In this tutorial, you'll learn how to create a complex list-based custom plugin for django-resume
+   in your own Django project. We'll build a "Certifications" plugin that displays 
+   professional certifications on a resume.
+
+.. admonition:: Prerequisites
+
+   - Basic understanding of Django forms and templates
+   - Familiarity with Python classes and inheritance
+   - A Django project with django-resume installed as a third-party package
+   - Completion of :doc:`creating_simple_plugins` tutorial (recommended)
+
+.. admonition:: Working Example Available
+
+   A complete certifications plugin implementation is already included in the django-resume 
+   example project. To see it in action, enable example plugins in your settings:
+   
+   .. code-block:: python
+   
+      # settings.py
+      DJANGO_RESUME_ENABLE_EXAMPLE_PLUGINS = True
+   
+   Then restart your server to see the certifications and motto plugins.
+
+Overview
+========
+
+List plugins in django-resume are Python classes that manage collections of related items.
+Each plugin handles multiple data entries, provides forms for editing individual items
+and the overall section, and renders content using multiple templates.
+
+In this tutorial, we'll create a plugin to display professional certifications,
+including the certification name, issuing organization, issue date, and
+expiration date. Users will be able to add, edit, and delete multiple certifications.
+
+Step 1: Understanding List vs Simple Plugins
+============================================
+
+django-resume provides two base plugin types:
+
+- **SimplePlugin**: For plugins with a single form and straightforward data structure (like "About", "Contact Info", or personal mottos)
+- **ListPlugin**: For plugins that manage lists of items (like multiple projects, certifications, or jobs)
+
+Since certifications are typically multiple items that users want to manage individually,
+we'll use ``ListPlugin`` as our base.
+
+List plugins are more complex because they need to handle:
+
+- Multiple items with individual forms
+- Position/ordering of items
+- Adding and deleting items
+- Both section-level and item-level editing
+
+Step 2: Create the Plugin Module
+================================
+
+Create a new Django app or module in your project for custom plugins:
+
+.. code-block:: bash
+
+   # If you don't have a plugins app yet, create one
+   python manage.py startapp plugins
+   
+   # Or create a simple module directory
+   mkdir myproject/plugins
+   touch myproject/plugins/__init__.py
+   touch myproject/plugins/certifications.py
+
+For this tutorial, we'll assume you have a ``plugins`` app or module in your project.
+
+Step 3: Define the Data Model Forms
+===================================
+
+List plugins require two form classes: one for individual items and one for the section header.
+
+.. code-block:: python
+
+   # myproject/plugins/certifications.py (or plugins/certifications.py)
+   from typing import Type
+   from django import forms
+   from django.http import HttpRequest
+   from django_resume.plugins.base import ListPlugin, ListItemFormMixin, ContextDict
+
+
+   class CertificationForm(ListItemFormMixin, forms.Form):
+       """Form for individual certification entries."""
+       name = forms.CharField(
+           label="Certification Name",
+           max_length=200,
+           help_text="e.g., AWS Certified Solutions Architect"
+       )
+       organization = forms.CharField(
+           label="Issuing Organization", 
+           max_length=200,
+           help_text="e.g., Amazon Web Services"
+       )
+       # IMPORTANT: Use CharField with DateInput widget, not DateField!
+       # This is because plugin data is stored as JSON, which doesn't support date objects
+       issue_date = forms.CharField(
+           label="Issue Date",
+           widget=forms.DateInput(attrs={'type': 'date'})
+       )
+       expiration_date = forms.CharField(
+           label="Expiration Date",
+           widget=forms.DateInput(attrs={'type': 'date'}),
+           required=False,
+           help_text="Leave blank if certification doesn't expire"
+       )
+       credential_id = forms.CharField(
+           label="Credential ID",
+           max_length=100,
+           required=False,
+           help_text="Certificate number or ID (optional)"
+       )
+       position = forms.IntegerField(widget=forms.NumberInput(), required=False)
+
+       def __init__(self, *args, **kwargs):
+           super().__init__(*args, **kwargs)
+           self.set_initial_position()
+
+       @staticmethod
+       def get_max_position(items: list[dict]) -> int:
+           """Return the maximum position value from the existing items."""
+           positions = [item.get("position", 0) for item in items]
+           return max(positions) if positions else -1
+
+       def set_initial_position(self) -> None:
+           """Set the position to the next available position."""
+           if "position" not in self.initial:
+               self.initial["position"] = self.get_max_position(self.existing_items) + 1
+
+       def set_context(self, item: dict, context: ContextDict) -> ContextDict:
+           """Set up context for rendering individual certification items."""
+           context["cert"] = {
+               "id": item["id"],
+               "name": item["name"],
+               "organization": item["organization"],
+               "issue_date": item["issue_date"],
+               "expiration_date": item.get("expiration_date", ""),
+               "credential_id": item.get("credential_id", ""),
+               "edit_url": context["edit_url"],
+               "delete_url": context["delete_url"],
+           }
+           return context
+
+       @staticmethod
+       def get_initial() -> ContextDict:
+           """Default values for new certification entries."""
+           return {
+               "name": "Certification Name",
+               "organization": "Issuing Organization",
+               "issue_date": "2024-01-01",
+               "expiration_date": "",
+               "credential_id": "",
+           }
+
+
+   class CertificationFlatForm(forms.Form):
+       """Form for the overall certifications section."""
+       title = forms.CharField(
+           label="Section Title",
+           max_length=100,
+           initial="Certifications"
+       )
+
+       @staticmethod
+       def set_context(item: dict, context: ContextDict) -> ContextDict:
+           """Set up context for rendering the section title."""
+           context["certifications"] = {"title": item.get("title", "Certifications")}
+           context["certifications"]["edit_flat_url"] = context["edit_flat_url"]
+           return context
+
+Step 4: Implement the Plugin Class
+==================================
+
+Now let's create the main plugin class:
+
+.. code-block:: python
+
+   class CertificationsPlugin(ListPlugin):
+       name: str = "certifications"
+       verbose_name: str = "Certifications"
+       
+       # AI prompt for LLM-based content generation
+       prompt = """
+       Create a django-resume plugin to display professional certifications.
+       Each certification should include the name, issuing organization, 
+       issue date, and optional expiration date and credential ID.
+       
+       The plugin should allow users to add multiple certifications and
+       display them in a clean, organized format. Include functionality
+       for both admin and inline editing.
+       """
+
+       @staticmethod
+       def get_form_classes() -> dict[str, Type[forms.Form]]:
+           """Return the form classes used by this plugin."""
+           return {"item": CertificationForm, "flat": CertificationFlatForm}
+
+Step 5: Create Templates
+========================
+
+List plugins require multiple templates for different parts of the interface.
+
+Create the template directory structure:
+
+.. code-block:: bash
+
+   # Create templates in your project's template directory
+   mkdir -p templates/django_resume/plugins/certifications/plain
+
+**Main Content Template**
+
+.. code-block:: html
+
+   <!-- templates/django_resume/plugins/certifications/plain/content.html -->
+   <section id="certifications" class="stack">
+     {% include certifications.templates.flat %}
+     {% if show_edit_button %}
+       <svg class="edit-icon-small" hx-get="{{ certifications.add_item_url }}" hx-target="#certifications-list" hx-swap="afterbegin">
+         <use href="#add"></use>
+       </svg>
+     {% endif %}
+     <div id="certifications-list" class="certification-list stack">
+       {% for cert in certifications.ordered_entries %}
+         {% include certifications.templates.item %}
+       {% endfor %}
+     </div>
+     {% if not certifications.ordered_entries %}
+       <p class="no-certifications">No certifications added yet.</p>
+     {% endif %}
+   </section>
+
+**Section Title Template (Flat)**
+
+.. code-block:: html
+
+   <!-- templates/django_resume/plugins/certifications/plain/flat.html -->
+   {% if show_edit_button %}
+     <div class="cluster">
+       <h2>
+         {{ certifications.title }}
+       </h2>
+       <svg class="edit-icon-small" hx-get="{{ certifications.edit_flat_url }}" hx-target="closest div" hx-swap="outerHTML">
+         <use href="#edit"></use>
+       </svg>
+     </div>
+   {% else %}
+     <h2>
+       {{ certifications.title }}
+     </h2>
+   {% endif %}
+
+**Section Title Form Template**
+
+.. code-block:: html
+
+   <!-- templates/django_resume/plugins/certifications/plain/flat_form.html -->
+   <form hx-post="{{ edit_flat_post_url }}" hx-target="this" hx-swap="outerHTML">
+     <div class="cluster">
+       <input class="editable-h2" type="text" name="title" value="{{ form.title.value|default:'Certifications' }}">
+       <button type="submit">
+         <svg class="edit-icon-small">
+           <use href="#ok"></use>
+         </svg>
+       </button>
+     </div>
+     {% for error in form.title.errors %}
+       <p class="error">{{ error|escape }}</p>
+     {% endfor %}
+   </form>
+
+**Individual Item Display Template**
+
+.. code-block:: html
+
+   <!-- templates/django_resume/plugins/certifications/plain/item.html -->
+   <div id="certifications-item-{{ cert.id }}" class="certification-item stack-small avoid-page-break">
+       {% if show_edit_button %}
+           <div class="cluster">
+               <h3>{{ cert.name }}</h3>
+               <svg class="edit-icon-small" hx-get="{{ cert.edit_url }}" hx-target="closest .certification-item" hx-swap="outerHTML">
+                   <use href="#edit"></use>
+               </svg>
+               <svg class="edit-icon-small" style="color: red !important;" hx-delete="{{ cert.delete_url }}" hx-target="closest .certification-item" hx-swap="delete">
+                   <use href="#delete"></use>
+               </svg>
+           </div>
+       {% else %}
+           <h3>{{ cert.name }}</h3>
+       {% endif %}
+       <p class="organization">{{ cert.organization }}</p>
+       <div class="dates">
+           <!-- Note: Display dates as strings, not using |date filter since they're stored as strings -->
+           <span class="issue-date">Issued: {{ cert.issue_date }}</span>
+           {% if cert.expiration_date %}
+               <span class="expiration-date">Expires: {{ cert.expiration_date }}</span>
+           {% endif %}
+       </div>
+       {% if cert.credential_id %}
+           <p class="credential-id">Credential ID: {{ cert.credential_id }}</p>
+       {% endif %}
+   </div>
+
+**Individual Item Form Template**
+
+.. code-block:: html
+
+   <!-- templates/django_resume/plugins/certifications/plain/item_form.html -->
+   <div id="certifications-item-{{ form.item_id }}" class="certification-item-form stack">
+     <form 
+       class="stack-small"
+       hx-post="{{ form.post_url }}"
+       hx-target="#certifications-item-{{ form.item_id }}"
+       hx-swap="outerHTML"
+     >
+       <input type="hidden" name="id" value="{{ form.item_id }}">
+       <input type="hidden" name="position" value="{{ form.position.value }}">
+       
+       <div>
+         <label for="name-{{ form.item_id }}">{{ form.name.label }}</label>
+         <input type="text" id="name-{{ form.item_id }}" name="name" value="{{ form.name.value|default:'' }}" required>
+         {% for error in form.name.errors %}
+           <p class="error">{{ error|escape }}</p>
+         {% endfor %}
+       </div>
+       
+       <div>
+         <label for="organization-{{ form.item_id }}">{{ form.organization.label }}</label>
+         <input type="text" id="organization-{{ form.item_id }}" name="organization" value="{{ form.organization.value|default:'' }}" required>
+         {% for error in form.organization.errors %}
+           <p class="error">{{ error|escape }}</p>
+         {% endfor %}
+       </div>
+       
+       <div>
+         <label for="issue_date-{{ form.item_id }}">{{ form.issue_date.label }}</label>
+         <input type="date" id="issue_date-{{ form.item_id }}" name="issue_date" value="{{ form.issue_date.value|default:'' }}" required>
+         {% for error in form.issue_date.errors %}
+           <p class="error">{{ error|escape }}</p>
+         {% endfor %}
+       </div>
+       
+       <div>
+         <label for="expiration_date-{{ form.item_id }}">{{ form.expiration_date.label }}</label>
+         <input type="date" id="expiration_date-{{ form.item_id }}" name="expiration_date" value="{{ form.expiration_date.value|default:'' }}">
+         {% for error in form.expiration_date.errors %}
+           <p class="error">{{ error|escape }}</p>
+         {% endfor %}
+       </div>
+       
+       <div>
+         <label for="credential_id-{{ form.item_id }}">{{ form.credential_id.label }}</label>
+         <input type="text" id="credential_id-{{ form.item_id }}" name="credential_id" value="{{ form.credential_id.value|default:'' }}">
+         {% for error in form.credential_id.errors %}
+           <p class="error">{{ error|escape }}</p>
+         {% endfor %}
+       </div>
+       
+       <button type="submit">
+         <svg class="edit-icon-small">
+           <use href="#ok"></use>
+         </svg>
+       </button>
+     </form>
+   </div>
+
+Step 6: Register Your Plugin
+=============================
+
+Register your custom plugin using one of these methods:
+
+**Option A: Register in Django App Config (Recommended)**
+
+.. code-block:: python
+
+   # plugins/apps.py
+   from django.apps import AppConfig
+
+   class PluginsConfig(AppConfig):
+       default_auto_field = 'django.db.models.BigAutoField'
+       name = 'plugins'
+
+       def ready(self):
+           # Import and register your custom plugins
+           from django_resume.plugins import plugin_registry
+           from .certifications import CertificationsPlugin
+           
+           plugin_registry.register(CertificationsPlugin)
+
+Step 7: Add Plugin to Resume Template
+=====================================
+
+Include your plugin in your resume template:
+
+.. code-block:: html
+
+   <!-- templates/django_resume/pages/plain/resume_cv.html -->
+   {% extends "django_resume/pages/plain/resume_cv.html" %}
+   
+   {% block main %}
+     {{ block.super }}
+     {% include certifications.templates.main %}
+   {% endblock %}
+
+Step 8: Test Your Plugin
+========================
+
+.. code-block:: bash
+
+   python manage.py runserver
+
+Test adding, editing, and deleting certifications in both admin and inline modes.
+
+Key Concepts for List Plugins
+=============================
+
+**Required Methods in Item Forms:**
+
+1. **Position Management**: ``get_max_position()`` and ``set_initial_position()`` handle item ordering
+2. **Context Setup**: ``set_context()`` prepares data for template rendering  
+3. **Default Values**: ``get_initial()`` provides defaults for new items
+
+**Template Structure:**
+
+- ``content.html`` - Main container that includes other templates
+- ``flat.html`` - Section header/title display
+- ``flat_form.html`` - Section header/title editing form
+- ``item.html`` - Individual item display
+- ``item_form.html`` - Individual item editing form
+
+**Data Access in Templates:**
+
+- Section data: ``{{ certifications.title }}``
+- Item data: ``{{ cert.name }}`` (set by ``set_context()``)
+- URLs: ``{{ certifications.add_item_url }}``, ``{{ cert.edit_url }}``, etc.
+
+**Important Constraints:**
+
+- Use ``CharField`` with ``DateInput`` for dates (JSON storage)
+- Include ``position`` field for ordering
+- Proper HTMX targeting to prevent duplicates
+- Extend ``ListItemFormMixin`` for item forms
+
+Common Pitfalls and Important Notes
+===================================
+
+**Date Fields and JSON Storage**
+   Always use ``CharField`` with ``DateInput`` widget for dates, never ``DateField``. 
+   Plugin data is stored as JSON, which doesn't support Python date objects.
+
+**Form Methods Required for ListPlugin**
+   - ``get_initial()`` - Static method returning default values
+   - ``set_initial_position()`` - Instance method for positioning
+   - ``get_max_position()`` - Static method for position management  
+   - ``set_context()`` - Instance method for template context setup
+
+**Template Structure**
+   - Use ``{% include plugin.templates.item %}`` in content template
+   - Never put item HTML directly in content template
+   - Use proper stack classes: ``.stack``, ``.stack-small``, ``.stack-large``
+   - Include proper IDs for HTMX targeting
+
+**Context Variables**
+   - Templates access data via plugin namespace (e.g., ``{{ certifications.title }}``)
+   - Individual items use context set by ``set_context()`` method
+   - ``show_edit_button`` controls edit/delete button visibility
+
+**HTMX and Styling**
+   - Delete buttons use ``style="color: red !important;"``
+   - Submit buttons use just checkmark: ``<svg><use href="#ok"></use></svg>``
+   - Proper HTMX targeting prevents duplicate items
+
+Next Steps
+==========
+
+Congratulations! You've created a complex list plugin. Here are some ways to extend it:
+
+1. **Add validation**: Ensure expiration dates are after issue dates
+2. **Add URLs**: Include certification verification URLs
+3. **Add images**: Support for certification badges or logos
+4. **Add categories**: Group certifications by type (technical, management, etc.)
+5. **Add search**: Filter certifications by organization or date range
+
+For more information, see:
+
+- :doc:`creating_simple_plugins` - Tutorial for simple plugins
+- :doc:`../ref/plugins` - Complete plugin API reference
+- :doc:`../ref/list_plugin` - ListPlugin-specific documentation
+
+Troubleshooting
+===============
+
+**Plugin not appearing**
+   Make sure you've registered the plugin and restarted your server.
+
+**Templates not found**
+   Check that your template directory structure matches the expected pattern:
+   ``templates/django_resume/plugins/{plugin_name}/plain/``
+
+**Items not saving properly**
+   Ensure your item form extends ``ListItemFormMixin`` and implements required methods.
+
+**Ordering issues**
+   Verify position management methods are implemented correctly.
