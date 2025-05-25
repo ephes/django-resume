@@ -1,8 +1,9 @@
 """MCP resource for exposing django-resume database content."""
 
-from typing import List, Dict, Any
+from typing import Any
 import json
 
+from pydantic import AnyUrl
 from mcp.types import Resource, TextResourceContents
 
 from ..utils.django_setup import ensure_django_setup
@@ -15,7 +16,7 @@ class DatabaseResource:
         # Django setup will be called when needed
         pass
 
-    def list_resources(self) -> List[Resource]:
+    def list_resources(self) -> list[Resource]:
         """List all available database resources."""
         ensure_django_setup()
         resources = []
@@ -23,7 +24,7 @@ class DatabaseResource:
         # Database plugins
         resources.append(
             Resource(
-                uri="database://plugins",
+                uri=AnyUrl("database://plugins"),
                 name="Database Plugins",
                 description="All plugins stored in the database",
                 mimeType="application/json",
@@ -36,7 +37,7 @@ class DatabaseResource:
             if "error" not in plugin:
                 resources.append(
                     Resource(
-                        uri=f"database://plugin/{plugin['name']}",
+                        uri=AnyUrl(f"database://plugin/{plugin['name']}"),
                         name=f"Plugin: {plugin['name']}",
                         description=f"Database plugin: {plugin['name']}",
                         mimeType="application/json",
@@ -46,7 +47,7 @@ class DatabaseResource:
         # Resume data
         resources.append(
             Resource(
-                uri="database://resumes",
+                uri=AnyUrl("database://resumes"),
                 name="Resume Data",
                 description="All resumes and their plugin data",
                 mimeType="application/json",
@@ -59,7 +60,7 @@ class DatabaseResource:
             if "error" not in resume:
                 resources.append(
                     Resource(
-                        uri=f"database://resume/{resume['slug']}",
+                        uri=AnyUrl(f"database://resume/{resume['slug']}"),
                         name=f"Resume: {resume['name']}",
                         description=f"Plugin data for resume '{resume['name']}'",
                         mimeType="application/json",
@@ -89,9 +90,11 @@ class DatabaseResource:
         else:
             raise ValueError(f"Unknown resource path: {path_part}")
 
-        return TextResourceContents(uri=uri, text=content, mimeType="application/json")
+        return TextResourceContents(
+            uri=AnyUrl(uri), text=content, mimeType="application/json"
+        )
 
-    def _get_database_plugins(self) -> List[Dict[str, Any]]:
+    def _get_database_plugins(self) -> list[dict[str, Any]]:
         """Get all database plugins."""
         try:
             from django_resume.models import Plugin
@@ -150,7 +153,7 @@ class DatabaseResource:
         except Exception as e:
             return json.dumps({"error": f"Plugin not found: {e}"})
 
-    def _get_resumes(self) -> List[Dict[str, Any]]:
+    def _get_resumes(self) -> list[dict[str, Any]]:
         """Get all resumes."""
         try:
             from django_resume.models import Resume

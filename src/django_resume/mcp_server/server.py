@@ -8,6 +8,7 @@ import mcp.server.stdio
 from mcp.server import NotificationOptions, Server
 from mcp.server.models import InitializationOptions
 import mcp.types as types
+from pydantic import AnyUrl
 
 from .resources.codebase import codebase_resource
 from .resources.templates import templates_resource
@@ -21,7 +22,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("django-resume-mcp-server")
 
 # Create the server
-server = Server("django-resume-mcp-server")
+server: Server = Server("django-resume-mcp-server")
 
 
 @server.list_resources()
@@ -51,19 +52,19 @@ async def handle_list_resources() -> list[types.Resource]:
     resources.extend(
         [
             types.Resource(
-                uri="overview://codebase",
+                uri=AnyUrl("overview://codebase"),
                 name="Codebase Overview",
                 description="Overview of the django-resume codebase structure",
                 mimeType="text/markdown",
             ),
             types.Resource(
-                uri="overview://templates",
+                uri=AnyUrl("overview://templates"),
                 name="Templates Overview",
                 description="Overview of the django-resume template system",
                 mimeType="text/markdown",
             ),
             types.Resource(
-                uri="overview://database",
+                uri=AnyUrl("overview://database"),
                 name="Database Overview",
                 description="Overview of the django-resume database content",
                 mimeType="text/markdown",

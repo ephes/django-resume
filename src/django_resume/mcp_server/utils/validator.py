@@ -2,7 +2,6 @@
 
 import re
 import ast
-from typing import List
 from dataclasses import dataclass
 
 from .django_setup import ensure_django_setup
@@ -13,9 +12,9 @@ class ValidationResult:
     """Result of code validation."""
 
     is_valid: bool
-    errors: List[str]
-    warnings: List[str]
-    suggestions: List[str]
+    errors: list[str]
+    warnings: list[str]
+    suggestions: list[str]
 
 
 class PluginValidator:
@@ -61,9 +60,9 @@ class PluginValidator:
 
     def validate_plugin_code(self, code: str) -> ValidationResult:
         """Validate plugin Python code."""
-        errors = []
-        warnings = []
-        suggestions = []
+        errors: list[str] = []
+        warnings: list[str] = []
+        suggestions: list[str] = []
 
         # Check for dangerous patterns
         for pattern in self.DANGEROUS_PATTERNS:
@@ -101,9 +100,9 @@ class PluginValidator:
     def validate_template_code(self, template_code: str) -> ValidationResult:
         """Validate Django template code."""
         ensure_django_setup()
-        errors = []
-        warnings = []
-        suggestions = []
+        errors: list[str] = []
+        warnings: list[str] = []
+        suggestions: list[str] = []
 
         try:
             from django.template import Template, TemplateSyntaxError
@@ -142,9 +141,9 @@ class PluginValidator:
 
     def _validate_ast(self, tree: ast.AST) -> ValidationResult:
         """Validate AST for security and structure."""
-        errors = []
-        warnings = []
-        suggestions = []
+        errors: list[str] = []
+        warnings: list[str] = []
+        suggestions: list[str] = []
 
         # Check for class definitions
         classes = [node for node in ast.walk(tree) if isinstance(node, ast.ClassDef)]
@@ -184,9 +183,9 @@ class PluginValidator:
 
     def _validate_django_forms(self, code: str) -> ValidationResult:
         """Validate Django form field definitions."""
-        errors = []
-        warnings = []
-        suggestions = []
+        errors: list[str] = []
+        warnings: list[str] = []
+        suggestions: list[str] = []
 
         # Check for JSON serializable field types
         non_json_fields = ["DecimalField", "FileField", "ImageField", "FilePathField"]

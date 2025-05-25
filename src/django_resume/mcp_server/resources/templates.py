@@ -1,7 +1,6 @@
 """MCP resource for exposing django-resume templates."""
 
-from typing import List
-
+from pydantic import AnyUrl
 from mcp.types import Resource, TextResourceContents
 
 from ..utils.django_setup import get_project_root
@@ -21,9 +20,9 @@ class TemplatesResource:
             / "plugins"
         )
 
-    def list_resources(self) -> List[Resource]:
+    def list_resources(self) -> list[Resource]:
         """List all available template resources."""
-        resources = []
+        resources: list[Resource] = []
 
         if not self.templates_path.exists():
             return resources
@@ -43,7 +42,7 @@ class TemplatesResource:
                             uri = f"templates://{plugin_name}/{theme_name}/{template_file.name}"
                             resources.append(
                                 Resource(
-                                    uri=uri,
+                                    uri=AnyUrl(uri),
                                     name=f"{plugin_name} - {theme_name} - {template_file.stem}",
                                     description=f"Template for {plugin_name} plugin ({theme_name} theme)",
                                     mimeType="text/html",
@@ -66,7 +65,7 @@ class TemplatesResource:
 
         content = file_path.read_text(encoding="utf-8")
 
-        return TextResourceContents(uri=uri, text=content, mimeType="text/html")
+        return TextResourceContents(uri=AnyUrl(uri), text=content, mimeType="text/html")
 
     def get_template_structure_overview(self) -> str:
         """Get an overview of the template structure."""
@@ -80,7 +79,7 @@ class TemplatesResource:
         overview.append("## Available Plugin Templates\n")
 
         # Group by plugin
-        plugins = {}
+        plugins: dict[str, dict[str, list[str]]] = {}
         for plugin_dir in self.templates_path.iterdir():
             if plugin_dir.is_dir():
                 plugin_name = plugin_dir.name

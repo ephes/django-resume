@@ -1,6 +1,6 @@
 """Code generation utilities for creating django-resume plugins."""
 
-from typing import Dict, Any, List
+from typing import Any
 
 from .django_setup import ensure_django_setup
 
@@ -14,7 +14,7 @@ class PluginCodeGenerator:
 
     def generate_plugin_from_prompt(
         self, prompt: str, model_name: str = "gpt-4o-mini"
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Generate a plugin using the existing LLM-based approach."""
         ensure_django_setup()
         try:
@@ -40,7 +40,7 @@ class PluginCodeGenerator:
 
         return get_simple_plugin_context(prompt)
 
-    def parse_generated_output(self, llm_output: str) -> Dict[str, Any]:
+    def parse_generated_output(self, llm_output: str) -> dict[str, Any]:
         """Parse LLM output into plugin components."""
         ensure_django_setup()
         try:
@@ -59,7 +59,7 @@ class PluginAnalyzer:
         # Django setup will be called when needed
         pass
 
-    def analyze_existing_plugins(self) -> List[Dict[str, Any]]:
+    def analyze_existing_plugins(self) -> list[dict[str, Any]]:
         """Analyze all existing file-based plugins."""
         ensure_django_setup()
         from django_resume.plugins.registry import plugin_registry
@@ -86,8 +86,10 @@ class PluginAnalyzer:
                 # Get template information
                 if hasattr(plugin, "templates"):
                     try:
-                        plugin_info["template_paths"]["main"] = plugin.templates.main
-                        plugin_info["template_paths"]["form"] = plugin.templates.form
+                        template_paths = plugin_info["template_paths"]
+                        assert isinstance(template_paths, dict)
+                        template_paths["main"] = plugin.templates.main
+                        template_paths["form"] = plugin.templates.form
                     except:  # noqa: E722
                         pass
 
@@ -99,7 +101,7 @@ class PluginAnalyzer:
 
         return plugins_info
 
-    def analyze_plugin_by_name(self, plugin_name: str) -> Dict[str, Any]:
+    def analyze_plugin_by_name(self, plugin_name: str) -> dict[str, Any]:
         """Analyze a specific plugin by name."""
         ensure_django_setup()
         from django_resume.plugins.registry import plugin_registry
@@ -145,14 +147,30 @@ class PluginAnalyzer:
                     from django.template.loader import get_template
 
                     try:
+                        from django.template import Template  # noqa: F401
+
                         main_template = get_template(plugin.templates.main)
-                        templates_info["main_content"] = main_template.template.source
+                        if hasattr(main_template, "source"):
+                            templates_info["main_content"] = str(main_template.source)
+                        elif hasattr(main_template, "template") and hasattr(
+                            main_template.template, "source"
+                        ):
+                            templates_info["main_content"] = str(
+                                main_template.template.source
+                            )
                     except:  # noqa: E722
                         pass
 
                     try:
                         form_template = get_template(plugin.templates.form)
-                        templates_info["form_content"] = form_template.template.source
+                        if hasattr(form_template, "source"):
+                            templates_info["form_content"] = str(form_template.source)
+                        elif hasattr(form_template, "template") and hasattr(
+                            form_template.template, "source"
+                        ):
+                            templates_info["form_content"] = str(
+                                form_template.template.source
+                            )
                     except:  # noqa: E722
                         pass
                 except:  # noqa: E722

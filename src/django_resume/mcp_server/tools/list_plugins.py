@@ -1,7 +1,7 @@
 """MCP tool for listing django-resume plugins."""
 
 import json
-from typing import Dict, Any, List
+from typing import Any
 
 from mcp.types import Tool, TextContent
 
@@ -48,7 +48,7 @@ class ListPluginsTool:
             },
         )
 
-    def execute(self, arguments: Dict[str, Any]) -> TextContent:
+    def execute(self, arguments: dict[str, Any]) -> TextContent:
         """Execute the list_plugins tool."""
         try:
             ensure_django_setup()
@@ -75,26 +75,28 @@ class ListPluginsTool:
                 response["file_based_plugins"] = []
             elif plugin_type in ["active", "inactive"]:
                 # Filter database plugins by status
+                db_plugins = response["database_plugins"]
+                assert isinstance(db_plugins, list)
                 filtered_db_plugins = [
                     p
-                    for p in response["database_plugins"]
+                    for p in db_plugins
                     if p.get("is_active", False) == (plugin_type == "active")
                 ]
                 response["database_plugins"] = filtered_db_plugins
 
             # Generate summary
+            file_plugins = response["file_based_plugins"]
+            db_plugins = response["database_plugins"]
+            assert isinstance(file_plugins, list)
+            assert isinstance(db_plugins, list)
+
             response["summary"] = {
-                "total_file_based": len(response["file_based_plugins"]),
-                "total_database": len(response["database_plugins"]),
+                "total_file_based": len(file_plugins),
+                "total_database": len(db_plugins),
                 "total_active_database": len(
-                    [
-                        p
-                        for p in response["database_plugins"]
-                        if p.get("is_active", False)
-                    ]
+                    [p for p in db_plugins if p.get("is_active", False)]
                 ),
-                "total_plugins": len(response["file_based_plugins"])
-                + len(response["database_plugins"]),
+                "total_plugins": len(file_plugins) + len(db_plugins),
             }
 
             return TextContent(type="text", text=json.dumps(response, indent=2))
@@ -110,7 +112,7 @@ class ListPluginsTool:
 
     def _get_file_based_plugins(
         self, include_details: bool = False, include_code: bool = False
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Get information about file-based plugins."""
         try:
             plugins_info = plugin_analyzer.analyze_existing_plugins()
@@ -185,7 +187,7 @@ class ListPluginsTool:
 
     def _get_database_plugins(
         self, include_details: bool = False, include_code: bool = False
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Get information about database plugins."""
         try:
             # Ensure Django is properly set up
@@ -195,7 +197,7 @@ class ListPluginsTool:
             import threading
             import queue
 
-            result_queue = queue.Queue()
+            result_queue: queue.Queue[dict[str, Any]] = queue.Queue()
 
             def get_plugins_in_thread():
                 try:
@@ -277,7 +279,7 @@ class ListPluginsTool:
                 }
             ]
 
-    def _extract_form_fields(self, module_code: str) -> List[str]:
+    def _extract_form_fields(self, module_code: str) -> list[str]:
         """Extract form field names from plugin module code."""
         import re
 

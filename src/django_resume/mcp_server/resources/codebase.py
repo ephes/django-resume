@@ -1,7 +1,6 @@
 """MCP resource for exposing django-resume codebase."""
 
-from typing import List
-
+from pydantic import AnyUrl
 from mcp.types import Resource, TextResourceContents
 
 from ..utils.django_setup import ensure_django_setup, get_project_root
@@ -14,7 +13,7 @@ class CodebaseResource:
         self.project_root = get_project_root()
         self.src_path = self.project_root / "src" / "django_resume"
 
-    def list_resources(self) -> List[Resource]:
+    def list_resources(self) -> list[Resource]:
         """List all available codebase resources."""
         resources = []
 
@@ -25,7 +24,7 @@ class CodebaseResource:
                 if plugin_file.name != "__init__.py":
                     resources.append(
                         Resource(
-                            uri=f"codebase://plugins/{plugin_file.name}",
+                            uri=AnyUrl(f"codebase://plugins/{plugin_file.name}"),
                             name=f"Plugin: {plugin_file.stem}",
                             description=f"Source code for {plugin_file.stem} plugin",
                             mimeType="text/python",
@@ -47,7 +46,7 @@ class CodebaseResource:
             if file_path.exists():
                 resources.append(
                     Resource(
-                        uri=f"codebase://core/{filename}",
+                        uri=AnyUrl(f"codebase://core/{filename}"),
                         name=f"Core: {filename}",
                         description=description,
                         mimeType="text/python",
@@ -59,7 +58,7 @@ class CodebaseResource:
         if base_plugin_path.exists():
             resources.append(
                 Resource(
-                    uri="codebase://plugins/base.py",
+                    uri=AnyUrl("codebase://plugins/base.py"),
                     name="Plugin Base Classes",
                     description="Base classes for SimplePlugin and ListPlugin",
                     mimeType="text/python",
@@ -71,7 +70,7 @@ class CodebaseResource:
         if registry_path.exists():
             resources.append(
                 Resource(
-                    uri="codebase://plugins/registry.py",
+                    uri=AnyUrl("codebase://plugins/registry.py"),
                     name="Plugin Registry",
                     description="Plugin registration and discovery system",
                     mimeType="text/python",
@@ -104,7 +103,9 @@ class CodebaseResource:
             # Fallback for binary files
             content = file_path.read_text(encoding="latin-1")
 
-        return TextResourceContents(uri=uri, text=content, mimeType="text/python")
+        return TextResourceContents(
+            uri=AnyUrl(uri), text=content, mimeType="text/python"
+        )
 
     def get_plugin_structure_overview(self) -> str:
         """Get an overview of the plugin structure."""

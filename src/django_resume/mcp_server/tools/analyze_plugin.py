@@ -1,7 +1,7 @@
 """MCP tool for analyzing django-resume plugins."""
 
 import json
-from typing import Dict, Any, List
+from typing import Any
 import re
 
 from mcp.types import Tool, TextContent
@@ -64,7 +64,7 @@ class AnalyzePluginTool:
             },
         )
 
-    def execute(self, arguments: Dict[str, Any]) -> TextContent:
+    def execute(self, arguments: dict[str, Any]) -> TextContent:
         """Execute the analyze_plugin tool."""
         try:
             ensure_django_setup()
@@ -113,7 +113,7 @@ class AnalyzePluginTool:
         include_validation: bool,
         include_suggestions: bool,
         include_templates: bool,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Analyze a specific plugin."""
 
         # Try file-based first
@@ -149,6 +149,7 @@ class AnalyzePluginTool:
             }
 
         # Build analysis result
+        assert analysis_data is not None  # Should not be None at this point
         result = {
             "success": True,
             "plugin_name": plugin_name,
@@ -197,7 +198,7 @@ class AnalyzePluginTool:
 
         return result
 
-    def _analyze_database_plugin(self, plugin_name: str) -> Dict[str, Any]:
+    def _analyze_database_plugin(self, plugin_name: str) -> dict[str, Any]:
         """Analyze a database plugin."""
         try:
             from django_resume.models import Plugin
@@ -221,7 +222,7 @@ class AnalyzePluginTool:
         except Exception as e:
             return {"error": f"Database plugin not found: {str(e)}"}
 
-    def _analyze_code_structure(self, code: str) -> Dict[str, Any]:
+    def _analyze_code_structure(self, code: str) -> dict[str, Any]:
         """Analyze the structure of plugin code."""
         import ast
 
@@ -272,13 +273,13 @@ class AnalyzePluginTool:
         except Exception as e:
             return {"error": f"Code analysis failed: {str(e)}"}
 
-    def _analyze_templates(self, templates: Dict[str, Any]) -> Dict[str, Any]:
+    def _analyze_templates(self, templates: dict[str, Any]) -> dict[str, Any]:
         """Analyze plugin templates."""
         analysis = {}
 
         for template_type, content in templates.items():
             if content and isinstance(content, str):
-                template_analysis = {
+                template_analysis: dict[str, Any] = {
                     "length": len(content),
                     "has_edit_button": "edit_url" in content,
                     "has_contenteditable": "contenteditable" in content.lower(),
@@ -303,7 +304,7 @@ class AnalyzePluginTool:
 
         return analysis
 
-    def _generate_suggestions(self, analysis_data: Dict[str, Any]) -> List[str]:
+    def _generate_suggestions(self, analysis_data: dict[str, Any]) -> list[str]:
         """Generate improvement suggestions for the plugin."""
         suggestions = []
 
@@ -343,7 +344,7 @@ class AnalyzePluginTool:
 
         return suggestions
 
-    def _compare_plugins(self, plugin1_name: str, plugin2_name: str) -> Dict[str, Any]:
+    def _compare_plugins(self, plugin1_name: str, plugin2_name: str) -> dict[str, Any]:
         """Compare two plugins."""
         try:
             # Analyze both plugins
@@ -361,7 +362,7 @@ class AnalyzePluginTool:
                 }
 
             # Compare structures
-            comparison = {
+            comparison: dict[str, Any] = {
                 "success": True,
                 "similarities": [],
                 "differences": [],

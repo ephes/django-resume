@@ -11,6 +11,7 @@ from mcp.server import Server
 from mcp.server.models import InitializationOptions
 from mcp.server import NotificationOptions
 import mcp.types as types
+from pydantic import AnyUrl
 
 
 def setup_paths():
@@ -79,7 +80,7 @@ def ensure_django():
         _django_initialized = True
 
 
-server = Server("django-resume-mcp-server")
+server: Server = Server("django-resume-mcp-server")
 
 
 @server.list_resources()
@@ -112,19 +113,19 @@ async def handle_list_resources() -> list[types.Resource]:
     resources.extend(
         [
             types.Resource(
-                uri="overview://codebase",
+                uri=AnyUrl("overview://codebase"),
                 name="Codebase Overview",
                 description="Overview of the django-resume codebase structure",
                 mimeType="text/markdown",
             ),
             types.Resource(
-                uri="overview://templates",
+                uri=AnyUrl("overview://templates"),
                 name="Templates Overview",
                 description="Overview of the django-resume template system",
                 mimeType="text/markdown",
             ),
             types.Resource(
-                uri="overview://database",
+                uri=AnyUrl("overview://database"),
                 name="Database Overview",
                 description="Overview of the django-resume database content",
                 mimeType="text/markdown",
