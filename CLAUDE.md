@@ -54,6 +54,13 @@ coverage report
 
 ### LLM Content Generation
 - `llm-content` - Generate content using LLM (requires llm package)
+- `django-resume-mcp-server` - Run MCP server for AI-assisted plugin development
+
+### MCP Server (AI Integration)
+- `django-resume-mcp-server` - Run MCP server for AI-assisted plugin development
+- `python manage.py run_mcp_server` - Django management command to run MCP server
+- See `MCP_SERVER.md` for complete setup and usage guide
+- **Now uses lazy loading for faster startup and better Claude Desktop compatibility**
 
 ## File Locations
 
