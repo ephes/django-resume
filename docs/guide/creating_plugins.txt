@@ -1,6 +1,6 @@
-=====================================
+==================================
 Tutorial: Creating a Custom Plugin
-=====================================
+==================================
 
 .. admonition:: What you'll learn
 
@@ -429,7 +429,7 @@ For quick testing, you can register plugins directly in your ``settings.py``:
        apps.ready.connect(lambda **kwargs: register_custom_plugins(), weak=False)
 
 Step 7: Add Plugin to Resume Template
-====================================
+=====================================
 
 To make your plugin appear on resumes, you need to include it in your resume template.
 
