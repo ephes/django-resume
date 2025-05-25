@@ -13,7 +13,15 @@ from pydantic import AnyUrl
 from .resources.codebase import codebase_resource
 from .resources.templates import templates_resource
 from .resources.database import database_resource
-from .tools.create_plugin import create_plugin_tool
+from .resources.documentation import documentation_resource
+from .resources.schemas import schema_resource
+
+# from .tools.create_plugin import create_plugin_tool  # DEPRECATED: Use Django admin + Playwright workflow instead
+from .tools.create_plugin_direct import create_plugin_direct_tool
+from .tools.validate_plugin_code import validate_plugin_code_tool
+from .tools.update_plugin_code import update_plugin_code_tool
+from .tools.test_plugin_browser import test_plugin_browser_tool
+from .tools.debug_plugin import debug_plugin_tool
 from .tools.list_plugins import list_plugins_tool
 from .tools.analyze_plugin import analyze_plugin_tool
 
@@ -47,6 +55,18 @@ async def handle_list_resources() -> list[types.Resource]:
         resources.extend(database_resource.list_resources())
     except Exception as e:
         logger.error(f"Error listing database resources: {e}")
+
+    # Add documentation resources
+    try:
+        resources.extend(documentation_resource.list_resources())
+    except Exception as e:
+        logger.error(f"Error listing documentation resources: {e}")
+
+    # Add schema resources
+    try:
+        resources.extend(schema_resource.list_resources())
+    except Exception as e:
+        logger.error(f"Error listing schema resources: {e}")
 
     # Add overview resources
     resources.extend(
@@ -88,6 +108,12 @@ async def handle_read_resource(uri: str) -> str:
         elif uri.startswith("database://"):
             content = database_resource.get_resource(uri)
             return content.text
+        elif uri.startswith("docs://"):
+            content = documentation_resource.get_resource(uri)
+            return content.text
+        elif uri.startswith("schemas://"):
+            content = schema_resource.get_resource(uri)
+            return content.text
         elif uri == "overview://codebase":
             return codebase_resource.get_plugin_structure_overview()
         elif uri == "overview://templates":
@@ -105,7 +131,12 @@ async def handle_read_resource(uri: str) -> str:
 async def handle_list_tools() -> list[types.Tool]:
     """List all available tools."""
     return [
-        create_plugin_tool.get_tool(),
+        # create_plugin_tool.get_tool(),  # DEPRECATED: Use Django admin + Playwright workflow instead
+        create_plugin_direct_tool.get_tool(),
+        validate_plugin_code_tool.get_tool(),
+        update_plugin_code_tool.get_tool(),
+        test_plugin_browser_tool.get_tool(),
+        debug_plugin_tool.get_tool(),
         list_plugins_tool.get_tool(),
         analyze_plugin_tool.get_tool(),
     ]
@@ -120,8 +151,23 @@ async def handle_call_tool(
         if arguments is None:
             arguments = {}
 
-        if name == "create_plugin":
-            result = create_plugin_tool.execute(arguments)
+        # if name == "create_plugin":  # DEPRECATED: Use Django admin + Playwright workflow instead
+        #     result = create_plugin_tool.execute(arguments)
+        #     return [result]
+        if name == "create_plugin_direct":
+            result = create_plugin_direct_tool.execute(arguments)
+            return [result]
+        elif name == "validate_plugin_code":
+            result = validate_plugin_code_tool.execute(arguments)
+            return [result]
+        elif name == "update_plugin_code":
+            result = update_plugin_code_tool.execute(arguments)
+            return [result]
+        elif name == "test_plugin_in_browser":
+            result = test_plugin_browser_tool.execute(arguments)
+            return [result]
+        elif name == "debug_plugin":
+            result = debug_plugin_tool.execute(arguments)
             return [result]
         elif name == "list_plugins":
             result = list_plugins_tool.execute(arguments)

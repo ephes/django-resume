@@ -109,6 +109,22 @@ async def handle_list_resources() -> list[types.Resource]:
     except Exception:
         pass
 
+    try:
+        from django_resume.mcp_server.resources.documentation import (
+            documentation_resource,
+        )
+
+        resources.extend(documentation_resource.list_resources())
+    except Exception:
+        pass
+
+    try:
+        from django_resume.mcp_server.resources.schemas import schema_resource
+
+        resources.extend(schema_resource.list_resources())
+    except Exception:
+        pass
+
     # Add overview resources
     resources.extend(
         [
@@ -157,6 +173,18 @@ async def handle_read_resource(uri: str) -> str:
 
             content = database_resource.get_resource(uri)
             return content.text
+        elif uri.startswith("docs://"):
+            from django_resume.mcp_server.resources.documentation import (
+                documentation_resource,
+            )
+
+            content = documentation_resource.get_resource(uri)
+            return content.text
+        elif uri.startswith("schemas://"):
+            from django_resume.mcp_server.resources.schemas import schema_resource
+
+            content = schema_resource.get_resource(uri)
+            return content.text
         elif uri == "overview://codebase":
             from django_resume.mcp_server.resources.codebase import codebase_resource
 
@@ -181,11 +209,29 @@ async def handle_list_tools() -> list[types.Tool]:
     ensure_django()
 
     from django_resume.mcp_server.tools.create_plugin import create_plugin_tool
+    from django_resume.mcp_server.tools.create_plugin_direct import (
+        create_plugin_direct_tool,
+    )
+    from django_resume.mcp_server.tools.validate_plugin_code import (
+        validate_plugin_code_tool,
+    )
+    from django_resume.mcp_server.tools.update_plugin_code import (
+        update_plugin_code_tool,
+    )
+    from django_resume.mcp_server.tools.test_plugin_browser import (
+        test_plugin_browser_tool,
+    )
+    from django_resume.mcp_server.tools.debug_plugin import debug_plugin_tool
     from django_resume.mcp_server.tools.list_plugins import list_plugins_tool
     from django_resume.mcp_server.tools.analyze_plugin import analyze_plugin_tool
 
     return [
         create_plugin_tool.get_tool(),
+        create_plugin_direct_tool.get_tool(),
+        validate_plugin_code_tool.get_tool(),
+        update_plugin_code_tool.get_tool(),
+        test_plugin_browser_tool.get_tool(),
+        debug_plugin_tool.get_tool(),
         list_plugins_tool.get_tool(),
         analyze_plugin_tool.get_tool(),
     ]
@@ -201,6 +247,39 @@ async def handle_call_tool(name: str, arguments: dict) -> list[types.TextContent
             from django_resume.mcp_server.tools.create_plugin import create_plugin_tool
 
             result = create_plugin_tool.execute(arguments or {})
+            return [result]
+        elif name == "create_plugin_direct":
+            from django_resume.mcp_server.tools.create_plugin_direct import (
+                create_plugin_direct_tool,
+            )
+
+            result = create_plugin_direct_tool.execute(arguments or {})
+            return [result]
+        elif name == "validate_plugin_code":
+            from django_resume.mcp_server.tools.validate_plugin_code import (
+                validate_plugin_code_tool,
+            )
+
+            result = validate_plugin_code_tool.execute(arguments or {})
+            return [result]
+        elif name == "update_plugin_code":
+            from django_resume.mcp_server.tools.update_plugin_code import (
+                update_plugin_code_tool,
+            )
+
+            result = update_plugin_code_tool.execute(arguments or {})
+            return [result]
+        elif name == "test_plugin_in_browser":
+            from django_resume.mcp_server.tools.test_plugin_browser import (
+                test_plugin_browser_tool,
+            )
+
+            result = test_plugin_browser_tool.execute(arguments or {})
+            return [result]
+        elif name == "debug_plugin":
+            from django_resume.mcp_server.tools.debug_plugin import debug_plugin_tool
+
+            result = debug_plugin_tool.execute(arguments or {})
             return [result]
         elif name == "list_plugins":
             from django_resume.mcp_server.tools.list_plugins import list_plugins_tool

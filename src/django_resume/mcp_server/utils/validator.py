@@ -46,12 +46,10 @@ class PluginValidator:
         r"from\s+subprocess\s+import",
     ]
 
-    # Required patterns for valid plugins
-    REQUIRED_PATTERNS = [
+    # Essential patterns for valid plugins (relaxed)
+    ESSENTIAL_PATTERNS = [
         r"class\s+\w+Form\s*\(",
         r"class\s+\w+Plugin\s*\(",
-        r"from\s+django\s+import\s+forms",
-        r"from\s+\.base\s+import\s+SimplePlugin",
     ]
 
     def __init__(self):
@@ -69,10 +67,23 @@ class PluginValidator:
             if re.search(pattern, code, re.IGNORECASE):
                 errors.append(f"Dangerous pattern detected: {pattern}")
 
-        # Check for required patterns
-        for pattern in self.REQUIRED_PATTERNS:
+        # Check for essential patterns only
+        for pattern in self.ESSENTIAL_PATTERNS:
             if not re.search(pattern, code, re.IGNORECASE):
-                errors.append(f"Missing required pattern: {pattern}")
+                errors.append(f"Missing essential pattern: {pattern}")
+
+        # Check for imports as warnings instead of errors
+        if not re.search(r"from\s+django\s+import\s+forms", code, re.IGNORECASE):
+            warnings.append("Consider importing: 'from django import forms'")
+
+        if not re.search(
+            r"from\s+(\.base|django_resume\.plugins\.base)\s+import\s+(SimplePlugin|ListPlugin)",
+            code,
+            re.IGNORECASE,
+        ):
+            warnings.append(
+                "Consider importing SimplePlugin or ListPlugin from .base or django_resume.plugins.base"
+            )
 
         # Parse and validate AST
         try:
@@ -151,10 +162,10 @@ class PluginValidator:
         plugin_classes = [cls for cls in classes if cls.name.endswith("Plugin")]
 
         if not form_classes:
-            errors.append("No form class found (should end with 'Form')")
+            warnings.append("No form class found (should end with 'Form')")
 
         if not plugin_classes:
-            errors.append("No plugin class found (should end with 'Plugin')")
+            warnings.append("No plugin class found (should end with 'Plugin')")
 
         # Check for dangerous function calls
         for node in ast.walk(tree):
@@ -163,15 +174,15 @@ class PluginValidator:
                     if node.func.id in ["exec", "eval", "compile"]:
                         errors.append(f"Dangerous function call: {node.func.id}")
 
-        # Check for proper inheritance
+        # Check for proper inheritance (as suggestion)
         for cls in plugin_classes:
             if not any(
-                base.id == "SimplePlugin"
+                base.id in ["SimplePlugin", "ListPlugin"]
                 for base in cls.bases
                 if isinstance(base, ast.Name)
             ):
-                errors.append(
-                    f"Plugin class {cls.name} should inherit from SimplePlugin"
+                suggestions.append(
+                    f"Plugin class {cls.name} should inherit from SimplePlugin or ListPlugin for best compatibility"
                 )
 
         return ValidationResult(
@@ -196,7 +207,7 @@ class PluginValidator:
 
         # Check for proper form field definitions
         if not re.search(r"forms\.\w+Field", code):
-            warnings.append("No Django form fields found")
+            suggestions.append("Consider adding Django form fields for data input")
 
         return ValidationResult(
             is_valid=len(errors) == 0,
