@@ -1,0 +1,1 @@
+"""Django Resume MCP Server."""

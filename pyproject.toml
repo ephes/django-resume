@@ -61,7 +61,9 @@ dev = [
     "pytest-django>=4",
     "pytest-playwright>=0.5",
     "pytest-mock>=3.14.0",
+    "mcp>=1.0.0",  # model context protocol server
 ]
 
 [project.scripts]
 llm-content = "django_resume.entrypoints.llm_content:llm_content"
+django-resume-mcp-server = "django_resume.entrypoints.mcp_server_lazy:main_entry"
