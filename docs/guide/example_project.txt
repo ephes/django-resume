@@ -19,7 +19,7 @@ Set up the virtual environment:
 
     $ cd django-resume
     $ uv venv
-    $ uv pip install .[dev]
+    $ uv sync
 
 Run the example project:
 
