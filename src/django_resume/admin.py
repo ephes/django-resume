@@ -90,22 +90,22 @@ class PluginAdmin(admin.ModelAdmin):
         """Check if plugin has both templates."""
         return bool(obj.content_template and obj.form_template)
 
-    has_content.boolean = True
-    has_content.short_description = "Has Templates"
+    has_content.boolean = True  # type: ignore[attr-defined]
+    has_content.short_description = "Has Templates"  # type: ignore[attr-defined]
 
     def activate_plugins(self, request, queryset):
         """Bulk action to activate selected plugins."""
         updated = queryset.update(is_active=True)
         self.message_user(request, f"{updated} plugin(s) activated.")
 
-    activate_plugins.short_description = "Activate selected plugins"
+    activate_plugins.short_description = "Activate selected plugins"  # type: ignore[attr-defined]
 
     def deactivate_plugins(self, request, queryset):
         """Bulk action to deactivate selected plugins."""
         updated = queryset.update(is_active=False)
         self.message_user(request, f"{updated} plugin(s) deactivated.")
 
-    deactivate_plugins.short_description = "Deactivate selected plugins"
+    deactivate_plugins.short_description = "Deactivate selected plugins"  # type: ignore[attr-defined]
 
 
 admin.site.register(Resume, ResumeAdmin)
