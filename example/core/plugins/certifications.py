@@ -1,6 +1,6 @@
 from typing import Type
 from django import forms
-from .base import ListPlugin, ListItemFormMixin, ContextDict
+from django_resume.plugins.base import ListPlugin, ListItemFormMixin, ContextDict
 
 
 class CertificationForm(ListItemFormMixin, forms.Form):

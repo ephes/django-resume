@@ -23,7 +23,6 @@ class ResumeConfig(AppConfig):
                 plugins.TokenPlugin,
                 plugins.IdentityPlugin,
                 plugins.CoverPlugin,
-                plugins.CertificationsPlugin,
             ]
         )
 
