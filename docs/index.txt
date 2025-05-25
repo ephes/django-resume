@@ -21,6 +21,7 @@ See it in action:
    changelog
    guide/usage
    guide/example_project
+   guide/creating_plugins
 
 .. toctree::
     :maxdepth: 1
