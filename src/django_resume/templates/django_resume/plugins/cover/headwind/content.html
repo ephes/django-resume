@@ -1,4 +1,16 @@
 <section id="cover" class="space-y-8">
+  {% if cover.avatar_img %}
+    <div class="flex justify-center mb-8">
+      <div class="relative">
+        <img 
+          class="w-32 h-32 rounded-full object-cover shadow-lg border-4 border-white ring-2 ring-slate-200" 
+          src="{{ cover.avatar_img_url }}" 
+          alt="{{ cover.avatar_alt }}"
+        >
+      </div>
+    </div>
+  {% endif %}
+  
   <div id="cover-items" class="space-y-8">
     {% for item in cover.ordered_entries %}
       {% if show_edit_button %}
