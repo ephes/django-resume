@@ -453,6 +453,11 @@ class SimplePlugin:
 
     def __init__(self):
         super().__init__()
+        # Initialize _init_hooks as a per-class attribute to avoid sharing hooks
+        # between different plugin classes. Each dynamically created plugin class
+        # gets its own hook list.
+        if not hasattr(self.__class__, "_init_hooks"):
+            self.__class__._init_hooks = []
         self.data = data = SimpleData(plugin_name=self.name)
         self.templates = self.template_class(
             plugin_name=self.name,
@@ -473,7 +478,9 @@ class SimplePlugin:
             templates=self.templates,
             get_context=self.get_context,
         )
-        for hook in self.init_hooks:
+        # Execute initialization hooks specific to this plugin class.
+        # Using getattr with default [] to handle cases where _init_hooks wasn't set.
+        for hook in getattr(self.__class__, "_init_hooks", []):
             hook(self)
 
     def get_prompt(self) -> str:

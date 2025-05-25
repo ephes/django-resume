@@ -120,11 +120,12 @@ class Plugin(models.Model):
         # Use the module
         from .plugins.base import SimpleStringTemplates
 
-        simple_string_templates = SimpleStringTemplates(
-            main=self.content_template, form=self.form_template
-        )
-
         def set_string_templates_hook(self_plugin):
+            # Create a unique SimpleStringTemplates instance for each plugin instance.
+            # This closure captures the specific template content from the database model.
+            simple_string_templates = SimpleStringTemplates(
+                main=self.content_template, form=self.form_template
+            )
             self_plugin.templates.set_string_templates(simple_string_templates)
 
         [plugin_class_name] = [
@@ -132,7 +133,10 @@ class Plugin(models.Model):
             for symbol in dir(module)
             if str(symbol).endswith("Plugin") and not str(symbol) == "SimplePlugin"
         ]
-        getattr(module, plugin_class_name).init_hooks.append(set_string_templates_hook)
+        plugin_class = getattr(module, plugin_class_name)
+        if not hasattr(plugin_class, "_init_hooks"):
+            plugin_class._init_hooks = []
+        plugin_class._init_hooks.append(set_string_templates_hook)
         plugin = getattr(module, plugin_class_name)
 
         return plugin
