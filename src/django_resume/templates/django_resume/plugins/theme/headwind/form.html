@@ -19,14 +19,9 @@
         <label class="relative cursor-pointer">
           <input type="radio" name="name" value="plain" class="sr-only peer" {% if form.name.value == 'plain' or not form.name.value %}checked{% endif %}>
           <div class="p-4 border-2 border-slate-200 rounded-xl peer-checked:border-blue-500 peer-checked:bg-blue-50 hover:bg-slate-50 transition-all duration-200">
-            <div class="flex items-center space-x-3">
-              <div class="w-4 h-4 border-2 border-slate-300 rounded-full peer-checked:border-blue-500 peer-checked:bg-blue-500 relative">
-                <div class="absolute inset-1 bg-white rounded-full opacity-0 peer-checked:opacity-100"></div>
-              </div>
-              <div>
-                <div class="font-semibold text-slate-800">Plain</div>
-                <div class="text-sm text-slate-600">Classic, print-friendly design</div>
-              </div>
+            <div>
+              <div class="font-semibold text-slate-800">Plain</div>
+              <div class="text-sm text-slate-600">Classic, print-friendly design</div>
             </div>
           </div>
         </label>
@@ -34,14 +29,9 @@
         <label class="relative cursor-pointer">
           <input type="radio" name="name" value="headwind" class="sr-only peer" {% if form.name.value == 'headwind' %}checked{% endif %}>
           <div class="p-4 border-2 border-slate-200 rounded-xl peer-checked:border-blue-500 peer-checked:bg-blue-50 hover:bg-slate-50 transition-all duration-200">
-            <div class="flex items-center space-x-3">
-              <div class="w-4 h-4 border-2 border-slate-300 rounded-full peer-checked:border-blue-500 peer-checked:bg-blue-500 relative">
-                <div class="absolute inset-1 bg-white rounded-full opacity-0 peer-checked:opacity-100"></div>
-              </div>
-              <div>
-                <div class="font-semibold text-slate-800">Headwind</div>
-                <div class="text-sm text-slate-600">Modern, interactive design</div>
-              </div>
+            <div>
+              <div class="font-semibold text-slate-800">Headwind</div>
+              <div class="text-sm text-slate-600">Modern, interactive design</div>
             </div>
           </div>
         </label>

@@ -10,6 +10,10 @@
 {% endblock meta %}
 
 {% block content %}
+  {% if is_editable %}
+    {% include "./edit_panel.html" %}
+  {% endif %}
+  
   <div class="py-10">
     <header>
       <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -22,7 +26,9 @@
           <a href="{% url "django_resume:cv" slug=resume.slug %}">Link to CV!</a>
         </p>
         {% include theme.templates.main %}
-        {% include cover.templates.main %}
+        <div class="mt-8">
+          {% include cover.templates.main %}
+        </div>
       </div>
     </main>
   </div>
