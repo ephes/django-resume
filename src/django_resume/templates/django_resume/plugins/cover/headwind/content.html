@@ -1,28 +1,37 @@
-<section id="cover" class="mt-8">
+<section id="cover" class="space-y-8">
+  <div id="cover-items" class="space-y-8">
+    {% for item in cover.ordered_entries %}
+      {% if show_edit_button %}
+        {% include cover.templates.item %}
+      {% else %}
+        {% if forloop.counter > 1 %}
+          {# In non-edit mode the first item is special because it floats around the avatar profile image #}
+          <div class="bg-white rounded-xl p-6 shadow-sm border border-slate-200 hover:shadow-md transition-shadow duration-200">
+            <h3 class="text-xl font-semibold text-slate-800 mb-4 border-l-4 border-blue-500 pl-4">
+              {{ item.title }}
+            </h3>
+            <div class="prose prose-slate max-w-none text-slate-700 leading-relaxed">
+              {{ item.text|safe }}
+            </div>
+          </div>
+        {% endif %}
+      {% endif %}
+    {% endfor %}
+  </div>
+
   {% if show_edit_button %}
-    <div class="flex items-center justify-between">
-      <h2 class="text-2xl font-bold text-gray-800">{{ cover.title }}</h2>
+    <div class="flex justify-center pt-6">
       <button
-        class="text-gray-500 hover:text-gray-700"
-        hx-get="{{ cover.edit_url }}"
-        hx-target="#cover"
-        hx-swap="outerHTML"
+        class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg shadow-md hover:shadow-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+        hx-get="{{ cover.add_item_url }}"
+        hx-target="#cover-items"
+        hx-swap="beforeend"
       >
-        <!-- Pencil Icon -->
-        <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
-             xmlns="http://www.w3.org/2000/svg">
-          <path stroke-linecap="round" stroke-linejoin="round"
-                d="M11 5H6a2 2 0 00-2 2v11.5A1.5 1.5 0 005.5 20H17a2 2 0 002-2v-5M16 3l5 5L9 20H4v-5L16 3z"></path>
+        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path>
         </svg>
+        Add Section
       </button>
-    </div>
-    <div class="mt-4 text-gray-700 prose">
-      {{ cover.text|safe }}
-    </div>
-  {% else %}
-    <h2 class="text-2xl font-bold text-gray-800">{{ cover.title }}</h2>
-    <div class="mt-4 text-gray-700 prose">
-      {{ cover.text|safe }}
     </div>
   {% endif %}
 </section>

@@ -1,0 +1,108 @@
+<editable-form id="cover-flat" class="bg-gradient-to-br from-slate-50 to-blue-50 rounded-2xl p-8 shadow-lg border border-slate-200">
+  <form
+    id="form-cover"
+    hx-post="{{ edit_flat_post_url }}"
+    hx-target="#cover-flat"
+    hx-swap="outerHTML"
+    enctype="multipart/form-data"
+    class="space-y-6"
+  >
+    <input type="hidden" data-field="title" name="title" value="{{ form.title.value }}">
+    <input type="file" id="avatar-img" style="display:none;" name="avatar_img" accept="image/*"/>
+    <input type="hidden" data-field="avatar_alt" name="avatar_alt" value="{{ form.avatar_alt.value }}">
+  </form>
+
+  <header class="mb-8">
+    <div class="flex items-center justify-between">
+      <h1
+        class="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-lg px-2 py-1 -mx-2 -my-1"
+        contenteditable="true"
+        data-field="title"
+      >
+        {{ form.title.value }}
+      </h1>
+      <span class="text-sm text-slate-500 bg-slate-100 px-3 py-1 rounded-full">Editing</span>
+    </div>
+    {% for error in form.title.errors %}
+      <p class="mt-2 text-sm text-red-600 bg-red-50 p-2 rounded-lg">{{ error|escape }}</p>
+    {% endfor %}
+  </header>
+
+  <div class="space-y-6">
+    <div id="avatar-container" class="float-right ml-8 mb-6">
+      {% if form.avatar_img.value %}
+        <div class="space-y-4">
+          <div class="relative group cursor-pointer">
+            <img
+              class="w-32 h-32 lg:w-40 lg:h-40 rounded-2xl object-cover shadow-xl border-4 border-white ring-2 ring-blue-200 hover:ring-blue-400 transition-all duration-300 editable-avatar"
+              data-field="avatar_img"
+              src="{{ form.avatar_img_url }}"
+              alt="{{ form.avatar_alt.value }}"
+            >
+            <div class="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+              <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
+              </svg>
+            </div>
+          </div>
+          <div class="text-center">
+            <p
+              class="text-sm text-slate-600 bg-white/70 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white max-w-[160px]"
+              contenteditable="true"
+              data-field="avatar_alt"
+            >
+              {{ form.avatar_alt.value }}
+            </p>
+            {% for error in form.avatar_alt.errors %}
+              <p class="mt-1 text-xs text-red-600">{{ error|escape }}</p>
+            {% endfor %}
+          </div>
+        </div>
+      {% else %}
+        <div class="space-y-4">
+          <div class="relative group cursor-pointer">
+            <div class="w-32 h-32 lg:w-40 lg:h-40 rounded-2xl bg-gradient-to-br from-slate-200 to-slate-300 shadow-xl border-4 border-white ring-2 ring-blue-200 hover:ring-blue-400 transition-all duration-300 flex items-center justify-center editable-avatar" data-field="avatar_img">
+              <svg class="w-16 h-16 text-slate-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </div>
+            <div class="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+              <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path>
+              </svg>
+            </div>
+          </div>
+          {% for error in form.avatar_img.errors %}
+            <p class="text-xs text-red-600 text-center">{{ error|escape }}</p>
+          {% endfor %}
+          <div class="text-center">
+            <p
+              class="text-sm text-slate-600 bg-white/70 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white max-w-[160px]"
+              contenteditable="true"
+              data-field="avatar_alt"
+            >
+              {{ form.avatar_alt.value }}
+            </p>
+            {% for error in form.avatar_alt.errors %}
+              <p class="mt-1 text-xs text-red-600">{{ error|escape }}</p>
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="flex justify-end">
+      <button
+        id="submit-cover"
+        type="submit"
+        class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+      >
+        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path>
+        </svg>
+        Save Changes
+      </button>
+    </div>
+  </div>
+</editable-form>
