@@ -1,0 +1,16 @@
+<section id="certifications" class="stack">
+  {% include certifications.templates.flat %}
+  {% if show_edit_button %}
+    <svg class="edit-icon-small" hx-get="{{ certifications.add_item_url }}" hx-target="#certifications-list" hx-swap="afterbegin">
+      <use href="#add"></use>
+    </svg>
+  {% endif %}
+  <div id="certifications-list" class="certification-list stack">
+    {% for cert in certifications.ordered_entries %}
+      {% include certifications.templates.item %}
+    {% endfor %}
+  </div>
+  {% if not certifications.ordered_entries %}
+    <p class="no-certifications">No certifications added yet.</p>
+  {% endif %}
+</section>

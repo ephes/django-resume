@@ -1,0 +1,57 @@
+<div id="certifications-item-{{ form.item_id }}" class="certification-item-form stack">
+  <form 
+    class="stack-small"
+    hx-post="{{ form.post_url }}"
+    hx-target="#certifications-item-{{ form.item_id }}"
+    hx-swap="outerHTML"
+  >
+    <input type="hidden" name="id" value="{{ form.item_id }}">
+    <input type="hidden" name="position" value="{{ form.position.value }}">
+    
+    <div>
+      <label for="name-{{ form.item_id }}">{{ form.name.label }}</label>
+      <input type="text" id="name-{{ form.item_id }}" name="name" value="{{ form.name.value|default:'' }}" required>
+      {% for error in form.name.errors %}
+        <p class="error">{{ error|escape }}</p>
+      {% endfor %}
+    </div>
+    
+    <div>
+      <label for="organization-{{ form.item_id }}">{{ form.organization.label }}</label>
+      <input type="text" id="organization-{{ form.item_id }}" name="organization" value="{{ form.organization.value|default:'' }}" required>
+      {% for error in form.organization.errors %}
+        <p class="error">{{ error|escape }}</p>
+      {% endfor %}
+    </div>
+    
+    <div>
+      <label for="issue_date-{{ form.item_id }}">{{ form.issue_date.label }}</label>
+      <input type="date" id="issue_date-{{ form.item_id }}" name="issue_date" value="{{ form.issue_date.value|default:'' }}" required>
+      {% for error in form.issue_date.errors %}
+        <p class="error">{{ error|escape }}</p>
+      {% endfor %}
+    </div>
+    
+    <div>
+      <label for="expiration_date-{{ form.item_id }}">{{ form.expiration_date.label }}</label>
+      <input type="date" id="expiration_date-{{ form.item_id }}" name="expiration_date" value="{{ form.expiration_date.value|default:'' }}">
+      {% for error in form.expiration_date.errors %}
+        <p class="error">{{ error|escape }}</p>
+      {% endfor %}
+    </div>
+    
+    <div>
+      <label for="credential_id-{{ form.item_id }}">{{ form.credential_id.label }}</label>
+      <input type="text" id="credential_id-{{ form.item_id }}" name="credential_id" value="{{ form.credential_id.value|default:'' }}">
+      {% for error in form.credential_id.errors %}
+        <p class="error">{{ error|escape }}</p>
+      {% endfor %}
+    </div>
+    
+    <button type="submit">
+      <svg class="edit-icon-small">
+        <use href="#ok"></use>
+      </svg>
+    </button>
+  </form>
+</div>

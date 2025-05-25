@@ -1,0 +1,25 @@
+<div id="certifications-item-{{ cert.id }}" class="certification-item stack-small avoid-page-break">
+    {% if show_edit_button %}
+        <div class="cluster">
+            <h3>{{ cert.name }}</h3>
+            <svg class="edit-icon-small" hx-get="{{ cert.edit_url }}" hx-target="closest .certification-item" hx-swap="outerHTML">
+                <use href="#edit"></use>
+            </svg>
+            <svg class="edit-icon-small" style="color: red !important;" hx-delete="{{ cert.delete_url }}" hx-target="closest .certification-item" hx-swap="delete">
+                <use href="#delete"></use>
+            </svg>
+        </div>
+    {% else %}
+        <h3>{{ cert.name }}</h3>
+    {% endif %}
+    <p class="organization">{{ cert.organization }}</p>
+    <div class="dates">
+        <span class="issue-date">Issued: {{ cert.issue_date }}</span>
+        {% if cert.expiration_date %}
+            <span class="expiration-date">Expires: {{ cert.expiration_date }}</span>
+        {% endif %}
+    </div>
+    {% if cert.credential_id %}
+        <p class="credential-id">Credential ID: {{ cert.credential_id }}</p>
+    {% endif %}
+</div>
