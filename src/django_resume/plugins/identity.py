@@ -107,7 +107,7 @@ class IdentityPlugin(SimplePlugin):
         theme: str = "plain",
     ) -> ContextDict:
         context = super().get_context(
-            _request, plugin_data, resume_pk, context=context, edit=edit
+            _request, plugin_data, resume_pk, context=context, edit=edit, theme=theme
         )
         context["avatar_img_url"] = default_storage.url(
             plugin_data.get("avatar_img", "")

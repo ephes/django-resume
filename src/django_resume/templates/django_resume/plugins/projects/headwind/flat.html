@@ -1,0 +1,18 @@
+{% if show_edit_button %}
+  <div class="flex items-center justify-between group mb-6">
+    <h2 class="text-xl font-semibold text-slate-800">{{ projects.title }}</h2>
+    <button
+      class="opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-2 rounded-lg hover:bg-slate-50 text-slate-500 hover:text-slate-700"
+      hx-get="{{ projects.edit_flat_url }}"
+      hx-target="closest div"
+      hx-swap="outerHTML"
+      title="Edit {{ projects.title }}"
+    >
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M16 3l5 5L9 20H4v-5L16 3z"></path>
+      </svg>
+    </button>
+  </div>
+{% else %}
+  <h2 class="text-xl font-semibold text-slate-800 mb-6">{{ projects.title }}</h2>
+{% endif %}

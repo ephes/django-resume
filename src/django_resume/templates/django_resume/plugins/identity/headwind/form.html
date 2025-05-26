@@ -1,0 +1,213 @@
+<editable-form id="identity" class="block">
+  <form
+    id="form-identity"
+    hx-post="{{ form.post_url }}"
+    hx-target="#identity"
+    hx-swap="outerHTML"
+    enctype="multipart/form-data"
+    class="bg-white rounded-lg p-6 border border-slate-300 shadow-sm space-y-6"
+  >
+    <input type="hidden" data-field="name" name="name" value="{{ form.name.value }}">
+    <input type="hidden" data-field="pronouns" name="pronouns" value="{{ form.pronouns.value }}">
+    <input type="hidden" data-field="tagline" name="tagline" value="{{ form.tagline.value }}">
+    <input type="hidden" data-field="location_name" name="location_name" value="{{ form.location_name.value }}">
+    <input type="hidden" data-field="location_url" name="location_url" value="{{ form.location_url.value }}">
+    <input type="file" id="avatar-img" style="display:none;" name="avatar_img" accept="image/*"/>
+    <input type="hidden" data-field="avatar_alt" name="avatar_alt" value="{{ form.avatar_alt.value }}">
+    <input type="hidden" data-field="email" name="email" value="{{ form.email.value }}">
+    <input type="hidden" data-field="phone" name="phone" value="{{ form.phone.value }}">
+    <input type="hidden" data-field="github" name="github" value="{{ form.github.value }}">
+    <input type="hidden" data-field="linkedin" name="linkedin" value="{{ form.linkedin.value }}">
+    <input type="hidden" data-field="mastodon" name="mastodon" value="{{ form.mastodon.value }}">
+
+    <div class="flex items-center justify-between mb-6">
+      <div class="flex items-center space-x-2">
+        <div class="w-3 h-3 bg-blue-500 rounded-full"></div>
+        <span class="text-sm font-medium text-slate-600">Editing Identity</span>
+      </div>
+      <span class="text-xs text-slate-500 bg-slate-200 px-2 py-1 rounded-full">Draft</span>
+    </div>
+
+    <div class="flex flex-col lg:flex-row gap-8">
+      <!-- Main form content -->
+      <div class="flex-1 space-y-6">
+        <!-- Name and Pronouns -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-2">Name</label>
+            <h2 
+              class="text-2xl font-bold text-slate-800 bg-white rounded-lg px-4 py-3 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" 
+              contenteditable="true" 
+              data-field="name"
+              placeholder="Your name"
+            >{{ form.name.value }}</h2>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-2">Pronouns</label>
+            <div 
+              class="inline-flex items-center px-3 py-2 rounded-full text-sm font-medium bg-blue-100 text-blue-800 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" 
+              contenteditable="true" 
+              data-field="pronouns"
+              placeholder="they/them"
+            >{{ form.pronouns.value }}</div>
+          </div>
+        </div>
+
+        <!-- Tagline -->
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-2">Tagline</label>
+          <p 
+            class="text-lg text-slate-600 bg-white rounded-lg px-4 py-3 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" 
+            contenteditable="true" 
+            data-field="tagline"
+            placeholder="A brief description about yourself"
+          >{{ form.tagline.value }}</p>
+        </div>
+
+        <!-- Location -->
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-2">Location</label>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs text-slate-500 mb-1">Location Name</label>
+              <div 
+                class="bg-white rounded-lg px-4 py-3 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" 
+                contenteditable="true" 
+                data-field="location_name"
+                placeholder="City, Country"
+              >{{ form.location_name.value }}</div>
+              {% for error in form.location_name.errors %}
+                <p class="mt-1 text-sm text-red-600">{{ error|escape }}</p>
+              {% endfor %}
+            </div>
+            <div>
+              <label class="block text-xs text-slate-500 mb-1">Location URL</label>
+              <div 
+                class="bg-white rounded-lg px-4 py-3 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" 
+                contenteditable="true" 
+                data-field="location_url"
+                placeholder="https://maps.google.com/..."
+              >{{ form.location_url.value }}</div>
+              {% for error in form.location_url.errors %}
+                <p class="mt-1 text-sm text-red-600">{{ error|escape }}</p>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+
+        <!-- Social Links -->
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-4">Social Links</label>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs text-slate-500 mb-1">Email</label>
+              <div 
+                class="bg-white rounded-lg px-4 py-3 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" 
+                contenteditable="true" 
+                data-field="email"
+                placeholder="your@email.com"
+              >{{ form.email.value }}</div>
+              {% for error in form.email.errors %}
+                <p class="mt-1 text-sm text-red-600">{{ error|escape }}</p>
+              {% endfor %}
+            </div>
+            <div>
+              <label class="block text-xs text-slate-500 mb-1">Phone</label>
+              <div 
+                class="bg-white rounded-lg px-4 py-3 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" 
+                contenteditable="true" 
+                data-field="phone"
+                placeholder="+1 (555) 123-4567"
+              >{{ form.phone.value }}</div>
+              {% for error in form.phone.errors %}
+                <p class="mt-1 text-sm text-red-600">{{ error|escape }}</p>
+              {% endfor %}
+            </div>
+            <div>
+              <label class="block text-xs text-slate-500 mb-1">GitHub</label>
+              <div 
+                class="bg-white rounded-lg px-4 py-3 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" 
+                contenteditable="true" 
+                data-field="github"
+                placeholder="https://github.com/username"
+              >{{ form.github.value }}</div>
+              {% for error in form.github.errors %}
+                <p class="mt-1 text-sm text-red-600">{{ error|escape }}</p>
+              {% endfor %}
+            </div>
+            <div>
+              <label class="block text-xs text-slate-500 mb-1">LinkedIn</label>
+              <div 
+                class="bg-white rounded-lg px-4 py-3 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" 
+                contenteditable="true" 
+                data-field="linkedin"
+                placeholder="https://linkedin.com/in/username"
+              >{{ form.linkedin.value }}</div>
+              {% for error in form.linkedin.errors %}
+                <p class="mt-1 text-sm text-red-600">{{ error|escape }}</p>
+              {% endfor %}
+            </div>
+            <div class="md:col-span-2">
+              <label class="block text-xs text-slate-500 mb-1">Mastodon</label>
+              <div 
+                class="bg-white rounded-lg px-4 py-3 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" 
+                contenteditable="true" 
+                data-field="mastodon"
+                placeholder="https://mastodon.social/@username"
+              >{{ form.mastodon.value }}</div>
+              {% for error in form.mastodon.errors %}
+                <p class="mt-1 text-sm text-red-600">{{ error|escape }}</p>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Avatar section -->
+      <div class="lg:w-48 flex flex-col items-center space-y-4">
+        <label class="block text-sm font-medium text-slate-700">Avatar</label>
+        <div class="flex flex-col items-center space-y-3">
+          {% if form.avatar_img.value %}
+            <img 
+              class="w-32 h-32 rounded-full object-cover shadow-lg border-4 border-white ring-2 ring-slate-200 cursor-pointer hover:ring-blue-300 transition-all duration-200 editable-avatar" 
+              data-field="avatar_img"
+              src="{{ form.avatar_img_url }}" 
+              alt="{{ form.avatar_alt.value }}"
+            >
+          {% else %}
+            <div class="w-32 h-32 rounded-full bg-slate-200 flex items-center justify-center shadow-lg border-4 border-white ring-2 ring-slate-200 cursor-pointer hover:ring-blue-300 transition-all duration-200 editable-avatar" data-field="avatar_img">
+              <svg class="w-16 h-16 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+              </svg>
+            </div>
+          {% endif %}
+          <div class="w-full">
+            <label class="block text-xs text-slate-500 mb-1">Alt Text</label>
+            <div 
+              class="text-center bg-white rounded-lg px-3 py-2 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm" 
+              contenteditable="true" 
+              data-field="avatar_alt"
+              placeholder="Describe your avatar"
+            >{{ form.avatar_alt.value }}</div>
+            {% for error in form.avatar_alt.errors %}
+              <p class="mt-1 text-sm text-red-600">{{ error|escape }}</p>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex items-center justify-end pt-6 border-t border-slate-200">
+      <button
+        id="submit-identity"
+        type="submit"
+        class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+      >
+        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path>
+        </svg>
+        Save Identity
+      </button>
+    </div>
+  </form>
+</editable-form>

@@ -1,0 +1,96 @@
+<editable-form id="education" class="block">
+  <form
+    id="form-education"
+    hx-post="{{ form.post_url }}"
+    hx-target="#education"
+    hx-swap="outerHTML"
+    class="bg-white rounded-lg p-6 border border-slate-300 shadow-sm space-y-6"
+  >
+    <input type="hidden" data-field="school_name" name="school_name" value="{{ form.school_name.value }}">
+    <input type="hidden" data-field="school_url" name="school_url" value="{{ form.school_url.value }}">
+    <input type="hidden" data-field="start" name="start" value="{{ form.start.value }}">
+    <input type="hidden" data-field="end" name="end" value="{{ form.end.value }}">
+
+    <div class="flex items-center justify-between mb-6">
+      <div class="flex items-center space-x-2">
+        <div class="w-3 h-3 bg-blue-500 rounded-full"></div>
+        <span class="text-sm font-medium text-slate-600">Editing Education</span>
+      </div>
+      <span class="text-xs text-slate-500 bg-slate-200 px-2 py-1 rounded-full">Draft</span>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <!-- School Info -->
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-2">School Name</label>
+          <h3 
+            class="text-lg font-semibold text-slate-800 bg-white rounded-lg px-4 py-3 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" 
+            contenteditable="true" 
+            data-field="school_name"
+            placeholder="University or school name"
+          >{{ form.school_name.value }}</h3>
+          {% for error in form.school_name.errors %}
+            <p class="mt-1 text-sm text-red-600">{{ error|escape }}</p>
+          {% endfor %}
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-2">School URL</label>
+          <div 
+            class="bg-white rounded-lg px-4 py-3 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" 
+            contenteditable="true" 
+            data-field="school_url"
+            placeholder="https://university.edu"
+          >{{ form.school_url.value }}</div>
+          {% for error in form.school_url.errors %}
+            <p class="mt-1 text-sm text-red-600">{{ error|escape }}</p>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Dates -->
+      <div class="space-y-4">
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-2">Start Year</label>
+            <div 
+              class="bg-white rounded-lg px-4 py-3 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" 
+              contenteditable="true" 
+              data-field="start"
+              placeholder="2018"
+            >{{ form.start.value }}</div>
+            {% for error in form.start.errors %}
+              <p class="mt-1 text-sm text-red-600">{{ error|escape }}</p>
+            {% endfor %}
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-2">End Year</label>
+            <div 
+              class="bg-white rounded-lg px-4 py-3 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" 
+              contenteditable="true" 
+              data-field="end"
+              placeholder="2022"
+            >{{ form.end.value }}</div>
+            {% for error in form.end.errors %}
+              <p class="mt-1 text-sm text-red-600">{{ error|escape }}</p>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex items-center justify-end pt-6 border-t border-slate-200">
+      <button
+        id="submit-education"
+        type="submit"
+        class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+      >
+        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path>
+        </svg>
+        Save Education
+      </button>
+    </div>
+  </form>
+</editable-form>

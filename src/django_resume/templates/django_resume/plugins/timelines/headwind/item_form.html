@@ -1,0 +1,145 @@
+<editable-form id="{{ plugin_name }}-item-{{ form.item_id }}" class="block">
+  <form
+    id="{{ plugin_name }}-form-{{ form.item_id }}"
+    hx-post="{{ form.post_url }}"
+    hx-target="#{{ plugin_name }}-item-{{ form.item_id }}"
+    hx-swap="outerHTML"
+    class="bg-white rounded-lg p-6 border border-slate-300 shadow-sm space-y-6"
+  >
+    <input data-field="id" type="hidden" name="id" value="{{ form.item_id }}">
+    <input data-field="position" type="hidden" name="position" value="{{ form.position.value }}">
+    <input type="hidden" data-field="company_url" name="company_url" value="{{ form.company_url.value }}">
+    <input type="hidden" data-field="company_name" name="company_name" value="{{ form.company_name.value }}">
+    <input id="{{ plugin_name }}-item-badges-{{ form.item_id }}" type="hidden" data-field="badges" name="badges" value="{{ form.badges_as_json }}">
+    <input type="hidden" data-field="start" name="start" value="{{ form.start.value }}">
+    <input type="hidden" data-field="end" name="end" value="{{ form.end.value }}">
+    <input type="hidden" data-field="role" name="role" value="{{ form.role.value }}">
+    <input type="hidden" data-field="description" name="description" value="{{ form.description.value }}">
+
+    <div class="flex items-center justify-between mb-6">
+      <div class="flex items-center space-x-2">
+        <div class="w-3 h-3 bg-blue-500 rounded-full"></div>
+        <span class="text-sm font-medium text-slate-600">Editing Timeline Entry</span>
+      </div>
+      <span class="text-xs text-slate-500 bg-slate-200 px-2 py-1 rounded-full">Draft</span>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <!-- Company Info -->
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-2">Company Name</label>
+          <h3 
+            class="text-lg font-semibold text-slate-800 bg-white rounded-lg px-4 py-3 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" 
+            contenteditable="true" 
+            data-field="company_name"
+            placeholder="Company name"
+          >{{ form.company_name.value }}</h3>
+          {% for error in form.company_name.errors %}
+            <p class="mt-1 text-sm text-red-600">{{ error|escape }}</p>
+          {% endfor %}
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-2">Company URL</label>
+          <div 
+            class="bg-white rounded-lg px-4 py-3 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" 
+            contenteditable="true" 
+            data-field="company_url"
+            placeholder="https://company.com"
+          >{{ form.company_url.value }}</div>
+          {% for error in form.company_url.errors %}
+            <p class="mt-1 text-sm text-red-600">{{ error|escape }}</p>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Dates -->
+      <div class="space-y-4">
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-2">Start Date</label>
+            <div 
+              class="bg-white rounded-lg px-4 py-3 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" 
+              contenteditable="true" 
+              data-field="start"
+              placeholder="2020"
+            >{{ form.start.value }}</div>
+            {% for error in form.start.errors %}
+              <p class="mt-1 text-sm text-red-600">{{ error|escape }}</p>
+            {% endfor %}
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-2">End Date</label>
+            <div 
+              class="bg-white rounded-lg px-4 py-3 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" 
+              contenteditable="true" 
+              data-field="end"
+              placeholder="Present"
+            >{{ form.end.value }}</div>
+            {% for error in form.end.errors %}
+              <p class="mt-1 text-sm text-red-600">{{ error|escape }}</p>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Badges -->
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-2">Tags/Skills</label>
+          <div 
+            class="bg-white rounded-lg px-4 py-3 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 min-h-[42px]"
+            data-field="badges"
+            data-badge-input-id="{{ plugin_name }}-item-badges-{{ form.item_id }}"
+          >
+            <!-- Badges will be managed by JavaScript -->
+          </div>
+          {% for error in form.badges.errors %}
+            <p class="mt-1 text-sm text-red-600">{{ error|escape }}</p>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Role -->
+    <div>
+      <label class="block text-sm font-medium text-slate-700 mb-2">Role/Position</label>
+      <div 
+        class="text-base font-medium text-slate-600 bg-white rounded-lg px-4 py-3 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" 
+        contenteditable="true" 
+        data-field="role"
+        placeholder="Your role or position"
+      >{{ form.role.value }}</div>
+      {% for error in form.role.errors %}
+        <p class="mt-1 text-sm text-red-600">{{ error|escape }}</p>
+      {% endfor %}
+    </div>
+
+    <!-- Description -->
+    <div>
+      <label class="block text-sm font-medium text-slate-700 mb-2">Description</label>
+      <div 
+        class="min-h-[120px] bg-white rounded-lg px-4 py-3 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 prose prose-slate max-w-none" 
+        contenteditable="true" 
+        data-field="description" 
+        data-type="html"
+        placeholder="Describe your responsibilities, achievements, and key projects..."
+      >{{ form.description.value|safe }}</div>
+      {% for error in form.description.errors %}
+        <p class="mt-1 text-sm text-red-600">{{ error|escape }}</p>
+      {% endfor %}
+    </div>
+
+    <div class="flex items-center justify-end pt-6 border-t border-slate-200">
+      <button
+        id="{{ plugin_name }}-submit-item-{{ form.item_id }}"
+        type="submit"
+        class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+      >
+        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path>
+        </svg>
+        Save Entry
+      </button>
+    </div>
+  </form>
+</editable-form>

@@ -1,0 +1,101 @@
+<editable-form id="{{ plugin_name }}-item-{{ form.item_id }}" class="block">
+  <form
+    id="{{ plugin_name }}-form-{{ form.item_id }}"
+    hx-post="{{ form.post_url }}"
+    hx-target="#{{ plugin_name }}-item-{{ form.item_id }}"
+    hx-swap="outerHTML"
+    class="bg-white rounded-lg p-6 border border-slate-300 shadow-sm space-y-6"
+  >
+    <input data-field="id" type="hidden" name="id" value="{{ form.item_id }}">
+    <input data-field="position" type="hidden" name="position" value="{{ form.position.value }}">
+    <input type="hidden" data-field="url" name="url" value="{{ form.url.value }}">
+    <input type="hidden" data-field="title" name="title" value="{{ form.title.value }}">
+    <input id="{{ plugin_name }}-item-badges-{{ form.item_id }}" type="hidden" data-field="badges" name="badges" value="{{ form.badges_as_json }}">
+    <input type="hidden" data-field="description" name="description" value="{{ form.description.value }}">
+
+    <div class="flex items-center justify-between mb-6">
+      <div class="flex items-center space-x-2">
+        <div class="w-3 h-3 bg-green-500 rounded-full"></div>
+        <span class="text-sm font-medium text-slate-600">Editing Project</span>
+      </div>
+      <span class="text-xs text-slate-500 bg-slate-200 px-2 py-1 rounded-full">Draft</span>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <!-- Project Info -->
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-2">Project Title</label>
+          <h3 
+            class="text-lg font-semibold text-slate-800 bg-white rounded-lg px-4 py-3 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200" 
+            contenteditable="true" 
+            data-field="title"
+            placeholder="Project name"
+          >{{ form.title.value }}</h3>
+          {% for error in form.title.errors %}
+            <p class="mt-1 text-sm text-red-600">{{ error|escape }}</p>
+          {% endfor %}
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-2">Project URL</label>
+          <div 
+            class="bg-white rounded-lg px-4 py-3 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200" 
+            contenteditable="true" 
+            data-field="url"
+            placeholder="https://project.com"
+          >{{ form.url.value }}</div>
+          {% for error in form.url.errors %}
+            <p class="mt-1 text-sm text-red-600">{{ error|escape }}</p>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Technologies/Badges -->
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-2">Technologies Used</label>
+          <div class="bg-white rounded-lg px-4 py-3 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 min-h-[80px]">
+            <badge-editor
+              input-field-id="{{ plugin_name }}-item-badges-{{ form.item_id }}"
+              ul-class="project-badges-container"
+              li-class="project-badge"
+              span-class="project-badge-name"
+            ></badge-editor>
+          </div>
+          {% for error in form.badges.errors %}
+            <p class="mt-1 text-sm text-red-600">{{ error|escape }}</p>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Description -->
+    <div>
+      <label class="block text-sm font-medium text-slate-700 mb-2">Project Description</label>
+      <div 
+        class="min-h-[120px] bg-white rounded-lg px-4 py-3 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 prose prose-slate max-w-none" 
+        contenteditable="true" 
+        data-field="description" 
+        data-type="html"
+        placeholder="Describe your project, its goals, technologies used, and key achievements..."
+      >{{ form.description.value }}</div>
+      {% for error in form.description.errors %}
+        <p class="mt-1 text-sm text-red-600">{{ error|escape }}</p>
+      {% endfor %}
+    </div>
+
+    <div class="flex items-center justify-end pt-6 border-t border-slate-200">
+      <button
+        id="{{ plugin_name }}-submit-item-{{ form.item_id }}"
+        type="submit"
+        class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+      >
+        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path>
+        </svg>
+        Save Project
+      </button>
+    </div>
+  </form>
+</editable-form>

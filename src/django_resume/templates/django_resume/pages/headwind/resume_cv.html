@@ -1,0 +1,99 @@
+{% extends "./base.html" %}
+{% load static %}
+
+{% block title %}{{ identity.name }} - CV{% endblock title %}
+
+{% block meta %}
+  {{ block.super }}
+  <meta name="author" content="{{ identity.name }}">
+  <meta name="description" content="{{ about.text }}">
+  <style>
+    @media print {
+      .print\\:hidden { display: none !important; }
+      body { 
+        background: white !important; 
+        font-size: 12pt;
+        line-height: 1.4;
+      }
+      .shadow-lg, .shadow-xl, .shadow-sm { box-shadow: none !important; }
+      .bg-gradient-to-br, .bg-gradient-to-r { background: white !important; }
+      .border { border-color: #e5e7eb !important; }
+      .rounded-xl { border-radius: 0 !important; }
+      .p-8, .p-6 { padding: 1rem !important; }
+      .space-y-8 > * + * { margin-top: 1rem !important; }
+      .space-y-6 > * + * { margin-top: 0.75rem !important; }
+      .space-y-4 > * + * { margin-top: 0.5rem !important; }
+      .max-w-7xl { max-width: none !important; }
+      .px-4, .px-6, .px-8 { padding-left: 0 !important; padding-right: 0 !important; }
+      .py-8, .py-10 { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; }
+    }
+  </style>
+{% endblock meta %}
+
+{% block content %}
+  {% if is_editable %}
+    {% include "django_resume/pages/headwind/edit_panel.html" %}
+  {% endif %}
+  
+  <div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 print:bg-white">
+    <div class="max-w-5xl mx-auto px-6 py-8 print:px-0 print:py-4">
+      
+      <!-- Header with Identity -->
+      {% include identity.templates.main %}
+      
+      <!-- About Section -->
+      <div class="mt-8">
+        {% include about.templates.main %}
+      </div>
+      
+      <!-- Plugin Sections -->
+      <div class="mt-8 space-y-8">
+        <!-- Dynamic plugins from database -->
+        {% if db_plugins %}
+          {% load plugin_tags %}
+          {% for plugin in db_plugins %}
+            <div>
+              {% render_template_string plugin.templates.string_templates.main %}
+            </div>
+          {% endfor %}
+        {% endif %}
+        
+        <!-- Built-in plugins -->
+        {% if freelance_timeline %}
+          <div>
+            {% include freelance_timeline.templates.main with timeline=freelance_timeline page_break_before=False %}
+          </div>
+        {% endif %}
+        
+        {% if employed_timeline %}
+          <div>
+            {% include employed_timeline.templates.main with timeline=employed_timeline page_break_before=True %}
+          </div>
+        {% endif %}
+        
+        {% if education %}
+          <div>
+            {% include education.templates.main %}
+          </div>
+        {% endif %}
+        
+        {% if skills %}
+          <div>
+            {% include skills.templates.main %}
+          </div>
+        {% endif %}
+        
+        {% if projects %}
+          <div>
+            {% include projects.templates.main with projects=projects %}
+          </div>
+        {% endif %}
+      </div>
+      
+      <!-- Print Footer -->
+      <div class="hidden print:block mt-8 pt-4 border-t border-slate-200 text-center text-xs text-slate-500">
+        Generated on {% now "F j, Y" %} • {{ identity.name }}
+      </div>
+    </div>
+  </div>
+{% endblock content %}

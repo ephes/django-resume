@@ -36,6 +36,7 @@ def get_context_from_plugins(
             resume.pk,
             context={},
             edit=show_edit_button,
+            theme=resume.current_theme,
         )
     return context
 

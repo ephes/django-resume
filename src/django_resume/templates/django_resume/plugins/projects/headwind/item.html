@@ -1,0 +1,77 @@
+<div id="projects-item-{{ project.id }}" class="bg-slate-50 rounded-lg p-6 border border-slate-200 hover:shadow-md transition-all duration-200 group">
+  <div class="flex flex-col h-full">
+    <div class="flex-1">
+      <div class="flex items-start justify-between mb-4">
+        <div class="flex-1">
+          {% if project.url %}
+            <h3 class="text-lg font-semibold text-slate-800 mb-2">
+              <a href="{{ project.url }}" class="text-blue-600 hover:text-blue-800 underline decoration-blue-300 hover:decoration-blue-500 transition-colors" target="_blank" rel="noopener noreferrer">
+                {{ project.title }}
+              </a>
+            </h3>
+          {% else %}
+            <h3 class="text-lg font-semibold text-slate-800 mb-2">{{ project.title }}</h3>
+          {% endif %}
+          
+          {% if project.badges %}
+            <div class="flex flex-wrap gap-1 mb-3">
+              {% for badge in project.badges %}
+                <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
+                  {{ badge }}
+                </span>
+              {% endfor %}
+            </div>
+          {% endif %}
+        </div>
+        
+        {% if show_edit_button %}
+          <div class="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 ml-3">
+            <button
+              class="p-1 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors duration-200"
+              hx-get="{{ project.edit_url }}"
+              hx-target="#projects-item-{{ project.id }}"
+              hx-swap="outerHTML"
+              title="Edit project"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M16 3l5 5L9 20H4v-5L16 3z"></path>
+              </svg>
+            </button>
+            <button
+              class="p-1 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors duration-200"
+              hx-delete="{{ project.delete_url }}"
+              hx-target="#projects-item-{{ project.id }}"
+              hx-swap="delete"
+              hx-confirm="Are you sure you want to delete this project?"
+              title="Delete project"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+              </svg>
+            </button>
+          </div>
+        {% endif %}
+      </div>
+      
+      <div class="prose prose-slate prose-sm max-w-none text-slate-700">
+        {{ project.description|safe }}
+      </div>
+    </div>
+    
+    {% if project.url %}
+      <div class="mt-4 pt-4 border-t border-slate-200">
+        <a 
+          href="{{ project.url }}" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          class="inline-flex items-center text-sm text-blue-600 hover:text-blue-800 font-medium transition-colors"
+        >
+          View Project
+          <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+          </svg>
+        </a>
+      </div>
+    {% endif %}
+  </div>
+</div>
