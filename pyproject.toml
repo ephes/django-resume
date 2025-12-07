@@ -4,9 +4,7 @@ version = "0.1.13"
 description = "Add your description here"
 readme = "README.rst"
 requires-python = ">=3.10"
-dependencies = [
-    "django>=4.2",
-]
+dependencies = ["django>=4.2"]
 
 [project.urls]
 Documentation = "https://django-resume.readthedocs.io/en/latest/"
@@ -22,14 +20,14 @@ base_url = "http://localhost:8000"
 testpaths = ["tests"]
 
 filterwarnings = [
-    "ignore:Support for class-based `config` is deprecated:DeprecationWarning"
+    "ignore:Support for class-based `config` is deprecated:DeprecationWarning",
 ]
 
 [tool.mypy]
-python_version = "3.13"
+python_version = "3.14"
 ignore_missing_imports = true
 plugins = ["mypy_django_plugin.main"]
-exclude = "[a-zA-Z]*/(migrations)|(example)/(.)*"  # ignore migrations
+exclude = "[a-zA-Z]*/(migrations)|(example)/(.)*" # ignore migrations
 
 [tool.django-stubs]
 django_settings_module = "tests.settings"
@@ -37,9 +35,7 @@ django_settings_module = "tests.settings"
 [tool.coverage.run]
 branch = true
 source = ["src"]
-omit = [
-    "*/migrations/*",
-]
+omit = ["*/migrations/*"]
 
 [tool.coverage.report]
 show_missing = true
@@ -54,9 +50,9 @@ dev = [
     "coverage>=7",
     "django-extensions>=3",
     "django-stubs[compatible-mypy]>=5",
-    "furo",  # documentation
-    "llm",  # generate db plugins from prompts
-    "llm-claude-3",  # llm plugin for anthropic models
+    "furo",                             # documentation
+    "llm",                              # generate db plugins from prompts
+    "llm-claude-3",                     # llm plugin for anthropic models
     "pytest>=8",
     "pytest-django>=4",
     "pytest-playwright>=0.5",
@@ -65,3 +61,4 @@ dev = [
 
 [project.scripts]
 llm-content = "django_resume.entrypoints.llm_content:llm_content"
+
