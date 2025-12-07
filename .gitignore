@@ -34,3 +34,6 @@ e2e_tests/media/
 
 # macos
 .DS_STORE
+
+# LLM specs
+specs/
