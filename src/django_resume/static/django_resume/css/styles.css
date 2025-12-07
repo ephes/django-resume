@@ -102,23 +102,16 @@ a {
 }
 
 a.underlined {
-    position: relative;
-    color: var(--color-brightblue); /* Changes the link color */
+    color: var(--color-brightblue);
+    text-decoration: underline;
+    text-decoration-color: transparent;
+    text-underline-offset: 2px;
+    text-decoration-thickness: 2px;
+    transition: text-decoration-color 0.3s ease;
 }
 
-a.underlined::after {
-    content: '';
-    position: absolute;
-    width: 0;
-    height: 2px;
-    bottom: 0;
-    left: 0;
-    background-color: var(--color-darkblue);
-}
-
-a.underlined:hover::after {
-    width: 100%; /* Expand underline */
-    transition: width 0.3s ease; /* Only apply transition on hover */
+a.underlined:hover {
+    text-decoration-color: var(--color-darkblue);
 }
 
 p.pretty {

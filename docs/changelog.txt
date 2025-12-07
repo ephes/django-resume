@@ -2,6 +2,13 @@
 Changelog
 =========
 
+0.1.14 - 2025-12-07
+-------------------
+
+Fixes
+^^^^^
+* Fixed animated underline on links breaking when text wraps to multiple lines
+
 0.1.13 - 2025-02-16
 -------------------
 
