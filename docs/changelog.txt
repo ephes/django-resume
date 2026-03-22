@@ -18,8 +18,11 @@ Fixes
 * Block dangerous link protocols in rendered markdown, including percent-encoded scheme variants
 * Route the About plugin through the same sanitized markdown rendering path as the other text-heavy plugins
 * Use block-level wrappers for plain-theme rich-text fragments so sanitized headings and other block content render as valid HTML
+* Lock resume rows during plugin-data writes and restrict saves to the ``plugin_data`` field to avoid lost updates across concurrent edits
+* Generate CV access tokens with the ``secrets`` module instead of the non-cryptographic ``random`` PRNG
 * Remove leftover demo validation and stray debug prints from plugin item forms
 * Make plugin data removal commands update resume JSON data in a single atomic bulk operation
+* Reject unsafe plugin names in filesystem management commands and keep generated and deleted paths contained inside the expected plugin directories
 * Use prefixed admin readonly field names for plugin links to avoid method-name collisions
 * Keep plugin inline URLs in sync when plugins are registered or unregistered dynamically
 

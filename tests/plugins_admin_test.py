@@ -158,6 +158,25 @@ def test_simple_plugin_post_data_invalid(admin_client, resume, plugin_registry):
     assert error == "Enter a valid JSON."
 
 
+@pytest.mark.django_db
+def test_simple_plugin_post_data_checks_permissions_before_validation(
+    admin_client, resume, plugin_registry, django_user_model
+):
+    resume.owner.is_staff = True
+    resume.owner.save()
+    resume.save()
+    other_staff_user = django_user_model.objects.create_user(
+        username="other-staff", password="password", is_staff=True
+    )
+    admin_client.force_login(other_staff_user)
+
+    plugin = plugin_registry.get_plugin(SimplePlugin.name)
+    post_url = plugin.admin.get_change_post_url(resume.pk)
+    response = admin_client.post(post_url, {"plugin_data": "invalid"})
+
+    assert response.status_code == 403
+
+
 # integration test: click on the edit button, change the data, save, check the data
 
 

@@ -5,6 +5,8 @@ from pathlib import Path
 
 from django.core.management.base import BaseCommand
 
+from ._path_safety import resolve_within, validate_plugin_name
+
 
 class Command(BaseCommand):
     help = "Create filesystem plugin files from stdin input"
@@ -22,13 +24,11 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR("Invalid input format"))
             return
 
-        plugin_name = sections[1].strip()
+        plugin_name = validate_plugin_name(sections[1].strip())
         plugin_data = dict(zip(sections[3::2], sections[4::2]))
-        print("plugin_name: ", plugin_name)
-        print("plugin_data: ", plugin_data)
         plugin_file_name = f"{plugin_name}.py"
         plugin_source = plugin_data[plugin_file_name]
-        plugin_path = Path.cwd() / "core" / "plugins" / plugin_file_name
+        plugin_path = resolve_within(Path.cwd() / "core" / "plugins", plugin_file_name)
         plugin_path.parent.mkdir(parents=True, exist_ok=True)
         plugin_path.write_text(plugin_source)
 
@@ -38,7 +38,9 @@ class Command(BaseCommand):
         )
         content_template_source = plugin_data[content_template_path]
 
-        real_content_template_path = Path.cwd() / "templates" / content_template_path
+        real_content_template_path = resolve_within(
+            Path.cwd() / "templates", content_template_path
+        )
         real_content_template_path.parent.mkdir(parents=True, exist_ok=True)
         real_content_template_path.write_text(content_template_source)
 
@@ -47,6 +49,8 @@ class Command(BaseCommand):
         form_template_source = plugin_data[form_template_path]
         form_template_source = form_template_source.split("---")[0]
 
-        real_form_template_path = Path.cwd() / "templates" / form_template_path
+        real_form_template_path = resolve_within(
+            Path.cwd() / "templates", form_template_path
+        )
         real_form_template_path.parent.mkdir(parents=True, exist_ok=True)
         real_form_template_path.write_text(form_template_source)

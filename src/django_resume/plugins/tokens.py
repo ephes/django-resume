@@ -1,4 +1,4 @@
-import random
+import secrets
 import string
 from datetime import datetime
 
@@ -13,8 +13,11 @@ from .base import ListPlugin, ListItemFormMixin
 from ..models import Resume
 
 
+TOKEN_ALPHABET = string.ascii_letters + string.digits
+
+
 def generate_random_string(length=20) -> str:
-    return "".join(random.choices(string.ascii_letters + string.digits, k=length))
+    return "".join(secrets.choice(TOKEN_ALPHABET) for _ in range(length))
 
 
 class HTMLLinkWidget(forms.Widget):

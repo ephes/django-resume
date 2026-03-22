@@ -9,6 +9,7 @@ from django.shortcuts import get_object_or_404, render
 from django.urls import reverse, path, URLPattern
 from django.utils.html import format_html
 from django.core.exceptions import PermissionDenied
+from django.db import transaction
 
 from ..models import Resume
 
@@ -77,7 +78,31 @@ class SimpleJsonForm(forms.Form):
     plugin_data = forms.JSONField(widget=forms.Textarea)
 
 
-class SimpleAdmin:
+class LockedResumeMutationMixin:
+    def get_locked_resume_or_error(
+        self, request: HttpRequest, resume_id: int
+    ) -> Resume:
+        """Return a locked resume row or raise 404/403 for invalid access."""
+        resume = get_object_or_404(Resume.objects.select_for_update(), id=resume_id)
+        if not self.check_permissions(request, resume):
+            raise PermissionDenied("Permission denied")
+        return resume
+
+    @staticmethod
+    def save_plugin_data(resume: Resume) -> None:
+        resume.save(update_fields=["plugin_data"])
+
+    def mutate_resume_plugin_data(
+        self, request: HttpRequest, resume_id: int, mutate: Callable[[Resume], None]
+    ) -> Resume:
+        with transaction.atomic():
+            resume = self.get_locked_resume_or_error(request, resume_id)
+            mutate(resume)
+            self.save_plugin_data(resume)
+            return resume
+
+
+class SimpleAdmin(LockedResumeMutationMixin):
     admin_template = "django_resume/admin/simple_plugin_admin_view.html"
     change_form = "django_resume/admin/simple_plugin_admin_form.html"
 
@@ -174,8 +199,12 @@ class SimpleAdmin:
                 plugin_data = form.cleaned_data["plugin_data"]
             else:
                 plugin_data = form.cleaned_data
-            resume = self.data.update(resume, plugin_data)
-            resume.save()
+            resume = self.mutate_resume_plugin_data(
+                request,
+                resume_id,
+                lambda locked_resume: self.data.update(locked_resume, plugin_data),
+            )
+            form.post_url = self.get_change_post_url(resume.pk)
         return render(request, self.change_form, context)
 
     def get_urls(self, admin_view: Callable) -> URLPatterns:
@@ -292,7 +321,7 @@ def get_current_theme(resume: Resume) -> str:
     return resume.plugin_data.get("theme", {}).get("name", "plain")
 
 
-class SimpleInline:
+class SimpleInline(LockedResumeMutationMixin):
     def __init__(
         self,
         *,
@@ -348,36 +377,36 @@ class SimpleInline:
         Handle post requests to update the plugin data and returns either the main template or
         the form with errors.
         """
-        resume = self.get_resume_or_error(request, resume_id)
-        current_theme = get_current_theme(resume)
-        self.templates.set_plugin_name_and_theme(
-            self.plugin_name, get_current_theme(resume)
-        )
-        plugin_data = self.data.get_data(resume)
-        form_class = self.form_class
-        # print("post view: ", request.POST, request.FILES)
-        form = form_class(request.POST, request.FILES, initial=plugin_data)
-        setattr(form, "post_url", self.get_post_url(resume.pk))  # make mypy happy
-        context: dict[str, Any] = {"form": form}
-        if form.is_valid():
-            # update the plugin data and render the main template
-            resume = self.data.update(resume, form.cleaned_data)
-            resume.save()
-            # update the context with the new plugin data from plugin
-            updated_plugin_data = self.data.get_data(resume)
-            context[self.plugin_name] = self.get_context(
-                # passing current_theme is really important!
-                request,
-                updated_plugin_data,
-                resume.pk,
-                context=context,
-                theme=current_theme,
-            )
-            context["show_edit_button"] = True
-            context[self.plugin_name]["edit_url"] = self.get_edit_url(resume.pk)
-            return self.templates.render(request, SimpleTemplateName("main"), context)
-        # render the form again with errors
-        return self.templates.render(request, SimpleTemplateName("form"), context)
+        with transaction.atomic():
+            resume = self.get_locked_resume_or_error(request, resume_id)
+            current_theme = get_current_theme(resume)
+            self.templates.set_plugin_name_and_theme(self.plugin_name, current_theme)
+            plugin_data = self.data.get_data(resume)
+            form_class = self.form_class
+            form = form_class(request.POST, request.FILES, initial=plugin_data)
+            setattr(form, "post_url", self.get_post_url(resume.pk))  # make mypy happy
+            context: dict[str, Any] = {"form": form}
+            if form.is_valid():
+                # update the plugin data and render the main template
+                resume = self.data.update(resume, form.cleaned_data)
+                self.save_plugin_data(resume)
+                # update the context with the new plugin data from plugin
+                updated_plugin_data = self.data.get_data(resume)
+                context[self.plugin_name] = self.get_context(
+                    # passing current_theme is really important!
+                    request,
+                    updated_plugin_data,
+                    resume.pk,
+                    context=context,
+                    theme=current_theme,
+                )
+                context["show_edit_button"] = True
+                context[self.plugin_name]["edit_url"] = self.get_edit_url(resume.pk)
+                return self.templates.render(
+                    request, SimpleTemplateName("main"), context
+                )
+            # render the form again with errors
+            return self.templates.render(request, SimpleTemplateName("form"), context)
 
     def get_urls(self) -> URLPatterns:
         """
@@ -623,7 +652,7 @@ class ListData:
         return self.set_data(resume, plugin_data)
 
 
-class ListAdmin:
+class ListAdmin(LockedResumeMutationMixin):
     """
     This class contains the logic of the list plugin concerned with the Django admin interface.
 
@@ -781,62 +810,68 @@ class ListAdmin:
 
     def post_item_view(self, request: HttpRequest, resume_id: int) -> HttpResponse:
         """Handle post requests to create or update a single item."""
-        resume = self.get_resume_or_error(request, resume_id)
-        form_class = self.form_classes["item"]
-        existing_items = self.data.get_data(resume).get("items", [])
-        form = form_class(
-            request.POST, request.FILES, resume=resume, existing_items=existing_items
-        )
-        form.post_url = self.get_change_item_post_url(resume.pk)
-        context = {"form": form}
-        if form.is_valid():
-            # try to find out whether we are updating an existing item or creating a new one
-            existing = True
-            item_id = form.cleaned_data.get("id", None)
-            if item_id is not None:
-                item = self.data.get_item_by_id(resume, item_id)
-                if item is None:
+        with transaction.atomic():
+            resume = self.get_locked_resume_or_error(request, resume_id)
+            form_class = self.form_classes["item"]
+            existing_items = self.data.get_data(resume).get("items", [])
+            form = form_class(
+                request.POST,
+                request.FILES,
+                resume=resume,
+                existing_items=existing_items,
+            )
+            form.post_url = self.get_change_item_post_url(resume.pk)
+            context = {"form": form}
+            if form.is_valid():
+                # try to find out whether we are updating an existing item or creating a new one
+                existing = True
+                item_id = form.cleaned_data.get("id", None)
+                if item_id is not None:
+                    item = self.data.get_item_by_id(resume, item_id)
+                    if item is None:
+                        existing = False
+                else:
+                    # no item_id -> new item
                     existing = False
-            else:
-                # no item_id -> new item
-                existing = False
-            if existing:
-                # update existing item
-                item_id = form.cleaned_data["id"]
-                resume = self.data.update(resume, form.cleaned_data)
-            else:
-                # create new item
-                data = form.cleaned_data
-                item_id = str(uuid4())
-                data["id"] = item_id
-                resume = self.data.create(resume, data)
-                # weird hack to make the form look like it is for an existing item
-                # if there's a better way to do this, please let me know FIXME
-                form.data = form.data.copy()
-                form.data["id"] = item_id
-            resume.save()
-            form.delete_url = self.get_delete_item_url(resume.id, item_id)
-        return render(request, self.admin_item_change_form_template, context)
+                if existing:
+                    # update existing item
+                    item_id = form.cleaned_data["id"]
+                    resume = self.data.update(resume, form.cleaned_data)
+                else:
+                    # create new item
+                    data = form.cleaned_data
+                    item_id = str(uuid4())
+                    data["id"] = item_id
+                    resume = self.data.create(resume, data)
+                    # weird hack to make the form look like it is for an existing item
+                    # if there's a better way to do this, please let me know FIXME
+                    form.data = form.data.copy()
+                    form.data["id"] = item_id
+                self.save_plugin_data(resume)
+                form.delete_url = self.get_delete_item_url(resume.id, item_id)
+            return render(request, self.admin_item_change_form_template, context)
 
     def post_flat_view(self, request: HttpRequest, resume_id: int) -> HttpResponse:
         """Handle post requests to update flat data."""
-        resume = self.get_resume_or_error(request, resume_id)
-        form_class = self.form_classes["flat"]
-        form = form_class(request.POST, request.FILES)
-        form.post_url = self.get_change_flat_post_url(resume.pk)
-        context = {"form": form}
-        if form.is_valid():
-            resume = self.data.update_flat(resume, form.cleaned_data)
-            resume.save()
-        return render(request, self.admin_flat_form_template, context)
+        with transaction.atomic():
+            resume = self.get_locked_resume_or_error(request, resume_id)
+            form_class = self.form_classes["flat"]
+            form = form_class(request.POST, request.FILES)
+            form.post_url = self.get_change_flat_post_url(resume.pk)
+            context = {"form": form}
+            if form.is_valid():
+                resume = self.data.update_flat(resume, form.cleaned_data)
+                self.save_plugin_data(resume)
+            return render(request, self.admin_flat_form_template, context)
 
     def delete_item_view(
         self, request: HttpRequest, resume_id: int, item_id: str
     ) -> HttpResponse:
         """Delete an item from the items list of this plugin."""
-        resume = self.get_resume_or_error(request, resume_id)
-        resume = self.data.delete(resume, {"id": item_id})
-        resume.save()
+        with transaction.atomic():
+            resume = self.get_locked_resume_or_error(request, resume_id)
+            resume = self.data.delete(resume, {"id": item_id})
+            self.save_plugin_data(resume)
         return HttpResponse(status=200)
 
     # urlpatterns
@@ -877,7 +912,7 @@ class ListAdmin:
         return urls
 
 
-class ListInline:
+class ListInline(LockedResumeMutationMixin):
     """
     This class contains the logic of the list plugin concerned with the inline editing
     of the plugin data on the website itself.
@@ -964,27 +999,27 @@ class ListInline:
 
     def post_edit_flat_view(self, request: HttpRequest, resume_id: int) -> HttpResponse:
         """Handle post requests to update flat data."""
-        resume = self.get_resume_or_error(request, resume_id)
-        flat_form_class = self.form_classes["flat"]
-        plugin_data = self.data.get_data(resume)
-        flat_form = flat_form_class(
-            request.POST, request.FILES, initial=plugin_data.get("flat", {})
-        )
-        context: dict[str, Any] = {}
-        if flat_form.is_valid():
-            resume = self.data.update_flat(resume, flat_form.cleaned_data)
-            resume.save()
-            resume.refresh_from_db()
+        with transaction.atomic():
+            resume = self.get_locked_resume_or_error(request, resume_id)
+            flat_form_class = self.form_classes["flat"]
             plugin_data = self.data.get_data(resume)
-            context["edit_flat_url"] = self.get_edit_flat_url(resume.pk)
-            context = flat_form.set_context(plugin_data["flat"], context)
-            context["show_edit_button"] = True
-            return render(request, self.templates.flat, context=context)
-        else:
-            context["form"] = flat_form
-            context["edit_flat_post_url"] = self.get_edit_flat_post_url(resume.pk)
-            response = render(request, self.templates.flat_form, context=context)
-            return response
+            flat_form = flat_form_class(
+                request.POST, request.FILES, initial=plugin_data.get("flat", {})
+            )
+            context: dict[str, Any] = {}
+            if flat_form.is_valid():
+                resume = self.data.update_flat(resume, flat_form.cleaned_data)
+                self.save_plugin_data(resume)
+                plugin_data = self.data.get_data(resume)
+                context["edit_flat_url"] = self.get_edit_flat_url(resume.pk)
+                context = flat_form.set_context(plugin_data["flat"], context)
+                context["show_edit_button"] = True
+                return render(request, self.templates.flat, context=context)
+            else:
+                context["form"] = flat_form
+                context["edit_flat_post_url"] = self.get_edit_flat_post_url(resume.pk)
+                response = render(request, self.templates.flat_form, context=context)
+                return response
 
     def get_item_view(
         self, request: HttpRequest, resume_id: int, item_id=None
@@ -1007,60 +1042,65 @@ class ListInline:
 
     def post_item_view(self, request: HttpRequest, resume_id: int) -> HttpResponse:
         """Handle post requests to create or update a single item."""
-        resume = self.get_resume_or_error(request, resume_id)
-        form_class = self.form_classes["item"]
-        existing_items = self.data.get_data(resume).get("items", [])
-        form = form_class(
-            request.POST, request.FILES, resume=resume, existing_items=existing_items
-        )
-        form.post_url = self.get_post_item_url(resume.pk)
-        context = {"form": form, "plugin_name": self.plugin_name}
-        if form.is_valid():
-            # try to find out whether we are updating an existing item or creating a new one
-            existing = True
-            item_id = form.cleaned_data.get("id", None)
-            if item_id is not None:
-                item = self.data.get_item_by_id(resume, item_id)
-                if item is None:
+        with transaction.atomic():
+            resume = self.get_locked_resume_or_error(request, resume_id)
+            form_class = self.form_classes["item"]
+            existing_items = self.data.get_data(resume).get("items", [])
+            form = form_class(
+                request.POST,
+                request.FILES,
+                resume=resume,
+                existing_items=existing_items,
+            )
+            form.post_url = self.get_post_item_url(resume.pk)
+            context = {"form": form, "plugin_name": self.plugin_name}
+            if form.is_valid():
+                # try to find out whether we are updating an existing item or creating a new one
+                existing = True
+                item_id = form.cleaned_data.get("id", None)
+                if item_id is not None:
+                    item = self.data.get_item_by_id(resume, item_id)
+                    if item is None:
+                        existing = False
+                else:
+                    # no item_id -> new item
                     existing = False
+                if existing:
+                    # update existing item
+                    item_id = form.cleaned_data["id"]
+                    resume = self.data.update(resume, form.cleaned_data)
+                else:
+                    # create new item
+                    data = form.cleaned_data
+                    item_id = str(uuid4())
+                    data["id"] = item_id
+                    resume = self.data.create(resume, data)
+                    # weird hack to make the form look like it is for an existing item
+                    # if there's a better way to do this, please let me know FIXME
+                    form.data = form.data.copy()
+                    form.data["id"] = item_id
+                self.save_plugin_data(resume)
+                item = self.data.get_item_by_id(resume, item_id)
+                # populate entry because it's used in the standard item template,
+                # and we are no longer rendering a form when the form was valid
+                context["edit_url"] = self.get_edit_item_url(resume.id, item_id)
+                context["delete_url"] = self.get_delete_item_url(resume.id, item_id)
+                form.set_context(item, context)
+                context["show_edit_button"] = True
+                context["plugin_name"] = self.plugin_name  # for javascript
+                return render(request, self.templates.item, context)
             else:
-                # no item_id -> new item
-                existing = False
-            if existing:
-                # update existing item
-                item_id = form.cleaned_data["id"]
-                resume = self.data.update(resume, form.cleaned_data)
-            else:
-                # create new item
-                data = form.cleaned_data
-                item_id = str(uuid4())
-                data["id"] = item_id
-                resume = self.data.create(resume, data)
-                # weird hack to make the form look like it is for an existing item
-                # if there's a better way to do this, please let me know FIXME
-                form.data = form.data.copy()
-                form.data["id"] = item_id
-            resume.save()
-            item = self.data.get_item_by_id(resume, item_id)
-            # populate entry because it's used in the standard item template,
-            # and we are no longer rendering a form when the form was valid
-            context["edit_url"] = self.get_edit_item_url(resume.id, item_id)
-            context["delete_url"] = self.get_delete_item_url(resume.id, item_id)
-            form.set_context(item, context)
-            context["show_edit_button"] = True
-            context["plugin_name"] = self.plugin_name  # for javascript
-            return render(request, self.templates.item, context)
-        else:
-            # form is invalid
-            return render(request, self.templates.item_form, context)
+                # form is invalid
+                return render(request, self.templates.item_form, context)
 
     def delete_item_view(
         self, request: HttpRequest, resume_id: int, item_id: str
     ) -> HttpResponse:
         """Delete an item from the items list of this plugin."""
-        resume = self.get_resume_or_error(request, resume_id)
-        resume = self.data.delete(resume, {"id": item_id})
-        resume.save()
+        with transaction.atomic():
+            resume = self.get_locked_resume_or_error(request, resume_id)
+            resume = self.data.delete(resume, {"id": item_id})
+            self.save_plugin_data(resume)
         return HttpResponse(status=200)
 
     # urlpatterns
