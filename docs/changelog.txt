@@ -12,6 +12,13 @@ Breaking Changes
 * Simplified plugin generation to produce filesystem plugin artifacts instead of database rows
 * Reset the app migration history around this removal; existing installs should treat this as a breaking reset rather than an in-place upgrade
 
+Fixes
+^^^^^
+* Add ``nh3`` as a runtime dependency to sanitize rendered markdown HTML before plugin output is marked safe
+* Block dangerous link protocols in rendered markdown, including percent-encoded scheme variants
+* Route the About plugin through the same sanitized markdown rendering path as the other text-heavy plugins
+* Use block-level wrappers for plain-theme rich-text fragments so sanitized headings and other block content render as valid HTML
+
 0.1.14 - 2025-12-07
 -------------------
 

@@ -4,7 +4,10 @@ version = "0.1.14"
 description = "Add your description here"
 readme = "README.rst"
 requires-python = ">=3.10"
-dependencies = ["django>=4.2"]
+dependencies = [
+    "django>=4.2",
+    "nh3>=0.3.3",
+]
 
 [project.urls]
 Documentation = "https://django-resume.readthedocs.io/en/latest/"

@@ -9,13 +9,11 @@ from .base import ListPlugin, ListItemFormMixin, ListInline, ContextDict
 from ..markdown import (
     markdown_to_html,
     textarea_input_to_markdown,
+    textarea_input_to_html,
     markdown_to_textarea_input,
+    underlined_link_handler,
 )
 from ..images import ImageFormMixin
-
-
-def link_handler(text: str, url: str) -> str:
-    return f'<a href="{url}" class="underlined">{text}</a>'
 
 
 class CoverItemForm(ListItemFormMixin, forms.Form):
@@ -37,6 +35,7 @@ class CoverItemForm(ListItemFormMixin, forms.Form):
         initial = cast(dict[str, Any], self.initial)
         initial["text"] = markdown_to_textarea_input(self.initial.get("text", ""))
         self.initial = initial
+        self.text_display_html = textarea_input_to_html(self["text"].value() or "")
 
     def clean_text(self) -> str:
         text = self.cleaned_data["text"]
@@ -55,7 +54,9 @@ class CoverItemForm(ListItemFormMixin, forms.Form):
         context["item"] = {
             "id": item["id"],
             "title": item["title"],
-            "text": markdown_to_html(item["text"], handlers={"link": link_handler}),
+            "text": markdown_to_html(
+                item["text"], handlers={"link": underlined_link_handler}
+            ),
             "edit_url": context["edit_url"],
             "delete_url": context["delete_url"],
         }
@@ -125,7 +126,7 @@ class CoverPlugin(ListPlugin):
         items = plugin_data.get("items", [])
         for item in items:
             item["text"] = markdown_to_html(
-                item["text"], handlers={"link": link_handler}
+                item["text"], handlers={"link": underlined_link_handler}
             )
         # first item is special because it should float around the avatar image
         context["first_item"] = items[0] if items else None

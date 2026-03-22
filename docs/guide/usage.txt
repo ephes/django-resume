@@ -24,3 +24,21 @@ This is the list of built-in plugins that come with django-resume:
 - **Theme**: The theme of your resume (plain, tailwind, etc).
 - **Timeline**: A timeline of your work experience.
 - **Tokens**: A token that you can use to access parts of the resume that are protected.
+
+Text Formatting
+---------------
+
+Some built-in plugins render a small, sanitized markdown subset for user-provided
+text fields. This currently applies to text-heavy sections such as **About**,
+**Cover**, **Projects**, **Timeline**, and **Permission Denied**.
+
+The supported formatting is intentionally limited to:
+
+- headings
+- bold
+- italic
+- links
+- line breaks
+
+Rendered HTML is sanitized before it is marked safe, so raw HTML is not preserved
+and dangerous link protocols are removed.

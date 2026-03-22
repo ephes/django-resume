@@ -26,7 +26,7 @@
         data-type="text"
         placeholder="About section title..."
       >
-        {{ form.title.value|safe }}
+        {{ form.title.value }}
       </div>
       {% for error in form.title.errors %}
         <p class="mt-2 text-sm text-red-600 bg-red-50 p-2 rounded-lg">{{ error|escape }}</p>
@@ -42,7 +42,7 @@
         data-type="html"
         placeholder="Write about yourself, your background, interests, and goals..."
       >
-        {{ form.text.value|safe }}
+        {{ form.text_display_html|safe }}
       </div>
       {% for error in form.text.errors %}
         <p class="mt-2 text-sm text-red-600 bg-red-50 p-2 rounded-lg">{{ error|escape }}</p>

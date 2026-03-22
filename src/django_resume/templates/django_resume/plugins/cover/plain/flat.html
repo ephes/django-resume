@@ -27,10 +27,9 @@
   {% endif %}
   {% if not show_edit_button %}
     <h2 class="first-cover-headline">{{ cover.first_item.title }}</h2>
-    <p class="pretty">
+    <div class="pretty">
       {{ cover.first_item.text|safe }}
-    </p>
+    </div>
   {% endif %}
 </section>
-
 

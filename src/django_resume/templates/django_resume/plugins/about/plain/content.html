@@ -6,9 +6,9 @@
         <use href="#edit"></use>
       </svg>
     </div>
-    <p>{{ about.text }}</p>
+    <div class="pretty">{{ about.text_html|safe }}</div>
   {% else %}
     <h2>{{ about.title }}</h2>
-    <p>{{ about.text }}</p>
+    <div class="pretty">{{ about.text_html|safe }}</div>
   {% endif %}
 </section>

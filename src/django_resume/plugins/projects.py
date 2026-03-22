@@ -10,12 +10,10 @@ from .base import ListPlugin, ListItemFormMixin, ListInline, ContextDict
 from ..markdown import (
     markdown_to_html,
     textarea_input_to_markdown,
+    textarea_input_to_html,
     markdown_to_textarea_input,
+    underlined_link_handler,
 )
-
-
-def link_handler(text: str, url: str) -> str:
-    return f'<a href="{url}" class="underlined">{text}</a>'
 
 
 class ProjectItemForm(ListItemFormMixin, forms.Form):
@@ -37,6 +35,9 @@ class ProjectItemForm(ListItemFormMixin, forms.Form):
             self.initial.get("description", "")
         )
         self.initial = initial
+        self.description_display_html = textarea_input_to_html(
+            self["description"].value() or ""
+        )
 
     def badges_as_json(self) -> str:
         """
@@ -64,7 +65,7 @@ class ProjectItemForm(ListItemFormMixin, forms.Form):
             "url": item["url"],
             "title": item["title"],
             "description": markdown_to_html(
-                item["description"], handlers={"link": link_handler}
+                item["description"], handlers={"link": underlined_link_handler}
             ),
             "badges": item["badges"],
             "edit_url": context["edit_url"],
@@ -163,6 +164,6 @@ class ProjectsPlugin(ListPlugin):
         items = plugin_data.get("items", [])
         for item in items:
             item["description"] = markdown_to_html(
-                item["description"], handlers={"link": link_handler}
+                item["description"], handlers={"link": underlined_link_handler}
             )
         return context

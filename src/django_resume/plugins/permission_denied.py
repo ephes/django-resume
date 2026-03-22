@@ -7,12 +7,10 @@ from ..images import ImageFormMixin
 from ..markdown import (
     markdown_to_html,
     markdown_to_textarea_input,
+    textarea_input_to_html,
     textarea_input_to_markdown,
+    underlined_link_handler,
 )
-
-
-def link_handler(text: str, url: str) -> str:
-    return f'<a href="{url}" class="underlined">{text}</a>'
 
 
 class PermissionDeniedForm(ImageFormMixin, forms.Form):
@@ -63,6 +61,7 @@ class PermissionDeniedForm(ImageFormMixin, forms.Form):
         super().__init__(*args, **kwargs)
         # Transform initial text from markdown to textarea input.
         self.initial["text"] = markdown_to_textarea_input(self.initial.get("text", ""))
+        self.text_display_html = textarea_input_to_html(self["text"].value() or "")
 
     def clean_text(self):
         text = self.cleaned_data["text"]
@@ -128,6 +127,6 @@ class PermissionDeniedPlugin(SimplePlugin):
             plugin_data.get("avatar_img", "")
         )
         context["text"] = markdown_to_html(
-            plugin_data.get("text", ""), handlers={"link": link_handler}
+            plugin_data.get("text", ""), handlers={"link": underlined_link_handler}
         )
         return context

@@ -1,5 +1,51 @@
+import html
 import re
+from urllib.parse import unquote
 from typing import Callable
+
+import nh3
+
+
+ALLOWED_TAGS = {"a", "br", "em", "h1", "h2", "h3", "h4", "h5", "h6", "strong"}
+ALLOWED_ATTRIBUTES = {"a": {"class", "href", "target"}}
+ALLOWED_URL_SCHEMES = {"http", "https", "mailto"}
+URL_SCHEME_RE = re.compile(r"^([a-zA-Z][a-zA-Z0-9+.-]*):")
+
+
+def underlined_link_handler(text: str, url: str) -> str:
+    return f'<a href="{url}" class="underlined">{text}</a>'
+
+
+def _get_normalized_url_scheme(value: str) -> str | None:
+    candidate = html.unescape(value)
+    candidate = re.sub(r"[\x00-\x20]+", "", candidate)
+    for _ in range(3):
+        decoded = unquote(candidate)
+        if decoded == candidate:
+            break
+        candidate = decoded
+    match = URL_SCHEME_RE.match(candidate)
+    if match is None:
+        return None
+    return match.group(1).lower()
+
+
+def _attribute_filter(tag: str, attribute: str, value: str) -> str | None:
+    if tag == "a" and attribute == "href":
+        scheme = _get_normalized_url_scheme(value)
+        if scheme is not None and scheme not in ALLOWED_URL_SCHEMES:
+            return None
+    return value
+
+
+def sanitize_html(text: str) -> str:
+    return nh3.clean(
+        text,
+        tags=ALLOWED_TAGS,
+        attributes=ALLOWED_ATTRIBUTES,
+        attribute_filter=_attribute_filter,
+        url_schemes=ALLOWED_URL_SCHEMES,
+    )
 
 
 def textarea_input_to_markdown(text: str) -> str:
@@ -27,6 +73,21 @@ def markdown_to_textarea_input(text: str) -> str:
     text = text.replace("\n", "<br>")
 
     return text
+
+
+def textarea_input_to_html(text: str) -> str:
+    text = html.escape(text)
+    text = re.sub(r"&lt;br\s*/?&gt;", "<br>", text, flags=re.IGNORECASE)
+    return text.replace("\n", "<br>")
+
+
+def markdown_to_plain_text(text: str) -> str:
+    text = markdown_to_html(text)
+    text = text.replace("<br>", "\n")
+    text = re.sub(r"<[^>]+>", "", text)
+    text = html.unescape(text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
 
 
 def markdown_to_html(text: str, handlers: dict[str, Callable] | None = None) -> str:
@@ -83,9 +144,9 @@ def markdown_to_html(text: str, handlers: dict[str, Callable] | None = None) -> 
         else:
             return f'<a href="{url}">{link_text}</a>'
 
-    text = re.sub(r"\[(.*?)\]\((.*?)\)", render_link, text)
+    text = re.sub(r"\[(.*?)\]\(((?:[^()]|\([^()]*\))*)\)", render_link, text)
 
     # Just replace newlines with <br>
     text = text.replace("\n", "<br>")
 
-    return text
+    return sanitize_html(text)

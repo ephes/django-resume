@@ -156,6 +156,41 @@ def test_resume_detail_view(client, resume):
 
 
 @pytest.mark.django_db
+def test_resume_cv_about_renders_sanitized_markdown(client, resume):
+    # Given a resume using the headwind theme and markdown in the about plugin
+    resume.owner.save()
+    resume.plugin_data = {
+        "theme": {"name": "headwind"},
+        "token": {"flat": {"token_required": False}},
+        "about": {
+            "title": "About",
+            "text": "**Bold** [profile](javascript:alert(1)) <script>alert(1)</script>",
+        },
+    }
+    resume.save()
+
+    # When we access the CV page
+    cv_url = reverse("resume:cv", kwargs={"slug": resume.slug})
+    r = client.get(cv_url)
+
+    # Then the about section should render sanitized markdown
+    assert r.status_code == 200
+    assert "text" not in r.context["about"]
+    assert (
+        r.context["about"]["text_markdown"]
+        == "**Bold** [profile](javascript:alert(1)) <script>alert(1)</script>"
+    )
+    assert r.context["about"]["text_plain"] == "Bold profile"
+    assert "<strong>Bold</strong>" in r.context["about"]["text_html"]
+    assert "alert(1)" not in r.context["about"]["text_html"]
+    assert "javascript:" not in r.context["about"]["text_html"]
+    content = r.content.decode("utf-8")
+    assert "<strong>Bold</strong>" in content
+    assert 'href="javascript:' not in content
+    assert ">profile</a>" in content
+
+
+@pytest.mark.django_db
 def test_get_cv_view(client, resume):
     # Given a resume in the database and the token plugin activated
     resume.owner.save()
@@ -181,6 +216,36 @@ def test_get_cv_view(client, resume):
 
     # Then the response should be successful
     assert r.status_code == 200
+
+
+@pytest.mark.django_db
+def test_cv_permission_denied_message_renders_sanitized_markdown(client, resume):
+    # Given a resume with markdown in the permission denied plugin
+    resume.owner.save()
+    resume.plugin_data["permission_denied"] = {
+        "title": "Access Token Needed for CV",
+        "sub_title": "Unlock access",
+        "email": "tokensupport@example.com",
+        "text": "[email me](javascript:alert(1))\n\n**Thanks** <script>alert(1)</script>",
+    }
+    resume.save()
+    plugin_registry.register(TokenPlugin)
+
+    # When we access the cv without a token
+    cv_url = reverse("resume:cv", kwargs={"slug": resume.slug})
+    r = client.get(cv_url)
+
+    # Then the rendered error message should use sanitized markdown
+    assert r.status_code == 403
+    assert "<strong>Thanks</strong>" in r.context["permission_denied"]["text"]
+    assert "alert(1)" not in r.context["permission_denied"]["text"]
+    assert "javascript:" not in r.context["permission_denied"]["text"]
+    assert "email me" in r.context["permission_denied"]["text"]
+    content = r.content.decode("utf-8")
+    assert "<strong>Thanks</strong>" in content
+    assert "alert(1)" not in content
+    assert "javascript:" not in content
+    assert "email me" in content
 
 
 @pytest.mark.django_db

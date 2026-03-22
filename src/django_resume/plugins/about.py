@@ -1,6 +1,16 @@
-from django import forms
+from typing import Any, cast
 
-from .base import SimplePlugin
+from django import forms
+from django.http import HttpRequest
+
+from .base import SimplePlugin, ContextDict
+from ..markdown import (
+    markdown_to_html,
+    markdown_to_plain_text,
+    markdown_to_textarea_input,
+    textarea_input_to_html,
+    textarea_input_to_markdown,
+)
 
 
 class AboutForm(forms.Form):
@@ -12,6 +22,16 @@ class AboutForm(forms.Form):
         widget=forms.Textarea,
     )
 
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        initial = cast(dict[str, Any], self.initial)
+        initial["text"] = markdown_to_textarea_input(initial.get("text", ""))
+        self.initial = initial
+        self.text_display_html = textarea_input_to_html(self["text"].value() or "")
+
+    def clean_text(self) -> str:
+        return textarea_input_to_markdown(self.cleaned_data["text"])
+
 
 class AboutPlugin(SimplePlugin):
     name: str = "about"
@@ -22,12 +42,31 @@ class AboutPlugin(SimplePlugin):
         should include a title and a descriptive text, both of which can be customized. The
         title provides a heading for the section, while the text contains information about the
         subject.
-        
+
         The plugin should be displayed with the title as an H2 heading followed by the
         descriptive text. An edit button should be available to allow users to modify the
         content inline. When in edit mode, the title and text should be editable, and changes
         should be submitted via a form.
-        
+
         The plugin should offer a clean and user-friendly interface, ensuring that content
-        updates are simple and efficient.    
+        updates are simple and efficient.
     """
+
+    def get_context(
+        self,
+        _request: HttpRequest,
+        plugin_data: dict,
+        resume_pk: int,
+        *,
+        context: ContextDict,
+        edit: bool = False,
+        theme: str = "plain",
+    ) -> ContextDict:
+        context = super().get_context(
+            _request, plugin_data, resume_pk, context=context, edit=edit, theme=theme
+        )
+        text_markdown = context.pop("text", "")
+        context["text_markdown"] = text_markdown
+        context["text_plain"] = markdown_to_plain_text(text_markdown)
+        context["text_html"] = markdown_to_html(text_markdown)
+        return context
