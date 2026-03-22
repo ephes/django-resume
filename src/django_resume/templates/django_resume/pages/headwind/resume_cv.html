@@ -48,16 +48,6 @@
       
       <!-- Plugin Sections -->
       <div class="mt-8 space-y-8">
-        <!-- Dynamic plugins from database -->
-        {% if db_plugins %}
-          {% load plugin_tags %}
-          {% for plugin in db_plugins %}
-            <div>
-              {% render_template_string plugin.templates.string_templates.main %}
-            </div>
-          {% endfor %}
-        {% endif %}
-        
         <!-- Built-in plugins -->
         {% if freelance_timeline %}
           <div>

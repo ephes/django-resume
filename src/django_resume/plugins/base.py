@@ -6,7 +6,6 @@ from django import forms
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, HttpRequest
 from django.shortcuts import get_object_or_404, render
-from django.template import TemplateDoesNotExist, Template, Context
 from django.urls import reverse, path, URLPattern
 from django.utils.html import format_html
 from django.core.exceptions import PermissionDenied
@@ -256,14 +255,6 @@ class ThemedTemplates:
         )
 
 
-class SimpleStringTemplates:
-    """Holding the string templates for SimplePlugin instances."""
-
-    def __init__(self, *, main: str, form: str):
-        self.main = main
-        self.form = form
-
-
 class SimpleTemplateName:
     def __init__(self, template_name: str):
         if template_name not in ["main", "form"]:
@@ -279,22 +270,11 @@ class SimpleTemplateName:
 
 
 class SimpleThemedTemplates(ThemedTemplates):
-    """
-    Handle Template paths for SimplePlugin instances.
-
-    The form_template and main_template attributes are used when there
-    are no template files on disk. This happens when the plugin is defined
-    in the database alone.
-    """
-
-    string_templates: SimpleStringTemplates | None = None
+    """Handle template paths for SimplePlugin instances."""
 
     @staticmethod
     def get_default_template_names() -> dict[str, str]:
         return {"main": "content.html", "form": "form.html"}
-
-    def set_string_templates(self, string_templates: SimpleStringTemplates):
-        self.string_templates = string_templates
 
     def render_via_path(
         self, request: HttpRequest, template_name: SimpleTemplateName, context: dict
@@ -302,29 +282,10 @@ class SimpleThemedTemplates(ThemedTemplates):
         template = self.form if template_name.is_form else self.main
         return render(request, template, context)
 
-    def render_via_string(
-        self, template_name: SimpleTemplateName, context: dict
-    ) -> HttpResponse:
-        assert self.string_templates is not None  # type guard
-        template_string = (
-            self.string_templates.form
-            if template_name.is_form
-            else self.string_templates.main
-        )
-        if template_string is not None:
-            template = Template(template_string)
-            rendered = template.render(Context(context))
-            return HttpResponse(rendered)
-        else:
-            raise TemplateDoesNotExist(f"Template {template_name} does not exist")
-
     def render(
         self, request: HttpRequest, template_name: SimpleTemplateName, context: dict
     ) -> HttpResponse:
-        try:
-            return self.render_via_path(request, template_name, context)
-        except (TemplateDoesNotExist, AttributeError):
-            return self.render_via_string(template_name, context)
+        return self.render_via_path(request, template_name, context)
 
 
 def get_current_theme(resume: Resume) -> str:

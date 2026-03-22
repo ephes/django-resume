@@ -7,7 +7,7 @@ from django.core.management.base import BaseCommand
 
 
 class Command(BaseCommand):
-    help = "Create a django-resume plugin from stdin input"
+    help = "Create filesystem plugin files from stdin input"
 
     def handle(self, *args, **kwargs):
         self.stdout.write("Waiting for input... (Ctrl+D to end)")

@@ -1,15 +1,24 @@
 import re
 import inspect
 
+from dataclasses import dataclass
 from pathlib import Path
 
 from django.template import Template, Context
 from django.template.loader import get_template
 from django.utils.safestring import mark_safe
 
-from .models import Plugin
 from .plugins import SimplePlugin
 from .plugins.registry import PluginRegistry, plugin_registry
+
+
+@dataclass(slots=True)
+class GeneratedPlugin:
+    name: str
+    prompt: str
+    module: str
+    content_template: str
+    form_template: str
 
 
 def get_simple_plugins(registry: PluginRegistry) -> list[SimplePlugin]:
@@ -231,15 +240,16 @@ def parse_llm_output_as_simple_plugin(llm_output: str) -> dict:
     }
 
 
-def generate_simple_plugin(prompt: str, model_name: str = "gpt-4o-mini") -> Plugin:
+def generate_simple_plugin(
+    prompt: str, model_name: str = "gpt-4o-mini"
+) -> GeneratedPlugin:
     simple_plugin_context = get_simple_plugin_context(prompt)
     llm_output = context_to_output_via_llm(simple_plugin_context, model_name=model_name)
     parsed_output = parse_llm_output_as_simple_plugin(llm_output)
-    plugin = Plugin(
+    return GeneratedPlugin(
         name=parsed_output["name"],
         prompt=prompt,
         module=parsed_output["module"],
         content_template=parsed_output["content_template"],
         form_template=parsed_output["form_template"],
     )
-    return plugin

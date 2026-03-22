@@ -93,10 +93,10 @@ Overview
 
    .. method:: get_all_plugins()
 
-      Returns a :class:`~collections.abc.ValuesView` of all registered plugin
-      instances, allowing easy iteration over all active plugins.
+      Returns a ``list`` of all registered plugin instances, allowing easy
+      iteration over all active plugins.
 
-      :return: A ``ValuesView`` containing all plugin instances.
+      :return: A ``list`` containing all plugin instances.
 
       **Example**::
 

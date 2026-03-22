@@ -4,13 +4,11 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render, get_object_or_404
-from django.urls import NoReverseMatch
 from django.views.decorators.http import require_http_methods
 
-from .forms import ResumeForm, PluginForm
-from .models import Resume, Plugin
-from .plugin_generator import generate_simple_plugin
-from .plugins import plugin_registry, SimplePlugin
+from .forms import ResumeForm
+from .models import Resume
+from .plugins import plugin_registry
 from .plugins.base import ContextDict
 
 
@@ -58,7 +56,6 @@ def resume_cv(request: HttpRequest, slug: str) -> HttpResponse:
         "resume": resume,
         "timelines": [],
         "projects": [],
-        "db_plugins": plugin_registry.get_all_db_plugins(),
         # needed to include edit styles in the base template
         "show_edit_button": show_edit_button,
         "is_editable": is_editable,
@@ -209,121 +206,3 @@ def cv_403(request: HttpRequest, slug: str) -> HttpResponse:
         f"django_resume/pages/{resume.current_theme}/cv_403.html",
         context=context,
     )
-
-
-@login_required
-@require_http_methods(["GET", "POST"])
-def plugin_list(request: HttpRequest) -> HttpResponse:
-    """
-    The main db plugin list view. Only authenticated users can see it.
-
-    You can add and delete plugins from this view.
-    """
-    assert request.user.is_authenticated  # type guard just to make mypy happy
-    my_plugins = Plugin.objects.all()
-    context: dict[str, Any] = {
-        "is_editable": True,  # needed to include edit styles in the base
-        "plugins": my_plugins,
-    }
-    if request.method == "POST":
-        form = PluginForm(request.POST)
-        context["form"] = form
-        if form.is_valid():
-            plugin = form.save()
-            context["new_plugin"] = plugin
-        else:
-            print("form not valid: ", form.errors)
-        return render(
-            request, "django_resume/pages/plain/plugin_list_main.html", context=context
-        )
-    else:
-        return render(
-            request, "django_resume/pages/plain/plugin_list.html", context=context
-        )
-
-
-@login_required
-@require_http_methods(["DELETE"])
-def plugin_delete(request: HttpRequest, name: str) -> HttpResponse:
-    """Delete a plugin."""
-    plugin = get_object_or_404(Plugin, name=name)
-    plugin.delete()
-    return HttpResponse(status=200)  # 200 instead of 204 for htmx compatibility
-
-
-@require_http_methods(["GET", "POST"])
-def plugin_detail(request: HttpRequest, name: str) -> HttpResponse:
-    """
-    The main plugin detail view.
-
-    View the details and maybe edit the plugin data / prompt.
-    """
-    plugin = get_object_or_404(Plugin.objects, name=name)
-
-    def get_preview_plugin(plugin_instance: Plugin) -> SimplePlugin:
-        plugin_class = plugin.to_plugin()
-        my_plugin = plugin_class()
-
-        from .urls import urlpatterns
-
-        urlpatterns.extend(my_plugin.get_inline_urls())
-
-        def get_resume_or_error_stub(request: HttpRequest, resume_id: int):
-            return plugin
-
-        my_plugin.inline.get_resume_or_error = get_resume_or_error_stub
-        return my_plugin
-
-    try:
-        my_plugin = get_preview_plugin(plugin)
-        my_plugin_context = my_plugin.get_context(
-            request,
-            my_plugin.get_data(plugin),  # type: ignore
-            plugin.pk,
-            context={},
-            edit=True,
-        )
-    except (ValueError, NoReverseMatch, ImportError):
-        my_plugin = None
-        my_plugin_context = {}
-
-    # print("my plugin: ", my_plugin.templates.string_templates.main)
-    context: dict[str, Any] = {
-        "plugin": plugin,
-        "my_plugin": my_plugin,
-        "is_editable": True,  # needed to include htmx
-        "show_edit_button": True,  # to be able to edit the preview
-        plugin.name: my_plugin_context,
-    }
-
-    def generate_simple_plugin_from_prompt(existing_plugin: Plugin) -> Plugin:
-        generated_plugin = generate_simple_plugin(
-            existing_plugin.prompt, model_name=existing_plugin.model
-        )
-        existing_plugin.module = generated_plugin.module
-        existing_plugin.content_template = generated_plugin.content_template
-        existing_plugin.form_template = generated_plugin.form_template
-        return existing_plugin
-
-    if request.method == "POST":
-        form = PluginForm(request.POST, instance=plugin)
-        context["form"] = form
-        if form.is_valid():
-            if form.cleaned_data.get("llm", False):
-                # generate code, content and form templates from prompt
-                plugin = generate_simple_plugin_from_prompt(plugin)
-            plugin = form.save()
-            # re-register the plugin (this does not really work atm, just restart the dev server)
-            plugin_registry.register_db_plugin(plugin.to_plugin())
-            context["new_plugin"] = plugin
-        return render(
-            request,
-            "django_resume/pages/plain/plugin_detail_main.html",
-            context=context,
-        )
-    else:
-        return render(
-            request,
-            "django_resume/pages/plain/plugin_detail.html",
-            context=context,
-        )

@@ -53,6 +53,3 @@ STATICFILES_FINDERS = [
     "django.contrib.staticfiles.finders.FileSystemFinder",
     "django.contrib.staticfiles.finders.AppDirectoriesFinder",
 ]
-
-# Disable plugin auto-reloading during tests
-DJANGO_RESUME_DISABLE_AUTO_RELOAD = True

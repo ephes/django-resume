@@ -51,7 +51,7 @@ dev = [
     "django-extensions>=3",
     "django-stubs[compatible-mypy]>=5",
     "furo",                             # documentation
-    "llm",                              # generate db plugins from prompts
+    "llm",                              # generate plugins from prompts
     "llm-claude-3",                     # llm plugin for anthropic models
     "pytest>=8",
     "pytest-django>=4",
@@ -61,4 +61,3 @@ dev = [
 
 [project.scripts]
 llm-content = "django_resume.entrypoints.llm_content:llm_content"
-

@@ -34,6 +34,10 @@ List plugins in django-resume are Python classes that manage collections of rela
 Each plugin handles multiple data entries, provides forms for editing individual items
 and the overall section, and renders content using multiple templates.
 
+Custom plugins are defined as Python modules in your project and use template
+files stored on disk. django-resume no longer supports creating plugins from
+database rows.
+
 In this tutorial, we'll create a plugin to display professional certifications,
 including the certification name, issuing organization, issue date, and
 expiration date. Users will be able to add, edit, and delete multiple certifications.
@@ -72,6 +76,7 @@ Create a new Django app or module in your project for custom plugins:
    touch myproject/plugins/certifications.py
 
 For this tutorial, we'll assume you have a ``plugins`` app or module in your project.
+The plugin code lives in your repository, not in the database.
 
 Step 3: Define the Data Model Forms
 ===================================

@@ -16,6 +16,10 @@ Plugins in django-resume are Python classes that define how specific sections
 of a resume are displayed and edited. Each plugin handles its own data,
 provides forms for editing, and renders content using templates.
 
+Custom plugins are filesystem-based: you add Python modules to your project,
+store templates on disk, and register the plugin classes from Python code.
+Database-backed plugins are no longer supported.
+
 Plugin Types
 ============
 
@@ -90,3 +94,22 @@ Quick Start Recommendations
    
    - **Yes** → Use List Plugin
    - **No** → Use Simple Plugin
+
+Supported Custom Plugin Workflow
+================================
+
+Custom plugins are added in three parts:
+
+1. Write the plugin class in your Django project.
+2. Add the plugin templates under ``templates/django_resume/plugins/...``.
+3. Register the plugin class from your app's Python code, usually in
+   ``AppConfig.ready()``.
+
+This keeps plugin behavior explicit and version-controlled alongside the rest
+of your project code.
+
+.. toctree::
+   :hidden:
+
+   creating_simple_plugins
+   creating_list_plugins

@@ -2,10 +2,7 @@
 Settings
 ========
 
-There is one setting to enable database enabled plugins. You can turn it on by adding
+django-resume currently has no package-specific Django settings.
 
-.. code-block:: python
-
-    DJANGO_RESUME_DB_PLUGINS = True
-
-Be warned that this setting is experimental.
+Custom plugins are expected to live on the filesystem and be registered from
+Python code.

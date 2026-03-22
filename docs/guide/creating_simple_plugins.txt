@@ -33,6 +33,10 @@ Simple plugins in django-resume are Python classes that define how specific sect
 of a resume are displayed and edited. Each plugin handles its own data,
 provides a single form for editing, and renders content using templates.
 
+Custom plugins are defined as normal Python modules in your project and use
+template files stored on disk. django-resume no longer supports creating
+plugins from database rows.
+
 In this tutorial, we'll create a plugin to display a personal motto or inspirational
 quote, including the quote text and an optional attribution.
 
@@ -62,6 +66,7 @@ Create a new Django app or module in your project for custom plugins:
    touch myproject/plugins/motto.py
 
 For this tutorial, we'll assume you have a ``plugins`` app or module in your project.
+The plugin code lives in your repository, not in the database.
 
 Step 3: Define the Form
 =======================

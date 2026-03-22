@@ -26,7 +26,7 @@ Run the example project:
 .. code-block:: sh
 
     $ cd example
-    $ uv manage.py runserver
+    $ uv run python manage.py runserver
 
 Log in via the admin interface:
 
@@ -39,3 +39,4 @@ Visit the list of example resumes:
 You can edit the example resumes either via the django admin interface or via
 the inline editing feature by clicking on the "Edit" button.
 
+The example project demonstrates built-in and filesystem-based custom plugins.

@@ -2,6 +2,16 @@
 Changelog
 =========
 
+Unreleased
+----------
+
+Breaking Changes
+^^^^^^^^^^^^^^^^
+* Removed the experimental database-backed plugin system
+* Removed the plugin CRUD views, templates, signals, and database settings tied to DB plugins
+* Simplified plugin generation to produce filesystem plugin artifacts instead of database rows
+* Reset the app migration history around this removal; existing installs should treat this as a breaking reset rather than an in-place upgrade
+
 0.1.14 - 2025-12-07
 -------------------
 

@@ -37,7 +37,7 @@ integrate seamlessly with django-resume:
 
    Returns the object (often a dictionary) to be stored in the template context
    under this plugin’s key. Typical usage is to take the plugin’s data (e.g.,
-   from the database or a form) and prepare it for display.
+   from the resume’s stored data or a form) and prepare it for display.
 
    .. note::
 

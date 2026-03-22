@@ -6,13 +6,13 @@ from ...models import Resume
 
 
 class Command(BaseCommand):
-    help = "Remove plugin by name"
+    help = "Remove a filesystem plugin and its stored resume data by name"
 
     def add_arguments(self, parser):
         parser.add_argument(
             "plugin_name",
             type=str,
-            help="Name of the plugin for which all data should be remove",
+            help="Name of the plugin for which all data should be removed",
         )
 
     def handle(self, *args, **options):
