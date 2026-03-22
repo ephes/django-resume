@@ -1,5 +1,7 @@
 import pytest
 
+from django_resume.models import Resume
+
 
 def test_resume_str(resume):
     assert str(resume) == resume.name
@@ -58,3 +60,36 @@ def test_resume_plugin_data_default(resume):
     resume.save()
     # Then the plugin data should be an empty dictionary
     assert resume.plugin_data == {}
+
+
+@pytest.mark.django_db
+def test_remove_plugin_data_by_name_removes_only_the_requested_plugin(user):
+    user.save()
+    first_resume = Resume.objects.create(
+        name="John Doe",
+        slug="john-doe",
+        owner=user,
+        plugin_data={"about": {"title": "About"}, "skills": {"items": ["Python"]}},
+    )
+    second_resume = Resume.objects.create(
+        name="Jane Doe",
+        slug="jane-doe",
+        owner=user,
+        plugin_data={"skills": {"items": ["Django"]}},
+    )
+    third_resume = Resume.objects.create(
+        name="Max Doe",
+        slug="max-doe",
+        owner=user,
+        plugin_data={"about": {"title": "Profile"}},
+    )
+
+    Resume.objects.remove_plugin_data_by_name("about")
+
+    first_resume.refresh_from_db()
+    second_resume.refresh_from_db()
+    third_resume.refresh_from_db()
+
+    assert first_resume.plugin_data == {"skills": {"items": ["Python"]}}
+    assert second_resume.plugin_data == {"skills": {"items": ["Django"]}}
+    assert third_resume.plugin_data == {}

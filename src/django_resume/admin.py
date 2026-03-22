@@ -7,6 +7,7 @@ from .plugins.base import Plugin, URLPatterns
 
 
 class ResumeAdmin(admin.ModelAdmin):
+    plugin_field_prefix = "plugin_link__"
     # fields = ("name", "slug", "plugin_data")
 
     def get_urls(self) -> URLPatterns:
@@ -15,6 +16,9 @@ class ResumeAdmin(admin.ModelAdmin):
         for plugin in plugin_registry.get_all_plugins():
             custom_urls.extend(plugin.get_admin_urls(self.admin_site.admin_view))
         return custom_urls + urls
+
+    def get_plugin_readonly_field_name(self, plugin_name: str) -> str:
+        return f"{self.plugin_field_prefix}{plugin_name}"
 
     def add_plugin_method(self, plugin: Plugin) -> None:
         """
@@ -26,8 +30,10 @@ class ResumeAdmin(admin.ModelAdmin):
             admin_link = plugin.get_admin_link(obj.id)
             return admin_link
 
-        plugin_method.__name__ = plugin.name
-        setattr(self.__class__, plugin.name, plugin_method)
+        field_name = self.get_plugin_readonly_field_name(plugin.name)
+        plugin_method.__name__ = field_name
+        setattr(plugin_method, "short_description", plugin.verbose_name)
+        setattr(self.__class__, field_name, plugin_method)
 
     def get_readonly_fields(self, request: HttpRequest, obj=None) -> list[str]:
         """Add a readonly field for each plugin."""
@@ -37,10 +43,10 @@ class ResumeAdmin(admin.ModelAdmin):
         new_plugins = [
             p
             for p in plugin_registry.get_all_plugins()
-            if p.name not in readonly_fields_lookup
+            if self.get_plugin_readonly_field_name(p.name) not in readonly_fields_lookup
         ]
         for plugin in new_plugins:
-            readonly_fields.append(plugin.name)
+            readonly_fields.append(self.get_plugin_readonly_field_name(plugin.name))
             self.add_plugin_method(plugin)
         return readonly_fields
 

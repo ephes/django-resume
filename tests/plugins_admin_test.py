@@ -1,10 +1,13 @@
 import pytest
 from django import forms
+from django.contrib import admin
+from django.test import RequestFactory
 from django.urls import reverse
 
 from django_resume.plugins import (
     SimplePlugin,
 )
+from django_resume.models import Resume
 from django_resume.plugins import plugin_registry as global_plugin_registry
 
 
@@ -25,6 +28,11 @@ class IntegrationPlugin(SimplePlugin):
     admin_form_class = ExampleForm
 
 
+class MethodCollisionPlugin(SimplePlugin):
+    name = "save"
+    verbose_name = "Method Collision Plugin"
+
+
 @pytest.fixture
 def plugin_registry():
     """
@@ -37,6 +45,13 @@ def plugin_registry():
     yield global_plugin_registry
     global_plugin_registry.unregister(IntegrationPlugin)
     global_plugin_registry.unregister(SimplePlugin)
+
+
+@pytest.fixture
+def collision_plugin_registry():
+    global_plugin_registry.register(MethodCollisionPlugin)
+    yield global_plugin_registry
+    global_plugin_registry.unregister(MethodCollisionPlugin)
 
 
 # test all views in the admin in isolation
@@ -58,6 +73,20 @@ def test_resume_change_contains_simple_plugin_link(
     assert r.status_code == 200
     content = r.content.decode()
     assert f"Edit {SimplePlugin.verbose_name}" in content
+
+
+def test_resume_admin_uses_prefixed_readonly_field_names_for_plugins(
+    collision_plugin_registry,
+):
+    request = RequestFactory().get("/admin/")
+    model_admin = admin.site._registry[Resume]
+
+    readonly_fields = model_admin.get_readonly_fields(request)
+    plugin_field_name = model_admin.get_plugin_readonly_field_name("save")
+
+    assert plugin_field_name in readonly_fields
+    assert "save" not in readonly_fields
+    assert callable(getattr(model_admin, plugin_field_name))
 
 
 @pytest.mark.django_db

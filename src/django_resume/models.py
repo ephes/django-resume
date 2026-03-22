@@ -1,15 +1,21 @@
-from django.db import models
+from django.db import models, transaction
 from django.contrib.auth import get_user_model
 
 
 class ResumeManager(models.Manager["Resume"]):
     def remove_plugin_data_by_name(self, plugin_name: str) -> None:
-        for resume in self.all():
-            plugin_data = resume.plugin_data
+        resumes_to_update = []
+        for resume in self.only("id", "plugin_data"):
+            if plugin_name not in resume.plugin_data:
+                continue
+            plugin_data = dict(resume.plugin_data)
             plugin_data.pop(plugin_name, None)
             assert plugin_name not in plugin_data
             resume.plugin_data = plugin_data
-            resume.save()
+            resumes_to_update.append(resume)
+        if resumes_to_update:
+            with transaction.atomic():
+                self.bulk_update(resumes_to_update, ["plugin_data"])
 
 
 class Resume(models.Model):

@@ -116,13 +116,6 @@ class TimelineItemForm(ListItemFormMixin, forms.Form):
         if "position" not in self.initial:
             self.initial["position"] = self.get_max_position(self.existing_items) + 1
 
-    def clean_title(self) -> str:
-        title = self.cleaned_data["title"]
-        if title == "Senor Developer":
-            print("No Senor! Validation Error!")
-            raise forms.ValidationError("No Senor!")
-        return title
-
     def clean_description(self) -> str:
         return textarea_input_to_markdown(self.cleaned_data["description"])
 
