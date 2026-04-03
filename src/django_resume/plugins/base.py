@@ -79,6 +79,9 @@ class SimpleJsonForm(forms.Form):
 
 
 class LockedResumeMutationMixin:
+    def check_permissions(self, request: HttpRequest, resume: Resume) -> bool:
+        raise NotImplementedError
+
     def get_locked_resume_or_error(
         self, request: HttpRequest, resume_id: int
     ) -> Resume:
@@ -93,7 +96,7 @@ class LockedResumeMutationMixin:
         resume.save(update_fields=["plugin_data"])
 
     def mutate_resume_plugin_data(
-        self, request: HttpRequest, resume_id: int, mutate: Callable[[Resume], None]
+        self, request: HttpRequest, resume_id: int, mutate: Callable[[Resume], object]
     ) -> Resume:
         with transaction.atomic():
             resume = self.get_locked_resume_or_error(request, resume_id)
@@ -204,7 +207,7 @@ class SimpleAdmin(LockedResumeMutationMixin):
                 resume_id,
                 lambda locked_resume: self.data.update(locked_resume, plugin_data),
             )
-            form.post_url = self.get_change_post_url(resume.pk)
+            setattr(form, "post_url", self.get_change_post_url(resume.pk))
         return render(request, self.change_form, context)
 
     def get_urls(self, admin_view: Callable) -> URLPatterns:

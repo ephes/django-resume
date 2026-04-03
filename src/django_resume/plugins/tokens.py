@@ -30,6 +30,7 @@ UNSET_TTL = _UnsetTTL()
 
 
 def normalize_token_created(value: object) -> datetime | None:
+    created: datetime | None
     if isinstance(value, datetime):
         created = value
     elif isinstance(value, str):
@@ -62,9 +63,10 @@ def is_token_expired(
     now: datetime | None = None,
     ttl: timedelta | None | _UnsetTTL = UNSET_TTL,
 ) -> bool:
-    if ttl is UNSET_TTL:
-        ttl = get_token_ttl()
-    if ttl is None:
+    resolved_ttl = get_token_ttl() if ttl is UNSET_TTL else ttl
+    if resolved_ttl is None:
+        return False
+    if isinstance(resolved_ttl, _UnsetTTL):
         return False
 
     created = normalize_token_created(item.get("created"))
@@ -74,7 +76,7 @@ def is_token_expired(
 
     if now is None:
         now = timezone.now()
-    return created + ttl <= now
+    return created + resolved_ttl <= now
 
 
 def generate_random_string(length=20) -> str:

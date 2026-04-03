@@ -17,12 +17,16 @@ This is a Django package (`django-resume`) with an example project for testing a
 # Install dependencies
 uv sync --dev
 
+# Install git hooks
+uvx prek install
+uvx prek install-hooks
+
 # Run example project
 cd example
 python manage.py runserver
 
-# Run tests
-pytest
+# Run full validation after feature work
+just check
 
 # Run type checking
 mypy src/
@@ -38,6 +42,11 @@ coverage report
 - `pytest` - Run test suite
 - `pytest tests/` - Run specific test directory
 - `coverage run -m pytest && coverage report` - Run tests with coverage
+- `just test` - Run the test suite with coverage via `uv`
+
+### Validation
+- `just check` - Run lint, typecheck, and tests; use this after implementing a feature
+- Do not treat `just test` as the final validation step for feature work when `just check` passes locally
 
 ### Type Checking
 - `mypy src/` - Type check source code
@@ -84,7 +93,7 @@ coverage report
 ## Useful Notes
 
 - Uses uv for dependency management
-- Has pre-commit hooks enabled
+- Use `uvx prek install` to install the local git hook runner
 - Supports multiple resume themes and plugins
 - Built with HTMX for dynamic interactions
 - Includes comprehensive test coverage
