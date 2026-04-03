@@ -56,11 +56,15 @@ dev = [
     "furo",                             # documentation
     "llm",                              # generate plugins from prompts
     "llm-claude-3",                     # llm plugin for anthropic models
+    "mypy>=1",
     "pytest>=8",
     "pytest-django>=4",
     "pytest-playwright>=0.5",
     "pytest-mock>=3.14.0",
+    "rich>=14",
+    "ruff>=0.11",
 ]
 
 [project.scripts]
+count-lines-of-code = "django_resume.entrypoints.loc:count_lines_of_code"
 llm-content = "django_resume.entrypoints.llm_content:llm_content"

@@ -29,7 +29,26 @@ Install the Package using uv
 
 .. code-block:: sh
 
-    $ uv sync
+    $ uv sync --dev
+
+Repository Checks
+-----------------
+
+Run the full local validation suite with:
+
+.. code-block:: sh
+
+    $ just check
+
+Line Count Overview
+-------------------
+
+Show a colorized repository line-count summary with language totals, a high-level
+``src`` vs ``tests`` overview, and a directory breakdown:
+
+.. code-block:: sh
+
+    $ just loc
 
 Run the Migrations
 ------------------
@@ -165,7 +184,6 @@ Publish the package to `pypi.org`:
 .. code-block:: sh
 
     $ uv publish --token your_token
-
 
 
 
