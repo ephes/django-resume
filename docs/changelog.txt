@@ -25,6 +25,7 @@ Fixes
 * Reject unsafe plugin names in filesystem management commands and keep generated and deleted paths contained inside the expected plugin directories
 * Use prefixed admin readonly field names for plugin links to avoid method-name collisions
 * Keep plugin inline URLs in sync when plugins are registered or unregistered dynamically
+* Harden CV token access by using constant-time token comparison, expiring timestamped tokens after ``DJANGO_RESUME_TOKEN_TTL``, and setting ``Referrer-Policy: no-referrer`` on token-protected CV responses
 
 0.1.14 - 2025-12-07
 -------------------

@@ -2,7 +2,17 @@
 Settings
 ========
 
-django-resume currently has no package-specific Django settings.
-
 Custom plugins are expected to live on the filesystem and be registered from
 Python code.
+
+``DJANGO_RESUME_TOKEN_TTL``
+===========================
+
+Default: ``datetime.timedelta(days=30)``
+
+Controls how long CV access tokens remain valid after their stored ``created``
+timestamp.
+
+Set this to a ``datetime.timedelta`` to enforce token expiration, or ``None`` to
+disable age-based expiry checks. Older stored token entries without a
+``created`` timestamp continue to work for backward compatibility.

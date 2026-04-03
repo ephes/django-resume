@@ -1,19 +1,80 @@
+import hmac
 import secrets
 import string
-from datetime import datetime
+from datetime import datetime, timedelta
 
+from django.conf import settings
 from django import forms
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import ImproperlyConfigured, PermissionDenied
 from django.http import HttpRequest
 from django.urls import reverse
+from django.utils.dateparse import parse_datetime
+from django.utils.html import format_html
 from django.utils import timezone
-from django.utils.safestring import mark_safe, SafeString
+from django.utils.safestring import SafeString
 
 from .base import ListPlugin, ListItemFormMixin
 from ..models import Resume
 
 
 TOKEN_ALPHABET = string.ascii_letters + string.digits
+DEFAULT_TOKEN_TTL = timedelta(days=30)
+TOKEN_TTL_SETTING = "DJANGO_RESUME_TOKEN_TTL"
+
+
+class _UnsetTTL:
+    pass
+
+
+UNSET_TTL = _UnsetTTL()
+
+
+def normalize_token_created(value: object) -> datetime | None:
+    if isinstance(value, datetime):
+        created = value
+    elif isinstance(value, str):
+        created = parse_datetime(value)
+        if created is None:
+            try:
+                created = datetime.fromisoformat(value)
+            except ValueError:
+                return None
+    else:
+        return None
+
+    if timezone.is_naive(created):
+        return timezone.make_aware(created, timezone.get_current_timezone())
+    return created
+
+
+def get_token_ttl() -> timedelta | None:
+    ttl = getattr(settings, TOKEN_TTL_SETTING, DEFAULT_TOKEN_TTL)
+    if ttl is None or isinstance(ttl, timedelta):
+        return ttl
+    raise ImproperlyConfigured(
+        f"{TOKEN_TTL_SETTING} must be a datetime.timedelta or None."
+    )
+
+
+def is_token_expired(
+    item: dict,
+    *,
+    now: datetime | None = None,
+    ttl: timedelta | None | _UnsetTTL = UNSET_TTL,
+) -> bool:
+    if ttl is UNSET_TTL:
+        ttl = get_token_ttl()
+    if ttl is None:
+        return False
+
+    created = normalize_token_created(item.get("created"))
+    if created is None:
+        # Keep older token entries without timestamps working.
+        return False
+
+    if now is None:
+        now = timezone.now()
+    return created + ttl <= now
 
 
 def generate_random_string(length=20) -> str:
@@ -22,7 +83,13 @@ def generate_random_string(length=20) -> str:
 
 class HTMLLinkWidget(forms.Widget):
     def render(self, name, value, attrs=None, renderer=None) -> SafeString:
-        return mark_safe(value) if value else mark_safe("")
+        if not value:
+            return format_html("")
+        return format_html(
+            '<a href="{}" target="_blank" rel="noreferrer noopener">{}</a>',
+            value,
+            value,
+        )
 
 
 class TokenItemForm(ListItemFormMixin, forms.Form):
@@ -38,20 +105,21 @@ class TokenItemForm(ListItemFormMixin, forms.Form):
             self.fields["token"].initial = generate_random_string()
         self.token = self.initial.get("token") or self.fields["token"].initial
 
-        if "created" in self.initial and isinstance(self.initial["created"], str):
-            self.initial["created"] = datetime.fromisoformat(self.initial["created"])  # type: ignore
+        created = normalize_token_created(self.initial.get("created"))
+        if created is not None:
+            self.initial["created"] = created
         else:
             # Set the 'created' field to the current time if it's not already set
-            self.fields["created"].initial = timezone.now()
+            created = timezone.now()
+            self.initial["created"] = created
+            self.fields["created"].initial = created
 
         self.generate_cv_link(self.resume)
 
     def generate_cv_link(self, resume: Resume) -> None:
         base_url = reverse("django_resume:cv", kwargs={"slug": resume.slug})
         link = f"{base_url}?token={self.token}"
-        self.fields["cv_link"].initial = mark_safe(
-            f'<a href="{link}" target="_blank">{link}</a>'
-        )
+        self.fields["cv_link"].initial = link
 
     def clean_token(self) -> str:
         token = self.cleaned_data["token"]
@@ -61,6 +129,8 @@ class TokenItemForm(ListItemFormMixin, forms.Form):
 
     def clean_created(self) -> str:
         created = self.cleaned_data["created"]
+        if created is None:
+            created = timezone.now()
         return created.isoformat()
 
     def clean(self) -> dict:
@@ -121,9 +191,24 @@ class TokenPlugin(ListPlugin):
         token = form.cleaned_data["token"]
         if token is None:
             raise PermissionDenied("Token required to access this page.")
-        tokens = set(item["token"] for item in plugin_data.get("items", []))
-        if token in tokens:
+        matched_token = False
+        matched_unexpired_token = False
+        now = timezone.now()
+        ttl = get_token_ttl()
+        for item in plugin_data.get("items", []):
+            if not isinstance(item, dict):
+                continue
+            stored_token = item.get("token")
+            if not isinstance(stored_token, str):
+                continue
+            token_matches = hmac.compare_digest(token, stored_token)
+            token_is_unexpired = not is_token_expired(item, now=now, ttl=ttl)
+            matched_token |= token_matches
+            matched_unexpired_token |= token_matches & token_is_unexpired
+        if matched_unexpired_token:
             return None
+        if matched_token:
+            raise PermissionDenied("Token expired.")
         raise PermissionDenied("Invalid token.")
 
     def get_context(

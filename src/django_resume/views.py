@@ -12,6 +12,12 @@ from .plugins import plugin_registry
 from .plugins.base import ContextDict
 
 
+def set_cv_referrer_policy(response: HttpResponse, resume: Resume) -> HttpResponse:
+    if resume.token_is_required:
+        response["Referrer-Policy"] = "no-referrer"
+    return response
+
+
 def get_edit_and_show_urls(request: HttpRequest) -> tuple[str, str]:
     query_params = request.GET.copy()
     if "edit" in query_params:
@@ -66,17 +72,19 @@ def resume_cv(request: HttpRequest, slug: str) -> HttpResponse:
         context = get_context_from_plugins(request, resume, context)
     except PermissionDenied:
         # invalid or missing token for example
-        return render(
+        response = render(
             request,
             f"django_resume/pages/{resume.current_theme}/cv_403.html",
             context=context,
             status=403,
         )
-    return render(
+        return set_cv_referrer_policy(response, resume)
+    response = render(
         request,
         f"django_resume/pages/{resume.current_theme}/resume_cv.html",
         context=context,
     )
+    return set_cv_referrer_policy(response, resume)
 
 
 @require_http_methods(["GET"])

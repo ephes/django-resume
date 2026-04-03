@@ -117,7 +117,6 @@ def test_delete_resume_view(client, resume, django_user_model):
 def test_resume_detail_view(client, resume):
     # Given a resume in the database
     resume.owner.save()
-    print("token needed ", resume.token_is_required)
     resume.save()
 
     # When we access the cover page
@@ -203,6 +202,7 @@ def test_get_cv_view(client, resume):
 
     # Then the response should be a 403
     assert r.status_code == 403
+    assert r["Referrer-Policy"] == "no-referrer"
 
     # With a custom error message
     content = r.content.decode("utf-8")
@@ -216,6 +216,21 @@ def test_get_cv_view(client, resume):
 
     # Then the response should be successful
     assert r.status_code == 200
+    assert r["Referrer-Policy"] == "no-referrer"
+
+
+@pytest.mark.django_db
+def test_public_cv_response_does_not_set_token_referrer_policy(client, resume):
+    resume.owner.save()
+    resume.plugin_data["token"] = {"flat": {"token_required": False}}
+    resume.save()
+    plugin_registry.register(TokenPlugin)
+
+    cv_url = reverse("resume:cv", kwargs={"slug": resume.slug})
+    r = client.get(cv_url)
+
+    assert r.status_code == 200
+    assert r.get("Referrer-Policy") != "no-referrer"
 
 
 @pytest.mark.django_db
