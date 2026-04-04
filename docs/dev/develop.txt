@@ -34,6 +34,12 @@ Install the Package using uv
 Repository Checks
 -----------------
 
+Show the available ``just`` commands with:
+
+.. code-block:: sh
+
+    $ just
+
 Run the full local validation suite with:
 
 .. code-block:: sh
@@ -49,6 +55,15 @@ Show a colorized repository line-count summary with language totals, a high-leve
 .. code-block:: sh
 
     $ just loc
+
+Run the Example Project
+-----------------------
+
+Start the example Django project with:
+
+.. code-block:: sh
+
+    $ just serve-example
 
 Run the Migrations
 ------------------
@@ -184,8 +199,6 @@ Publish the package to `pypi.org`:
 .. code-block:: sh
 
     $ uv publish --token your_token
-
-
 
 
 

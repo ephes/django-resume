@@ -1,3 +1,10 @@
+help:
+    @just --list --unsorted
+
+# Run the example Django project
+serve-example:
+    cd example && uv run python manage.py runserver
+
 # Run lint, typecheck, and tests
 check:
     just lint

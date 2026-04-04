@@ -15,6 +15,9 @@ Breaking Changes
 Features
 ^^^^^^^^
 * Add a colorized ``just loc`` workflow with repo-area summaries for ``src``, ``tests``, and other tracked code
+* Make bare ``just`` print an overview of the available recipes instead of running ``check`` by default
+* Add a ``just serve-example`` shortcut for starting the bundled example Django project
+* Redirect the example project's root URL to the admin login for anonymous users and the resume list for authenticated users without changing the reusable app's URL behavior
 
 Fixes
 ^^^^^

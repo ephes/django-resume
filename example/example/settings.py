@@ -133,6 +133,9 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = str(BASE_DIR / "media/")
 
+# Reuse the built-in admin login for the example project.
+LOGIN_URL = "/admin/login/"
+
 
 # Example project plugin settings
 # Set to True to enable example plugins (certifications, motto)

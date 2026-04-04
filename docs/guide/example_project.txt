@@ -25,6 +25,12 @@ Run the example project:
 
 .. code-block:: sh
 
+    $ just serve-example
+
+This is shorthand for:
+
+.. code-block:: sh
+
     $ cd example
     $ uv run python manage.py runserver
 
@@ -35,6 +41,9 @@ Log in via the admin interface:
 Visit the list of example resumes:
 
 - `Local resumes <http://localhost:8000/resume/>`_
+
+The example project root URL ``http://localhost:8000/`` redirects anonymous
+users to the admin login and authenticated users to the same resume list.
 
 You can edit the example resumes either via the django admin interface or via
 the inline editing feature by clicking on the "Edit" button.
