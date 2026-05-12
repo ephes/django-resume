@@ -1,0 +1,43 @@
+===============
+Project Backlog
+===============
+
+This page tracks planned and possible future work for django-resume. Items here
+are not commitments; they are a shared planning list for maintainers.
+
+Completed user-visible work belongs in the :doc:`../changelog`. Backlog items
+should be removed from this page when they are released, or rewritten if the
+next useful step changes.
+
+Research Needed
+---------------
+
+* Add support for `JSON Resume <https://jsonresume.org/>`_.
+
+  Support importing from and/or exporting to the JSON Resume schema. This needs
+  research and design work before implementation, especially around field
+  mapping, plugin compatibility, validation, and whether django-resume should
+  treat JSON Resume as an interchange format or a first-class data model.
+
+  See :doc:`jsonresume`.
+
+* Re-evaluate LLM-assisted plugin generation.
+
+  django-resume still has prompt-based plugin generation helpers, but the old
+  MCP server proposal was written for the removed database-backed plugin system.
+  Before implementing anything, research what workflow would be useful for the
+  current filesystem-based plugin model: a better context generator, an MCP
+  server, management commands, documentation improvements, or some combination
+  of those.
+
+  Related old issue: `#7 <https://github.com/ephes/django-resume/issues/7>`_.
+
+Ideas
+-----
+
+* Improve test database isolation for parallel test runs.
+
+  The test settings currently use a shared SQLite database path. Running two
+  pytest invocations at the same time can make one run fail with readonly
+  database errors. Consider an in-memory database or per-process test database
+  names so accidental parallel runs do not collide.

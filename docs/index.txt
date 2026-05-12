@@ -40,3 +40,5 @@ See it in action:
     :caption: Developer Documentation
 
     dev/develop
+    dev/backlog
+    dev/jsonresume

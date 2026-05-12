@@ -23,7 +23,7 @@
     <main>
       <div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <p>
-          <a href="{% url "django_resume:cv" slug=resume.slug %}">Link to CV!</a>
+          <a href="{% url "django_resume:cv" slug=resume.slug %}"{% if is_editable %} hx-boost="true"{% endif %}>Link to CV!</a>
         </p>
         {% include theme.templates.main %}
         <div class="mt-8">

@@ -17,7 +17,7 @@ Installation
 
        python -m pip install django-resume
 
-2. Add django-htmx to your ``INSTALLED_APPS``:
+2. Add django-resume to your ``INSTALLED_APPS``:
 
    .. code-block:: python
 
@@ -27,4 +27,6 @@ Installation
            ...,
        ]
 
+django-resume's editable templates load HTMX where needed. You do not need to
+install or configure django-htmx to use the built-in editing views.
 

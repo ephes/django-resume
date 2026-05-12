@@ -7,27 +7,6 @@
   {{ block.super }}
   <meta name="author" content="{{ identity.name }}">
   <meta name="description" content="{{ about.text_plain }}">
-  <style>
-    @media print {
-      .print\\:hidden { display: none !important; }
-      body { 
-        background: white !important; 
-        font-size: 12pt;
-        line-height: 1.4;
-      }
-      .shadow-lg, .shadow-xl, .shadow-sm { box-shadow: none !important; }
-      .bg-gradient-to-br, .bg-gradient-to-r { background: white !important; }
-      .border { border-color: #e5e7eb !important; }
-      .rounded-xl { border-radius: 0 !important; }
-      .p-8, .p-6 { padding: 1rem !important; }
-      .space-y-8 > * + * { margin-top: 1rem !important; }
-      .space-y-6 > * + * { margin-top: 0.75rem !important; }
-      .space-y-4 > * + * { margin-top: 0.5rem !important; }
-      .max-w-7xl { max-width: none !important; }
-      .px-4, .px-6, .px-8 { padding-left: 0 !important; padding-right: 0 !important; }
-      .py-8, .py-10 { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; }
-    }
-  </style>
 {% endblock meta %}
 
 {% block content %}

@@ -4,12 +4,12 @@
     {% for resume in resumes %}
       <li id="resume-{{ resume.slug }}" class="deletable-li">
         {{ resume.name }}:
-        <a class="underlined" href="{% url 'django_resume:detail' resume.slug %}">Cover</a>
+        <a class="underlined" href="{% url 'django_resume:detail' resume.slug %}"{% if is_editable %} hx-boost="true"{% endif %}>Cover</a>
         |
-        <a class="underlined" href="{% url 'django_resume:cv' resume.slug %}">CV</a>
+        <a class="underlined" href="{% url 'django_resume:cv' resume.slug %}"{% if is_editable %} hx-boost="true"{% endif %}>CV</a>
         {% if resume.token_is_required %}
           |
-          <a class="underlined" href="{% url 'django_resume:403' resume.slug %}">403</a>
+          <a class="underlined" href="{% url 'django_resume:403' resume.slug %}"{% if is_editable %} hx-boost="true"{% endif %}>403</a>
         {% endif %}
         <button
           class="resume-delete-button"

@@ -1,8 +1,17 @@
+import re
+
 import pytest
 from django.urls import reverse
 
 from django_resume.models import Resume
 from django_resume.plugins import plugin_registry, TokenPlugin
+
+
+def anchor_with_attrs(content, href, *attrs):
+    lookaheads = "".join(rf"(?=[^>]*\b{re.escape(attr)})" for attr in attrs)
+    return re.search(
+        rf"<a\b(?=[^>]*\bhref=\"{re.escape(href)}\"){lookaheads}[^>]*>", content
+    )
 
 
 @pytest.mark.django_db
@@ -35,6 +44,14 @@ def test_get_resume_list_view(client, resume):
 
     # And the resume should be in the context
     assert r.context["resumes"][0] == resume
+
+    content = r.content.decode("utf-8")
+    detail_url = reverse("resume:detail", kwargs={"slug": resume.slug})
+    cv_url = reverse("resume:cv", kwargs={"slug": resume.slug})
+    permission_denied_url = reverse("resume:403", kwargs={"slug": resume.slug})
+    assert anchor_with_attrs(content, detail_url, 'hx-boost="true"')
+    assert anchor_with_attrs(content, cv_url, 'hx-boost="true"')
+    assert anchor_with_attrs(content, permission_denied_url, 'hx-boost="true"')
 
 
 @pytest.mark.django_db
@@ -152,6 +169,63 @@ def test_resume_detail_view(client, resume):
     # And the CV link should be in the content
     content = r.content.decode("utf-8")
     assert cv_link in content
+
+
+@pytest.mark.django_db
+def test_resume_detail_anonymous_cv_link_is_not_htmx_boosted(client, resume):
+    # Given a public CV and an anonymous user
+    resume.owner.save()
+    resume.plugin_data[TokenPlugin.name] = {"flat": {"token_required": False}}
+    resume.save()
+
+    # When the anonymous user opens the cover page
+    detail_url = reverse("resume:detail", kwargs={"slug": resume.slug})
+    r = client.get(detail_url)
+
+    # Then the CV link keeps normal-link behavior without HTMX boosting
+    cv_link = reverse("resume:cv", kwargs={"slug": resume.slug})
+    content = r.content.decode("utf-8")
+    assert anchor_with_attrs(content, cv_link)
+    assert not anchor_with_attrs(content, cv_link, 'hx-boost="true"')
+
+
+@pytest.mark.django_db
+def test_resume_detail_owner_cv_link_is_htmx_boosted(client, resume):
+    # Given a public CV whose owner is logged in
+    resume.owner.save()
+    resume.plugin_data[TokenPlugin.name] = {"flat": {"token_required": False}}
+    resume.save()
+    client.force_login(resume.owner)
+
+    # When the owner opens the cover page
+    detail_url = reverse("resume:detail", kwargs={"slug": resume.slug})
+    r = client.get(detail_url)
+
+    # Then the CV navigation keeps normal-link fallback and adds HTMX boosting
+    cv_link = reverse("resume:cv", kwargs={"slug": resume.slug})
+    content = r.content.decode("utf-8")
+    assert anchor_with_attrs(content, cv_link, 'hx-boost="true"')
+
+
+@pytest.mark.django_db
+def test_headwind_resume_detail_owner_loads_htmx_for_boosted_links(client, resume):
+    # Given a headwind resume whose owner is logged in
+    resume.owner.save()
+    resume.plugin_data["theme"] = {"name": "headwind"}
+    resume.plugin_data[TokenPlugin.name] = {"flat": {"token_required": False}}
+    resume.save()
+    client.force_login(resume.owner)
+
+    # When the owner opens the cover page outside edit mode
+    detail_url = reverse("resume:detail", kwargs={"slug": resume.slug})
+    r = client.get(detail_url)
+
+    # Then headwind loads HTMX for boosted owner navigation
+    cv_link = reverse("resume:cv", kwargs={"slug": resume.slug})
+    content = r.content.decode("utf-8")
+    assert "htmx.org" in content
+    assert "@media print" in content
+    assert anchor_with_attrs(content, cv_link, 'hx-boost="true"')
 
 
 @pytest.mark.django_db

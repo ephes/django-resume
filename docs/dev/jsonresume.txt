@@ -1,0 +1,40 @@
+========================
+JSON Resume Support Plan
+========================
+
+Goal
+----
+
+Evaluate support for `JSON Resume <https://jsonresume.org/>`_, the open-source
+JSON-based resume standard.
+
+This page is a planning document. It should collect research notes and design
+decisions before implementation starts.
+
+Open Questions
+--------------
+
+* Should django-resume support import, export, or both?
+* Should JSON Resume map onto the existing resume and plugin models, or require
+  a dedicated adapter layer?
+* How should unsupported custom plugin data be represented?
+* Should validation use the upstream JSON Resume schema directly?
+* Should this feature live in core or as an optional integration?
+* How much round-trip fidelity should be expected when exporting, importing,
+  and exporting again?
+
+Research Tasks
+--------------
+
+* Review the current JSON Resume schema.
+* Compare schema fields against django-resume's existing models and bundled
+  plugins.
+* Identify lossy mappings in both directions.
+* Decide whether custom sections and plugins can round-trip safely.
+* Check whether existing JSON Resume tooling can be reused for validation or
+  conversion tests.
+
+Implementation Sketch
+---------------------
+
+To be filled in after the research tasks are complete.

@@ -31,7 +31,7 @@
   </div>
   {% if user.is_authenticated or not resume.token_is_required %}
     <div class="contact">
-      <a class="underlined" href="{% url "django_resume:cv" slug=resume.slug %}">Link to CV!</a>
+      <a class="underlined" href="{% url "django_resume:cv" slug=resume.slug %}"{% if is_editable %} hx-boost="true"{% endif %}>Link to CV!</a>
     </div>
   {% endif %}
 </footer>

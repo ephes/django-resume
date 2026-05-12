@@ -18,9 +18,11 @@ Features
 * Make bare ``just`` print an overview of the available recipes instead of running ``check`` by default
 * Add a ``just serve-example`` shortcut for starting the bundled example Django project
 * Redirect the example project's root URL to the admin login for anonymous users and the resume list for authenticated users without changing the reusable app's URL behavior
+* Add HTMX boosting to owner navigation links between the resume list, cover, CV, and editable 403 page
 
 Fixes
 ^^^^^
+* Clarify that installations add ``django_resume`` to ``INSTALLED_APPS`` and do not need django-htmx for the built-in editing views
 * Add ``nh3`` as a runtime dependency to sanitize rendered markdown HTML before plugin output is marked safe
 * Block dangerous link protocols in rendered markdown, including percent-encoded scheme variants
 * Route the About plugin through the same sanitized markdown rendering path as the other text-heavy plugins
