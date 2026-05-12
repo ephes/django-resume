@@ -35,6 +35,7 @@ Fixes
 * Use prefixed admin readonly field names for plugin links to avoid method-name collisions
 * Keep plugin inline URLs in sync when plugins are registered or unregistered dynamically
 * Harden CV token access by using constant-time token comparison, expiring timestamped tokens after ``DJANGO_RESUME_TOKEN_TTL``, and setting ``Referrer-Policy: no-referrer`` on token-protected CV responses
+* Use Django's in-memory SQLite test database by default so concurrent pytest invocations do not collide on a shared file with readonly-database errors
 
 0.1.14 - 2025-12-07
 -------------------

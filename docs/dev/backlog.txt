@@ -31,13 +31,3 @@ Research Needed
   of those.
 
   Related old issue: `#7 <https://github.com/ephes/django-resume/issues/7>`_.
-
-Ideas
------
-
-* Improve test database isolation for parallel test runs.
-
-  The test settings currently use a shared SQLite database path. Running two
-  pytest invocations at the same time can make one run fail with readonly
-  database errors. Consider an in-memory database or per-process test database
-  names so accidental parallel runs do not collide.
