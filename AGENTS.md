@@ -15,3 +15,8 @@
 
 - Use `uvx prek install` to install the repo pre-commit hook.
 - If hook environments are missing, run `uvx prek install-hooks`.
+
+## Releases
+
+- The release process lives in `docs/dev/develop.txt`.
+- Agents preparing a release should stop before `uv publish` or `git push` and report those commands for the maintainer to run.

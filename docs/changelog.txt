@@ -19,6 +19,7 @@ Features
 * Add a ``just serve-example`` shortcut for starting the bundled example Django project
 * Redirect the example project's root URL to the admin login for anonymous users and the resume list for authenticated users without changing the reusable app's URL behavior
 * Add HTMX boosting to owner navigation links between the resume list, cover, CV, and editable 403 page
+* Document the maintainer release checklist, including version bumps, changelog rollover, validation, artifact checks, publishing, and tagging
 
 Fixes
 ^^^^^

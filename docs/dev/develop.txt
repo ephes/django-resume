@@ -180,26 +180,99 @@ Check with `npm outdated` if there are any outdated dependencies. If there are, 
 
     $ npm update
 
-Build + Publish the package
----------------------------
+Release Process
+---------------
 
-.. admonition:: wheel/sdist issues
+Use this checklist when preparing a package release. The project currently
+releases from ``main`` and uses plain version-number git tags, for example
+``0.1.14``.
 
-    `uv build` will build both a wheel and a sdist. But the wheel
-    will be empty. To build a wheel with the correct content, you
-    need to run `uv build --wheel` and `uv build --sdist` separately.
+1. Start from a clean worktree:
 
-.. code-block:: sh
+   .. code-block:: sh
 
-    $ uv build --wheel
-    $ uv build --sdist
+       $ git status --short
 
-Publish the package to `pypi.org`:
+2. Choose the next version number.
 
-.. code-block:: sh
+   Use a patch release for small fixes. Use a minor release when the
+   ``Unreleased`` changelog contains breaking changes or larger feature work.
 
-    $ uv publish --token your_token
+3. Update the version number in:
 
+   - ``pyproject.toml``
+   - ``docs/conf.py``
 
+4. Update ``docs/changelog.txt``:
 
+   - Move the current ``Unreleased`` entries under a new
+     ``X.Y.Z - YYYY-MM-DD`` heading, and match the underline length to the
+     heading text.
+   - Leave a fresh ``Unreleased`` section above the new release entry.
+     The fresh section should look like::
 
+       Unreleased
+       ----------
+
+   - Keep breaking changes, features, and fixes grouped under the release
+     where applicable.
+
+5. Run the release validation gates:
+
+   .. code-block:: sh
+
+       $ just check
+       $ make -C docs html
+
+6. Clean old package artifacts and build the package.
+
+   .. admonition:: wheel/sdist issues
+
+       ``uv build`` will build both a wheel and a sdist. But the wheel
+       will be empty. To build a wheel with the correct content, you
+       need to run ``uv build --wheel`` and ``uv build --sdist`` separately.
+
+   .. code-block:: sh
+
+       $ rm -rf dist/
+       $ uv build --wheel
+       $ uv build --sdist
+
+7. Validate the package artifacts:
+
+   .. code-block:: sh
+
+       $ uvx twine check dist/django_resume-*.whl dist/django_resume-*.tar.gz
+
+8. Commit the release prep changes:
+
+   .. code-block:: sh
+
+       $ git add pyproject.toml docs/conf.py docs/changelog.txt
+       $ git commit -m "Release X.Y.Z"
+
+9. Create an annotated release tag:
+
+   Older releases used lightweight tags. Use annotated tags for new releases so
+   the release metadata is explicit.
+
+   .. code-block:: sh
+
+       $ git tag -a X.Y.Z -m "Release version X.Y.Z"
+
+10. Publish the package to ``pypi.org``:
+
+    .. code-block:: sh
+
+        $ uv publish --token your_token
+
+11. Push the release commit and tag:
+
+    .. code-block:: sh
+
+        $ git push
+        $ git push origin X.Y.Z
+
+Publishing and pushing are maintainer actions. Agents preparing a release
+should stop after validation and artifact generation, then report the remaining
+``uv publish`` and ``git push`` commands for the maintainer to run.
