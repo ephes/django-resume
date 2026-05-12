@@ -273,6 +273,20 @@ releases from ``main`` and uses plain version-number git tags, for example
         $ git push
         $ git push origin X.Y.Z
 
-Publishing and pushing are maintainer actions. Agents preparing a release
-should stop after validation and artifact generation, then report the remaining
-``uv publish`` and ``git push`` commands for the maintainer to run.
+12. Create a GitHub release from the pushed tag and upload the checked package
+    artifacts. Use the release section from ``docs/changelog.txt`` as the
+    release notes, for example via a temporary ``release-notes.md`` file:
+
+    .. code-block:: sh
+
+        $ gh release create X.Y.Z \
+              dist/django_resume-X.Y.Z-py3-none-any.whl \
+              dist/django_resume-X.Y.Z.tar.gz \
+              --verify-tag \
+              --title "X.Y.Z" \
+              --notes-file release-notes.md
+
+Publishing, pushing, and creating GitHub releases are maintainer actions.
+Agents preparing a release should stop after validation and artifact
+generation, then report the remaining ``uv publish``, ``git push``, and
+``gh release create`` commands for the maintainer to run.
