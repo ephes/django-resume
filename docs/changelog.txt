@@ -5,6 +5,9 @@ Changelog
 Unreleased
 ----------
 
+0.2.0 - 2026-05-12
+------------------
+
 Breaking Changes
 ^^^^^^^^^^^^^^^^
 * Removed the experimental database-backed plugin system
