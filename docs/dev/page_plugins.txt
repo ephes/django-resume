@@ -1,0 +1,109 @@
+========================
+Pluggable Resume Pages
+========================
+
+Goal
+----
+
+Evaluate a first-class page API for django-resume so built-in pages and
+third-party pages use the same extension mechanism.
+
+The current section plugin API is good at storing and rendering resume facts.
+The current page structure is still mostly hard-coded: the cover/detail page,
+CV page, CV redirect, and permission-denied page are defined directly in
+``django_resume.urls`` and ``django_resume.views``.
+
+This document is a planning document. It should collect design notes before
+implementation starts.
+
+Problem
+-------
+
+Custom plugins can add inline URLs today, but those URLs are mainly intended
+for editing plugin data. They are not a clean public page API.
+
+The cover/detail page also loads a hard-coded subset of plugins, while the CV
+page loads all registered plugins. That makes custom site structure awkward:
+plugin authors can add new sections, but they cannot cleanly add a new public
+resume page with navigation, permissions, and themed templates.
+
+Target Direction
+----------------
+
+Add a small Django-native page registry before considering a broader hook
+framework.
+
+Possible shape:
+
+.. code-block:: python
+
+   class ResumePage:
+       name = "cv"
+       path = "<slug:slug>/cv/"
+       template_name = "resume_cv.html"
+       section_names = "__all__"
+
+       def has_permission(self, request, resume) -> bool:
+           return True
+
+       def get_context(self, request, resume) -> dict:
+           ...
+
+
+Built-in pages could become registered page classes:
+
+* ``CoverLetterPage``
+* ``CvPage``
+* ``PermissionDeniedPage``
+
+Third-party apps could then register pages such as:
+
+* portfolio pages
+* references pages
+* project pitch pages
+* compact one-page CV variants
+* client-specific landing pages
+
+Open Questions
+--------------
+
+* Should pages live in a separate ``page_registry`` or in a broader resume
+  registry alongside section plugins?
+* How should page URL ordering avoid conflicts with broad slug routes such as
+  ``<slug:slug>/``?
+* Should page routes be generated directly, or should django-resume use a
+  generic page dispatcher?
+* How should page navigation be represented and ordered?
+* How should page permissions compose with existing token behavior?
+* Should a page select section plugins by name, by capability, or by a custom
+  context builder?
+* How should themed templates be resolved for page plugins?
+* How should backwards compatibility work for the existing URL names
+  ``detail``, ``cv``, ``cv-redirect``, and ``403``?
+* Should this remain an explicit registry, or should a hook framework such as
+  pluggy be reconsidered after the page API settles?
+
+Relationship To Content Plugins
+-------------------------------
+
+Page plugins should compose content plugins, not replace them.
+
+Content plugins should continue to own resume facts, forms, admin integration,
+inline editing, and template fragments. Page plugins should own route shape,
+page-level context, permissions, navigation metadata, and final page template
+selection.
+
+Relationship To Application Workflows
+-------------------------------------
+
+Application workflows will need pages eventually, but they are not pages
+themselves. A job-application workflow may render a tailored CV page or cover
+letter page, but the workflow also needs state, approvals, delivery channels,
+and audit history.
+
+See :doc:`application_workflows`.
+
+Implementation Sketch
+---------------------
+
+To be filled in after the research questions are answered.

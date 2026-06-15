@@ -21,6 +21,26 @@ Research Needed
 
   See :doc:`jsonresume`.
 
+* Design pluggable resume pages and site structure.
+
+  Research whether cover letter, CV, and permission-denied pages should be
+  represented as built-in page definitions instead of hard-coded views. Define
+  how third-party code can add page routes, select section plugins, contribute
+  navigation entries, apply permissions such as CV tokens, and render themed
+  templates.
+
+  See :doc:`page_plugins`.
+
+* Design application workflows and agentic job/project outreach.
+
+  Explore how django-resume can use structured resume data to draft, queue,
+  review, send, and track job or project applications. The first design should
+  keep sending behind explicit user approval, define the relationship to
+  content plugins, page plugins, JSON Resume import/export, and optional
+  pipy-based agent execution.
+
+  See :doc:`application_workflows`.
+
 * Document agent-assisted plugin authoring.
 
   Coding agents are now a better fit for plugin generation than a productized

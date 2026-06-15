@@ -42,3 +42,5 @@ See it in action:
     dev/develop
     dev/backlog
     dev/jsonresume
+    dev/page_plugins
+    dev/application_workflows

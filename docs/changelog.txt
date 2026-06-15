@@ -5,6 +5,10 @@ Changelog
 Unreleased
 ----------
 
+Features
+^^^^^^^^
+* Add a ``just docs-serve`` shortcut with a configurable port for building and serving the Sphinx documentation locally
+
 0.2.0 - 2026-05-12
 ------------------
 

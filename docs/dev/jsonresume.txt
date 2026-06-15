@@ -23,6 +23,16 @@ Open Questions
 * How much round-trip fidelity should be expected when exporting, importing,
   and exporting again?
 
+Relationship To Other Planning Work
+-----------------------------------
+
+JSON Resume support should be designed alongside the structured-data API needed
+by application workflows. It should also stay separate from page layout and
+routing concerns: JSON Resume can describe common resume facts, while page
+plugins and application workflows may need django-resume-specific metadata.
+
+See :doc:`application_workflows` and :doc:`page_plugins`.
+
 Research Tasks
 --------------
 
