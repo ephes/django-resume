@@ -1,0 +1,35 @@
+/* Editorial theme — screen styles.
+ *
+ * This file currently only wires up the Saira webfont (OFL, shipped with the
+ * theme). The full CV/cover layout (grid, colours, typography scale) is built
+ * in a later step; keep additions below the @font-face block.
+ */
+
+@font-face {
+  font-family: "Saira";
+  font-style: normal;
+  font-weight: 100 900;          /* variable weight axis */
+  font-stretch: 75% 125%;        /* variable width axis  */
+  font-display: swap;
+  src: url("../../fonts/saira/Saira-VariableFont.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Saira";
+  font-style: italic;
+  font-weight: 100 900;
+  font-stretch: 75% 125%;
+  font-display: swap;
+  src: url("../../fonts/saira/Saira-Italic-VariableFont.woff2") format("woff2");
+}
+
+:root {
+  --editorial-bg: #f2f2e5;       /* creme, from VC.idml */
+  --editorial-fg: #000000;
+}
+
+body {
+  font-family: "Saira", system-ui, sans-serif;
+  background-color: var(--editorial-bg);
+  color: var(--editorial-fg);
+}
