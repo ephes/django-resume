@@ -81,6 +81,14 @@ class CoverFlatForm(ImageFormMixin, forms.Form):
         initial="Profile photo",
         required=False,
     )
+    recipient = forms.CharField(widget=forms.Textarea(), required=False)
+    place_date = forms.CharField(
+        widget=forms.TextInput(), required=False, max_length=100
+    )
+    subject = forms.CharField(widget=forms.TextInput(), required=False, max_length=200)
+    salutation = forms.CharField(
+        widget=forms.TextInput(), required=False, max_length=200
+    )
     image_fields = [("avatar_img", "clear_avatar")]
 
     @property
@@ -95,6 +103,10 @@ class CoverFlatForm(ImageFormMixin, forms.Form):
             "avatar_alt": item.get("avatar_alt", ""),
             "avatar_img": image_url,
             "avatar_img_url": image_url,
+            "recipient": item.get("recipient", ""),
+            "place_date": item.get("place_date", ""),
+            "subject": item.get("subject", ""),
+            "salutation": item.get("salutation", ""),
             "edit_flat_url": context["edit_flat_url"],
         }
         return context

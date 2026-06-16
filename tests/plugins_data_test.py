@@ -138,3 +138,20 @@ def test_education_degree_field_roundtrips():
     )
     assert form.is_valid(), form.errors
     assert form.cleaned_data["degree"] == "Diplom Grafik- und Kommunikations-Design"
+
+
+def test_cover_flat_form_carries_letter_meta():
+    from django_resume.plugins.cover import CoverFlatForm
+
+    item = {
+        "title": "Bewerbung",
+        "recipient": "An Musterfrau\nXYZ Firmenname\nMusterstraße 1234\n12345 Musterstadt",
+        "place_date": "Düsseldorf, den XX.XX.26",
+        "subject": "Bewerbung als Senior Art Directorin (Teilzeit, 25 Std./Woche)",
+        "salutation": "Sehr geehrte Frau Musterfrau,",
+    }
+    ctx = CoverFlatForm.set_context(item, {"edit_flat_url": "#"})
+    assert ctx["cover"]["subject"].startswith("Bewerbung als")
+    assert ctx["cover"]["place_date"] == "Düsseldorf, den XX.XX.26"
+    assert "Musterstraße" in ctx["cover"]["recipient"]
+    assert ctx["cover"]["salutation"].startswith("Sehr geehrte")
