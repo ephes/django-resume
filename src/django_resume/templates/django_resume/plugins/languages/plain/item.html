@@ -1,0 +1,22 @@
+<div id="languages-item-{{ language.id }}" aria-label="{{ language.name }}" class="language-box stack-small avoid-page-break">
+  <div class="language-name">{{ language.name }}</div>
+  <span class="bar" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ language.level }}"
+        style="--level: {{ language.level }}%"></span>
+  {% if show_edit_button %}
+    <div class="edit-icons">
+      <svg class="edit-icon-small" hx-get="{{ language.edit_url }}" hx-target="#languages-item-{{ language.id }}"
+           hx-swap="outerHTML">
+        <use href="#edit"></use>
+      </svg>
+      <svg
+        class="edit-icon-small"
+        style="color: red !important;"
+        hx-delete="{{ language.delete_url }}"
+        hx-target="#languages-item-{{ language.id }}"
+        hx-swap="delete"
+      >
+        <use href="#delete"></use>
+      </svg>
+    </div>
+  {% endif %}
+</div>

@@ -5,6 +5,7 @@ from .base import SimplePlugin, ListPlugin
 from .cover import CoverPlugin
 from .education import EducationPlugin
 from .identity import IdentityPlugin
+from .languages import LanguagesPlugin
 from .permission_denied import PermissionDeniedPlugin
 from .projects import ProjectsPlugin
 from .skills import SkillsPlugin
@@ -21,6 +22,7 @@ __all__ = [
     "EmployedTimelinePlugin",
     "FreelanceTimelinePlugin",
     "IdentityPlugin",
+    "LanguagesPlugin",
     "ListPlugin",
     "plugin_registry",
     "PermissionDeniedPlugin",
