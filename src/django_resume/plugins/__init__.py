@@ -1,5 +1,6 @@
 from .registry import plugin_registry
 from .about import AboutPlugin
+from .awards import AwardsPlugin
 from .base import SimplePlugin, ListPlugin
 from .cover import CoverPlugin
 from .education import EducationPlugin
@@ -14,6 +15,7 @@ from .timelines import EmployedTimelinePlugin, FreelanceTimelinePlugin
 
 __all__ = [
     "AboutPlugin",
+    "AwardsPlugin",
     "CoverPlugin",
     "EducationPlugin",
     "EmployedTimelinePlugin",

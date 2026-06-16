@@ -1,0 +1,24 @@
+<div id="awards-item-{{ award.id }}" aria-label="{{ award.title }}" class="award-box stack stack-card avoid-page-break">
+  <div>
+    <h3 class="link-margin">{{ award.title }}</h3>
+  </div>
+  {% if award.project %}<div class="award-project">{{ award.project }}</div>{% endif %}
+  {% if award.year %}<div class="award-year">{{ award.year }}</div>{% endif %}
+  {% if show_edit_button %}
+    <div class="edit-icons">
+      <svg class="edit-icon-small" hx-get="{{ award.edit_url }}" hx-target="#awards-item-{{ award.id }}"
+           hx-swap="outerHTML">
+        <use href="#edit"></use>
+      </svg>
+      <svg
+        class="edit-icon-small"
+        style="color: red !important;"
+        hx-delete="{{ award.delete_url }}"
+        hx-target="#awards-item-{{ award.id }}"
+        hx-swap="delete"
+      >
+        <use href="#delete"></use>
+      </svg>
+    </div>
+  {% endif %}
+</div>
