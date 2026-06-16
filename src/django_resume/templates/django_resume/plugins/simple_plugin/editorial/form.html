@@ -1,0 +1,23 @@
+<section id="simple-plugin" class="stack">
+  {#  This is a hidden form that will be submitted by the button below.#}
+  <form
+    id="form-simple-plugin"
+    class="stack-small"
+    hx-post="{{ form.post_url }}"
+    hx-target="#simple-plugin"
+    hx-swap="outerHTML"
+  >
+    <input type="hidden" data-field="foo" name="foo" value="{{ form.foo.value }}">
+  </form>
+  <h2>Simple Plugin</h2>
+  <div class="stack">
+    <p>Just a dummy form.</p>
+  </div>
+  <div> {# prevent button from taking full width with this div #}
+    <button id="submit-simple-plugin" type="submit">
+      <svg class="edit-icon-small">
+        <use href="#ok"></use>
+      </svg>
+    </button>
+  </div>
+</section>

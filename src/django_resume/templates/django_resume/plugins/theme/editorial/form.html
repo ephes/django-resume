@@ -1,0 +1,26 @@
+<section id="theme">
+  <form
+    id="form-theme"
+    class="stack"
+    hx-post="{{ form.post_url }}"
+    hx-target="#theme"
+    hx-swap="outerHTML"
+  >
+    <h2>Theme</h2>
+    <label for="name">Choose a theme</label>
+    <select id="name" name="name">
+      <option value="plain">Plain</option>
+      <option value="headwind">Tailwind</option>
+    </select>
+    {% for error in form.theme.errors %}
+      <p class="error">{{ error|escape }}</p>
+    {% endfor %}
+    <div> {# prevent button from taking full width with this div #}
+      <button id="submit-theme" type="submit">
+        <svg class="edit-icon-small">
+          <use href="#ok"></use>
+        </svg>
+      </button>
+    </div>
+  </form>
+</section>

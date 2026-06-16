@@ -1,0 +1,72 @@
+{% load static %}
+<section id="identity" class="with-sidebar">
+  <div class="stack"><!-- The person's name, pronouns, tagline, location, and social links - not sidebar -->
+    <div class="cluster">
+      <h2>{{ identity.name }}</h2>
+      <ul class="cluster cluster-list pronoun-badges-list">
+        <li>{{ identity.pronouns }}</li>
+      </ul>
+      {% if show_edit_button %}
+        <svg
+          class="edit-icon-small"
+          hx-get="{{ identity.edit_url }}"
+          hx-target="#identity"
+          hx-swap="outerHTML swap:0.1s"
+        >
+          <use href="#edit"></use>
+        </svg>
+      {% endif %}
+    </div>
+    <p>{{ identity.tagline }}</p>
+    <span class="with-icon">
+      <svg class="icon"><use href="#location"></use></svg>
+      <a class="underlined" href="{{ identity.location_url }}">{{ identity.location_name }}</a>
+    </span>
+    <ul class="cluster cluster-list icons-list">
+      {% if identity.email %}
+        <li>
+          <a class="social-link" href="mailto:{{ identity.email }}" aria-label="Email">
+            <svg class="icon"><use href="#email"></use></svg>
+          </a>
+        </li>
+      {% endif %}
+      {% if identity.phone %}
+        <li>
+          <a class="social-link" href="tel:{{ identity.phone }}" aria-label="Phone">
+            <svg class="icon"><use href="#phone"></use></svg>
+          </a>
+        </li>
+      {% endif %}
+      {% if identity.github %}
+        <li>
+          <a class="social-link" href="{{ identity.github }}" aria-label="GitHub">
+            <svg class="icon"><use href="#github"></use></svg>
+          </a>
+        </li>
+      {% endif %}
+      {% if identity.linkedin %}
+        <li>
+          <a class="social-link" href="{{ identity.linkedin }}" aria-label="LinkedIn">
+            <svg class="icon"><use href="#linkedin"></use></svg>
+          </a>
+        </li>
+      {% endif %}
+      {% if identity.linkedin %}
+        <li>
+          <a class="social-link" href="{{ identity.mastodon }}" aria-label="Mastodon">
+            <svg class="icon"><use href="#mastodon"></use></svg>
+          </a>
+        </li>
+      {% endif %}
+    </ul>
+  </div>
+  <div class="avatar-container"><!-- Right side - the sidebar -->
+    {% if identity.avatar_img %}
+      <img class="avatar" src="{{ identity.avatar_img_url }}" alt="{{ identity.avatar_alt }}" width="110" height="110">
+    {% else %}
+      <svg class="avatar" width="110" height="110">
+        <use href="#avatar"></use>
+      </svg>
+    {% endif %}
+  </div>
+</section>

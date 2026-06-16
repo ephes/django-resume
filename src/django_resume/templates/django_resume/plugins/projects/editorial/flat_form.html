@@ -1,0 +1,13 @@
+<form hx-post="{{ edit_flat_post_url }}" hx-target="this" hx-swap="outerHTML">
+  <div class="cluster">
+    <input class="editable-h2" type="text" name="title" value="{{ form.title.value }}">
+    <button type="submit">
+      <svg class="edit-icon-small">
+        <use href="#ok"></use>
+      </svg>
+    </button>
+  </div>
+  {% for error in form.title.errors %}
+    <p class="error">{{ error|escape }}</p>
+  {% endfor %}
+</form>

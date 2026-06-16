@@ -1,0 +1,70 @@
+<editable-form id="{{ plugin_name }}-item-{{ form.item_id }}" class="stack-small">
+  {#  This is a hidden form that will be submitted by the button below.#}
+  <form
+    id="{{ plugin_name }}-form-{{ form.item_id }}"
+    class="stack-small"
+    hx-post="{{ form.post_url }}"
+    hx-target="#{{ plugin_name }}-item-{{ form.item_id }}"
+    hx-swap="outerHTML"
+  >
+    <input data-field="id" type="hidden" name="id" value="{{ form.item_id }}">
+    <input data-field="position" type="hidden" name="position" value="{{ form.position.value }}">
+    <input type="hidden" data-field="company_url" name="company_url" value="{{ form.company_url.value }}">
+    <input type="hidden" data-field="company_name" name="company_name" value="{{ form.company_name.value }}">
+    <input id="{{ plugin_name }}-item-badges-{{ form.item_id }}" type="hidden" data-field="badges" name="badges" value="{{ form.badges_as_json }}">
+    <input type="hidden" data-field="start" name="start" value="{{ form.start.value }}">
+    <input type="hidden" data-field="end" name="end" value="{{ form.end.value }}">
+    <input type="hidden" data-field="role" name="role" value="{{ form.role.value }}">
+    <input type="hidden" data-field="description" name="description" value="{{ form.description.value }}">
+  </form>
+  <div class="cluster timeline-header-cluster">
+    <div class="timeline-header-title">
+      <h3>
+        <span contenteditable="true" data-field="company_name">{{ form.company_name.value }}</span>
+        <span contenteditable="true" data-field="company_url">{{ form.company_url.value }}</span>
+      </h3>
+      {% if form.badges.value %}
+        <badge-editor
+          input-field-id="{{ plugin_name }}-item-badges-{{ form.item_id }}"
+          ul-class="job-badges-list"
+          li-class="job-badge"
+          span-class="job-badge-name"
+        ></badge-editor>
+      {% endif %}
+    </div>
+    <ul class="cluster cluster-list year-span">
+      <li contenteditable="true" data-field="start">{{ form.start.value }}</li>
+      <li>-</li>
+      <li contenteditable="true" data-field="end">{{ form.end.value }}</li>
+    </ul>
+  </div>
+  {# place form errors for timeline header fields below header #}
+  {% for error in form.company_url.errors %}
+    <p class="error">{{ error|escape }}</p>
+  {% endfor %}
+  {% for error in form.company_name.errors %}
+    <p class="error">{{ error|escape }}</p>
+  {% endfor %}
+  {% for error in form.badges.errors %}
+    <p class="error">{{ error|escape }}</p>
+  {% endfor %}
+  {% for error in form.start.errors %}
+    <p class="error">{{ error|escape }}</p>
+  {% endfor %}
+  {% for error in form.end.errors %}
+    <p class="error">{{ error|escape }}</p>
+  {% endfor %}
+  <div contenteditable="true" data-field="role" class="sub-line">{{ form.role.value }}</div>
+  {% for error in form.role.errors %}
+    <p class="error">{{ error|escape }}</p>
+  {% endfor %}
+  <p contenteditable="true" class="textarea" data-field="description" data-type="html">{{ form.description_display_html|safe }}</p>
+  {% for error in form.description.errors %}
+    <p class="error">{{ error|escape }}</p>
+  {% endfor %}
+  <button id="{{ plugin_name }}-submit-item-{{ form.item_id }}" type="submit">
+    <svg class="edit-icon-small">
+      <use href="#ok"></use>
+    </svg>
+  </button>
+</editable-form>

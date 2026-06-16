@@ -1,0 +1,23 @@
+{% if show_edit_button %}
+<section id="theme" class="stack">
+  {% if show_edit_button %}
+    <div class="cluster">
+      <h2>Theme</h2>
+      <svg class="edit-icon-small" hx-get="{{ theme.edit_url }}" hx-target="#theme" hx-swap="outerHTML">
+        <use href="#edit"></use>
+      </svg>
+    </div>
+    <p>{{ theme.name }}</p>
+  {% else %}
+    <h2>Theme</h2>
+    <p>{{ theme.name }}</p>
+  {% endif %}
+  <script>
+      document.addEventListener("htmx:afterSwap", function (evt) {
+          if (evt.detail.target.id === "theme" && evt.detail.requestConfig.verb === "post") {
+              window.location.reload();
+          }
+      });
+  </script>
+</section>
+{% endif %}

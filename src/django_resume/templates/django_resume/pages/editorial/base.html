@@ -1,0 +1,65 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>{% block title %}Django Resume{% endblock title %}</title>
+  {% block meta %}
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="index">
+  {% endblock meta %}
+  {% block styles %}
+    <link rel="stylesheet" type="text/css" href="{% static "django_resume/css/editorial/screen.css" %}">
+    <link media="print" rel="stylesheet" href="{% static "django_resume/css/editorial/print.css" %}"/>
+    {% if is_editable %}
+      <script src="https://unpkg.com/htmx.org@2.0.3"
+              integrity="sha384-0895/pl2MU10Hqc6jd4RvrthNlDiE9U1tWmX7WRESftEDRosgxNsQG/Ze9YMRzHq"
+              crossorigin="anonymous"></script>
+      <link rel="stylesheet" type="text/css" href="{% static "django_resume/css/edit.css" %}">
+    {% endif %}
+  {% endblock styles %}
+  {% block fonts %}
+    <link href="{% static "django_resume/fonts/inter_600.woff2" %}" rel="preload" as="font" type="font/woff2" crossorigin="anonymous">
+    <link href="{% static "django_resume/fonts/martian_mono_200.woff2" %}" rel="preload" as="font" type="font/woff2" crossorigin="anonymous">
+    <link href="{% static "django_resume/fonts/martian_mono_300.woff2" %}" rel="preload" as="font" type="font/woff2" crossorigin="anonymous">
+    <style>
+        @font-face {
+            font-family: 'Inter';
+            font-style: normal;
+            font-weight: 600;
+            font-display: swap;
+            src: url({% static "django_resume/fonts/inter_600.woff2" %}) format('woff2'),
+            url({% static "django_resume/fonts/inter_600.ttf" %}) format('truetype');
+        }
+        @font-face {
+            font-family: 'Martian Mono';
+            font-style: normal;
+            font-weight: 200;
+            font-stretch: normal;
+            font-display: swap;
+            src: url({% static "django_resume/fonts/martian_mono_200.woff2" %}) format('woff2'),
+            url({% static "django_resume/fonts/martian_mono_200.ttf" %}) format('truetype');
+        }
+        @font-face {
+            font-family: 'Martian Mono';
+            font-style: normal;
+            font-weight: 300;
+            font-stretch: normal;
+            font-display: swap;
+            src: url({% static "django_resume/fonts/martian_mono_300.woff2" %}) format('woff2'),
+            url({% static "django_resume/fonts/martian_mono_300.ttf" %}) format('truetype');
+        }
+        body {
+            background-image: url({% static "django_resume/img/white-linen.png" %});
+            background-repeat: repeat;
+            background-size: 560px;
+            background-position: top left;
+        }
+    </style>
+  {% endblock fonts %}
+  {% include "./icons.svg" %}
+</head>
+{% block body %}
+  This is the body.
+{% endblock body %}
+</html>

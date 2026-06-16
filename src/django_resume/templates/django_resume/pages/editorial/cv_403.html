@@ -1,0 +1,29 @@
+{% extends "./base.html" %}
+{% load static %}
+
+{% block title %}Resume CV 403 Page{% endblock title %}
+
+{% block body %}
+  {% if show_edit_button %}
+    <body class="center" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+  {% else %}
+    <body class="center">
+  {% endif %}
+  {% if is_editable %}
+    {% include "./edit_panel.html" %}
+  {% endif %}
+<main>
+  {% include permission_denied.templates.main %}
+</main>
+<footer class="no-print">
+  <div class="contact">
+    <a class="underlined" href="mailto:{{ permission_denied.email }}?subject=Get%20CV%20token&body=ssia">
+
+      <b>Get Access Token</b>
+    </a>
+  </div>
+</footer>
+{% if show_edit_button %}
+  <script src="{% static "django_resume/js/edit.js" %}"></script>
+{% endif %}
+{% endblock body %}

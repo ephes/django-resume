@@ -1,0 +1,14 @@
+{% if show_edit_button %}
+  <div class="cluster">
+    <h2>
+      {{ timeline.title }}
+    </h2>
+    <svg class="edit-icon-small" hx-get="{{ timeline.edit_flat_url }}" hx-target="closest div" hx-swap="outerHTML">
+      <use href="#edit"></use>
+    </svg>
+  </div>
+{% else %}
+  <h2>
+    {{ timeline.title }}
+  </h2>
+{% endif %}

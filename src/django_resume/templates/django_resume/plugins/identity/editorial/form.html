@@ -1,0 +1,133 @@
+<editable-form id="identity">
+  <form
+    id="form-identity"
+    hx-post="{{ form.post_url }}"
+    hx-target="#identity"
+    hx-swap="outerHTML"
+    enctype="multipart/form-data"
+  >
+    <input type="hidden" data-field="name" name="name" value="{{ form.name.value }}">
+    <input type="hidden" data-field="pronouns" name="pronouns" value="{{ form.pronouns.value }}">
+    <input type="hidden" data-field="tagline" name="tagline" value="{{ form.tagline.value }}">
+    <input type="hidden" data-field="location_name" name="location_name" value="{{ form.location_name.value }}">
+    <input type="hidden" data-field="location_url" name="location_url" value="{{ form.location_url.value }}">
+    <input type="file" id="avatar-img" style="display:none;" name="avatar_img" accept="image/*"/>
+    <input type="hidden" data-field="avatar_alt" name="avatar_alt" value="{{ form.avatar_alt.value }}">
+    <input type="hidden" data-field="email" name="email" value="{{ form.email.value }}">
+    <input type="hidden" data-field="phone" name="phone" value="{{ form.phone.value }}">
+    <input type="hidden" data-field="github" name="github" value="{{ form.github.value }}">
+    <input type="hidden" data-field="linkedin" name="linkedin" value="{{ form.linkedin.value }}">
+    <input type="hidden" data-field="mastodon" name="mastodon" value="{{ form.mastodon.value }}">
+  </form>
+  <div id="former-identity-section-with-sidebar" class="with-sidebar">
+    <div class="stack"><!-- The person's name, pronouns, tagline, location, and social links - not sidebar -->
+      <div class="cluster">
+        <h2 contenteditable="true" data-field="name">{{ form.name.value }}</h2>
+        <ul class="cluster cluster-list pronoun-badges-list">
+          <li contenteditable="true" data-field="pronouns">{{ form.pronouns.value }}</li>
+        </ul>
+      </div>
+      <p contenteditable="true" data-field="tagline">{{ form.tagline.value }}</p>
+
+      <div class="with-icon">
+        <svg class="icon">
+          <use href="#location"></use>
+        </svg>
+        <h3>Location</h3>
+      </div>
+      <ul>
+        <li contenteditable="true" data-field="location_name">{{ form.location_name.value }}</li>
+        <li contenteditable="true" data-field="location_url">{{ form.location_url.value }}</li>
+      </ul>
+      {% for error in form.location_name.errors %}
+        <p class="error">{{ error|escape }}</p>
+      {% endfor %}
+      {% for error in form.location_url.errors %}
+        <p class="error">{{ error|escape }}</p>
+      {% endfor %}
+
+      <h3>Social Links</h3>
+      <ul>
+        <li>
+          <span class="with-icon">
+            <svg class="icon"><use href="#email"></use></svg>
+            <span contenteditable="true" data-field="email">{{ form.email.value }}</span>
+          </span>
+          {% for error in form.email.errors %}
+            <p class="error">{{ error|escape }}</p>
+          {% endfor %}
+        </li>
+        <li>
+          <span class="with-icon">
+            <svg class="icon"><use href="#phone"></use></svg>
+            <span contenteditable="true" data-field="phone">{{ form.phone.value }}</span>
+          </span>
+          {% for error in form.phone.errors %}
+            <p class="error">{{ error|escape }}</p>
+          {% endfor %}
+        </li>
+        <li>
+          <span class="with-icon">
+            <svg class="icon"><use href="#github"></use></svg>
+            <span contenteditable="true" data-field="github">{{ form.github.value }}</span>
+          </span>
+          {% for error in form.github.errors %}
+            <p class="error">{{ error|escape }}</p>
+          {% endfor %}
+        </li>
+        <li>
+          <span class="with-icon">
+            <svg class="icon"><use href="#linkedin"></use></svg>
+            <span contenteditable="true" data-field="linkedin">{{ form.linkedin.value }}</span>
+          </span>
+          {% for error in form.linkedin.errors %}
+            <p class="error">{{ error|escape }}</p>
+          {% endfor %}
+        </li>
+        <li>
+          <span class="with-icon">
+            <svg class="icon"><use href="#mastodon"></use></svg>
+            <span contenteditable="true" data-field="mastodon">{{ form.mastodon.value }}</span>
+          </span>
+          {% for error in form.mastodon.errors %}
+            <p class="error">{{ error|escape }}</p>
+          {% endfor %}
+        </li>
+      </ul>
+    </div>
+    <div id="avatar-container" class="avatar-container"><!-- Right side - the sidebar -->
+      {% if form.avatar_img.value %}
+        <div class="stack">
+          <img class="avatar editable-avatar"
+               data-field="avatar_img"
+               src="{{ form.avatar_img_url }}"
+               alt="{{ form.avatar_alt.value }}"
+               width="110"
+               height="110"
+          >
+          <p contenteditable="true" data-field="avatar_alt" style="max-width: 110px">{{ form.avatar_alt.value }}</p>
+          {% for error in form.avatar_alt.errors %}
+            <p class="error">{{ error|escape }}</p>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="stack">
+          <svg class="avatar editable-avatar" data-field="avatar_img" width="110" height="110">
+            <use href="#avatar"></use>
+          </svg>
+          <p contenteditable="true" data-field="avatar_alt" style="max-width: 110px">{{ form.avatar_alt.value }}</p>
+          {% for error in form.avatar_alt.errors %}
+            <p class="error">{{ error|escape }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+    <div> {# prevent button from taking full width with this div #}
+      <button id="submit-identity" type="submit">
+        <svg class="edit-icon-small">
+          <use href="#ok"></use>
+        </svg>
+      </button>
+    </div>
+  </div>
+</editable-form>

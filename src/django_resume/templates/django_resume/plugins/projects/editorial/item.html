@@ -1,0 +1,33 @@
+<div id="projects-item-{{ project.id }}" aria-label="{{ project.title }}" class="project-box stack stack-card avoid-page-break">
+  <div>
+    <h3 class="link-margin">{{ project.title }}</h3>
+    <a class="icon-link" href="{{ project.url }}" aria-label="{{ project.title }}">
+      <svg class="icon">
+        <use href="#link"></use>
+      </svg>
+    </a>
+  </div>
+  <div>{{ project.description|safe }}</div>
+  {% if show_edit_button %}
+    <div class="edit-icons">
+      <svg class="edit-icon-small" hx-get="{{ project.edit_url }}" hx-target="#projects-item-{{ project.id }}"
+           hx-swap="outerHTML">
+        <use href="#edit"></use>
+      </svg>
+      <svg
+        class="edit-icon-small"
+        style="color: red !important;"
+        hx-delete="{{ project.delete_url }}"
+        hx-target="#projects-item-{{ project.id }}"
+        hx-swap="delete"
+      >
+        <use href="#delete"></use>
+      </svg>
+    </div>
+  {% endif %}
+  <ul class="cluster cluster-list project-badges-list">
+    {% for badge in project.badges %}
+      <li>{{ badge }}</li>
+    {% endfor %}
+  </ul>
+</div>

@@ -1,0 +1,48 @@
+<editable-form id="education" class="stack">
+  {#  This is a hidden form that will be submitted by the button below.#}
+  <form
+    id="form-education"
+    class="stack-small"
+    hx-post="{{ form.post_url }}"
+    hx-target="#education"
+    hx-swap="outerHTML"
+  >
+    <input type="hidden" data-field="school_name" name="school_name" value="{{ form.school_name.value }}">
+    <input type="hidden" data-field="school_url" name="school_url" value="{{ form.school_url.value }}">
+    <input type="hidden" data-field="start" name="start" value="{{ form.start.value }}">
+    <input type="hidden" data-field="end" name="end" value="{{ form.end.value }}">
+  </form>
+  <h2>Education</h2>
+  <div class="stack">
+    <div class="cluster timeline-header-cluster">
+      <div class="timeline-header-title">
+        <h3>
+          <span contenteditable="true" data-field="school_name">{{ form.school_name.value }}</span>
+          <span contenteditable="true" data-field="school_url">{{ form.school_url.value }}</span>
+        </h3>
+      </div>
+      <ul class="cluster cluster-list year-span">
+        <li contenteditable="true" data-field="start">{{ form.start.value }}</li>
+        <li>-</li>
+        <li contenteditable="true" data-field="end">{{ form.end.value }}</li>
+      </ul>
+    </div>
+  </div>
+  {% if form.errors %}
+    <div>
+      {% for error in form.school_name.errors %}
+        <p class="error">{{ error|escape }}</p>
+      {% endfor %}
+      {% for error in form.school_url.errors %}
+        <p class="error">{{ error|escape }}</p>
+      {% endfor %}
+    </div>
+  {% endif %}
+  <div> {# prevent button from taking full width with this div #}
+    <button id="submit-education" type="submit">
+      <svg class="edit-icon-small">
+        <use href="#ok"></use>
+      </svg>
+    </button>
+  </div>
+</editable-form>

@@ -1,0 +1,22 @@
+<section id="cover">
+  <div id="cover-items" class="stack-large">
+    {% for item in cover.ordered_entries %}
+      {% if show_edit_button %}
+        {% include cover.templates.item %}
+      {% else %}
+        {% if forloop.counter > 1 %}
+          {# In non-edit mode the first item is special because it #}
+          {# floats around the avatar profile image #}
+          {% include cover.templates.item %}
+        {% endif %}
+      {% endif %}
+    {% endfor %}
+  </div>
+  {% if show_edit_button %}
+    <div class="stack-large">
+      <svg class="edit-icon-small" hx-get="{{ cover.add_item_url }}" hx-target="#cover-items" hx-swap="beforeend">
+        <use href="#add"></use>
+      </svg>
+    </div>
+  {% endif %}
+</section>
