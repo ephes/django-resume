@@ -1,0 +1,28 @@
+<div id="education-item-{{ entry.id }}" class="education-box stack-small avoid-page-break">
+  {% if entry.end %}<div class="education-year">{{ entry.end }}</div>{% endif %}
+  {% if entry.degree %}<h3 class="education-degree">{{ entry.degree }}</h3>{% endif %}
+  <div class="education-school">
+    {% if entry.school_url %}
+      <a class="underlined" href="{{ entry.school_url }}">{{ entry.school_name }}</a>
+    {% else %}
+      {{ entry.school_name }}
+    {% endif %}
+  </div>
+  {% if show_edit_button %}
+    <div class="edit-icons">
+      <svg class="edit-icon-small" hx-get="{{ entry.edit_url }}" hx-target="#education-item-{{ entry.id }}"
+           hx-swap="outerHTML">
+        <use href="#edit"></use>
+      </svg>
+      <svg
+        class="edit-icon-small"
+        style="color: red !important;"
+        hx-delete="{{ entry.delete_url }}"
+        hx-target="#education-item-{{ entry.id }}"
+        hx-swap="delete"
+      >
+        <use href="#delete"></use>
+      </svg>
+    </div>
+  {% endif %}
+</div>

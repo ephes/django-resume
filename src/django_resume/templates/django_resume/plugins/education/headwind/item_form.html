@@ -1,0 +1,32 @@
+<editable-form id="{{ plugin_name }}-item-{{ form.item_id }}" class="education-box stack stack-card">
+  {#  This is a hidden form that will be submitted by the button below.#}
+  <form
+    id="{{ plugin_name }}-form-{{ form.item_id }}"
+    class="stack-small"
+    hx-post="{{ form.post_url }}"
+    hx-target="#{{ plugin_name }}-item-{{ form.item_id }}"
+    hx-swap="outerHTML"
+  >
+    <input data-field="id" type="hidden" name="id" value="{{ form.item_id }}">
+    <input data-field="position" type="hidden" name="position" value="{{ form.position.value }}">
+    <input type="hidden" data-field="school_name" name="school_name" value="{{ form.school_name.value }}">
+    <input type="hidden" data-field="school_url" name="school_url" value="{{ form.school_url.value }}">
+    <input type="hidden" data-field="degree" name="degree" value="{{ form.degree.value }}">
+    <input type="hidden" data-field="start" name="start" value="{{ form.start.value }}">
+    <input type="hidden" data-field="end" name="end" value="{{ form.end.value }}">
+  </form>
+  <div class="education-year" contenteditable="true" data-field="end">{{ form.end.value }}</div>
+  <h3 contenteditable="true" data-field="degree">{{ form.degree.value }}</h3>
+  <div contenteditable="true" data-field="school_name">{{ form.school_name.value }}</div>
+  <span contenteditable="true" data-field="school_url">{{ form.school_url.value }}</span>
+  <div>
+    {% for error in form.school_name.errors %}
+      <p class="error">{{ error|escape }}</p>
+    {% endfor %}
+  </div>
+  <button id="{{ plugin_name }}-submit-item-{{ form.item_id }}" type="submit">
+    <svg class="edit-icon-small">
+      <use href="#ok"></use>
+    </svg>
+  </button>
+</editable-form>

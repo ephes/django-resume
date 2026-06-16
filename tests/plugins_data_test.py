@@ -124,20 +124,37 @@ def test_list_plugin_get_item_by_id(resume):
     assert item is None
 
 
-def test_education_degree_field_roundtrips():
-    from django_resume.plugins.education import EducationForm
+def test_education_item_form_degree_roundtrips_and_context(resume):
+    from django_resume.plugins.education import EducationItemForm
 
-    form = EducationForm(
+    form = EducationItemForm(
         data={
+            "id": "e1",
             "school_name": "Rhein-Sieg-Akademie Hennef",
             "school_url": "https://example.com",
             "degree": "Diplom Grafik- und Kommunikations-Design",
             "start": "",
             "end": "2007",
-        }
+            "position": 0,
+        },
+        resume=resume,
+        existing_items=[],
     )
     assert form.is_valid(), form.errors
     assert form.cleaned_data["degree"] == "Diplom Grafik- und Kommunikations-Design"
+    ctx = form.set_context(form.cleaned_data, {"edit_url": "#", "delete_url": "#"})
+    assert ctx["entry"]["degree"] == "Diplom Grafik- und Kommunikations-Design"
+    assert ctx["entry"]["school_name"] == "Rhein-Sieg-Akademie Hennef"
+    assert ctx["entry"]["end"] == "2007"
+
+
+def test_education_plugin_is_registered_as_list():
+    from django_resume.plugins import plugin_registry
+    from django_resume.plugins.base import ListPlugin
+
+    plugin = plugin_registry.get_plugin("education")
+    assert plugin is not None
+    assert isinstance(plugin, ListPlugin)
 
 
 def test_cover_flat_form_carries_letter_meta():
