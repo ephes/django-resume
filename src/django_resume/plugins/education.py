@@ -13,6 +13,9 @@ class EducationForm(forms.Form):
         initial="https://example.com",
         assume_scheme="https",
     )
+    degree = forms.CharField(
+        label="Degree", max_length=200, required=False, initial="Degree"
+    )
     start = forms.CharField(widget=forms.TextInput(), required=False, initial="start")
     end = forms.CharField(widget=forms.TextInput(), required=False, initial="end")
 

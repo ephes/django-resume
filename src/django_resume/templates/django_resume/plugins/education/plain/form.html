@@ -9,6 +9,7 @@
   >
     <input type="hidden" data-field="school_name" name="school_name" value="{{ form.school_name.value }}">
     <input type="hidden" data-field="school_url" name="school_url" value="{{ form.school_url.value }}">
+    <input type="hidden" data-field="degree" name="degree" value="{{ form.degree.value }}">
     <input type="hidden" data-field="start" name="start" value="{{ form.start.value }}">
     <input type="hidden" data-field="end" name="end" value="{{ form.end.value }}">
   </form>
@@ -20,6 +21,7 @@
           <span contenteditable="true" data-field="school_name">{{ form.school_name.value }}</span>
           <span contenteditable="true" data-field="school_url">{{ form.school_url.value }}</span>
         </h3>
+        <p contenteditable="true" data-field="degree">{{ form.degree.value }}</p>
       </div>
       <ul class="cluster cluster-list year-span">
         <li contenteditable="true" data-field="start">{{ form.start.value }}</li>

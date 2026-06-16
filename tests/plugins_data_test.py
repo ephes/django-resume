@@ -122,3 +122,19 @@ def test_list_plugin_get_item_by_id(resume):
     item = plugin.data.get_item_by_id(resume, 456)
     # Then None should be returned
     assert item is None
+
+
+def test_education_degree_field_roundtrips():
+    from django_resume.plugins.education import EducationForm
+
+    form = EducationForm(
+        data={
+            "school_name": "Rhein-Sieg-Akademie Hennef",
+            "school_url": "https://example.com",
+            "degree": "Diplom Grafik- und Kommunikations-Design",
+            "start": "",
+            "end": "2007",
+        }
+    )
+    assert form.is_valid(), form.errors
+    assert form.cleaned_data["degree"] == "Diplom Grafik- und Kommunikations-Design"
