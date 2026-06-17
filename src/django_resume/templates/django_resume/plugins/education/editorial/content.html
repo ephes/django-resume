@@ -1,5 +1,4 @@
-<section class="stack page-break-before">
-  {% include education.templates.flat %}
+<section id="education" class="stack">
   {% if show_edit_button %}
     <svg class="edit-icon-small" hx-get="{{ education.add_item_url }}" hx-target="#education-grid" hx-swap="afterbegin">
       <use href="#add"></use>

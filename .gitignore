@@ -37,3 +37,6 @@ e2e_tests/media/
 
 # LLM specs
 specs/
+
+# Commercial script font (Cervanttis) — local only, never ship in the package
+src/django_resume/static/django_resume/fonts/script/

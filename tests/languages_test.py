@@ -12,6 +12,19 @@ def test_languages_item_form_builds_context(resume):
     assert ctx["language"]["level"] == 100
 
 
+def test_languages_item_form_carries_note(resume):
+    from django_resume.plugins.languages import LanguagesItemForm
+
+    form = LanguagesItemForm(
+        data={"id": "l1", "name": "Deutsch", "level": 100, "note": "Muttersprache", "position": 0},
+        resume=resume,
+        existing_items=[],
+    )
+    assert form.is_valid(), form.errors
+    ctx = form.set_context(form.cleaned_data, {"edit_url": "#", "delete_url": "#"})
+    assert ctx["language"]["note"] == "Muttersprache"
+
+
 def test_languages_level_out_of_range_invalid(resume):
     from django_resume.plugins.languages import LanguagesItemForm
 

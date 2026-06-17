@@ -1,5 +1,4 @@
-<section class="stack page-break-before">
-  {% include languages.templates.flat %}
+<section id="languages" class="stack">
   {% if show_edit_button %}
     <svg class="edit-icon-small" hx-get="{{ languages.add_item_url }}" hx-target="#languages-grid" hx-swap="afterbegin">
       <use href="#add"></use>

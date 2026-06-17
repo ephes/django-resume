@@ -1,10 +1,11 @@
 /* Editorial theme — screen styles.
  *
- * This file currently only wires up the Saira webfont (OFL, shipped with the
- * theme). The full CV/cover layout (grid, colours, typography scale) is built
- * in a later step; keep additions below the @font-face block.
+ * First-pass CV layout: Saira webfont, creme sheet, full-width header and a
+ * two-column body (work experience + sidebar) built from Every-Layout
+ * primitives (Stack, Cluster, Sidebar). Refined live with the client.
  */
 
+/* ---------------------------------------------------------------- fonts -- */
 @font-face {
   font-family: "Saira";
   font-style: normal;
@@ -13,7 +14,6 @@
   font-display: swap;
   src: url("../../fonts/saira/Saira-VariableFont.woff2") format("woff2");
 }
-
 @font-face {
   font-family: "Saira";
   font-style: italic;
@@ -22,14 +22,420 @@
   font-display: swap;
   src: url("../../fonts/saira/Saira-Italic-VariableFont.woff2") format("woff2");
 }
-
-:root {
-  --editorial-bg: #f2f2e5;       /* creme, from VC.idml */
-  --editorial-fg: #000000;
+/* Decorative script for section labels. Cervanttis is commercial and shipped
+ * only in the local deployment (gitignored); the public package will swap it
+ * for a free OFL script (release blocker). Falls back to a cursive system font. */
+@font-face {
+  font-family: "Editorial Script";
+  font-display: swap;
+  src: url("../../fonts/script/Cervanttis.woff2") format("woff2");
 }
 
-body {
+/* ----------------------------------------------------- axioms & scale --- */
+:root {
+  --ratio: 1.5;
+  --s-3: calc(var(--s-2) / var(--ratio));
+  --s-2: calc(var(--s-1) / var(--ratio));
+  --s-1: calc(var(--s0) / var(--ratio));
+  --s0: 1rem;
+  --s1: calc(var(--s0) * var(--ratio));
+  --s2: calc(var(--s1) * var(--ratio));
+  --s3: calc(var(--s2) * var(--ratio));
+  --s4: calc(var(--s3) * var(--ratio));
+  --measure: 66ch;
+  --tag-size: 0.82rem;           /* skill chips + "Kunden:" — a touch below body text */
+  --entry-pad: var(--s1);        /* vertical breathing room per work entry (print condenses this) */
+
+  --editorial-bg: #f4f1e8;       /* creme — exact value from the InDesign HTML export */
+  --editorial-fg: #000000;       /* black — exact */
+  --editorial-line: #000000;
+}
+
+* { box-sizing: border-box; }
+
+body.editorial-page {
+  margin: 0;
   font-family: "Saira", system-ui, sans-serif;
+  font-weight: 350;
   background-color: var(--editorial-bg);
   color: var(--editorial-fg);
+  line-height: 1.4;
 }
+
+/* full-bleed black bar across the very top edge (like the template) */
+body.editorial-page::before {
+  content: "";
+  display: block;
+  block-size: 1.6rem;
+  background: var(--editorial-fg);
+}
+
+a { color: inherit; }
+.underlined { text-decoration: underline; text-underline-offset: 2px; }
+
+/* ------------------------------------------------------- primitives ----- */
+/* Every-Layout Stack — gap-based, so vertical rhythm is tuned per level via
+ * one gap token. --stack-space can be overridden on any stack instance. */
+.stack, .stack-small, .stack-large {
+  display: flex;
+  flex-direction: column;
+  gap: var(--stack-space, var(--s1));
+}
+.stack       { --stack-space: var(--s1); }
+.stack-small { --stack-space: var(--s-1); }
+.stack-large { --stack-space: var(--s2); }
+
+.cluster { display: flex; flex-wrap: wrap; gap: var(--s-1); align-items: center; }
+.cluster-list { list-style: none; margin: 0; padding: 0; }
+
+/* ------------------------------------------------------- the sheet ------ */
+.editorial-sheet {
+  max-inline-size: 64rem;
+  margin-inline: auto;
+  padding: var(--s2);
+}
+.editorial-sheet.stack { --stack-space: var(--s-1); }
+
+/* ------------------------------------------------------- header --------- */
+.cv-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: stretch;
+  gap: var(--s1);
+  border-block-end: 2px solid var(--editorial-line);
+  padding-block-end: var(--s1);
+}
+.cv-header-name { align-self: flex-end; }
+.cv-name { margin: 0; line-height: 0.85; }
+.cv-firstname {
+  display: block;
+  font-weight: 200;
+  font-stretch: 85%;
+  font-size: clamp(3rem, 11vw, 6.5rem);
+}
+.cv-lastname {
+  display: block;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: clamp(1.1rem, 4vw, 2.1rem);
+}
+.cv-role { margin: var(--s-1) 0 0; font-size: var(--s0); font-weight: 350; text-align: end; }
+
+/* decorative script labels (Cervanttis) */
+.cv-script-label {
+  font-family: "Editorial Script", cursive;
+  font-weight: 400;
+  line-height: 1;
+}
+.cv-script-label--vertical {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  align-self: center;
+  font-size: var(--s2);
+}
+
+/* contact panel: divider | rotated "Contact" | details */
+.cv-contact-panel {
+  display: flex;
+  align-items: stretch;
+  gap: var(--s-1);
+  padding-inline-start: var(--s0);
+  border-inline-start: 1.5px solid var(--editorial-line);
+}
+.cv-contact {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--s0);
+  font-style: normal;
+  font-size: var(--s0);
+  padding-inline-start: var(--s-1);
+  border-inline-start: 1.5px solid var(--editorial-line);
+}
+.cv-contact-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  text-decoration: none;
+}
+.cv-contact-item:hover { text-decoration: underline; }
+/* all three glyphs share one width (their viewBoxes are all 11.34 wide), so they
+ * line up centred under one another; height follows each aspect ratio, which
+ * makes phone/mail shorter and leaves the location pin tallest */
+.cv-contact .icon {
+  flex: none;
+  inline-size: 1.1em;
+  block-size: auto;
+  fill: currentColor;
+  stroke: none;
+}
+.cv-contact-address { white-space: pre-line; }
+
+/* ------------------------------------------------------- two columns ---- */
+.cv-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+}
+.cv-main  { padding-inline-end: var(--s2); }
+.cv-aside {
+  padding-inline-start: var(--s2);
+  border-inline-start: 1.5px solid var(--editorial-line);
+}
+
+/* section labels — decorative script, like the InDesign original */
+.cv-main h2, .cv-aside h2 {
+  margin: 0;
+  font-family: "Editorial Script", cursive;
+  font-weight: 400;
+  font-size: var(--s2);
+  letter-spacing: 0;
+  text-transform: none;
+  line-height: 1;
+}
+.cv-main section, .cv-aside section { margin: 0; }
+/* "Work Experience" label: just the label and the space down to the first
+ * entry's rule (each entry owns its rule — see the entry block below) */
+.cv-main > section > h2 { padding-block-end: var(--s0); }
+
+/* sidebar: rotated script labels in a narrow left rail */
+/* sidebar rails — single pattern: rotated script label | vertical rule | content.
+ * Skills + languages share one "Let's talk about" rail; education has its own. */
+.cv-aside { --stack-space: var(--s1); }
+.cv-rail {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--s1);
+  align-items: stretch;
+}
+.cv-rail-label {
+  margin: 0;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  justify-self: center;
+  align-self: center;
+}
+.cv-rail-body {
+  position: relative;
+  min-inline-size: 0;        /* let content shrink inside the grid track */
+  padding-inline-start: var(--s1);
+}
+/* vertical rail line as a pseudo-element so its top can clear a rail divider */
+.cv-rail-body::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  border-inline-start: 1px solid var(--editorial-line);
+}
+#skills, #education, #languages { margin: 0; }
+/* thin rule between blocks inside a rail (e.g. skills | languages); the rail
+ * body's own left padding keeps it clear of the vertical rail line */
+.cv-rail-body > section + section {
+  border-block-start: 1px solid var(--editorial-line);
+  padding-block-start: var(--s0);
+}
+/* between rails (e.g. languages → education): the divider sits on the next rail's
+ * content, and that rail's vertical line starts one step lower — so the divider
+ * has equal space above (the aside gap) and below. Uniform for every rail boundary. */
+.cv-aside > .cv-rail + .cv-rail .cv-rail-body > :first-child {
+  border-block-start: 1px solid var(--editorial-line);
+  padding-block-start: var(--s1);
+}
+.cv-aside > .cv-rail + .cv-rail .cv-rail-body::before { inset-block-start: var(--s1); }
+
+/* ------------------------------------------------------- work experience */
+.timeline-header-cluster {
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--s-1);
+}
+.timeline-header-title { display: flex; flex-direction: column; gap: 0.1em; }
+/* company headline + role grouped in their own tight stack, slightly larger */
+.timeline-head { --stack-space: var(--s-3); }
+.timeline-header-title h3 { margin: 0; font-weight: 700; font-size: 1.7rem; line-height: 1.05; }
+.timeline-entry > div:not(.timeline-head) {
+  font-size: var(--s0);
+  line-height: 1.25;
+}
+.timeline-header-title { padding-inline-end: 9rem; }   /* keep company clear of the date tab */
+.year-span {
+  position: absolute;
+  inset-inline-end: 0;
+  inset-block-start: 0;
+  display: inline-flex;
+  gap: 0.1em;
+  white-space: nowrap;
+  font-style: italic;
+  font-size: var(--s0);
+  background: var(--editorial-fg);
+  color: var(--editorial-bg);
+  padding: 0.2em var(--s0);
+  border-radius: 0 0 0 0.45rem;
+}
+.sub-line { font-style: italic; font-size: 1.1rem; }
+
+/* Work Experience — single source of truth for entry rhythm.
+ * Each entry owns a top rule + symmetric vertical padding, so every headline
+ * sits the same distance below the line above it (first entry included) and the
+ * date tab (absolute, top:0) stays flush to that line. No per-entry special cases. */
+.cv-main > section.stack,
+.cv-main .stack-large { --stack-space: 0; }
+.timeline-entry {
+  position: relative;
+  border-block-start: 1px solid var(--editorial-line);
+  padding-block: var(--entry-pad);
+}
+
+.cv-main ul:not(.cluster-list) {
+  margin: var(--s-3) 0 0;
+  padding-inline-start: 1.1em;
+  max-inline-size: var(--measure);
+}
+.cv-main ul:not(.cluster-list) li { margin-block-start: 0; line-height: 1.25; }
+
+/* clients line ("Kunden: ...") rendered from the timeline badges */
+.job-badges-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3em;
+  margin-block-start: 0.3em;
+  font-size: var(--tag-size);
+}
+.job-badges-list::before { content: "Kunden:"; font-weight: 700; }
+.job-badges-list li:not(:last-child)::after { content: " |"; }
+
+/* ------------------------------------------------------- sidebar photo -- */
+.cv-photo-img,
+.cv-photo-placeholder { inline-size: 100%; aspect-ratio: 1 / 1; }
+.cv-photo-img { object-fit: cover; filter: grayscale(1) contrast(1.05); }
+.cv-photo-placeholder {
+  display: grid;
+  place-items: center;
+  background: var(--editorial-fg);
+  color: color-mix(in srgb, var(--editorial-bg) 70%, transparent);
+  font-size: var(--s1);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* ------------------------------------------------------- skills tags ---- */
+.skills-list {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: var(--s-3);
+  row-gap: var(--s-1);   /* more air between rows */
+}
+.skills-list li {
+  padding: 0.08em var(--s-2);
+  border: 1px solid var(--editorial-line);
+  border-radius: 0.25rem;
+  font-size: var(--tag-size);
+  line-height: 1.15;
+}
+/* two-tone tags: specific filled tags matching the InDesign original
+ * (positions follow the fixed skills order; see CV data) */
+.skills-list li.is-filled,
+.skills-list li:nth-child(3),   /* Brand & Design Systems */
+.skills-list li:nth-child(5),   /* Creative Consulting */
+.skills-list li:nth-child(10),  /* Illustration */
+.skills-list li:nth-child(11),  /* Prompt Design */
+.skills-list li:nth-child(15) { /* Campaigning */
+  background: var(--editorial-fg);
+  color: var(--editorial-bg);
+}
+
+/* ------------------------------------------------------- languages ------ */
+/* shared name column via subgrid keeps both bars the same length; the
+ * proficiency note sits under the bar so the bars stay full width */
+#languages-grid {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  row-gap: var(--s-1);
+}
+.language-box {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-template-areas:
+    "name bar"
+    ".    note";
+  column-gap: var(--s0);
+  row-gap: 0.2em;
+  align-items: center;
+}
+.language-name { grid-area: name; font-weight: 700; font-size: var(--tag-size); }
+.language-note { grid-area: note; font-size: var(--tag-size); }
+.bar {
+  grid-area: bar;
+  display: block;
+  block-size: 0.5em;
+  border: 1.5px solid var(--editorial-line);
+  border-radius: 1em;
+  position: relative;
+  overflow: hidden;
+}
+.bar::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  inline-size: var(--level, 0%);
+  background: var(--editorial-fg);
+}
+
+/* ------------------------------------------------------- education ------ */
+.education-box { display: grid; gap: 0.1em; }
+.education-year { font-weight: 700; font-size: var(--s0); }
+.education-degree { margin: 0; font-weight: 700; font-size: var(--s1); line-height: 1.05; }
+.education-school { font-size: var(--s0); }
+
+/* ------------------------------------------------------- awards --------- */
+.award-box { display: grid; gap: 0.1em; }
+.award-box h3 { margin: 0; font-weight: 700; font-size: var(--s-1); }
+.award-project { font-size: var(--s-2); font-style: italic; }
+.award-year { font-size: var(--s-2); }
+
+/* awards as a full-bleed black footer bar: script label + two columns */
+.cv-awards-bar {
+  margin-block-start: var(--s1);
+  background: var(--editorial-fg);
+  color: var(--editorial-bg);
+}
+.cv-awards-inner {
+  max-inline-size: 64rem;
+  margin-inline: auto;
+  padding: var(--s2) var(--s2);
+}
+.cv-awards-bar .award-year { display: none; }
+/* Footer columns: 0.7fr | 1fr | 1fr. The two award columns (1fr each) are equal,
+ * and their divider lands at (0.7+1)/2.7 = 1.7/2.7 — the same axis as the main
+ * column divider above (cv-body is 1.7fr | 1fr). Gap 0 keeps that axis exact. */
+.cv-awards-bar section {
+  display: grid;
+  grid-template-columns: 0.5fr 1.2fr 1fr;
+  align-items: center;
+  gap: 0;
+}
+.cv-awards-bar h2 {
+  margin: 0;
+  font-family: "Editorial Script", cursive;
+  font-weight: 400;
+  font-size: var(--s2);
+  color: var(--editorial-bg);
+}
+.cv-awards-bar #awards-grid {           /* grid wrapper collapses; items flow into section grid */
+  display: contents;
+}
+.cv-awards-bar .award-box { padding-inline: var(--s1); }
+.cv-awards-bar .award-box h3 { font-size: var(--s0); line-height: 1.15; }
+.cv-awards-bar .award-project { font-size: var(--s-1); }
+.cv-awards-bar .award-box:nth-child(1) {   /* divider between the two awards, on the main axis */
+  border-inline-end: 1px solid var(--editorial-bg);
+}
+
+/* ------------------------------------------------------- edit affordances */
+.edit-icon-small { inline-size: 1.1em; block-size: 1.1em; cursor: pointer; fill: currentColor; }
+.icon { inline-size: 1em; block-size: 1em; fill: currentColor; }
+.edit-icons { display: inline-flex; gap: 0.3em; }

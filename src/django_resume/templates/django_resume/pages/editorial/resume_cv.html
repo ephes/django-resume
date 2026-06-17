@@ -11,25 +11,54 @@
 
 {% block body %}
   {% if show_edit_button %}
-    <body class="center" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+    <body class="editorial-page" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
   {% else %}
-    <body class="center">
+    <body class="editorial-page">
   {% endif %}
-<header>
+<div class="editorial-sheet stack">
   {% if is_editable %}{% include "./edit_panel.html" %}{% endif %}
-  <h1>Curriculum Vitae</h1>
-</header>
-<main>
+
+  {# Full-width header: name, role, contact #}
   {% include identity.templates.main %}
-  {% include about.templates.main %}
-  {% include freelance_timeline.templates.main with timeline=freelance_timeline page_break_before=False %}
-  {% include employed_timeline.templates.main with timeline=employed_timeline page_break_before=True %}
-  {% include education.templates.main %}
-  {% include skills.templates.main %}
-  {% include projects.templates.main with projects=projects %}
-</main>
-<footer class="no-print">
-{#  <p>This is a footer!</p>#}
+
+  {# Two-column body: work experience (main) + sidebar (skills, languages, education, awards) #}
+  <main class="cv-body">
+    <div class="cv-main stack-large">
+      {% include employed_timeline.templates.main with timeline=employed_timeline page_break_before=False %}
+    </div>
+
+    <aside class="cv-aside stack-large">
+      <div class="cv-photo">
+        {% if identity.avatar_img %}
+          <img class="cv-photo-img" src="{{ identity.avatar_img_url }}" alt="{{ identity.avatar_alt }}">
+        {% else %}
+          <div class="cv-photo-placeholder" aria-hidden="true">Foto</div>
+        {% endif %}
+      </div>
+      {# "Let's talk about" rail groups skills + languages under one script label #}
+      <section class="cv-rail">
+        <h2 class="cv-rail-label">Let’s talk about</h2>
+        <div class="cv-rail-body stack">
+          {% include skills.templates.main %}
+          {% include languages.templates.main %}
+        </div>
+      </section>
+      {# "Education" rail #}
+      <section class="cv-rail">
+        <h2 class="cv-rail-label">Education</h2>
+        <div class="cv-rail-body">
+          {% include education.templates.main %}
+        </div>
+      </section>
+    </aside>
+  </main>
+</div>
+
+{# Awards: full-width black footer bar #}
+<footer class="cv-awards-bar">
+  <div class="cv-awards-inner">
+    {% include awards.templates.main %}
+  </div>
 </footer>
 {% if show_edit_button %}
   <script src="{% static "django_resume/js/edit.js" %}"></script>

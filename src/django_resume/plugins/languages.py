@@ -12,6 +12,7 @@ class LanguagesItemForm(ListItemFormMixin, forms.Form):
         min_value=0,
         max_value=100,
     )
+    note = forms.CharField(widget=forms.TextInput(), required=False, max_length=50)
     position = forms.IntegerField(widget=forms.NumberInput(), required=False)
 
     def __init__(self, *args, **kwargs) -> None:
@@ -27,6 +28,7 @@ class LanguagesItemForm(ListItemFormMixin, forms.Form):
             "id": item.get("id"),
             "name": item["name"],
             "level": item["level"],
+            "note": item.get("note", ""),
             "edit_url": context.get("edit_url"),
             "delete_url": context.get("delete_url"),
         }

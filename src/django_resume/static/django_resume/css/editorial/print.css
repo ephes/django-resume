@@ -1,0 +1,28 @@
+/* Editorial theme — print / PDF.
+ *
+ * Loaded via <link media="print"> on top of screen.css, so it only needs to
+ * override what differs for paper. The screen layout uses generous spacing for
+ * comfortable reading; print condenses it back to an A4 page. The full print
+ * pass (page breaks, exact IDML margins) lands in a later step — this file
+ * establishes the screen↔print split and the condensing mechanism.
+ */
+
+@page {
+  size: A4;
+  margin: 12mm;
+}
+
+:root {
+  /* one token condenses the per-entry breathing room back to print density */
+  --entry-pad: var(--s-2);
+}
+
+body.editorial-page {
+  /* keep the creme background and filled tags/bars when printing */
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* the editorial sheet already fills the page; drop its screen padding so the
+ * @page margin is the only frame */
+.editorial-sheet { padding: 0; max-inline-size: none; }

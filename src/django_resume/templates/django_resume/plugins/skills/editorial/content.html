@@ -1,13 +1,8 @@
-<section id="skills" class="stack">
+<section id="skills">
   {% if show_edit_button %}
-    <div class="cluster">
-      <h2>Skills</h2>
-      <svg class="edit-icon-small" hx-get="{{ skills.edit_url }}" hx-target="#skills" hx-swap="outerHTML">
-        <use href="#edit"></use>
-      </svg>
-    </div>
-  {% else %}
-    <h2>Skills</h2>
+    <svg class="edit-icon-small" hx-get="{{ skills.edit_url }}" hx-target="#skills" hx-swap="outerHTML">
+      <use href="#edit"></use>
+    </svg>
   {% endif %}
   <ul class="cluster cluster-list skills-list">
     {% for skill in skills.badges %}
