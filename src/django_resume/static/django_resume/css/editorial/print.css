@@ -26,3 +26,6 @@ body.editorial-page {
 /* the editorial sheet already fills the page; drop its screen padding so the
  * @page margin is the only frame */
 .editorial-sheet { padding: 0; max-inline-size: none; }
+
+/* drop the screen's bottom-air before the footer — print condenses to the page */
+.cv-main { padding-block-end: 0; }

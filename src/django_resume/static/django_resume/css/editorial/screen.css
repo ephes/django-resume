@@ -54,13 +54,25 @@
   --script-lead: 4.6rem;         /* horizontal script labels: Work Experience + Awards (coupled) */
   --script-rail: 3rem;           /* vertical (rotated) rail labels: Contact / Let's talk about / Education */
 
-  --editorial-bg: #f4f1e8;       /* creme — exact value from the InDesign HTML export */
+  --editorial-bg: #F0ECE2;       /* creme */
   --editorial-fg: #171410;       /* warm near-black */
   --editorial-line: #171410;
   --editorial-rule: 1px;         /* single hairline weight for every divider in the layout */
 }
 
 * { box-sizing: border-box; }
+
+/* Overscroll handling, cross-browser: paint the canvas (what the rubber-band
+   gutter reveals) near-black, like the header bar + footer, so the bounce shows
+   dark instead of the light page — top and bottom, in every engine including
+   iOS/Safari. The bounce itself is kept.
+   The side art is position:sticky (see .cv-bg-layer), not a z-index:-1 fixed
+   layer, so it no longer depends on background propagation — that is what lets
+   <html> carry a background here without hiding the art, and it bounces along
+   with the content instead of being left behind. */
+html {
+  background-color: var(--editorial-fg);
+}
 
 body.editorial-page {
   margin: 0;
@@ -77,6 +89,9 @@ body.editorial-page::before {
   display: block;
   block-size: 1.6rem;
   background: var(--editorial-fg);
+  /* keep the bar above the sticky side art during the scroll transition */
+  position: relative;
+  z-index: 2;
 }
 
 a { color: inherit; }
@@ -103,9 +118,12 @@ a { color: inherit; }
   margin-inline: auto;
   /* inline padding ≈ the rail strip width (rotated label band) so the content
      sits the same distance from the paper edge as the rails do from the divider.
-     No bottom padding so the footer butts directly against the content. */
+     No bottom padding: the columns carry their own bottom air (see .cv-main) so
+     the vertical rules keep running all the way down to the footer. */
   padding: var(--s2) 3.7rem 0;
   position: relative;
+  /* above the sticky side art (z-index:0) so the art slides UNDER it */
+  z-index: 2;
   /* opaque page so the side art can slide UNDER it (same creme + linen as body) */
   background-color: var(--editorial-bg);
   background-image: url("../../img/white-linen.png");
@@ -129,15 +147,39 @@ a { color: inherit; }
 /* decorative side illustrations beside the sheet on wide screens: white art
  * multiplied onto the creme, sliding under the (opaque) content as the viewport
  * narrows. Purely ornamental; hidden entirely once the sheet fills the width. */
-.cv-bg {
-  position: fixed;
-  inset-block: 0;
-  z-index: -1;
+/* The art layer is position:sticky inside .cv-stage (which ends at the footer),
+ * not fixed: it behaves like a fixed full-height backdrop while you scroll, but
+ * .cv-stage ends at the footer, so the footer is the end of the sticky range and
+ * pushes the layer up off the top instead of cropping its bottom. The layer keeps
+ * its full 100vh in the flow (NO negative margin on it — that uses the margin box
+ * for the sticky constraint and would defeat the push); instead .editorial-sheet
+ * is pulled up over it with a negative margin-top (see the wide-screen rule
+ * below). z-index:0 keeps it above the page background — so it no longer needs
+ * the z-index:-1 + background-propagation trick that conflicted with an <html>
+ * background — but below the content, header bar and footer (z-index:2). */
+.cv-bg-layer {
+  /* wide-screen only (turned on in the min-width rule below); below the sheet
+     width the art is under the content anyway, so it costs nothing on phones/tablets */
+  display: none;
+  position: sticky;
+  top: 0;
+  /* clip the bleed: the strips are absolutely positioned past the viewport edges,
+     and (unlike the old position:fixed) that now adds to the page's scroll width.
+     Clip here on the layer — NOT overflow-x on body/html, which would make them a
+     scroll container and break the sticky. */
   overflow: hidden;
+  /* dvh tracks the dynamic viewport (iOS/Safari toolbar) so no light gap opens
+     at the bottom edge; vh is the fallback for browsers without dvh */
+  block-size: 100vh;
+  block-size: 100dvh;
+  z-index: 0;
   pointer-events: none;
-  /* creme backdrop so the white-flattened art can multiply against it (the
-     fixed/z-index container is its own stacking context, so the image blends
-     with this background, not the page) */
+}
+.cv-bg {
+  position: absolute;
+  inset-block: 0;
+  overflow: hidden;
+  /* creme backdrop so the white-flattened art can multiply against it */
   background-color: var(--editorial-bg);
 }
 /* The art is full height with a fixed (aspect-derived) width and parks its outer
@@ -172,10 +214,17 @@ a { color: inherit; }
   background-attachment: fixed;
   pointer-events: none;
 }
-/* below the sheet width the art is fully under the content anyway — drop the
-   fixed/blended/textured layers so they cost nothing on phones/tablets */
-@media (max-width: 64rem) {
-  .cv-bg { display: none; }
+/* wide screens: show the sticky side art and pull the sheet up over it. The
+   sheet's negative margin-top (not a margin on the layer) is what removes the
+   layer's 100vh from the flow while leaving the layer's sticky constraint intact,
+   so the footer can push it up. Both live in the SAME breakpoint so the layer and
+   the pull are always switched on together (no 1px gap where one applies alone). */
+@media (min-width: 64rem) {
+  .cv-bg-layer { display: block; }
+  .editorial-sheet {
+    margin-block-start: -100vh;
+    margin-block-start: -100dvh;
+  }
 }
 
 /* ------------------------------------------------------- header --------- */
@@ -278,6 +327,9 @@ a { color: inherit; }
   flex-grow: 999;
   min-inline-size: 50%;
   padding-inline-end: var(--s2);
+  /* bottom air before the footer; lives on the column (not the sheet) so the
+     aside divider + rail rules stretch with it and still reach the footer */
+  padding-block-end: calc(var(--s3) * 2);
 }
 .cv-aside,
 .cv-header-aside {
@@ -320,9 +372,14 @@ a { color: inherit; }
   justify-self: center;
   align-self: center;
 }
-/* nudge the Resources label down so its optical center sits in the gap between
-   the two pill buttons (rotate(180) flips Y, so -translateY moves it down) */
-.cv-aside > .cv-rail:last-child .cv-rail-label { transform: rotate(180deg) translateY(-20px); }
+/* The last rail stretches to the footer (so its rule reaches the bottom), but the
+   Resources label must stay up beside the buttons, not centre in that tall track.
+   Pin it to the top and nudge it down so its optical centre sits in the gap
+   between the two pill buttons (rotate(180) flips Y, so -translateY moves down). */
+.cv-aside > .cv-rail:last-child .cv-rail-label {
+  align-self: start;
+  transform: rotate(180deg) translateY(-40px);
+}
 .cv-rail-body {
   position: relative;
   min-inline-size: 0;        /* let content shrink inside the grid track */
@@ -582,6 +639,10 @@ a { color: inherit; }
   margin-block-start: 0;
   background: var(--editorial-fg);
   color: var(--editorial-bg);
+  /* above the sticky side art: the art's sticky range ends here, so the footer
+     pushes it up rather than being overlapped by it */
+  position: relative;
+  z-index: 2;
 }
 .cv-awards-inner {
   max-inline-size: var(--sheet-max);

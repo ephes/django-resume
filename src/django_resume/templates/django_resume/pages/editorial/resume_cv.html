@@ -15,18 +15,22 @@
   {% else %}
     <body class="editorial-page">
   {% endif %}
-{# decorative side illustrations: fill the canvas beside the sheet (multiply onto creme), cropped near content, gone on tablets #}
-<div class="cv-bg cv-bg--left" aria-hidden="true">
-  <picture>
-    <source srcset="{% static 'django_resume/img/editorial/bg-cv-left.avif' %}" type="image/avif">
-    <img src="{% static 'django_resume/img/editorial/bg-cv-left.webp' %}" alt="" decoding="async">
-  </picture>
-</div>
-<div class="cv-bg cv-bg--right" aria-hidden="true">
-  <picture>
-    <source srcset="{% static 'django_resume/img/editorial/bg-cv-right.avif' %}" type="image/avif">
-    <img src="{% static 'django_resume/img/editorial/bg-cv-right.webp' %}" alt="" decoding="async">
-  </picture>
+{# .cv-stage wraps the sticky art + sheet but NOT the footer, so the footer ends the art's sticky range and pushes it up off the top instead of cropping its bottom #}
+<div class="cv-stage">
+{# decorative side illustrations beside the sheet (multiply onto creme); sticky so the footer pushes them up, gone on tablets #}
+<div class="cv-bg-layer" aria-hidden="true">
+  <div class="cv-bg cv-bg--left">
+    <picture>
+      <source srcset="{% static 'django_resume/img/editorial/bg-cv-left.avif' %}" type="image/avif">
+      <img src="{% static 'django_resume/img/editorial/bg-cv-left.webp' %}" alt="" decoding="async">
+    </picture>
+  </div>
+  <div class="cv-bg cv-bg--right">
+    <picture>
+      <source srcset="{% static 'django_resume/img/editorial/bg-cv-right.avif' %}" type="image/avif">
+      <img src="{% static 'django_resume/img/editorial/bg-cv-right.webp' %}" alt="" decoding="async">
+    </picture>
+  </div>
 </div>
 <div class="editorial-sheet stack">
   {% if is_editable %}{% include "./edit_panel.html" %}{% endif %}
@@ -84,6 +88,7 @@
     </aside>
   </main>
 </div>
+</div>{# /cv-stage #}
 
 {# Awards: full-width black footer bar #}
 <footer class="cv-awards-bar">
