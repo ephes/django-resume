@@ -6,7 +6,8 @@ from typing import Callable
 import nh3
 
 
-ALLOWED_TAGS = {"a", "br", "em", "h1", "h2", "h3", "h4", "h5", "h6", "strong"}
+ALLOWED_TAGS = {"a", "br", "em", "h1", "h2", "h3", "h4", "h5", "h6", "li", "strong", "ul"}
+LIST_ITEM_RE = re.compile(r"^\s*[-*•]\s+(.*)$")
 ALLOWED_ATTRIBUTES = {"a": {"class", "href", "target"}}
 ALLOWED_URL_SCHEMES = {"http", "https", "mailto"}
 URL_SCHEME_RE = re.compile(r"^([a-zA-Z][a-zA-Z0-9+.-]*):")
@@ -84,6 +85,7 @@ def textarea_input_to_html(text: str) -> str:
 def markdown_to_plain_text(text: str) -> str:
     text = markdown_to_html(text)
     text = text.replace("<br>", "\n")
+    text = text.replace("</li>", "\n")
     text = re.sub(r"<[^>]+>", "", text)
     text = html.unescape(text)
     text = re.sub(r"\n{3,}", "\n\n", text)
@@ -146,7 +148,36 @@ def markdown_to_html(text: str, handlers: dict[str, Callable] | None = None) -> 
 
     text = re.sub(r"\[(.*?)\]\(((?:[^()]|\([^()]*\))*)\)", render_link, text)
 
-    # Just replace newlines with <br>
-    text = text.replace("\n", "<br>")
+    # Group consecutive marker lines (-, *, •) into real <ul><li> lists; the
+    # remaining lines keep the simple newline -> <br> behaviour. Adjacent text
+    # lines are glued with <br>, but a list block (already block-level) is not.
+    def render_list(items):
+        if "list" in handlers:
+            return handlers["list"](items)
+        body = "".join(f"<li>{item}</li>" for item in items)
+        return f"<ul>{body}</ul>"
+
+    segments = []  # (kind, content)
+    pending_items = []
+    for line in text.split("\n"):
+        match = LIST_ITEM_RE.match(line)
+        if match:
+            pending_items.append(match.group(1).strip())
+            continue
+        if pending_items:
+            segments.append(("list", render_list(pending_items)))
+            pending_items = []
+        segments.append(("text", line))
+    if pending_items:
+        segments.append(("list", render_list(pending_items)))
+
+    text = ""
+    for index, (kind, content) in enumerate(segments):
+        if index == 0:
+            text = content
+        elif kind == "text" and segments[index - 1][0] == "text":
+            text += "<br>" + content
+        else:
+            text += content
 
     return sanitize_html(text)

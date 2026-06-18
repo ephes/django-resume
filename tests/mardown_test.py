@@ -175,3 +175,66 @@ def test_markdown_to_plain_text_removes_markdown_markup():
 
     # Then only the readable text should remain
     assert text == "Heading\nBold link"
+
+
+def test_markdown_bullet_list_with_unicode_marker():
+    # Given consecutive lines prefixed with the bullet glyph
+    markdown = "• one\n• two\n• three"
+
+    # When the markdown is converted to HTML
+    html = markdown_to_html(markdown)
+
+    # Then a real list with the markers stripped is produced
+    assert html == "<ul><li>one</li><li>two</li><li>three</li></ul>"
+
+
+def test_markdown_dash_and_asterisk_list_markers():
+    # Given lines using the standard markdown list markers
+    assert markdown_to_html("- one\n- two") == "<ul><li>one</li><li>two</li></ul>"
+    assert markdown_to_html("* one\n* two") == "<ul><li>one</li><li>two</li></ul>"
+
+
+def test_markdown_list_surrounded_by_text():
+    # Given a paragraph, a list, then another paragraph
+    markdown = "Intro\n- one\n- two\nOutro"
+
+    # When the markdown is converted to HTML
+    html = markdown_to_html(markdown)
+
+    # Then the block list sits between the text without stray <br> glue
+    assert html == "Intro<ul><li>one</li><li>two</li></ul>Outro"
+
+
+def test_markdown_list_item_keeps_inline_formatting():
+    # Given a list item with inline markup
+    markdown = "- **bold** and [link](https://example.com)"
+
+    # When the markdown is converted to HTML
+    html = markdown_to_html(markdown)
+
+    # Then the inline formatting survives inside the <li>
+    assert "<li><strong>bold</strong> and " in html
+    assert '<a href="https://example.com"' in html
+    assert "</li></ul>" in html
+
+
+def test_markdown_to_plain_text_lists_keep_line_breaks():
+    # Given a markdown list
+    markdown = "- one\n- two"
+
+    # When converted to plain text
+    text = markdown_to_plain_text(markdown)
+
+    # Then each item stays on its own line
+    assert text == "one\ntwo"
+
+
+def test_markdown_italic_line_is_not_treated_as_list():
+    # Given an italic line that starts with an asterisk (no marker space)
+    markdown = "*italic*"
+
+    # When the markdown is converted to HTML
+    html = markdown_to_html(markdown)
+
+    # Then it stays a normal emphasised line, not a list
+    assert html == "<em>italic</em>"

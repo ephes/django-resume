@@ -18,9 +18,11 @@
     {% endif %}
   </div>
 
-  <div class="cv-contact-panel">
-    <span class="cv-script-label cv-script-label--vertical">Contact</span>
-    <address class="cv-contact">
+  <aside class="cv-header-aside">
+    <section class="cv-rail">
+      <h2 class="cv-rail-label">Contact</h2>
+      <div class="cv-rail-body">
+        <address class="cv-contact">
       {% if identity.location_name %}
         <span class="cv-contact-item">
           <svg class="icon" viewBox="0 0 11.34 17.01" fill="currentColor" fill-rule="evenodd" aria-hidden="true">
@@ -46,6 +48,8 @@
           <span>{{ identity.email }}</span>
         </a>
       {% endif %}
-    </address>
-  </div>
+        </address>
+      </div>
+    </section>
+  </aside>
 </header>

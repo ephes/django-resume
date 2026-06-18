@@ -29,6 +29,14 @@
 
     <aside class="cv-aside stack-large">
       <div class="cv-photo">
+        {# photo clip (from Mask_photo.svg, 430x530 normalised to 0..1): Spitze top-left + bottom-left, convex top-right, square right + bottom-right #}
+        <svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute">
+          <defs>
+            <clipPath id="cv-photo-shape" clipPathUnits="objectBoundingBox">
+              <path d="M0.930233,0 H0 C0.038535,0 0.069767,0.028604 0.069767,0.063887 V1 C0.069767,0.968736 0.101,0.943396 0.139535,0.943396 H1 V0.063887 C1,0.028604 0.968767,0 0.930233,0 Z"/>
+            </clipPath>
+          </defs>
+        </svg>
         {% if identity.avatar_img %}
           <img class="cv-photo-img" src="{{ identity.avatar_img_url }}" alt="{{ identity.avatar_alt }}">
         {% else %}
@@ -37,7 +45,7 @@
       </div>
       {# "Let's talk about" rail groups skills + languages under one script label #}
       <section class="cv-rail">
-        <h2 class="cv-rail-label">Let’s talk about</h2>
+        <h2 class="cv-rail-label">Let's talk about</h2>
         <div class="cv-rail-body stack">
           {% include skills.templates.main %}
           {% include languages.templates.main %}
@@ -48,6 +56,16 @@
         <h2 class="cv-rail-label">Education</h2>
         <div class="cv-rail-body">
           {% include education.templates.main %}
+        </div>
+      </section>
+      {# "Resources" rail — CV download + portfolio (placeholders for now) #}
+      <section class="cv-rail">
+        <h2 class="cv-rail-label">Resources</h2>
+        <div class="cv-rail-body">
+          <ul class="cv-resources cluster-list">
+            <li><a href="#">Lebenslauf als PDF</a></li>
+            <li><a href="#">Portfolio</a></li>
+          </ul>
         </div>
       </section>
     </aside>
