@@ -101,7 +101,10 @@ a { color: inherit; }
 .editorial-sheet {
   max-inline-size: var(--sheet-max);
   margin-inline: auto;
-  padding: var(--s2);
+  /* inline padding ≈ the rail strip width (rotated label band) so the content
+     sits the same distance from the paper edge as the rails do from the divider.
+     No bottom padding so the footer butts directly against the content. */
+  padding: var(--s2) 3.7rem 0;
   position: relative;
   /* opaque page so the side art can slide UNDER it (same creme + linen as body) */
   background-color: var(--editorial-bg);
@@ -354,23 +357,10 @@ a { color: inherit; }
 }
 .cv-aside > .cv-rail + .cv-rail .cv-rail-body::before { inset-block-start: var(--s2); }
 
-/* Rule: the last vertical lines in the aside (the divider + the last rail line)
- * always run down to the footer. The last rail grows to fill the remaining
- * height, and both lines extend by the sheet's bottom padding (--s2) + footer
- * margin (--s1), so they reach the footer for any content length. */
-.cv-aside { position: relative; }
-.cv-aside::after {
-  content: "";
-  position: absolute;
-  inset-inline-start: calc(-1 * var(--editorial-rule));
-  inset-block-start: 100%;
-  block-size: calc(var(--s2) + var(--s1));
-  border-inline-start: var(--editorial-rule) solid var(--editorial-line);
-}
+/* The last aside rail grows to fill the remaining height, so its vertical line
+ * and the aside divider run all the way down to the footer (which now butts
+ * directly against the content — no gap). */
 .cv-aside > .cv-rail:last-child { flex: 1; }
-.cv-aside > .cv-rail:last-child .cv-rail-body::before {
-  inset-block-end: calc(-1 * (var(--s2) + var(--s1)));
-}
 
 /* ------------------------------------------------------- work experience */
 .timeline-header-cluster {
@@ -401,7 +391,7 @@ a { color: inherit; }
   background: var(--editorial-fg);
   color: var(--editorial-bg);
   padding: 0.2em var(--s0);
-  border-radius: 0 0 0 0.6rem;
+  border-radius: 0 0 0 0.85rem;
 }
 .sub-line { font-style: italic; font-size: var(--role-size); }
 
@@ -589,7 +579,7 @@ a { color: inherit; }
 
 /* awards as a full-bleed black footer bar: script label + two columns */
 .cv-awards-bar {
-  margin-block-start: var(--s1);
+  margin-block-start: 0;
   background: var(--editorial-fg);
   color: var(--editorial-bg);
 }
