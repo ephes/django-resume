@@ -9,15 +9,20 @@ Completed user-visible work belongs in the :doc:`../changelog`. Backlog items
 should be removed from this page when they are released, or rewritten if the
 next useful step changes.
 
-Research Needed
----------------
+Backlog Items
+-------------
 
 * Add support for `JSON Resume <https://jsonresume.org/>`_.
 
-  Support importing from and/or exporting to the JSON Resume schema. This needs
-  research and design work before implementation, especially around field
-  mapping, plugin compatibility, validation, and whether django-resume should
-  treat JSON Resume as an interchange format or a first-class data model.
+  Support importing from and exporting to the JSON Resume schema. Directional
+  design decisions are recorded in the JSON Resume plan; remaining design and
+  implementation work includes choosing the exact schema revision to pin,
+  implementing field mappings and plugin compatibility, validation tests, and
+  round-trip fidelity checks. A later trusted same-installation round-trip phase
+  should cover provenance signing, canonicalization, replay protection, and
+  signing-key rotation. Schema pinning gates the conditional extension and
+  complete-document validation decisions in the plan; stable item identity is
+  separate future work for item-level restoration and merge updates.
 
   See :doc:`jsonresume`.
 

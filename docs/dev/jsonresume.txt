@@ -5,23 +5,149 @@ JSON Resume Support Plan
 Goal
 ----
 
-Evaluate support for `JSON Resume <https://jsonresume.org/>`_, the open-source
+Plan support for `JSON Resume <https://jsonresume.org/>`_, the open-source
 JSON-based resume standard.
 
-This page is a planning document. It should collect research notes and design
-decisions before implementation starts.
+This page records design decisions and remaining implementation research for
+JSON Resume import and export.
 
-Open Questions
---------------
+Phase Scope
+-----------
 
-* Should django-resume support import, export, or both?
-* Should JSON Resume map onto the existing resume and plugin models, or require
-  a dedicated adapter layer?
-* How should unsupported custom plugin data be represented?
-* Should validation use the upstream JSON Resume schema directly?
-* Should this feature live in core or as an optional integration?
-* How much round-trip fidelity should be expected when exporting, importing,
-  and exporting again?
+The initial implementation should cover unsigned JSON Resume import/export in
+both portable and django-resume round-trip shapes, portable projection
+validation, django-resume-specific extension validation, plugin-owned adapters,
+conservative update defaults, reports, and storage of integration state. After
+schema pinning, the initial implementation should also validate complete
+documents against the pinned schema when that schema permits the extension
+points in use; otherwise only the portable projection receives upstream-schema
+validation. Conditional on the pinned schema allowing them, the initial phase may
+also export, validate, and preserve item-level ``x-django-resume`` fields, but
+not consume them back into plugin storage. The deferred trusted-round-trip phase
+should add provenance signing, canonicalization, freshness and replay protection,
+trusted deletion round-trips, automatic fallback restoration, and consumption of
+item-level ``x-django-resume`` fields back into plugin storage during
+whole-array or whole-section replacement by the owning adapter.
+This initial-phase scope is provisional until schema pinning determines which
+extension points can be represented in a complete JSON Resume document.
+
+Current Design Gates
+--------------------
+
+* Which exact upstream JSON Resume schema revision should be pinned for
+  validation, and which extension points does that revision allow?
+* Which canonicalization implementation and freshness policy should gate the
+  deferred trusted-round-trip phase?
+* What stable item identity model should support future merge-by-item updates
+  and restoration of unknown item-level extensions?
+
+The ``Remaining Work`` section is the authoritative task breakdown. This section
+only highlights design gates that affect the decisions below.
+
+Directional Decisions
+---------------------
+
+Decisions that depend on item-level extensions, complete-document upstream
+validation, or item-level restoration are conditional until the corresponding
+schema or stable-identity work is resolved. Stable item identity is future work
+and does not block the initial import/export design.
+The provenance signature model is conditional until the canonicalization
+implementation and trusted-import freshness policy are selected and tested.
+Until then, exports should be unsigned by default, imports should skip
+provenance verification, and imports should use untrusted-document defaults.
+Signing and verification should land together.
+The detailed sections below provide the normative detail for these summary
+decisions and should not contradict them.
+
+* django-resume should support both JSON Resume import and export. Treat JSON
+  Resume as an interchange format: export should let users take django-resume
+  data to other tools, and import should let users bootstrap or update a
+  django-resume resume from existing JSON Resume data.
+* JSON Resume should map through plugin-owned adapters discovered through the
+  existing plugin registry. A central coordinator should assemble, validate,
+  import, and export the whole JSON Resume document, while each participating
+  plugin owns the mapping for its own data. The trust terms used below are
+  defined in :ref:`jsonresume-custom-data`; until then, read them as referring
+  to signed same-installation exports that satisfy the matching and freshness
+  checks described there.
+* Unsupported custom plugin data should use a namespaced django-resume extension
+  envelope. Use ``meta.django_resume`` for document-level metadata,
+  ``meta.django_resume.plugins`` for fallback plugin payloads, and
+  ``meta.django_resume.preserved_extensions`` for preserved unknown extensions.
+  Conditional on the pinned schema allowing the item type, use item-level
+  ``x-django-resume`` extension fields only when the data belongs to a specific
+  exported item and the owning adapter controls that item. Plugin adapters
+  should still map data into standard JSON Resume fields whenever possible.
+* Every registered content plugin should be classified for JSON Resume
+  participation: mapped through a plugin-owned adapter, preserved through an
+  export-safe fallback payload, or omitted with an import/export report entry.
+  Plugins that declare nothing are omitted by default and reported.
+  django-resume should not automatically dump raw adapterless plugin payloads
+  into exported JSON Resume files.
+* Document-level JSON Resume integration state should not be stored in
+  ``Resume.plugin_data`` because that field is plugin-owned. Add a dedicated
+  core-owned JSON field such as ``Resume.integration_data`` and store JSON Resume
+  envelope state under ``integration_data["json_resume"]``.
+* Validation should be layered. django-resume should validate a portable JSON
+  Resume projection of exported and incoming documents against a pinned copy of
+  the upstream schema before export or import. When the pinned schema permits
+  django-resume's chosen extension points, the complete extended document should
+  also be validated against it.
+  JSON Resume does not provide a reliable schema-version selector, so
+  ``meta.version`` must not be treated as the schema version. Imports should
+  validate against django-resume's pinned supported schema and report any
+  explicit schema URI or canonical pointer that differs from the pinned schema.
+  The upstream schema should not be fetched live at runtime. django-resume should
+  also validate ``meta.django_resume`` and plugin import/export constraints with
+  django-resume-specific validation.
+* The import/export framework should live in core, and JSON Resume should ship
+  as the first built-in integration. Core should own the adapter protocols,
+  coordinator, validation flow, and built-in JSON Resume format while leaving
+  room for future import/export formats.
+* Round-trip fidelity should be semantic, not byte-for-byte. django-resume
+  should preserve supported standard JSON Resume fields and its own
+  ``meta.django_resume`` extension data according to the phase-aware trust and
+  opt-in rules below. Unknown third-party extension fields should be preserved on
+  a best-effort basis when they can be stored without conflicting with mapped
+  plugin data. Imports should report unsupported or dropped fields explicitly.
+* Import update behavior should be explicit and conservative. The initial design
+  should support ``create`` and ``update`` modes. ``create`` creates a new
+  resume from JSON Resume data for a caller-supplied owner and
+  caller-supplied ``Resume.slug``. The slug is django-resume metadata, not a
+  standard JSON Resume field; views can collect it from the request, and
+  management commands can require it as an argument. ``create`` should fail if
+  that globally unique slug already exists. Overwrite-on-create is out of scope
+  for the initial design. ``update`` updates an existing resume selected by the
+  caller, such as by primary key in a view or command argument in a CLI, and does
+  so transactionally by replacing only plugin data owned by participating
+  adapters, restorable fallback payloads from trusted target-matching exports,
+  or explicitly confirmed untrusted fallback payloads whose declared source
+  paths are present in the imported document. Present-empty untrusted fallback
+  payloads require both ``restore_untrusted_fallbacks`` and
+  ``apply_empty_fallbacks``. Replacement is per declared source path.
+  Present-empty replacement becomes a trusted destructive default only
+  after the provenance signature and freshness model is available. Until then,
+  and for untrusted or target-mismatched documents, present empty standard
+  sections are no-op updates unless the caller explicitly opts into applying
+  them. Absent adapter-owned standard source paths remain unchanged unless
+  ``clear_missing`` is enabled. Participating plugins with absent source paths
+  should be left unchanged by default. A separate ``clear_missing`` option may clear
+  participating plugin data whose adapter-owned standard source paths are absent
+  from the imported document, but it should default to ``False`` and should
+  always require a preview plus per-section or per-plugin confirmation because
+  missing paths are not trusted destructive defaults. ``clear_missing`` does not
+  apply to ``meta.django_resume.preserved_extensions``; preserved-extension
+  replacement is controlled by ``replace_preserved_extensions``.
+  ``clear_missing`` applies to fallback-backed plugin data only when
+  ``clear_missing_fallbacks`` is also enabled.
+  Merge-by-item identity and merge conflict handling should stay out of scope
+  until adapters define stable identity and conflict rules. Imports should
+  report unsupported, ambiguous, or ignored data instead of silently dropping it.
+  Updating a resume is caller-directed and may overwrite the selected target's
+  content; view and CLI flows should require explicit confirmation naming the
+  target resume. Trusted destructive defaults should apply only for trusted
+  target-matching exports; mismatches should use untrusted-document defaults and
+  produce a warning.
 
 Relationship To Other Planning Work
 -----------------------------------
@@ -30,21 +156,646 @@ JSON Resume support should be designed alongside the structured-data API needed
 by application workflows. It should also stay separate from page layout and
 routing concerns: JSON Resume can describe common resume facts, while page
 plugins and application workflows may need django-resume-specific metadata.
+The extension envelope should not be used to preserve layout, routing,
+permission, token, workflow, or delivery state unless a future django-resume
+import/export format explicitly opts into that application-private data.
 
 See :doc:`application_workflows` and :doc:`page_plugins`.
 
-Research Tasks
+Plugin-Based Approach
+---------------------
+
+A single dedicated content plugin is not an obvious fit for whole-resume JSON
+Resume import and export. Content plugins each own one section's facts via
+``get_data()``, while JSON Resume aggregates fields across many plugins such as
+identity, work, education, skills, and projects. The work splits into two
+layers:
+
+* Per-plugin mapping. Each content plugin knows how its own fields map to JSON
+  Resume, so the mapping belongs in a plugin-owned adapter exposed by the
+  plugin. Each adapter should declare the JSON Resume source paths it consumes
+  and exports so the coordinator can apply update and ``clear_missing`` rules at
+  the plugin-ownership boundary even when a plugin spans multiple sections.
+  Source paths should use JSON Pointer syntax, such as ``/basics/name`` or
+  ``/work``. For the initial implementation, array-valued sections are owned as
+  whole arrays, not individual item paths. Write ownership of source paths should
+  be unambiguous: identical paths or prefix-overlapping paths are an import/export
+  configuration error unless one adapter owns the parent path and coordinates the
+  combined output. Shared write ownership is otherwise out of scope. An adapter
+  that owns an array-valued path also controls item-level ``x-django-resume``
+  fields for items it emits in that array. If a parent adapter coordinates child
+  output, child plugins should contribute through that parent adapter's explicit
+  API rather than claiming overlapping JSON Resume write paths themselves. The
+  coordinator should detect overlapping write path claims
+  before each import or export operation and fail the operation with a
+  configuration report instead of skipping plugins silently. The JSON Resume
+  adapter protocol is part of the core
+  import/export framework and should not depend on one
+  aggregator that hard-codes every section. The structured-data API described in
+  :doc:`application_workflows` should be the lower-level plugin facts API where
+  available; JSON Resume adapters are format-specific mappings that may consume
+  those facts. Maintaining separate independent extraction APIs for JSON Resume
+  and application workflows would create duplication risk. The initial JSON
+  Resume implementation should not block on the full application-workflows API,
+  but it should define the smallest shared plugin facts primitives needed by the
+  adapters and leave those primitives usable by the later structured-data API.
+* Aggregation and transport. Assembling the document, validating it, exposing
+  export and import endpoints, and routing an imported document back to the
+  owning plugins is a cross-cutting concern. The coordinator should discover
+  participating plugin adapters through the existing plugin registry. Core
+  should expose JSON Resume import/export entry points, such as views or
+  management commands, so plugins do not carry whole-document coordination or
+  transport logic.
+
+Export maps more cleanly than import: ``get_data()`` is per-section, so
+importing a full document needs a coordinator that creates a resume and fans
+each section out to the owning plugin. Plugins without a JSON Resume equivalent
+should preserve unsupported data through the namespaced extension envelope when
+round-trip fidelity matters.
+
+The coordinator owns fallback behavior for plugins that do not provide JSON
+Resume adapters, but fallback still requires plugin-side opt-in. On export, the
+coordinator may store fallback plugin data under ``meta.django_resume.plugins``
+only for plugins that declare their fallback data safe for sharing or provide a
+redacted fallback payload. Adapterless plugins without that declaration are
+omitted by default and reported to the caller. On import, registered plugins
+with restorable fallback data can receive that data back into their plugin
+payloads only for trusted target-matching exports after
+fallback-specific validation succeeds. Untrusted fallback restoration requires
+explicit caller confirmation. Export-only redacted payloads and fallback data
+without a validator should remain in the extension envelope and be reported
+instead of being written into plugin storage. Data for unavailable plugins should
+remain in the extension envelope and be reported to the caller.
+
+A plugin that opts into fallback export must declare the fallback contract in its
+JSON Resume adapter: whether the payload is restorable or export-only, whether
+it is full-fidelity or redacted, the schema or validator used to validate it on
+import, and the redaction code used for export-safe partial payloads. The plugin
+owns that validator and must reject payloads that do not match the plugin
+version, expected shape, allowed field set, or redaction/restoration contract.
+The coordinator should call the validator before writing fallback data into
+plugin storage and should leave invalid, unavailable, export-only, or
+unvalidated payloads in the extension envelope with a report entry.
+
+For update and ``clear_missing`` purposes, the source path for a fallback
+payload should use JSON Pointer syntax, such as
+``/meta/django_resume/plugins/<plugin_name>``. ``clear_missing`` may clear
+plugin data for absent fallback paths only when ``clear_missing_fallbacks`` is
+enabled and that plugin's fallback participation is restorable; export-only or
+redacted fallback declarations must not cause stored plugin data to be cleared.
+
+Integration State
+-----------------
+
+``Resume.plugin_data`` should remain the home for plugin-owned resume content.
+JSON Resume coordinator state is not plugin data, so it should live in a
+dedicated core-owned JSON field such as ``Resume.integration_data``. The JSON
+Resume coordinator should own the ``integration_data["json_resume"]`` namespace.
+Adding this field requires a migration with ``default=dict`` for existing
+rows, and render-only resume querysets should explicitly defer the field when
+large integration payloads are not needed.
+
+Store only integration state there:
+
+* preserved third-party extensions that should be available for later re-export;
+* unrestored fallback payloads for unavailable plugins or untrusted documents;
+* provenance metadata needed for trusted same-installation round trips;
+* import/export reports and source-path diagnostics that help users understand
+  omitted, ignored, or preserved fields.
+
+The JSON document envelope should map directly into this storage namespace:
+``meta.django_resume.preserved_extensions`` maps to
+``integration_data["json_resume"]["preserved_extensions"]``,
+``meta.django_resume.plugins`` maps to
+``integration_data["json_resume"]["plugins"]`` for unrestored fallback payloads,
+and provenance or report data should use sibling keys under
+``integration_data["json_resume"]``.
+``preserved_extensions`` should be stored as a list of records, not as an object
+keyed only by source path, so collisions can keep multiple values. Each record
+should include at least the source path, payload, origin classification, and
+diagnostic metadata needed for reports and future re-export.
+
+Do not duplicate normal resume facts there. Identity, work, education, skills,
+projects, and other displayable resume content should stay in plugin-owned data.
+This keeps normal CV and resume rendering aligned with the existing
+``plugin_data`` design. Adding a same-row JSONField does not add an extra
+database query for normal page views, and large integration payloads can be
+deferred from querysets that only render resume pages.
+
+.. _jsonresume-custom-data:
+
+Custom Data
+-----------
+
+The JSON Resume schema version pinned for implementation determines which
+extension points can be validated by the upstream schema. ``meta.django_resume``
+is the django-resume extension envelope and may be emitted for django-resume
+round-tripping even when only the portable projection can be validated against
+the upstream schema. Item-level ``x-django-resume`` extension fields should be
+used only where the pinned schema allows them in a complete-document validation.
+If the pinned schema does not allow a planned extension point, django-resume
+should still validate a portable projection against the upstream schema and
+validate the extension envelope with django-resume-specific rules. This should
+be treated as a compatibility mechanism, not as a portable resume contract,
+because third-party JSON Resume renderers and editors may ignore or reject
+fields they do not understand.
+
+Before creating a portable projection, import should use the pinned schema as an
+allowlist to identify unknown third-party extension fields and move them into
+``meta.django_resume.preserved_extensions`` on the complete document when doing
+so does not change standard data. This lifting step must exclude django-resume's
+own namespaces, including ``meta.django_resume`` and ``x-django-resume`` fields.
+Untrusted django-resume extension fields are handled by the separate trust-gated
+preservation step described in the validation section.
+The allowlist should be based on the pinned schema's explicitly defined standard
+properties, not only on whether validation permits additional properties. If the
+schema's permissiveness prevents reliable classification, the import report
+should say which extension fields could not be confidently lifted.
+A portable projection is then derived from the complete document by removing
+django-resume-specific extension data such as ``meta.django_resume`` and all
+``x-django-resume`` item-level fields. It is the
+baseline artifact used to check compatibility with the pinned upstream schema.
+The complete exported document may still include the extension envelope for
+django-resume round-tripping; reports should distinguish portable-projection
+validation from complete-document extension validation.
+
+A trusted django-resume-originated export is a document with django-resume
+provenance metadata and a signature generated with Django's signing framework
+for the current installation. The signed payload should cover a canonical digest
+of the complete exported document using a fixed JSON canonicalization scheme
+such as RFC 8785, excluding only the signature field itself. Provenance fields
+such as owner, resume slug, and export timestamp should live under
+``meta.django_resume.provenance`` and are covered by that digest. The signature
+should live at a fixed path such as ``meta.django_resume.signature``. Signature
+verification should run on the received document before any unknown-field
+lifting, normalization, or projection. An unsigned, content-modified, or
+unverifiable ``meta.django_resume`` object should be treated as untrusted
+extension data subject to the gated import rules below, not as proof that
+destructive update defaults are safe.
+This ordering still allows the canonicalization needed to compute the signed
+digest; the prohibited normalization is django-resume data normalization, such
+as date or URL normalization, and unknown-field lifting before verification.
+
+For ``update``, a trusted target-matching export is a trusted
+django-resume-originated export whose signed owner and slug match the selected
+target resume and pass the trusted-round-trip freshness policy. Destructive
+defaults should use this stricter condition, not signature validity alone.
+For ``create``, the corresponding signed same-identity restoration condition is
+defined separately because there is no existing target resume whose freshness can
+be checked.
+
+Trusted destructive defaults are limited to behaviors whose source paths are
+present in a trusted target-matching export: applying present-empty standard
+sections, replacing stored ``preserved_extensions`` from a present envelope
+payload, and restoring present restorable fallback payloads, including empty
+fallback payloads. ``clear_missing`` is never a trusted destructive default
+because it acts on absent paths.
+
+This trust model is installation-local. Exports from another django-resume
+installation, exports from the same installation after signing-key rotation, or
+exports that pass through tools that change document content should be treated
+as untrusted JSON Resume documents and use the conservative update defaults
+unless the caller explicitly confirms destructive options. Pure serialization
+changes that preserve the canonical digest do not by themselves break trust.
+Because Django signing is normally anchored in ``SECRET_KEY`` and configured
+fallback signing keys, trusted round trips inherit that operational boundary:
+load-balanced instances sharing a signing key are one trust domain, while key
+rotation can make older exports untrusted unless the deferred key-rotation
+policy explicitly accepts them.
+Trusted round trips must already contain preserved extensions in the
+``meta.django_resume`` envelope at export time; signature verification happens
+before any import-time lifting of unknown fields.
+A valid signature proves origin and integrity, not freshness. The signed export
+timestamp should be reported to the caller and used with stored JSON Resume
+integration state, such as the last accepted signed import or a target version
+marker, to prevent stale same-installation exports from silently rolling back
+newer data. If freshness cannot be evaluated, imports should fall back to
+untrusted-document defaults, where destructive behavior requires explicit
+confirmation.
+
+django-resume should expose two export intents from the initial implementation.
+A django-resume round-trip export should serialize the complete extended
+document, including ``meta.django_resume`` extension data and export-safe
+fallback payloads, plus item-level ``x-django-resume`` fields when the pinned
+schema permits them. It is unsigned until the canonicalization/signature phase
+is implemented; after that phase, the same intent should include provenance
+metadata and a signature by default so same-installation imports can identify
+trusted target-matching round trips. A portable download intended for external
+sharing should serialize the portable projection with django-resume extension
+data stripped, and should default to unsigned.
+Before the signature phase lands, all imports use untrusted-document defaults.
+Unsigned exports should always import with untrusted-document defaults.
+Signed exports include owner, slug, timestamp, and a signature that can reveal
+internal provenance or enable correlation across exports. User-facing download
+flows should choose the portable unsigned intent unless the user explicitly asks
+for a same-installation round-trip export.
+
+Use these rules for unsupported plugin data:
+
+* Map to standard JSON Resume fields first.
+* Use ``meta.django_resume`` for document-level django-resume metadata and
+  versioning, including source plugin metadata when needed.
+* Use ``meta.django_resume.plugins`` for django-resume-owned fallback plugin
+  payloads that are explicitly safe to export. Fallback payloads must state
+  whether they are restorable. Redacted or partial fallback payloads should be
+  marked export-only and must not overwrite full plugin data on import.
+* Use ``meta.django_resume.preserved_extensions`` for unknown third-party
+  extension fields when they cannot be mapped into standard fields or plugin
+  adapters. Preserve source path metadata for diagnostics and best-effort
+  re-export inside ``meta.django_resume.preserved_extensions``, but do not
+  promise restoration to the original item location until adapters define stable
+  item identity.
+* Use ``x-django-resume`` as the item-level extension key only when the data
+  belongs to a specific exported item, the owning adapter controls that item,
+  and the pinned schema allows additional properties for that item type.
+  Deferred trusted round trips may consume these fields as part of replacing the
+  owning adapter's whole array or section. Restoring unknown item-level extension
+  data into an existing item without whole-array replacement is future work and
+  requires stable item identity.
+* Keep page layout, permissions, token state, workflow state, and delivery
+  history out of JSON Resume exports. Those belong to application-private data
+  formats, not the JSON Resume interchange document.
+
+Plugins that provide no JSON Resume adapter and no explicit export-safe
+fallback declaration should be omitted from export by default, with a report
+entry explaining that their data was not included.
+
+Validation
+----------
+
+Use layered validation:
+
+* Validate a portable projection of exported and imported documents against a
+  pinned upstream JSON Resume schema to check compatibility with the supported
+  external format version.
+* Validate the complete extended document against the pinned upstream schema
+  when the pinned schema allows the extension points used by the document.
+* Validate django-resume extensions and plugin adapter requirements separately.
+
+This keeps the compatibility contract clear while avoiding a live network
+dependency and leaving room for django-resume-specific import checks, conflict
+handling, and extension-envelope validation.
+
+Import should follow this order:
+
+* Enforce input size limits before parsing.
+* Parse JSON with guarded nesting-depth limits. Reject duplicate keys in all
+  phases. Non-finite numbers or other values that cannot be represented in the
+  pinned JSON Resume schema should fail validation; canonicalization-specific
+  rejection rules apply once the provenance signature phase is implemented.
+* If canonicalization and signing are implemented, verify django-resume
+  provenance on the received document before any normalization, unknown-field
+  lifting, or projection. Otherwise, treat the document as untrusted.
+* Use the pinned schema as an allowlist to lift unknown third-party extension
+  fields into ``meta.django_resume.preserved_extensions`` when that can be done
+  without changing standard data.
+* For documents that are not trusted target-matching exports, preserve inbound
+  ``x-django-resume`` fields in ``meta.django_resume.preserved_extensions`` with
+  a report entry before building the portable projection.
+* For trusted target-matching exports, let registered adapters consume inbound
+  ``x-django-resume`` fields for source paths they own before building the
+  portable projection. Preserve and report trusted ``x-django-resume`` fields
+  with no owning adapter. This branch is inert until the signature and freshness
+  phase makes trusted target-matching exports possible, and initial consumption
+  is limited to whole-array or whole-section replacement by the owning adapter.
+* Build the portable projection and validate it against the pinned schema.
+* Validate the post-lifting complete document against the pinned upstream schema
+  when the pinned schema allows the extension points used by the document.
+* Run django-resume extension and adapter validation.
+* Apply ``create`` or ``update`` with the conservative destructive-option
+  defaults described below.
+
+If export cannot produce a portable projection that validates against the pinned
+schema, export should fail with a validation report. It should not silently strip
+or rewrite invalid fields to force a schema-valid document. The initial
+implementation should require a schema-valid portable projection for JSON Resume
+export; draft or lenient export modes can be considered later as separate
+features.
+If the pinned schema permits the extension points used by a complete extended
+export but the complete document fails upstream validation, the round-trip export
+should also fail with a validation report. It should not silently fall back to
+portable-only validation when complete-document validation is expected.
+
+JSON Resume does not define a reliable field for selecting the schema revision.
+Do not treat ``meta.version`` as the schema version. Import should validate the
+portable projection against django-resume's pinned supported schema. If the
+document includes an explicit schema URI or canonical pointer that differs from
+the pinned schema, the import report should warn that structural validation does
+not prove semantic compatibility across schema revisions.
+
+If an imported document's portable projection fails validation against the pinned
+schema, import should fail with a validation report. Unknown third-party
+extension fields should be lifted into ``preserved_extensions`` before this
+validation step when they can be identified without changing standard data.
+For ``update`` of documents that are not trusted target-matching exports, newly
+lifted preserved extensions should be merged into the stored
+``preserved_extensions`` set without dropping existing entries. Merge precedence
+should be explicit: exact duplicates with the same content and source-path
+metadata are deduplicated; non-item-level entries with the same source path and
+different content are collisions and should both be kept and reported unless
+``replace_preserved_extensions`` is enabled; non-colliding entries are appended
+or merged by source path as appropriate for the storage representation. Item-level
+entries should include source path metadata for diagnostics but should not use
+array-index paths as stable identity until stable item identity is defined. For
+item-level entries, array-index source paths may be used only to detect exact
+duplicate diagnostic records, not to restore data into an existing item or merge
+different payloads. Replacing or clearing existing preserved extensions still
+requires ``replace_preserved_extensions``.
+This merge rule applies to unknown third-party fields lifted from their original
+document locations. It does not grant trust to an inbound
+``meta.django_resume.preserved_extensions`` payload, which is handled by the
+separate trust-gated rule below.
+For trusted target-matching exports, import-time lifting of unknown third-party
+fields should normally be a no-op because preserved extensions must already be
+inside the signed ``meta.django_resume`` envelope. If trusted input still
+contains stray unknown fields outside that envelope, preserve and report them
+using the same merge, deduplication, and bound rules as untrusted lifted fields
+rather than silently dropping them.
+Stored preserved extensions should be deduplicated by content and source-path
+metadata where possible, and bounded by a configured count or byte-size limit so
+repeated imports cannot grow ``integration_data`` without limit. When the bound
+would be exceeded, import should reject the import or require an explicit
+replacement option rather than silently truncating data or dropping existing
+entries. The same bound applies to trusted whole-set replacement from
+``meta.django_resume.preserved_extensions``; trusted payloads that exceed the
+bound should fail or require explicit replacement handling, not bypass the limit.
+Inbound ``x-django-resume`` fields from documents that are not trusted
+target-matching exports should be handled by the trust-gated preservation step
+above, not silently dropped or applied as trusted django-resume item data.
+For trusted target-matching exports, the owning adapter may consume
+``x-django-resume`` fields for source paths it owns. Trusted ``x-django-resume``
+fields that no registered adapter owns should be preserved and reported rather
+than silently dropped.
+Until the signature and freshness phase lands, item-level ``x-django-resume``
+support is limited to export, validation, and preservation on import; consuming
+those fields back into plugin storage belongs to the deferred trusted-round-trip
+phase.
+If an untrusted document already contains a non-empty
+``meta.django_resume.preserved_extensions`` payload and
+``replace_preserved_extensions`` is not enabled, that payload should remain in
+the extension envelope and be reported as not imported into stored preserved
+extensions.
+
+If a standard JSON Resume source path is present on import and no registered
+adapter owns that path, the coordinator should preserve that data in
+``meta.django_resume.preserved_extensions`` when possible and report that no
+plugin imported it. It should not silently drop unclaimed standard sections.
+
+For import updates, a JSON Resume path is present when its property exists in
+the imported document, even if the value is empty. For trusted target-matching
+exports, present empty arrays or objects replace the corresponding plugin-owned
+data with empty data. Absent source paths leave existing data unchanged by
+default, or clear existing data only when ``clear_missing`` is enabled.
+For object-valued sections, an empty object means exactly ``{}``; objects whose
+fields are present but empty are handled by the owning adapter's validation and
+normalization rules rather than by the empty-object shortcut.
+If adapters own sub-paths under an empty parent object such as ``/basics``,
+trusted target-matching imports should treat the empty parent as present-empty
+for those declared child paths. The coordinator should detect the empty parent,
+fan it out to the adapters that declare owned child source paths, and preserve
+or report unowned child paths according to the normal unclaimed-path rules. For
+documents that are not trusted target-matching exports, the empty parent object
+should be a no-op by default unless the caller enables
+``apply_empty_sections``.
+Signed django-resume exports intended for trusted round trips should emit owned
+empty standard sections explicitly so deletions can round-trip. Unsigned
+portable exports may omit empty fields for readability. Unsigned django-resume
+round-trip exports should prefer the same explicit empty-section shape as future
+signed round-trip exports for forward compatibility, but they still import with
+untrusted-document defaults until signing and freshness exist. Omitted fields
+import as absent paths.
+Present non-empty standard sections from documents that are not trusted
+target-matching exports should update the owning plugin data after validation;
+the conservative defaults only change destructive empty, missing, fallback, and
+preserved-extension behavior.
+
+JSON ``null`` values are present values, not absent paths. They should be handled
+by the owning adapter if the pinned schema and plugin mapping allow ``null``;
+otherwise they should fail validation rather than being treated as empty data.
+
+Deterministic normalization is allowed when converting stored django-resume data
+to JSON Resume representation, such as formatting dates or URLs according to the
+pinned schema. Normalization should not change the meaning of a value merely to
+make validation pass; values that cannot be represented validly without changing
+their meaning should cause export or import validation to fail with a report.
+
+``clear_missing`` is a destructive update option. It should require explicit
+confirmation and per-section or per-plugin scope for all imports, including
+trusted target-matching exports, because missing paths are not trusted
+destructive defaults.
+
+For documents that are not trusted target-matching exports, present empty
+standard sections should be treated as no-op updates by default and reported,
+unless the caller explicitly opts into applying empty sections. This keeps
+third-party exports that include empty arrays from clearing existing plugin data
+accidentally.
+
+Imported ``meta.django_resume.preserved_extensions`` should replace the stored
+preserved-extension set only for trusted target-matching exports or when
+``replace_preserved_extensions`` is enabled. If the key is absent during
+``update``, existing preserved extensions remain unchanged. ``clear_missing``
+does not affect preserved-extension handling. An explicitly empty
+``preserved_extensions`` value clears the stored set through the same
+replace-on-present rule. The import report should mention when previously stored
+preserved extensions are dropped this way.
+
+Fallback plugin restoration from ``meta.django_resume.plugins`` should also be
+trusted-target-matching only by default during ``update``. For documents that
+are not trusted target-matching exports, fallback payloads should remain in the
+extension envelope and be reported unless the caller explicitly confirms that
+restorable fallback data from the document should be written into plugin
+storage. Present empty fallback payloads should clear plugin data only for
+trusted target-matching exports or when the caller explicitly enables both
+``restore_untrusted_fallbacks`` and ``apply_empty_fallbacks``.
+
+For ``create``, standard mapped JSON Resume data can populate the new resume
+after validation. A signed export can restore fallback plugin payloads during
+``create`` only when its signed owner and slug match the caller-supplied owner
+and slug for the new resume, the globally unique slug is not already in use, and
+the import is effectively restoring a previously exported resume into an empty
+slot, such as after deletion. This signed same-identity restoration path belongs
+to the deferred trusted-round-trip phase. Duplicating a signed export under a
+different slug is not signed same-identity restoration; those fallback payloads
+should remain in the extension envelope unless ``restore_untrusted_fallbacks``
+is enabled. Trusted provenance is not required for standard fields because no
+existing plugin data is being overwritten.
+Signed same-identity restoration during ``create`` should still report the
+signed export timestamp and require explicit confirmation that the caller wants
+to restore fallback payloads for that signed owner and slug. Slug reuse means an
+old signed export could otherwise populate fallback data for a newly intended
+resume that happens to reuse the same slug.
+Unknown third-party extensions and preserved django-resume extension fields
+encountered during ``create`` should be stored under
+``integration_data["json_resume"]`` and reported, following the same preservation
+rules as ``update``.
+
+Until the provenance signature phase is implemented, the initial import/export
+implementation should use untrusted-document defaults for all imports. That
+means trusted deletion round-trips and automatic fallback restoration without
+``restore_untrusted_fallbacks`` are not available in the initial phase.
+Explicit ``restore_untrusted_fallbacks`` remains available for callers that
+deliberately opt into fallback restoration. ``clear_missing`` is always
+confirmed and scoped, regardless of phase or trust status.
+
+Destructive import options should be exposed separately so callers can make
+deliberate choices:
+
+These options apply to ``update`` unless explicitly stated otherwise. ``create``
+has no existing plugin data to clear, so clearing options such as
+``clear_missing``, ``apply_empty_sections``, and ``apply_empty_fallbacks`` are
+inert there. Fallback restoration options may still control whether fallback
+payloads are written into the newly created resume.
+
+* ``clear_missing`` clears plugin data for absent adapter source paths and
+  defaults to ``False``. It requires a preview plus per-section or per-plugin
+  confirmation for all imports.
+* ``clear_missing_fallbacks`` allows ``clear_missing`` to clear restorable
+  fallback-backed plugin data for absent
+  ``/meta/django_resume/plugins/<plugin_name>`` paths. It is a no-op unless
+  ``clear_missing`` is also enabled. It defaults to
+  ``False`` and should warn that unrelated third-party imports normally omit
+  those paths.
+* ``apply_empty_sections`` applies present empty standard sections from
+  documents that are not trusted target-matching exports. It defaults to
+  ``False``.
+* ``restore_untrusted_fallbacks`` writes restorable fallback plugin data from
+  documents that are not trusted target-matching exports into plugin storage. It
+  defaults to ``False``. Until signing and freshness are implemented, this
+  option also covers unsigned same-installation round-trip exports because they
+  cannot yet prove trusted target-matching provenance. For ``create``, it
+  controls whether restorable fallback payloads are written into the newly
+  created resume when signed same-identity restoration is not available.
+* ``apply_empty_fallbacks`` allows present empty fallback payloads to clear
+  plugin data when ``restore_untrusted_fallbacks`` is also enabled. It
+  defaults to ``False``.
+* ``replace_preserved_extensions`` allows an empty or replacement
+  ``preserved_extensions`` payload from a document that is not a trusted
+  target-matching export to drop stored preserved extensions. It defaults to
+  ``False``.
+* Target-resume confirmation is always required for ``update`` and does not
+  imply any of the destructive options above.
+
+For non-interactive management commands, confirmation should require an explicit
+flag for each destructive option after printing or writing the preview report.
+A single generic ``--yes`` flag should not imply all destructive options.
+Options that affect multiple sections or plugins, such as ``clear_missing``,
+should accept explicit path or plugin names so command callers can confirm the
+same per-section or per-plugin scope required by interactive flows. Trusted
+target-matching imports that pass freshness checks do not need per-path names
+for trusted destructive defaults, but they still need target-resume confirmation
+and an explicit flag for each destructive option that is not part of those
+defaults. Because ``clear_missing`` is never a trusted destructive default, it
+always requires explicit path or plugin names when enabled.
+
+Preview reports for destructive imports should include a target version marker,
+such as ``updated_at`` plus a checksum of adapter-owned source paths and the
+``integration_data["json_resume"]`` namespace. The apply step should run
+transactionally and verify that the target state still matches the previewed
+version before applying destructive changes, or regenerate the preview and
+require confirmation again.
+
+Operation Permissions
+---------------------
+
+JSON Resume import and export operate on personal resume data and must use
+resume-level permission checks.
+
+* View-based export should require the same authorization as editing or owning
+  the resume. Public resume pages and token-protected CV views should not imply
+  permission to download a JSON Resume export.
+* View-based import should require permission to mutate the selected resume and
+  should run inside a transaction.
+* Management commands should require an explicit target owner or resume and
+  should not bypass model-level ownership checks silently.
+* Import/export reports should include omitted plugins, unsupported fields, and
+  schema-version warnings, but should avoid leaking redacted plugin data.
+* Import views and commands should enforce maximum input size and nesting-depth
+  limits before schema validation and extension lifting.
+
+Core Boundary
+-------------
+
+JSON Resume support should not be an external package for the initial
+implementation. The generic import/export framework belongs in core, and JSON
+Resume should be the first bundled format implemented on top of that framework.
+This keeps JSON Resume easy to use while avoiding a design where JSON Resume
+becomes the only assumed interchange format or the internal django-resume data
+model.
+
+Round-Trip Fidelity
+-------------------
+
+Round-trip fidelity means how much information survives a conversion sequence
+such as exporting a django-resume resume to JSON Resume, importing that document
+back into django-resume, and exporting it again.
+
+django-resume should not promise byte-for-byte identical output. Field order,
+empty field omission, generated IDs, normalized dates, defaults, Markdown
+normalization, and URL normalization may change across import and export.
+For signed django-resume round-trip exports, omit empty fields only when their
+absence should not clear existing data on update.
+
+The expected fidelity is phase-aware:
+
+* Preserve supported standard JSON Resume fields semantically.
+* Preserve django-resume extension data under ``meta.django_resume`` for signed
+  trusted round trips, or when the caller explicitly enables the relevant
+  untrusted-document options such as ``restore_untrusted_fallbacks`` or
+  ``replace_preserved_extensions``. Initial unsigned imports do not apply
+  inbound ``meta.django_resume.preserved_extensions`` payloads to stored
+  preserved extensions by default; they should report and retain untrusted
+  envelope data only according to the integration-state preservation rules
+  above.
+* Preserve unknown third-party extension fields on a best-effort basis when
+  they do not conflict with mapped plugin data, using
+  ``meta.django_resume.preserved_extensions`` with source path metadata when
+  needed. Re-exporting unknown item-level fields at their original item location
+  is not required until adapters define stable item identity.
+* Omit adapterless plugins that provide no export-safe fallback declaration, and
+  report that omission. Their data is not covered by round-trip fidelity
+  guarantees.
+* Report unsupported, ignored, or dropped fields during import.
+
+Remaining Work
 --------------
 
-* Review the current JSON Resume schema.
-* Compare schema fields against django-resume's existing models and bundled
-  plugins.
+Blocking tasks for initial implementation:
+
+* Resolve the schema-pinning open question by selecting the upstream schema
+  version used for validation.
+* After schema pinning, compare schema fields against django-resume's existing
+  models and bundled plugins.
+* Define the minimal shared plugin facts primitives needed by JSON Resume
+  adapters so the initial adapters do not diverge from the later structured-data
+  API.
+* Define the fallback declaration and validator contract for export-safe,
+  restorable, export-only, and redacted fallback payloads.
 * Identify lossy mappings in both directions.
-* Decide whether custom sections and plugins can round-trip safely.
+* Add validation tests covering ``meta.django_resume`` and schema-allowed
+  item-level namespaced fields.
 * Check whether existing JSON Resume tooling can be reused for validation or
   conversion tests.
+
+Deferred trusted-round-trip phase:
+
+* Implement provenance signing and verification together for django-resume
+  round-trip exports and imports.
+* Choose and test the JSON canonicalization implementation used for provenance
+  signatures, including canonicalization-specific duplicate-key behavior,
+  non-finite number handling, and values whose representation may change under
+  canonicalization. General duplicate-key rejection is required from the initial
+  import phase.
+* Define trusted import freshness and replay protection, such as monotonic
+  accepted export timestamps, signed export identifiers, or target version
+  checks before enabling trusted destructive defaults.
+* Define signing-key rotation behavior for trusted provenance.
+
+Future work:
+
+* Define stable item identity for future item-level extension restoration and
+  merge-by-item updates.
 
 Implementation Sketch
 ---------------------
 
-To be filled in after the research tasks are complete.
+To be filled in after the remaining work above is resolved.
