@@ -45,7 +45,11 @@
   --tag-size: 0.82rem;           /* skill chips + "Kunden:" — a touch below body text */
   --role-size: 1.1rem;           /* job role — header tagline + each work-entry sub-line, kept in sync */
   --entry-pad: var(--s1);        /* vertical breathing room per work entry (print condenses this) */
+  --sheet-max: 64rem;            /* content sheet max width — also the axis the side art crops against */
   --aside-basis: 22rem;          /* fixed sidebar width, shared by header + body so dividers align */
+  --bg-keep: 0.65;               /* fraction of the side art kept clear of the content (the other ~35% may slide under) */
+  --bg-w-left: calc(100vh * 1118 / 2200);   /* art display width = aspect x viewport height */
+  --bg-w-right: calc(100vh * 1321 / 2200);
   --photo-bleed-left: 2.38rem;   /* how far the photo bleeds left past the divider (straight edge on divider) */
   --script-lead: 4.6rem;         /* horizontal script labels: Work Experience + Awards (coupled) */
   --script-rail: 3rem;           /* vertical (rotated) rail labels: Contact / Let's talk about / Education */
@@ -95,11 +99,81 @@ a { color: inherit; }
 
 /* ------------------------------------------------------- the sheet ------ */
 .editorial-sheet {
-  max-inline-size: 64rem;
+  max-inline-size: var(--sheet-max);
   margin-inline: auto;
   padding: var(--s2);
+  position: relative;
+  /* opaque page so the side art can slide UNDER it (same creme + linen as body) */
+  background-color: var(--editorial-bg);
+  background-image: url("../../img/white-linen.png");
+  background-size: 560px;
 }
 .editorial-sheet.stack { --stack-space: var(--s-1); }
+/* irregular broken "paper edge" down the sheet's outer edges — different on each
+   side, suggesting a torn sheet at the transition into the sketch decorations */
+.editorial-sheet::before,
+.editorial-sheet::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inline-size: 4px;
+  background-repeat: repeat-y;
+  pointer-events: none;
+}
+.editorial-sheet::before { inset-inline-start: -2px; background-image: url("../../img/editorial/paper-edge-left.svg"); }
+.editorial-sheet::after  { inset-inline-end: -2px;  background-image: url("../../img/editorial/paper-edge-right.svg"); }
+
+/* decorative side illustrations beside the sheet on wide screens: white art
+ * multiplied onto the creme, sliding under the (opaque) content as the viewport
+ * narrows. Purely ornamental; hidden entirely once the sheet fills the width. */
+.cv-bg {
+  position: fixed;
+  inset-block: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  /* creme backdrop so the white-flattened art can multiply against it (the
+     fixed/z-index container is its own stacking context, so the image blends
+     with this background, not the page) */
+  background-color: var(--editorial-bg);
+}
+/* The art is full height with a fixed (aspect-derived) width and parks its outer
+ * edge on the canvas edge. min() clamps the position: the inner edge may slide
+ * under the content by at most (1 - --bg-keep) of the width; past that the outer
+ * edge is cropped by the canvas instead, so the strip's middle stays visible and
+ * it never floats detached from the edge. */
+.cv-bg--left {
+  inline-size: var(--bg-w-left);
+  left: min(0px, calc(50vw - var(--sheet-max) / 2 - var(--bg-keep) * var(--bg-w-left)));
+}
+.cv-bg--right {
+  inline-size: var(--bg-w-right);
+  right: min(0px, calc(50vw - var(--sheet-max) / 2 - var(--bg-keep) * var(--bg-w-right)));
+}
+.cv-bg picture { display: block; block-size: 100%; }
+.cv-bg img {
+  block-size: 100%;
+  inline-size: 100%;
+  object-fit: cover;
+  opacity: 0.95;
+  mix-blend-mode: multiply;
+}
+/* lay the page's linen texture back ON TOP of the art (the body texture sits
+   below these fixed layers); attachment:fixed keeps it aligned with the body */
+.cv-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("../../img/white-linen.png");
+  background-size: 560px;
+  background-attachment: fixed;
+  pointer-events: none;
+}
+/* below the sheet width the art is fully under the content anyway — drop the
+   fixed/blended/textured layers so they cost nothing on phones/tablets */
+@media (max-width: 64rem) {
+  .cv-bg { display: none; }
+}
 
 /* ------------------------------------------------------- header --------- */
 .cv-header {
@@ -520,7 +594,7 @@ a { color: inherit; }
   color: var(--editorial-bg);
 }
 .cv-awards-inner {
-  max-inline-size: 64rem;
+  max-inline-size: var(--sheet-max);
   margin-inline: auto;
   padding: var(--s2) var(--s2);
 }

@@ -15,6 +15,19 @@
   {% else %}
     <body class="editorial-page">
   {% endif %}
+{# decorative side illustrations: fill the canvas beside the sheet (multiply onto creme), cropped near content, gone on tablets #}
+<div class="cv-bg cv-bg--left" aria-hidden="true">
+  <picture>
+    <source srcset="{% static 'django_resume/img/editorial/bg-cv-left.avif' %}" type="image/avif">
+    <img src="{% static 'django_resume/img/editorial/bg-cv-left.webp' %}" alt="" decoding="async">
+  </picture>
+</div>
+<div class="cv-bg cv-bg--right" aria-hidden="true">
+  <picture>
+    <source srcset="{% static 'django_resume/img/editorial/bg-cv-right.avif' %}" type="image/avif">
+    <img src="{% static 'django_resume/img/editorial/bg-cv-right.webp' %}" alt="" decoding="async">
+  </picture>
+</div>
 <div class="editorial-sheet stack">
   {% if is_editable %}{% include "./edit_panel.html" %}{% endif %}
 
