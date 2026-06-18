@@ -38,5 +38,7 @@ e2e_tests/media/
 # LLM specs
 specs/
 
-# Commercial script font (Cervanttis) — local only, never ship in the package
-src/django_resume/static/django_resume/fonts/script/
+# Script fonts: ship only the free (commercial-use) Astagina webfont; keep any
+# other local trial fonts (.otf/.ttf/.woff2) in this dir out of the package.
+src/django_resume/static/django_resume/fonts/script/*
+!src/django_resume/static/django_resume/fonts/script/AstaginaSignature.woff2

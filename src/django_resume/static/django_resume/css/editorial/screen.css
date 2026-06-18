@@ -22,12 +22,12 @@
   font-display: swap;
   src: url("../../fonts/saira/Saira-Italic-VariableFont.woff2") format("woff2");
 }
-/* Decorative script for section labels. Trying free (commercial-use) signature
- * fonts to replace the commercial Cervanttis placeholder. Falls back to cursive. */
+/* Decorative script for section labels: Astagina Signature (free for commercial
+ * use). Falls back to a cursive system font. */
 @font-face {
   font-family: "Editorial Script";
   font-display: swap;
-  src: url("../../fonts/script/AstaginaSignature.otf") format("opentype");
+  src: url("../../fonts/script/AstaginaSignature.woff2") format("woff2");
 }
 
 /* ----------------------------------------------------- axioms & scale --- */
@@ -151,19 +151,6 @@ a { color: inherit; }
   font-size: clamp(1.1rem, 4vw, 2.2rem);
 }
 .cv-role { margin: var(--s-1) 0 0; font-size: var(--role-size); font-weight: 350; text-align: end; }
-
-/* decorative script labels (Cervanttis) */
-.cv-script-label {
-  font-family: "Editorial Script", cursive;
-  font-weight: 400;
-  line-height: 1;
-}
-.cv-script-label--vertical {
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
-  align-self: center;
-  font-size: var(--s2);
-}
 
 /* contact reuses the body aside's rail construction (see .cv-rail below): the
  * header aside provides the divider, the rail provides rotated label + line +
