@@ -9,7 +9,7 @@
     <meta name="robots" content="index">
   {% endblock meta %}
   {% block styles %}
-    <link rel="stylesheet" type="text/css" href="{% static "django_resume/css/editorial/screen.css" %}">
+    <link rel="stylesheet" type="text/css" href="{% static "django_resume/css/editorial/screen.css" %}?v={% now "U" %}">
     <link media="print" rel="stylesheet" href="{% static "django_resume/css/editorial/print.css" %}"/>
     {% if is_editable %}
       <script src="https://unpkg.com/htmx.org@2.0.3"

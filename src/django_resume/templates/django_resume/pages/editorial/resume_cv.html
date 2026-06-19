@@ -15,6 +15,8 @@
   {% else %}
     <body class="editorial-page">
   {% endif %}
+{# .cv-root is the layout container (flex column on mobile, block on desktop). body is the query container, so the switch must live on a descendant, not on body itself. #}
+<div class="cv-root">
 {# .cv-stage wraps the sticky art + sheet but NOT the footer, so the footer ends the art's sticky range and pushes it up off the top instead of cropping its bottom #}
 <div class="cv-stage">
 {# decorative side illustrations beside the sheet (multiply onto creme); sticky so the footer pushes them up, gone on tablets #}
@@ -96,6 +98,7 @@
     {% include awards.templates.main %}
   </div>
 </footer>
+</div>{# /cv-root #}
 {% if show_edit_button %}
   <script src="{% static "django_resume/js/edit.js" %}"></script>
 {% endif %}

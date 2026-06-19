@@ -50,7 +50,13 @@
   --bg-keep: 0.65;               /* fraction of the side art kept clear of the content (the other ~35% may slide under) */
   --bg-w-left: calc(100vh * 1118 / 2200);   /* art display width = aspect x viewport height */
   --bg-w-right: calc(100vh * 1321 / 2200);
-  --photo-bleed-left: 2.38rem;   /* how far the photo bleeds left past the divider (straight edge on divider) */
+  /* how far the photo bleeds left past the divider; fluid so it collapses to 0
+     once the layout is single-column (phones), where there is no divider to bleed
+     across — keeps the photo from overflowing the viewport. */
+  --photo-bleed-left: clamp(0rem, calc(100vw - 50rem), 2.38rem);
+  /* sheet inline padding: ~20px on a phone → 3.7rem rail inset on desktop.
+     Symmetric (both sides); the date tabs bleed past it on the right. */
+  --sheet-pad-inline: clamp(1.25rem, calc(6.3vw - 0.3rem), 3.7rem);
   --script-lead: 4.6rem;         /* horizontal script labels: Work Experience + Awards (coupled) */
   --script-rail: 3rem;           /* vertical (rotated) rail labels: Contact / Let's talk about / Education */
 
@@ -81,6 +87,10 @@ body.editorial-page {
   background-color: var(--editorial-bg);
   color: var(--editorial-fg);
   line-height: 1.4;
+  /* query container for the layout switch below — the whole editorial layout is
+     mobile-first by default and the desktop architecture is layered on via
+     @container (min-width: …) further down, never the other way around */
+  container: editorial / inline-size;
 }
 
 /* full-bleed black bar across the very top edge (like the template) */
@@ -120,7 +130,11 @@ a { color: inherit; }
      sits the same distance from the paper edge as the rails do from the divider.
      No bottom padding: the columns carry their own bottom air (see .cv-main) so
      the vertical rules keep running all the way down to the footer. */
-  padding: var(--s2) 3.7rem 0;
+  /* inline padding scales fluidly (no media query): ~20px left / 0 right on a
+     phone, growing to the 3.7rem rail inset on the desktop sheet. Right reaches
+     0 first so the date tab can sit flush to the edge on mobile. */
+  padding-block: var(--s2) 0;
+  padding-inline: var(--sheet-pad-inline);
   position: relative;
   /* above the sticky side art (z-index:0) so the art slides UNDER it */
   z-index: 2;
@@ -131,10 +145,14 @@ a { color: inherit; }
 }
 .editorial-sheet.stack { --stack-space: var(--s-1); }
 /* irregular broken "paper edge" down the sheet's outer edges — different on each
-   side, suggesting a torn sheet at the transition into the sketch decorations */
+   side, suggesting a torn sheet at the transition into the sketch decorations.
+   Desktop-only (toggled on with the side art below): without the art there is
+   nothing to tear into, and at -2px they'd poke past a full-width phone sheet
+   and add a 2px horizontal scroll. */
 .editorial-sheet::before,
 .editorial-sheet::after {
   content: "";
+  display: none;
   position: absolute;
   inset-block: 0;
   inline-size: 4px;
@@ -214,19 +232,10 @@ a { color: inherit; }
   background-attachment: fixed;
   pointer-events: none;
 }
-/* wide screens: show the sticky side art and pull the sheet up over it. The
-   sheet's negative margin-top (not a margin on the layer) is what removes the
-   layer's 100vh from the flow while leaving the layer's sticky constraint intact,
-   so the footer can push it up. Both live in the SAME breakpoint so the layer and
-   the pull are always switched on together (no 1px gap where one applies alone). */
-@media (min-width: 64rem) {
-  .cv-bg-layer { display: block; }
-  .editorial-sheet {
-    margin-block-start: -100vh;
-    margin-block-start: -100dvh;
-  }
-}
-
+/* The whole two-column layout (this + .cv-body / .cv-aside / .cv-photo bleed /
+   header sidebar / sticky side art) is the DESKTOP architecture. It is switched
+   on mobile-first via @container at the very bottom of this file — the base is
+   the single-column phone layout, desktop is layered on top. */
 /* ------------------------------------------------------- header --------- */
 .cv-header {
   /* Every Layout Sidebar: fluid name (main) + fixed-width contact (aside). The
@@ -264,7 +273,10 @@ a { color: inherit; }
   display: block;
   font-weight: 200;
   font-stretch: 85%;
-  font-size: clamp(3rem, 11vw, 6.5rem);
+  /* fluid; the vw term only bites below the 6.5rem cap (≈ phones/tablets), so the
+     desktop name (capped) is unchanged — it just lets the name grow on phones,
+     ~ up to the photo's right edge */
+  font-size: clamp(3rem, 14.3vw, 6.5rem);
   /* optically pull the first glyph flush with the tracked surname below it;
      em-based so it scales with the (fluid) name size */
   text-indent: -0.085em;
@@ -274,7 +286,7 @@ a { color: inherit; }
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  font-size: clamp(1.1rem, 4vw, 2.2rem);
+  font-size: clamp(1.1rem, 5.7vw, 2.2rem);
 }
 .cv-role { margin: var(--s-1) 0 0; font-size: var(--role-size); font-weight: 350; text-align: end; }
 
@@ -509,7 +521,9 @@ a { color: inherit; }
 .cv-photo {
   margin-block-start: calc(-1 * (var(--s-1) + var(--editorial-rule)));
   margin-inline-start: calc(-1 * var(--photo-bleed-left));
-  inline-size: calc(100% + var(--photo-bleed-left));
+  /* fills the sidebar (+ bleed) on desktop, but never more than 60% of the screen
+     — so on phones it shrinks fluidly to 60vw; min() keeps it one rule, no query */
+  inline-size: min(calc(100% + var(--photo-bleed-left)), 60vw);
 }
 /* SVG clip (objectBoundingBox, scales with the box): Spitze top-left +
  * bottom-left, convex top-right, square right side + bottom-right. */
@@ -680,3 +694,129 @@ a { color: inherit; }
 .edit-icon-small { inline-size: 1.1em; block-size: 1.1em; cursor: pointer; fill: currentColor; }
 .icon { inline-size: 1em; block-size: 1em; fill: currentColor; }
 .edit-icons { display: inline-flex; gap: 0.3em; }
+
+/* ===================================================== mobile-first base ===
+ * The DEFAULT (no query) is the single-column phone layout — a vertical
+ * "business card": photo, name, contact, work experience, awards bar, then the
+ * topics/education/resources. The desktop two-column architecture is layered on
+ * via @container below. The wrappers (.cv-stage/.editorial-sheet/.cv-body/
+ * .cv-aside) collapse with display:contents so every section becomes a direct
+ * child of the body flex column and falls into card order via `order`; the body
+ * carries the creme background + side gutters that the sheet provides on desktop.
+ * These rules sit LAST so they override the (desktop-oriented) base declarations
+ * above; @container then re-asserts the desktop values on wide screens. */
+.cv-root {
+  display: flex;
+  flex-direction: column;
+  padding-inline: var(--sheet-pad-inline);
+}
+.cv-stage,
+.editorial-sheet,
+.cv-body,
+.cv-aside { display: contents; }
+.cv-bg-layer { display: none; }
+
+/* work stays one orderable block; reset its desktop column metrics */
+.cv-main {
+  display: block;
+  flex: 0 0 auto;
+  min-inline-size: 0;
+  padding: 0;
+  order: 3;
+}
+/* card order; photo a touch bigger than 60vw, and shifted so the clip's long
+   straight left edge (≈6.98% in from the box edge, per the SVG mask) lands on the
+   contact rail line (= gutter + rotated-label column) */
+.cv-photo {
+  order: 1;
+  margin-block-start: 0;
+  /* Equal VISIBLE margins. The clip insets the straight left edge by ~6.98% of
+     the width, so a plain centred box reads left-heavy. So: pick the margin (the
+     rail line = gutter + rotated-label column), derive the box width from it, and
+     offset the box so the straight left edge sits on the left margin and the
+     square right edge on the mirrored right margin. No fixed size — fully fluid. */
+  --photo-vmargin: calc(var(--sheet-pad-inline) + var(--script-rail));
+  --photo-w: calc((100vw - 2 * var(--photo-vmargin)) / 0.9302);
+  inline-size: var(--photo-w);
+  margin-inline-start: calc(var(--script-rail) - 0.0698 * var(--photo-w));
+  margin-inline-end: 0;
+}
+.cv-header { order: 2; flex-direction: column; }
+.cv-awards-bar { order: 4; margin-inline: calc(-1 * var(--sheet-pad-inline)); }  /* full-bleed */
+.cv-rail   { order: 5; }
+
+/* header stacks name over contact; drop the desktop rule + far-left contact divider */
+.cv-header-name {
+  /* centre the name block under the (centred) photo, so its left/right insets are
+     equal automatically, at any size */
+  align-self: center;
+}
+.cv-role { text-align: start; font-size: clamp(1.1rem, 4.7vw, 1.4rem); }
+/* drop the optical first-glyph pull on phones: it shifts the visible name text
+   left of its box, which makes the right inset under the photo look larger */
+.cv-firstname { text-indent: 0; }
+.cv-header::after { display: none; }
+.cv-header-aside {
+  border-inline-start: 0;
+  padding-inline-start: 0;
+  /* in the header's flex column the 22rem basis becomes HEIGHT — reset so the
+     contact block is only as tall as its content (down to the email) */
+  flex: 0 0 auto;
+  margin-block-start: var(--s2);   /* clear gap below the name */
+}
+
+/* resources rail no longer fills height; work entries don't reach a divider;
+ * date tabs bleed to the right edge */
+.cv-aside > .cv-rail:last-child { flex: 0 1 auto; }
+.timeline-entry { margin-inline-end: 0; padding-inline-end: 0; }
+.year-span { inset-inline-end: calc(-1 * var(--sheet-pad-inline)); }
+
+/* ===================================================== desktop (wide) ======
+ * Container query (not media query): the layout responds to the page container's
+ * width, and it ADDS the two-column architecture on top of the mobile base. */
+@container editorial (min-width: 64rem) {
+  .cv-root { display: block; padding-inline: 0; }
+  .cv-stage { display: block; }
+  .editorial-sheet {
+    display: flex;                 /* restore the .stack column */
+    margin-block-start: -100vh;
+    margin-block-start: -100dvh;   /* pull the sheet up over the sticky side art */
+  }
+  .editorial-sheet::before,
+  .editorial-sheet::after { display: block; }   /* torn paper edges */
+  .cv-body { display: flex; }
+  .cv-aside { display: flex; }          /* restore the .stack-large column */
+  .cv-main {
+    display: flex;                       /* restore the .stack-large column */
+    flex: 0 1 auto;
+    flex-basis: 0;
+    flex-grow: 999;
+    min-inline-size: 50%;
+    padding-inline-end: var(--s2);
+    padding-block-end: calc(var(--s3) * 2);
+  }
+  .cv-photo {
+    inline-size: min(calc(100% + var(--photo-bleed-left)), 60vw);
+    margin-block-start: calc(-1 * (var(--s-1) + var(--editorial-rule)));
+    margin-inline-start: calc(-1 * var(--photo-bleed-left));
+    margin-inline-end: 0;
+  }
+  .cv-header { flex-direction: row; }
+  .cv-header-name { align-self: flex-end; margin-inline-start: 0; }
+  .cv-firstname { text-indent: -0.085em; }
+  .cv-role { text-align: end; font-size: var(--role-size); }
+  .cv-header::after { display: block; }
+  .cv-header-aside {
+    border-inline-start: var(--editorial-rule) solid var(--editorial-line);
+    padding-inline-start: var(--s-1);
+    flex: 0 0 var(--aside-basis);
+    margin-block-start: 0;
+  }
+  .cv-awards-bar { margin-inline: 0; }
+  .cv-aside > .cv-rail:last-child { flex: 1; }
+  .timeline-entry { margin-inline-end: calc(var(--s2) * -1); padding-inline-end: var(--s2); }
+  .year-span { inset-inline-end: 0; }
+  .cv-bg-layer { display: block; }
+  /* back to source order */
+  .cv-photo, .cv-header, .cv-main, .cv-awards-bar, .cv-rail { order: 0; }
+}
