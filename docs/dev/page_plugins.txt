@@ -105,9 +105,10 @@ large public API.
    path specificity), so ordering is not a registration-order convention.
 #. ``section_names`` **is an inclusion filter, not an ordering.** Theme
    templates ``{% include identity.templates.main %}`` by name, so layout order
-   belongs to the template. Built-ins use explicit lists. ``"__all__"`` is
-   supported but built-ins do not depend on it. Capability tags and
-   admin-configurable selection are deferred.
+   belongs to the template. The cover page uses an explicit list; the CV
+   first cut uses ``"__all__"`` (narrowing it to an explicit list is a
+   documented follow-up). Capability tags and admin-configurable selection
+   are deferred.
 #. **Access control is a page method,** ``check_access``, that returns an
    optional response. Token logic stays in ``TokenPlugin.check_permissions``
    (already a ``@staticmethod``); the CV page calls it directly instead of
@@ -189,7 +190,9 @@ order-dependent side effect (see `Problem`_).
 * Because ``TokenPlugin.get_context`` returns ``{}`` (it only performs the
   permission side effect), the token plugin no longer needs to be in the CV's
   render loop at all once access is checked explicitly. The CV's
-  ``section_names`` becomes the explicit list its template actually renders.
+  ``section_names`` can then narrow to the explicit list its template renders
+  (the implemented first cut keeps ``"__all__"``; narrowing is a documented
+  follow-up).
 * A shared helper builds the ``permission_denied`` context for both the CV
   denial path and the standalone owner-only 403 editor view, so the two paths
   cannot drift.
@@ -206,8 +209,8 @@ Section Selection
 context for". It is an inclusion filter; the theme template decides order and
 layout by referencing sections by name.
 
-* **Now:** explicit lists for built-ins; ``"__all__"`` supported for
-  convenience but not relied on by built-ins.
+* **Now:** an explicit list for the cover page; ``"__all__"`` for the CV
+  first cut (narrowing it to an explicit list is a documented follow-up).
 * **Later:** capability tags on plugins (for example "suitable for compact CV"
   or "externally shareable") once a real second consumer exists.
 * **Much later:** admin-configurable per-resume section selection, which is
@@ -219,7 +222,8 @@ Built-In Page Conversions
 * ``CoverLetterPage`` — ``path = ""``, default/root, public, sections
   ``["about", "identity", "cover", "theme"]``.
 * ``CvPage`` — ``path = "cv/"``, token-gated ``check_access``, referrer-policy
-  ``finalize_response``, explicit renderable section list.
+  ``finalize_response``, ``section_names = "__all__"`` (faithful first cut; an
+  explicit renderable list is a documented follow-up).
 * ``PermissionDeniedPage`` — ``path = "403/"``, owner-only ``check_access``,
   sections ``["permission_denied"]``. The owner-only inline editor for the
   denied message.

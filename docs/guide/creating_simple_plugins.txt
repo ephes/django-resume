@@ -267,7 +267,7 @@ Step 7: Add Plugin to Resume Template
 
 **For CV Templates (Recommended)**
 
-The CV template (``resume_cv.html``) loads ALL registered plugins automatically via the ``get_context_from_plugins()`` function. Simply add your plugin to the CV template:
+The CV page (``CvPage``) loads ALL registered plugins automatically (its ``section_names`` is ``"__all__"``), so their context is available to ``resume_cv.html``. Simply add your plugin to the CV template:
 
 .. code-block:: html
 
@@ -277,7 +277,7 @@ The CV template (``resume_cv.html``) loads ALL registered plugins automatically 
 
 **For Detail Templates**
 
-The detail template (``resume_detail.html``) only loads specific hardcoded plugins: ``["about", "identity", "cover", "theme"]``. Your custom plugin will NOT appear automatically.
+The detail page (``CoverLetterPage``) only loads the plugins listed in its ``section_names``: ``["about", "identity", "cover", "theme"]``. Your custom plugin will NOT appear automatically.
 
 **Template Context Variables**
 
