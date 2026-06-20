@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+from django.urls import URLPattern, path
+from django.views.decorators.http import require_http_methods
+
 from .base import ResumePage
+from .base import dispatch_page
 
 
 class PageRegistry:
@@ -24,6 +28,21 @@ class PageRegistry:
 
     def get_all_pages(self) -> list[ResumePage]:
         return list(self.pages.values())
+
+    def get_urls(self) -> list[URLPattern]:
+        def make_view(page: ResumePage):
+            @require_http_methods(["GET"])
+            def view(request, slug):
+                return dispatch_page(request, slug, page)
+
+            return view
+
+        # Sort so the bare "<slug:slug>/" catch-all (path == "") is emitted last.
+        pages = sorted(self.get_all_pages(), key=lambda p: (p.path == "", p.path))
+        return [
+            path(f"<slug:slug>/{page.path}", make_view(page), name=page.url_name)
+            for page in pages
+        ]
 
 
 # Module-level singleton (shared across the application).

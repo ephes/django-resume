@@ -27,3 +27,31 @@ def test_register_page_list_and_unregister():
     registry.unregister(DummyPage)
     assert registry.get_page("dummy") is None
     assert registry.get_all_pages() == []
+
+
+class RootPage(ResumePage):
+    url_name = "root"
+    path = ""
+    template_name = "root.html"
+    section_names: list[str] = []
+
+
+class CvLikePage(ResumePage):
+    url_name = "cv-like"
+    path = "cv/"
+    template_name = "cv.html"
+    section_names: list[str] = []
+
+
+def test_get_urls_emits_bare_catch_all_last():
+    registry = PageRegistry()
+    # Register root first to prove ordering is structural, not registration order.
+    registry.register_page_list([RootPage, CvLikePage])
+
+    patterns = registry.get_urls()
+    routes = [str(p.pattern) for p in patterns]
+    names = [p.name for p in patterns]
+
+    assert routes[-1] == "<slug:slug>/"
+    assert names[-1] == "root"
+    assert "<slug:slug>/cv/" in routes
