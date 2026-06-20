@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from collections.abc import Callable
+
+from django.http import HttpRequest, HttpResponse
 from django.urls import URLPattern, path
 from django.views.decorators.http import require_http_methods
 
-from .base import ResumePage
-from .base import dispatch_page
+from .base import ResumePage, dispatch_page
 
 
 class PageRegistry:
@@ -30,9 +32,9 @@ class PageRegistry:
         return list(self.pages.values())
 
     def get_urls(self) -> list[URLPattern]:
-        def make_view(page: ResumePage):
+        def make_view(page: ResumePage) -> Callable[[HttpRequest, str], HttpResponse]:
             @require_http_methods(["GET"])
-            def view(request, slug):
+            def view(request: HttpRequest, slug: str) -> HttpResponse:
                 return dispatch_page(request, slug, page)
 
             return view

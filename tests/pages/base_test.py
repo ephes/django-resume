@@ -38,6 +38,19 @@ def test_build_section_context_all(resume):
 
 
 @pytest.mark.django_db
+def test_build_section_context_skips_unknown_section(resume):
+    # An unregistered/typo'd section name is silently skipped (no key added).
+    resume.owner.save()
+    resume.save()
+    request = RequestFactory().get("/john-doe/")
+    request.user = resume.owner
+
+    context = build_section_context(request, resume, {}, ["does-not-exist"])
+
+    assert context == {}
+
+
+@pytest.mark.django_db
 def test_build_base_context_owner_vs_anonymous(resume, django_user_model):
     from django.contrib.auth.models import AnonymousUser
 
