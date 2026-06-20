@@ -1,14 +1,44 @@
+import importlib
+
 import pytest
 from django import forms
+from django.conf import settings
 from django.contrib import admin
 from django.test import RequestFactory
-from django.urls import reverse
+from django.urls import clear_url_caches, reverse
 
 from django_resume.plugins import (
     SimplePlugin,
 )
 from django_resume.models import Resume
 from django_resume.plugins import plugin_registry as global_plugin_registry
+
+
+def _rebuild_admin_urls() -> None:
+    """
+    Force the ROOT_URLCONF to be rebuilt so the per-plugin admin URLs reflect the
+    plugins currently in the registry.
+
+    Why this is needed: ``tests/urls.py`` contains ``path("admin/", admin.site.urls)``.
+    ``admin.site.urls`` is a property that calls ``ResumeAdmin.get_urls()``, which
+    materialises one admin URL pattern per registered plugin (e.g.
+    ``example_plugin-admin-change``). That evaluation happens *once*, when the
+    ROOT_URLCONF module is first imported, and the resulting ``urlpatterns`` list is
+    frozen from then on. ``plugin_registry`` calls ``clear_url_caches()`` on
+    register/unregister, but that only drops the resolver's cache -- it cannot add
+    patterns to an already-materialised ``urlpatterns`` list.
+
+    Whether the freeze captured our plugin therefore depends on collection order: if
+    any earlier test reverses a URL (importing the ROOT_URLCONF) before these fixtures
+    run, the admin patterns are frozen *without* our plugin and the reverse lookups in
+    these tests raise ``NoReverseMatch``. Reloading the ROOT_URLCONF module re-evaluates
+    ``admin.site.urls`` against the current registry, making these fixtures robust to
+    collection order. (Production is unaffected: ``AppConfig.ready()`` registers every
+    plugin before any request, so the freeze always captures the full set.)
+    """
+    root_urlconf = importlib.import_module(settings.ROOT_URLCONF)
+    importlib.reload(root_urlconf)
+    clear_url_caches()
 
 
 # fixtures
@@ -42,16 +72,25 @@ def plugin_registry():
     """
     global_plugin_registry.register(IntegrationPlugin)
     global_plugin_registry.register(SimplePlugin)
+    # Rebuild the (possibly already frozen) admin URL patterns so they include the
+    # plugins just registered, regardless of test collection order. See
+    # ``_rebuild_admin_urls`` for the full explanation.
+    _rebuild_admin_urls()
     yield global_plugin_registry
     global_plugin_registry.unregister(IntegrationPlugin)
     global_plugin_registry.unregister(SimplePlugin)
+    # Restore the admin URL patterns to the registry state after unregistering so
+    # later tests are not affected by the plugins registered above.
+    _rebuild_admin_urls()
 
 
 @pytest.fixture
 def collision_plugin_registry():
     global_plugin_registry.register(MethodCollisionPlugin)
+    _rebuild_admin_urls()
     yield global_plugin_registry
     global_plugin_registry.unregister(MethodCollisionPlugin)
+    _rebuild_admin_urls()
 
 
 # test all views in the admin in isolation
