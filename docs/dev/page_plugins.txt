@@ -17,6 +17,10 @@ This document is a planning document. The research questions have been
 answered (see `Research Summary`_), the first slice is scoped (see
 `Decisions`_ and `Implementation Sketch`_), and a small set of genuinely open
 questions remain for a later slice (see `Open Questions`_).
+The internal-registry first slice described in `Implementation Sketch`_ has
+been implemented in ``django_resume.pages``; ``CvPage`` keeps ``section_names
+= "__all__"`` for a faithful first cut, and switching it to an explicit list
+is a deliberate follow-up.
 
 Problem
 -------

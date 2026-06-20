@@ -28,14 +28,13 @@ Backlog Items
 
 * Build pluggable resume pages and site structure.
 
-  Research is complete and the first slice is scoped in the page plugins plan.
-  That slice is an internal page registry: convert the cover/detail, CV, and
-  permission-denied views into registered ``ResumePage`` classes behind the
-  existing URL names, with section selection, access control (CV token
+  The internal page-registry first slice is implemented: the cover/detail, CV,
+  and permission-denied pages are now registered ``ResumePage`` classes behind
+  the existing URL names, with section selection, access control (CV token
   enforcement lifted out of the render side effect), and themed template
   resolution owned by the page. The CV redirect stays a plain redirect rather
-  than a page. Third-party page discovery, navigation metadata, and
-  capability-based section selection are deferred to a later slice.
+  than a page. Remaining work is third-party page discovery, navigation
+  metadata, and capability-based section selection.
 
   See :doc:`page_plugins`.
 
