@@ -76,9 +76,7 @@ class ResumePage:
     template_name: str = ""
     section_names: list[str] | str = []
 
-    def check_access(
-        self, request: HttpRequest, resume: Resume
-    ) -> HttpResponse | None:
+    def check_access(self, request: HttpRequest, resume: Resume) -> HttpResponse | None:
         """Return None to proceed, or a response to short-circuit."""
         return None
 
@@ -92,9 +90,7 @@ class ResumePage:
     ) -> HttpResponse:
         """Build the page response. Override to take full control of rendering."""
         context = self.get_context(request, resume, base_context=base_context)
-        return render(
-            request, page_template_path(resume, self.template_name), context
-        )
+        return render(request, page_template_path(resume, self.template_name), context)
 
     def finalize_response(
         self, response: HttpResponse, request: HttpRequest, resume: Resume
