@@ -106,3 +106,16 @@ def test_detail_route_is_the_bare_catch_all():
     patterns = page_registry.get_urls()
     assert str(patterns[-1].pattern) == "<slug:slug>/"
     assert patterns[-1].name == "detail"
+
+
+@pytest.mark.django_db
+def test_cv_route_is_get_only(client, resume):
+    # Intentional behavior change: page routes are GET-only (see changelog).
+    resume.owner.save()
+    resume.save()
+    url = reverse("resume:cv", kwargs={"slug": resume.slug})
+
+    r = client.post(url)
+
+    assert r.status_code == 405
+    assert r["Allow"] == "GET"
