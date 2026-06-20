@@ -5,7 +5,7 @@ Pluggable Resume Pages
 Goal
 ----
 
-Evaluate a first-class page API for django-resume so built-in pages and
+Provide a first-class page API for django-resume so built-in pages and
 third-party pages use the same extension mechanism.
 
 The current section plugin API is good at storing and rendering resume facts.
@@ -13,8 +13,10 @@ The current page structure is still mostly hard-coded: the cover/detail page,
 CV page, CV redirect, and permission-denied page are defined directly in
 ``django_resume.urls`` and ``django_resume.views``.
 
-This document is a planning document. It should collect design notes before
-implementation starts.
+This document is a planning document. The research questions have been
+answered (see `Research Summary`_), the first slice is scoped (see
+`Decisions`_ and `Implementation Sketch`_), and a small set of genuinely open
+questions remain for a later slice (see `Open Questions`_).
 
 Problem
 -------
@@ -22,66 +24,222 @@ Problem
 Custom plugins can add inline URLs today, but those URLs are mainly intended
 for editing plugin data. They are not a clean public page API.
 
-The cover/detail page also loads a hard-coded subset of plugins, while the CV
-page loads all registered plugins. That makes custom site structure awkward:
-plugin authors can add new sections, but they cannot cleanly add a new public
-resume page with navigation, permissions, and themed templates.
+The cover/detail page also loads a hard-coded subset of plugins
+(``["about", "identity", "cover", "theme"]`` in ``resume_detail``), while the
+CV page loads all registered plugins. That makes custom site structure
+awkward: plugin authors can add new sections, but they cannot cleanly add a
+new public resume page with navigation, permissions, and themed templates.
 
-Target Direction
+Two pieces of current behaviour are easy to break and need to become explicit
+infrastructure rather than incidental side effects:
+
+* **Permission enforcement is a render side effect.** ``resume_cv`` loads every
+  plugin; ``TokenPlugin.get_context`` happens to call
+  ``TokenPlugin.check_permissions`` and raise ``PermissionDenied``. The view
+  catches that and re-renders ``cv_403.html``.
+* **The 403 page depends on plugin registration order.** The caught-exception
+  path renders ``cv_403.html`` with whatever partial context was built before
+  the token plugin raised. That template needs the ``permission_denied``
+  context, which is only present because ``PermissionDeniedPlugin`` is
+  registered *before* ``TokenPlugin`` in ``apps.py``. Reordering that list
+  would silently blank the 403 page.
+
+Research Summary
 ----------------
 
-Add a small Django-native page registry before considering a broader hook
-framework.
+Comparable projects were surveyed for how they make page structure
+extensible. The consistent verdict: register a page *class*, resolve its
+template by convention from the type, and emit the broad catch-all route last.
 
-Possible shape:
+* **Wagtail** — ``Page`` model subclasses, auto-discovered via ``ContentType``;
+  a tree-walking router; ``get_context`` / ``serve`` / ``get_template``
+  override hooks; ``serve`` may return any ``HttpResponse``. Worth copying: the
+  override hooks. Worth avoiding: multi-table inheritance (a DB table and a
+  migration *per page type*, ``.specific`` N+1 queries, a materialized-path
+  tree) — the most-reported pain point and unnecessary here, since resume
+  content already lives in ``Resume.plugin_data`` JSON.
+  https://docs.wagtail.org/en/stable/topics/pages.html
+* **django CMS** — apphooks mount a whole URLconf under a page;
+  ``include('cms.urls')`` is placed *last* because it matches ``^``. Worth
+  copying: the "broad catch-all goes last" rule.
+  https://docs.django-cms.org/en/stable/how_to/11-apphooks.html
+* **Mezzanine** — closest match in spirit: one view plus
+  ``@processor_for(Type)`` functions that return a context dict *or* an
+  ``HttpResponse``; most-specific-wins template fallback.
+  https://mezzanine.readthedocs.io/en/latest/content-architecture.html
+* **Django admin** — the target pattern: an ``AdminSite._registry`` dict plus
+  ``autodiscover_modules`` side-effect import. django-resume's content plugins
+  already follow this shape.
+* **Hugo / WordPress / Flask** — declare a kind / post type / blueprint once,
+  resolve the renderer via a most-specific-wins fallback with the type slug in
+  the lookup. Confirms the existing ``pages/{theme}/{name}.html`` convention.
+
+Net recommendation from the research: a class registry, built-ins converted to
+registered classes, and a single trailing ``<slug:slug>/`` catch-all — giving
+Wagtail/Mezzanine-grade extensibility while keeping the public surface to a
+handful of names and **zero migrations per page type**.
+
+Decisions
+---------
+
+These decisions scope the first slice. They are deliberately conservative: an
+internal registry that converts the existing pages without committing to a
+large public API.
+
+#. **A separate** ``page_registry``. Mirror the existing ``plugin_registry``
+   (a module-level singleton with ``register`` / ``get`` / ``get_urls``)
+   rather than folding pages into a broader combined registry yet.
+#. **Plain Python** ``ResumePage`` **classes, no model-per-type.** Adding a new
+   page type requires no migration. Page content keeps living in section
+   plugins and ``Resume.plugin_data``.
+#. **Built-ins registered in core**, explicitly, alongside
+   ``register_plugins`` in ``AppConfig.ready``. No autodiscovery or entry
+   points in this slice.
+#. **Each page owns a** ``path`` **subsegment under** ``<slug:slug>/``. The
+   default/root page uses ``path = ""``. ``page_registry.get_urls`` guarantees
+   the bare/most-general route is emitted *last* by construction (sorted on
+   path specificity), so ordering is not a registration-order convention.
+#. ``section_names`` **is an inclusion filter, not an ordering.** Theme
+   templates ``{% include identity.templates.main %}`` by name, so layout order
+   belongs to the template. Built-ins use explicit lists. ``"__all__"`` is
+   supported but built-ins do not depend on it. Capability tags and
+   admin-configurable selection are deferred.
+#. **Access control is a page method,** ``check_access``, that returns an
+   optional response. Token logic stays in ``TokenPlugin.check_permissions``
+   (already a ``@staticmethod``); the CV page calls it directly instead of
+   relying on a render side effect.
+#. **A** ``finalize_response`` **hook** lets token-gated pages set
+   ``Referrer-Policy: no-referrer`` on the *success* response, not only on the
+   403.
+#. **The CV redirect stays a plain redirect.** ``cv/<slug:slug>/`` puts the
+   slug in a different position than the ``<slug:slug>/{path}`` shape every
+   real page uses and renders nothing, so it is not a page. It remains a
+   hand-written redirect entry in ``urls.py``.
+#. **Templates resolve as** ``django_resume/pages/{theme}/{template_name}``
+   using ``resume.current_theme`` — the existing convention, lifted to a
+   page-level method.
+
+Page Interface
+--------------
 
 .. code-block:: python
 
    class ResumePage:
-       name = "cv"
-       path = "<slug:slug>/cv/"
-       template_name = "resume_cv.html"
-       section_names = "__all__"
+       url_name: str                       # kept stable for reverse() and backcompat
+       path: str                           # subsegment under "<slug:slug>/"; "" = default/root
+       template_name: str                  # resolved as pages/{theme}/{template_name}
+       section_names: list[str] | str      # inclusion filter, or "__all__"
 
-       def has_permission(self, request, resume) -> bool:
-           return True
+       def check_access(self, request, resume) -> HttpResponse | None:
+           """Return None to proceed, or a response to short-circuit
+           (e.g. a 403 or a future login redirect)."""
+           return None
 
        def get_context(self, request, resume) -> dict:
            ...
 
+       def finalize_response(self, response, request, resume) -> HttpResponse:
+           """Post-process the rendered response, e.g. set headers."""
+           return response
 
-Built-in pages could become registered page classes:
+The ``check_access`` contract is the Wagtail/Mezzanine "return a response to
+take over, or ``None`` to proceed" pattern. It is intentionally more capable
+than a boolean ``has_permission``: it lets the CV page build and return the
+themed 403 itself.
 
-* ``CoverLetterPage``
-* ``CvPage``
-* ``PermissionDeniedPage``
+``finalize_response`` runs on *every* response the dispatcher returns,
+including a short-circuit response from ``check_access``. Response-level
+concerns such as headers therefore apply on the denied path too, and pages
+never need to duplicate them inside ``check_access``.
 
-Third-party apps could then register pages such as:
+Routing
+-------
 
-* portfolio pages
-* references pages
-* project pitch pages
-* compact one-page CV variants
-* client-specific landing pages
+URL ordering is simpler than first feared. ``<slug:slug>/`` only matches a
+single path segment, so ``<slug:slug>/cv/`` and ``<slug:slug>/403/`` are
+unambiguous against it. The only ordering requirement is that the bare
+``<slug:slug>/`` default route is registered *after* the more specific
+subpaths.
+
+* ``page_registry.get_urls`` generates ``<slug:slug>/{page.path}`` for each
+  registered page and emits the ``path == ""`` (default) page last. The
+  invariant is structural, not a hand-maintained ordering.
+* Use ``<slug:slug>`` (single segment), never ``<path:...>``, so a page route
+  cannot swallow ``admin/`` or ``static/``.
+* Non-page routes (``list``, ``delete``) and the legacy ``cv-redirect`` stay
+  hand-written in ``urls.py``.
+* Existing URL names ``detail``, ``cv``, ``cv-redirect``, and ``403`` are
+  preserved so ``reverse()`` and external links keep working.
+
+Permissions And The 403 Page
+----------------------------
+
+This is the part the spec most needs to make explicit, because today it is an
+order-dependent side effect (see `Problem`_).
+
+* ``CvPage.check_access`` calls
+  ``TokenPlugin.check_permissions(request, resume.plugin_data.get("token", {}))``
+  up front. On ``PermissionDenied`` it renders the themed ``cv_403.html`` with
+  an **explicitly built** ``permission_denied`` context and returns it with
+  status 403.
+* Because ``TokenPlugin.get_context`` returns ``{}`` (it only performs the
+  permission side effect), the token plugin no longer needs to be in the CV's
+  render loop at all once access is checked explicitly. The CV's
+  ``section_names`` becomes the explicit list its template actually renders.
+* A shared helper builds the ``permission_denied`` context for both the CV
+  denial path and the standalone owner-only 403 editor view, so the two paths
+  cannot drift.
+* ``CvPage.finalize_response`` sets ``Referrer-Policy: no-referrer`` when
+  ``resume.token_is_required``. Because the dispatcher applies
+  ``finalize_response`` to whatever response it returns — the rendered page or
+  the 403 returned by ``check_access`` — the header is set on both the success
+  and the 403 response, as today.
+
+Section Selection
+-----------------
+
+``section_names`` answers "which section plugins should this page build
+context for". It is an inclusion filter; the theme template decides order and
+layout by referencing sections by name.
+
+* **Now:** explicit lists for built-ins; ``"__all__"`` supported for
+  convenience but not relied on by built-ins.
+* **Later:** capability tags on plugins (for example "suitable for compact CV"
+  or "externally shareable") once a real second consumer exists.
+* **Much later:** admin-configurable per-resume section selection, which is
+  product/UI work, not page-API work.
+
+Built-In Page Conversions
+-------------------------
+
+* ``CoverLetterPage`` — ``path = ""``, default/root, public, sections
+  ``["about", "identity", "cover", "theme"]``.
+* ``CvPage`` — ``path = "cv/"``, token-gated ``check_access``, referrer-policy
+  ``finalize_response``, explicit renderable section list.
+* ``PermissionDeniedPage`` — ``path = "403/"``, owner-only ``check_access``,
+  sections ``["permission_denied"]``. The owner-only inline editor for the
+  denied message.
+
+The CV redirect is **not** converted; it stays a plain redirect.
 
 Open Questions
 --------------
 
-* Should pages live in a separate ``page_registry`` or in a broader resume
-  registry alongside section plugins?
-* How should page URL ordering avoid conflicts with broad slug routes such as
-  ``<slug:slug>/``?
-* Should page routes be generated directly, or should django-resume use a
-  generic page dispatcher?
-* How should page navigation be represented and ordered?
-* How should page permissions compose with existing token behavior?
-* Should a page select section plugins by name, by capability, or by a custom
-  context builder?
-* How should themed templates be resolved for page plugins?
-* How should backwards compatibility work for the existing URL names
-  ``detail``, ``cv``, ``cv-redirect``, and ``403``?
-* Should this remain an explicit registry, or should a hook framework such as
-  pluggy be reconsidered after the page API settles?
+Deferred to a later "usable third-party page API" slice, not blocking the
+internal conversion:
+
+* Third-party discovery: ``autodiscover_modules("page_types", ...)`` from
+  ``AppConfig.ready`` versus ``importlib.metadata`` entry points for fully
+  separate page distributions.
+* Navigation metadata: how page navigation entries are represented and
+  ordered.
+* Generic page dispatcher versus directly generated routes. The first slice
+  generates routes directly; a dispatcher is only needed if pages are later
+  resolved by a stored type via the catch-all.
+* Theme template fallback: if an active theme lacks a page template, should it
+  fall back to the ``plain`` theme template?
+* Whether to revisit a hook framework such as pluggy after the explicit
+  registry settles. Current decision: stay explicit.
 
 Relationship To Content Plugins
 -------------------------------
@@ -103,7 +261,63 @@ and audit history.
 
 See :doc:`application_workflows`.
 
+Relationship To JSON Resume
+---------------------------
+
+JSON Resume import/export (see :doc:`jsonresume`) is intentionally decoupled
+from pages: that plan keeps page layout, routing, permission, and token state
+out of exported documents, and page config lives in Python page classes rather
+than in ``Resume.plugin_data``, so there is nothing for a JSON Resume adapter
+to pick up. Three boundaries keep the two plans aligned:
+
+* **The page registry owns** ``<slug:slug>/`` **route ordering.** JSON Resume's
+  URL-based export/import endpoints live under the resume slug but are not
+  pages — they render no theme or sections, so they are ordinary non-page
+  routes like ``delete`` and ``cv-redirect``. They must be emitted ahead of the
+  bare catch-all, under the same structural ordering guarantee described in
+  `Routing`_.
+* **Page access and export permission are different surfaces.** ``check_access``
+  gates *viewing* a rendered page (public detail, token-gated CV). JSON Resume
+  export/import are *data operations* gated by owner/edit permission. A CV view
+  token must never authorize an export, so an export endpoint must not reuse the
+  CV page's ``check_access``.
+* **The page dispatch defers integration state.** JSON Resume adds a core-owned
+  ``Resume.integration_data`` field and expects render-only querysets to defer
+  it. The page dispatch builds the render queryset, so it is the place to apply
+  ``.defer("integration_data")`` once that field exists, keeping page rendering
+  cheap regardless of integration payload size.
+
+If the deferred admin-configurable section selection (see `Section
+Selection`_) ever turns page config into per-resume data, it should reuse the
+same core-owned ``Resume.integration_data`` field under a separate ``pages``
+namespace and be treated as application-private — omitted from JSON Resume
+exports — consistent with that plan's layout and permission exclusion rule.
+
 Implementation Sketch
 ---------------------
 
-To be filled in after the research questions are answered.
+First slice — internal page registry, identical URLs, no third-party
+discovery:
+
+#. Add a ``pages`` module: the ``ResumePage`` base class, a ``PageRegistry``
+   with ``register`` / ``get`` / ``get_urls``, and a module-level
+   ``page_registry`` singleton mirroring ``plugin_registry``.
+#. Define ``CoverLetterPage``, ``CvPage``, and ``PermissionDeniedPage`` as in
+   `Built-In Page Conversions`_.
+#. Register the built-in pages in ``AppConfig.ready`` next to
+   ``register_plugins``.
+#. ``page_registry.get_urls`` emits ``<slug:slug>/{page.path}`` for each page,
+   default (``path == ""``) last. Keep ``list``, ``delete``, and ``cv-redirect``
+   hand-written. Preserve URL names ``detail``, ``cv``, ``cv-redirect``, ``403``.
+#. Reduce the existing ``resume_detail`` / ``resume_cv`` / ``cv_403`` views to
+   a thin dispatch: look up the page and call ``check_access``; if it returns a
+   response use that, otherwise build context via ``get_context`` and render
+   ``pages/{theme}/{template_name}``. Apply ``finalize_response`` to the
+   resulting response on **both** paths — so a denied CV still gets its
+   ``Referrer-Policy`` header — then return it.
+#. Extract a shared ``permission_denied`` context helper used by both the CV
+   denial path and the standalone 403 editor.
+#. Tests: URL names still resolve; cover/detail is public; CV is gated
+   (valid / expired / missing token → themed 403 carrying the
+   ``permission_denied`` content and ``Referrer-Policy: no-referrer``); the 403
+   editor is owner-only; themed template resolution picks the right theme.

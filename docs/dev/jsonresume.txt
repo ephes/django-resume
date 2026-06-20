@@ -160,6 +160,11 @@ The extension envelope should not be used to preserve layout, routing,
 permission, token, workflow, or delivery state unless a future django-resume
 import/export format explicitly opts into that application-private data.
 
+JSON Resume's own URL-based import/export endpoints live under the resume slug,
+so they are ordinary non-page routes that must be ordered ahead of the page
+registry's catch-all ``<slug:slug>/`` route; the page registry owns that
+ordering.
+
 See :doc:`application_workflows` and :doc:`page_plugins`.
 
 Plugin-Based Approach

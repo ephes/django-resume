@@ -26,13 +26,16 @@ Backlog Items
 
   See :doc:`jsonresume`.
 
-* Design pluggable resume pages and site structure.
+* Build pluggable resume pages and site structure.
 
-  Research whether cover letter, CV, and permission-denied pages should be
-  represented as built-in page definitions instead of hard-coded views. Define
-  how third-party code can add page routes, select section plugins, contribute
-  navigation entries, apply permissions such as CV tokens, and render themed
-  templates.
+  Research is complete and the first slice is scoped in the page plugins plan.
+  That slice is an internal page registry: convert the cover/detail, CV, and
+  permission-denied views into registered ``ResumePage`` classes behind the
+  existing URL names, with section selection, access control (CV token
+  enforcement lifted out of the render side effect), and themed template
+  resolution owned by the page. The CV redirect stays a plain redirect rather
+  than a page. Third-party page discovery, navigation metadata, and
+  capability-based section selection are deferred to a later slice.
 
   See :doc:`page_plugins`.
 
