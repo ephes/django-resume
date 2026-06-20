@@ -61,7 +61,9 @@ def test_render_cv_403_includes_permission_denied_context(resume):
 
 
 @pytest.mark.django_db
-def test_permission_denied_editor_route_is_owner_only(client, resume, django_user_model):
+def test_permission_denied_editor_route_is_owner_only(
+    client, resume, django_user_model
+):
     resume.owner.save()
     resume.plugin_data["permission_denied"] = {
         "title": "Access Token Needed for CV",
