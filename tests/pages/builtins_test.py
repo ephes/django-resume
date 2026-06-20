@@ -11,26 +11,38 @@ from django_resume.plugins import plugin_registry, TokenPlugin
 def test_cv_check_access_allows_when_token_unregistered(resume):
     resume.owner.save()
     resume.save()
-    plugin_registry.unregister(TokenPlugin)
+    # Do not assume registration state (other tests mutate the global registry);
+    # restore it on exit so collection order cannot leak.
+    token_registered = plugin_registry.get_plugin(TokenPlugin.name) is not None
+    if token_registered:
+        plugin_registry.unregister(TokenPlugin)
+    try:
+        request = RequestFactory().get("/john-doe/cv/")
+        request.user = AnonymousUser()
 
-    request = RequestFactory().get("/john-doe/cv/")
-    request.user = AnonymousUser()
-
-    assert CvPage().check_access(request, resume) is None
+        assert CvPage().check_access(request, resume) is None
+    finally:
+        if token_registered:
+            plugin_registry.register(TokenPlugin)
 
 
 @pytest.mark.django_db
 def test_cv_check_access_denies_without_token(resume):
     resume.owner.save()
     resume.save()
-    plugin_registry.register(TokenPlugin)
+    token_registered = plugin_registry.get_plugin(TokenPlugin.name) is not None
+    if not token_registered:
+        plugin_registry.register(TokenPlugin)
+    try:
+        request = RequestFactory().get("/john-doe/cv/")
+        request.user = AnonymousUser()
 
-    request = RequestFactory().get("/john-doe/cv/")
-    request.user = AnonymousUser()
-
-    response = CvPage().check_access(request, resume)
-    assert response is not None
-    assert response.status_code == 403
+        response = CvPage().check_access(request, resume)
+        assert response is not None
+        assert response.status_code == 403
+    finally:
+        if not token_registered:
+            plugin_registry.unregister(TokenPlugin)
 
 
 @pytest.mark.django_db
