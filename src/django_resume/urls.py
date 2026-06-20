@@ -2,6 +2,7 @@ from django.urls import path, reverse
 from django.views.generic import RedirectView
 
 from . import views
+from .pages import page_registry
 
 
 class CvRedirectView(RedirectView):
@@ -14,12 +15,10 @@ class CvRedirectView(RedirectView):
 
 app_name = "django_resume"
 urlpatterns = [
-    # resumes
+    # resumes (non-page routes)
     path("", views.resume_list, name="list"),
     path("<slug:slug>/delete/", views.resume_delete, name="delete"),
-    # cover, cv and 403 pages
-    path("<slug:slug>/", views.resume_detail, name="detail"),
-    path("<slug:slug>/cv/", views.resume_cv, name="cv"),
     path("cv/<slug:slug>/", CvRedirectView.as_view(), name="cv-redirect"),
-    path("<slug:slug>/403/", views.cv_403, name="403"),
+    # cover, cv and 403 pages (generated; bare "<slug:slug>/" catch-all is last)
+    *page_registry.get_urls(),
 ]
