@@ -68,6 +68,7 @@ class PermissionDeniedPage(ResumePage):
     url_name = "403"
     path = "403/"
     template_name = "cv_403.html"
+    # No section_names: serve() renders via render_cv_403 and bypasses get_context.
 
     def check_access(self, request: HttpRequest, resume: Resume) -> HttpResponse | None:
         if not request.user.is_authenticated:
