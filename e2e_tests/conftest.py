@@ -1,6 +1,14 @@
-import pytest
-from django.urls import reverse
-from playwright.sync_api import Page, Browser
+import os
+
+# Playwright's sync API keeps an event loop on the main thread, which trips
+# Django's async-safety guard when pytest-django sets up / tears down the test
+# database on that same thread. The database work here is genuinely synchronous,
+# so opt out of the guard for the live-server browser tests.
+os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "1")
+
+import pytest  # noqa: E402
+from django.urls import reverse  # noqa: E402
+from playwright.sync_api import Browser, Page  # noqa: E402
 
 
 TEST_USER = {

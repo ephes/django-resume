@@ -49,3 +49,21 @@ You can edit the example resumes either via the django admin interface or via
 the inline editing feature by clicking on the "Edit" button.
 
 The example project demonstrates built-in and filesystem-based custom plugins.
+
+Example page plugin: the Portfolio page
+---------------------------------------
+
+The ``core`` app also contributes a custom **page** -- a third-party
+``PortfolioPage`` defined in ``example/core/resume_pages.py`` and discovered
+automatically on startup (see :doc:`creating_page_plugins`). It needs no change
+to django-resume itself and no migration.
+
+Visit it for any resume at ``/<slug>/portfolio/``, for example:
+
+- `Portfolio page <http://localhost:8000/resume/jochen/portfolio/>`_
+
+As the resume owner, open ``/<slug>/portfolio/?edit=true`` to edit the sections
+shown on the page (identity, about, skills, projects) inline; changes persist to
+``Resume.plugin_data`` exactly like the built-in pages. Anonymous and non-owner
+visitors see the read-only page with no edit controls. The page ships ``plain``
+and ``headwind`` templates under ``example/core/templates/django_resume/pages/``.

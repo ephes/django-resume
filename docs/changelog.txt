@@ -13,6 +13,12 @@ Behavior Changes
 Features
 ^^^^^^^^
 * Add a ``just docs-serve`` shortcut with a configurable port for building and serving the Sphinx documentation locally
+* Let installed apps register their own resume pages: ``django_resume`` now
+  autodiscovers a ``resume_pages`` module from every installed app on startup,
+  so a third-party app can add an editable, themed page (with its own route and
+  URL name) without modifying ``django_resume`` or adding a migration. The
+  bundled example project demonstrates this with an editable ``PortfolioPage``
+  at ``/<slug>/portfolio/``. See :doc:`guide/creating_page_plugins`.
 
 Refactor
 ^^^^^^^^

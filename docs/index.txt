@@ -22,6 +22,7 @@ See it in action:
    guide/usage
    guide/example_project
    guide/creating_plugins
+   guide/creating_page_plugins
 
 .. toctree::
     :maxdepth: 1

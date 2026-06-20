@@ -1,0 +1,140 @@
+Creating Page Plugins
+=====================
+
+Section plugins (see :doc:`creating_plugins`) own *resume facts* -- the data,
+forms, inline editing, and template fragments for one section. A **page plugin**
+owns a whole *page*: its route, which sections it shows, access control, and the
+themed template that frames them.
+
+django-resume ships three built-in pages (the cover/detail page, the CV page,
+and the owner-only permission-denied editor). An installed app can add its own
+pages through the same mechanism, without changing django-resume and without a
+database migration -- page content keeps living in the existing section plugins'
+``Resume.plugin_data``.
+
+How discovery works
+-------------------
+
+On startup ``django_resume`` calls :func:`~django_resume.pages.autodiscover_pages`,
+which imports a ``resume_pages`` module from **every installed app** (the same
+side-effect-import pattern Django's admin uses for ``admin`` modules). Each
+``resume_pages`` module registers its pages with the shared ``page_registry``.
+
+This happens *before* ``django_resume.urls`` is built, so a discovered page gets
+a real route automatically. You do not need to edit django-resume's URLconf or
+its built-in page list.
+
+Define a page
+-------------
+
+Create ``resume_pages.py`` in your app and register a
+:class:`~django_resume.pages.ResumePage` subclass:
+
+.. code-block:: python
+
+   # myapp/resume_pages.py
+   from django_resume.pages import ResumePage, page_registry
+
+
+   class PortfolioPage(ResumePage):
+       url_name = "portfolio"                 # reverse("resume:portfolio", ...)
+       path = "portfolio/"                    # served under "<slug:slug>/portfolio/"
+       template_name = "portfolio.html"       # pages/{theme}/portfolio.html
+       section_names = ["identity", "about", "skills", "projects"]
+
+
+   page_registry.register(PortfolioPage)
+
+The attributes are:
+
+``url_name``
+   The URL name used for ``reverse()``. Under the example project's include
+   (``include("django_resume.urls", namespace="resume")``) the page above is
+   ``reverse("resume:portfolio", kwargs={"slug": slug})``.
+
+``path``
+   The sub-segment appended to ``<slug:slug>/``. Use ``""`` for the default/root
+   page. The bare ``<slug:slug>/`` catch-all is always emitted last, so more
+   specific paths such as ``portfolio/`` never shadow it (and it never shadows
+   them).
+
+``template_name``
+   Resolved as ``django_resume/pages/{resume.current_theme}/{template_name}``.
+
+``section_names``
+   The section plugins whose context the page builds, by name. It is an
+   *inclusion filter*, not an ordering -- the template decides layout by
+   including sections by name (``{% include about.templates.main %}``). Use the
+   string ``"__all__"`` to include every registered section plugin.
+
+Add a template
+--------------
+
+Place the template in your app's template directory so it is found via
+``APP_DIRS``:
+
+.. code-block:: text
+
+   myapp/templates/django_resume/pages/plain/portfolio.html
+
+Extend the theme base and include the sections you listed in ``section_names``.
+A minimal ``plain`` template:
+
+.. code-block:: html+django
+
+   {% extends "./base.html" %}
+   {% load static %}
+   {% block body %}
+     <body class="center"{% if show_edit_button %} hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'{% endif %}>
+     {% if is_editable %}{% include "./edit_panel.html" %}{% endif %}
+     <main>
+       {% include identity.templates.main %}
+       {% include about.templates.main %}
+       {% include skills.templates.main %}
+       {% include projects.templates.main with projects=projects %}
+     </main>
+     {% if show_edit_button %}
+       <script src="{% static "django_resume/js/edit.js" %}"></script>
+     {% endif %}
+     </body>
+   {% endblock body %}
+
+If your project supports more than one theme, add a template per theme (for
+example ``pages/headwind/portfolio.html``). django-resume does not currently
+fall back to another theme's template, so a resume using a theme without a
+matching page template raises ``TemplateDoesNotExist``; ship one template per
+theme you support.
+
+Editing and access control
+--------------------------
+
+Because the page reuses the standard section-plugin context, inline editing
+works for free: open the page with ``?edit=true`` as the resume owner and each
+section renders its existing edit controls. Saving goes through the section
+plugin's normal inline URLs and persists to ``Resume.plugin_data``. Edit
+controls only appear when the authenticated user owns the resume; anonymous and
+non-owner visitors see the read-only page.
+
+Pages are public by default. To gate a page, override ``check_access`` to return
+a response (to take over) or ``None`` (to proceed), and use ``finalize_response``
+for response-level concerns such as headers:
+
+.. code-block:: python
+
+   from django.http import HttpResponse
+
+
+   class PortfolioPage(ResumePage):
+       url_name = "portfolio"
+       path = "portfolio/"
+       template_name = "portfolio.html"
+       section_names = ["identity", "about", "skills", "projects"]
+
+       def check_access(self, request, resume):
+           if not request.user.is_authenticated:
+               return HttpResponse(status=403)
+           return None
+
+The bundled :doc:`example_project` ships exactly this ``PortfolioPage`` in its
+``core`` app (``example/core/resume_pages.py`` plus ``plain`` and ``headwind``
+templates), so you can see the whole flow end to end.

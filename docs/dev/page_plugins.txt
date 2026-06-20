@@ -22,6 +22,12 @@ been implemented in ``django_resume.pages``; ``CvPage`` keeps ``section_names
 = "__all__"`` for a faithful first cut, and switching it to an explicit list
 is a deliberate follow-up.
 
+Third-party page discovery has also shipped: installed apps can now register
+their own pages from a ``resume_pages`` module, autodiscovered on startup (see
+`Third-Party Pages`_). The bundled example project's ``core`` app demonstrates
+it with an editable ``PortfolioPage``. The user-facing how-to lives in
+:doc:`../guide/creating_page_plugins`.
+
 Problem
 -------
 
@@ -96,9 +102,11 @@ large public API.
 #. **Plain Python** ``ResumePage`` **classes, no model-per-type.** Adding a new
    page type requires no migration. Page content keeps living in section
    plugins and ``Resume.plugin_data``.
-#. **Built-ins registered in core**, explicitly, alongside
-   ``register_plugins`` in ``AppConfig.ready``. No autodiscovery or entry
-   points in this slice.
+#. **Built-ins registered in core**, explicitly, in ``AppConfig.ready`` before
+   ``register_plugins``. Third-party pages are then autodiscovered from each
+   installed app's ``resume_pages`` module (see `Third-Party Pages`_);
+   ``importlib.metadata`` entry points for fully separate page distributions
+   remain a possible future addition.
 #. **Each page owns a** ``path`` **subsegment under** ``<slug:slug>/``. The
    default/root page uses ``path = ""``. ``page_registry.get_urls`` guarantees
    the bare/most-general route is emitted *last* by construction (sorted on
@@ -230,15 +238,37 @@ Built-In Page Conversions
 
 The CV redirect is **not** converted; it stays a plain redirect.
 
+Third-Party Pages
+-----------------
+
+Installed apps register their own pages without touching django-resume and
+without a migration:
+
+* ``django_resume.pages.autodiscover_pages()`` imports a ``resume_pages``
+  module from every installed app on startup, mirroring the admin's
+  ``autodiscover_modules`` side-effect import. Each module registers its pages
+  with ``page_registry`` at import time.
+* ``AppConfig.ready`` runs ``register_pages()`` (built-ins), then
+  ``autodiscover_pages()`` (third-party), then ``register_plugins()``. The page
+  registry must be complete before that last step, because the first plugin
+  registration imports ``django_resume.urls``, which evaluates
+  ``page_registry.get_urls()`` exactly once. A page registered after that import
+  would not get a route.
+* A page subclasses ``ResumePage``, sets ``url_name`` / ``path`` /
+  ``template_name`` / ``section_names``, and ships a template per supported
+  theme under ``templates/django_resume/pages/{theme}/{template_name}``. The
+  bare ``<slug:slug>/`` catch-all is still emitted last by construction, so a
+  third-party ``path`` never shadows (or is shadowed by) the default page.
+
+The example project's ``core`` app demonstrates this with an editable
+``PortfolioPage`` (``example/core/resume_pages.py``). The authoring how-to is
+:doc:`../guide/creating_page_plugins`.
+
 Open Questions
 --------------
 
-Deferred to a later "usable third-party page API" slice, not blocking the
-internal conversion:
+Deferred to a later slice, not blocking the current page API:
 
-* Third-party discovery: ``autodiscover_modules("page_types", ...)`` from
-  ``AppConfig.ready`` versus ``importlib.metadata`` entry points for fully
-  separate page distributions.
 * Navigation metadata: how page navigation entries are represented and
   ordered.
 * Generic page dispatcher versus directly generated routes. The first slice

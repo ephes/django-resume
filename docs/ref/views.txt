@@ -21,7 +21,9 @@ no longer plain views; they are registered ``ResumePage`` classes
 ``detail`` page) is emitted last by construction, so the more specific
 ``cv/`` and ``403/`` routes still resolve unambiguously. The URL names
 (``detail``, ``cv``, ``403``) are preserved for ``reverse()`` and external
-links. See :doc:`../dev/page_plugins` for the page registry.
+links. See :doc:`../dev/page_plugins` for the page registry, and
+:doc:`../guide/creating_page_plugins` for adding your own pages from an
+installed app.
 
 The URL patterns are found in ``django_resume.urls`` (shown below for
 reference):
