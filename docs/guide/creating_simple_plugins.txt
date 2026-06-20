@@ -386,7 +386,7 @@ Troubleshooting
 **Plugin not appearing in templates**
    1. Check plugin registration in ``apps.py`` and restart your server
    2. Verify you're using the CV template (``resume_cv.html``) which loads all plugins
-   3. If using detail template, your plugin won't appear unless explicitly added to the hardcoded list
+   3. If using the detail page, your plugin won't appear unless it is added to ``CoverLetterPage.section_names``
    4. Test plugin registration in Django shell: ``from django_resume.plugins import plugin_registry; print(plugin_registry.get_plugin('motto'))``
 
 **Templates not found**
