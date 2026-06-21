@@ -20,6 +20,49 @@ from ..markdown import (
     markdown_to_textarea_input,
     underlined_link_handler,
 )
+from ..interchange.protocols import AdapterExport
+from ..formats.json_resume.dates import is_valid_resume_date
+
+
+class TimelineJsonResumeAdapter:
+    owned_paths = ("/work",)
+    multivalued_paths = ("/work",)
+
+    def export(self, facts: dict) -> AdapterExport:
+        work: list[dict] = []
+        notes: list[str] = []
+        for item in facts.get("work", []):
+            entry: dict[str, object] = {}
+            if item.get("company_name"):
+                entry["name"] = item["company_name"]
+            if item.get("company_url"):
+                entry["url"] = item["company_url"]
+            if item.get("role"):
+                entry["position"] = item["role"]
+            if item.get("description"):
+                entry["summary"] = item["description"]
+            highlights = [badge for badge in item.get("badges", []) if badge]
+            if highlights:
+                entry["highlights"] = highlights
+            for json_key, fact_key, label in (
+                ("startDate", "start", "start date"),
+                ("endDate", "end", "end date"),
+            ):
+                value = item.get(fact_key, "")
+                if not value:
+                    continue
+                if is_valid_resume_date(value):
+                    entry[json_key] = value
+                else:
+                    company = item.get("company_name", "?")
+                    notes.append(
+                        f"work item {company!r} {label} {value!r} is not a valid "
+                        "date; not exported"
+                    )
+            if entry:
+                work.append(entry)
+        contributions = [("/work", work)] if work else []
+        return AdapterExport(contributions=contributions, notes=notes)
 
 
 class TimelineThemedTemplates(ListThemedTemplates):
@@ -184,6 +227,35 @@ class TimelineMixin:
                 item["description"], handlers={"link": underlined_link_handler}
             )
         return context
+
+    def get_structured_data(self, resume) -> dict:
+        list_plugin = cast(ListPlugin, self)
+        data = list_plugin.get_data(resume)
+        work: list[dict] = []
+        for item in data.get("items", []):
+            badges = item.get("badges") or []
+            if isinstance(badges, str):
+                try:
+                    badges = json.loads(badges)
+                except (ValueError, TypeError):
+                    badges = []
+            if not isinstance(badges, list):
+                badges = []
+            work.append({
+                "company_name": item.get("company_name", ""),
+                "company_url": item.get("company_url", ""),
+                "role": item.get("role", ""),
+                "description": item.get("description", ""),
+                "start": item.get("start", ""),
+                "end": item.get("end", ""),
+                "badges": badges,
+                "position": item.get("position", 0),
+            })
+        work.sort(key=lambda entry: entry["position"])
+        return {"work": work}
+
+    def get_export_adapters(self) -> dict:
+        return {"json_resume": TimelineJsonResumeAdapter()}
 
 
 class FreelanceTimelinePlugin(TimelineMixin, ListPlugin):

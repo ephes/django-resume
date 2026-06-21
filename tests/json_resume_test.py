@@ -9,6 +9,10 @@ from django_resume.plugins.about import AboutPlugin
 from django_resume.plugins.education import EducationPlugin
 from django_resume.plugins.identity import IdentityPlugin
 from django_resume.plugins.skills import SkillsPlugin
+from django_resume.plugins.timelines import (
+    FreelanceTimelinePlugin,
+    EmployedTimelinePlugin,
+)
 
 
 def test_vendored_schema_is_present_and_loadable():
@@ -132,3 +136,39 @@ def test_education_adapter_omits_and_reports_invalid_date(resume):
     entry = dict(result.contributions)["/education"][0]
     assert entry == {"institution": "Uni"}
     assert any("start" in note for note in result.notes)
+
+
+def test_timeline_adapter_maps_items_to_work_and_omits_bad_dates(resume):
+    plugin = FreelanceTimelinePlugin()
+    plugin.data.set_data(resume, {"items": [
+        {
+            "id": "1",
+            "company_name": "ACME",
+            "company_url": "https://acme.example",
+            "role": "Engineer",
+            "description": "Built things",
+            "start": "2019",
+            "end": "nope",
+            "badges": ["remote", "full-time"],
+            "position": 1,
+        },
+    ]})
+    facts = plugin.get_structured_data(resume)
+    result = plugin.get_export_adapters()["json_resume"].export(facts)
+    work = dict(result.contributions)["/work"]
+    assert work == [{
+        "name": "ACME",
+        "url": "https://acme.example",
+        "position": "Engineer",
+        "summary": "Built things",
+        "highlights": ["remote", "full-time"],
+        "startDate": "2019",
+    }]
+    assert any("end date" in note for note in result.notes)
+
+
+def test_both_timeline_plugins_declare_multivalued_work():
+    for plugin_cls in (FreelanceTimelinePlugin, EmployedTimelinePlugin):
+        adapter = plugin_cls().get_export_adapters()["json_resume"]
+        assert adapter.owned_paths == ("/work",)
+        assert adapter.multivalued_paths == ("/work",)
