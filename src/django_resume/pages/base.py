@@ -4,6 +4,8 @@ from dataclasses import dataclass
 
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, render
+from django.template import TemplateDoesNotExist
+from django.template.loader import get_template
 from django.urls import reverse
 
 from ..models import Resume
@@ -78,9 +80,11 @@ def build_section_context(
     resume: Resume,
     base_context: dict,
     section_names: list[str] | str | ByCapability,
+    theme: str | None = None,
 ) -> dict:
     show_edit_button = base_context.get("show_edit_button", False)
-    theme = resume.current_theme
+    if theme is None:
+        theme = resume.current_theme
     if isinstance(section_names, ByCapability):
         plugins = [
             plugin
@@ -111,8 +115,38 @@ def build_section_context(
     return base_context
 
 
+def page_template_name(theme: str, template_name: str) -> str:
+    """The page template lookup path for a given theme (pure, no I/O)."""
+    return f"django_resume/pages/{theme}/{template_name}"
+
+
+def _template_exists(name: str) -> bool:
+    try:
+        get_template(name)
+    except TemplateDoesNotExist:
+        return False
+    return True
+
+
+def resolve_page_theme(resume: Resume, template_name: str) -> str:
+    """Theme whose page template should render ``template_name`` for ``resume``.
+
+    Returns the resume's current theme when that theme ships the template, and
+    otherwise falls back to ``plain`` -- so a theme that lacks a page template
+    renders predictably instead of raising ``TemplateDoesNotExist``. The
+    ``plain`` theme short-circuits (it is the fallback, so no lookup is needed).
+    """
+    theme = resume.current_theme
+    if theme == "plain":
+        return theme
+    if _template_exists(page_template_name(theme, template_name)):
+        return theme
+    return "plain"
+
+
 def page_template_path(resume: Resume, template_name: str) -> str:
-    return f"django_resume/pages/{resume.current_theme}/{template_name}"
+    """Fallback-aware page template path for ``resume`` (resolves the theme)."""
+    return page_template_name(resolve_page_theme(resume, template_name), template_name)
 
 
 class ResumePage:
@@ -154,7 +188,13 @@ class ResumePage:
     def get_context(
         self, request: HttpRequest, resume: Resume, *, base_context: dict
     ) -> dict:
-        return build_section_context(request, resume, base_context, self.section_names)
+        # Build section context for the same theme the page frame will resolve
+        # to, so a theme-template fallback to ``plain`` also renders the section
+        # fragments via ``plain`` (a coherent fallback, never a half-themed page).
+        theme = resolve_page_theme(resume, self.template_name)
+        return build_section_context(
+            request, resume, base_context, self.section_names, theme=theme
+        )
 
     def serve(
         self, request: HttpRequest, resume: Resume, base_context: dict

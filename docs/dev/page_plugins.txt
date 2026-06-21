@@ -132,7 +132,8 @@ large public API.
    hand-written redirect entry in ``urls.py``.
 #. **Templates resolve as** ``django_resume/pages/{theme}/{template_name}``
    using ``resume.current_theme`` — the existing convention, lifted to a
-   page-level method.
+   page-level method, **with a predictable fallback to** ``plain`` when the
+   active theme lacks the page template (see `Theme Template Fallback`_).
 
 Page Interface
 --------------
@@ -311,6 +312,26 @@ Navigation is deterministic and explicit rather than registration-ordered.
 
 Capability tags for *section selection* are a separate axis (see `Section
 Selection`_); ``nav_order`` / ``nav_group`` are purely about menu presentation.
+
+Theme Template Fallback
+-----------------------
+
+A page resolves its template through ``resolve_page_theme(resume,
+template_name)``: it uses ``resume.current_theme`` when that theme ships the
+template, and otherwise falls back to ``plain``. So a theme that does not
+provide a page template renders predictably instead of raising
+``TemplateDoesNotExist``.
+
+The fallback is **coherent**, not just frame-deep. ``ResumePage.get_context``
+resolves the theme the same way and passes it to ``build_section_context``, so
+when a page frame falls back to ``plain`` its section fragments render through
+``plain`` too -- the page never mixes a ``plain`` frame with another theme's
+sections. ``render_cv_403`` resolves once and uses that theme for both the
+section context and the ``cv_403.html`` template, matching ``serve``.
+
+Resolution is per template, so a theme that ships some page templates but not
+others falls back only for the missing ones. The ``plain`` theme short-circuits
+(it is the fallback target), so the common case costs no extra loader lookup.
 
 Open Questions
 --------------

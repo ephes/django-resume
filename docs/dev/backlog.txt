@@ -38,10 +38,10 @@ Backlog Items
   editable ``PortfolioPage`` that also appears in the resume overview's
   registry-driven navigation (``nav_title`` / ``is_visible`` / the ``page_nav``
   tag), now with explicit ordering and grouping (``nav_order`` / ``nav_group``
-  and the ``page_nav_groups`` tag) and capability-based section selection
-  (``by_capability(...)`` plus per-plugin ``capabilities`` tags). Remaining work
-  is theme template fallback and optional ``importlib.metadata`` entry-point
-  discovery for separately distributed pages.
+  and the ``page_nav_groups`` tag), capability-based section selection
+  (``by_capability(...)`` plus per-plugin ``capabilities`` tags), and a
+  predictable theme template fallback to ``plain``. Remaining work is optional
+  ``importlib.metadata`` entry-point discovery for separately distributed pages.
 
   See :doc:`page_plugins` and :doc:`../guide/creating_page_plugins`.
 

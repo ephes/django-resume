@@ -12,7 +12,8 @@ from .base import (
     ResumePage,
     build_base_context,
     build_section_context,
-    page_template_path,
+    page_template_name,
+    resolve_page_theme,
 )
 from .registry import page_registry
 
@@ -20,14 +21,20 @@ from .registry import page_registry
 def render_cv_403(request: HttpRequest, resume: Resume, *, status: int) -> HttpResponse:
     """Single renderer for cv_403.html, shared by the CV denial path and the
     standalone permission-denied editor, so the two cannot drift."""
+    # Resolve the theme once (with fallback to plain) and use it for both the
+    # section context and the template, matching ResumePage.serve.
+    theme = resolve_page_theme(resume, "cv_403.html")
     base_context = build_base_context(request, resume)
     context = build_section_context(
-        request, resume, base_context, ["permission_denied"]
+        request, resume, base_context, ["permission_denied"], theme=theme
     )
     if "permission_denied" not in context:
         return HttpResponse(status=404)
     return render(
-        request, page_template_path(resume, "cv_403.html"), context, status=status
+        request,
+        page_template_name(theme, "cv_403.html"),
+        context,
+        status=status,
     )
 
 

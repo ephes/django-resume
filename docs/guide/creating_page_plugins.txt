@@ -146,10 +146,14 @@ A minimal ``plain`` template:
    {% endblock body %}
 
 If your project supports more than one theme, add a template per theme (for
-example ``pages/headwind/portfolio.html``). django-resume does not currently
-fall back to another theme's template, so a resume using a theme without a
-matching page template raises ``TemplateDoesNotExist``; ship one template per
-theme you support.
+example ``pages/headwind/portfolio.html``). When a resume's active theme does
+*not* ship a matching page template, django-resume falls back to the ``plain``
+theme rather than raising ``TemplateDoesNotExist`` -- and it renders the section
+fragments through ``plain`` too, so the page stays coherent instead of mixing
+themes. Shipping at least a ``plain`` template is therefore enough to keep a page
+working under every theme; add per-theme templates only where you want a themed
+look. (The bundled example ships both ``plain`` and ``headwind`` portfolio
+templates.)
 
 Editing and access control
 --------------------------

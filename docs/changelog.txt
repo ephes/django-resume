@@ -37,6 +37,11 @@ Features
   plugin (``match="any"`` by default, or ``match="all"``). The built-in content
   plugins are tagged, and the example Portfolio page now selects its sections by
   capability. See :doc:`guide/creating_page_plugins`.
+* Fall back to the ``plain`` theme when a resume's active theme does not ship a
+  page template, instead of raising ``TemplateDoesNotExist``. The fallback is
+  coherent -- the page frame and its section fragments both render through
+  ``plain`` -- and it is per template, so a theme that provides only some page
+  templates falls back only for the missing ones.
 
 Refactor
 ^^^^^^^^
