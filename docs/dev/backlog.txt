@@ -37,9 +37,10 @@ Backlog Items
   autodiscovered on startup, and the example ``core`` app demonstrates it with an
   editable ``PortfolioPage`` that also appears in the resume overview's
   registry-driven navigation (``nav_title`` / ``is_visible`` / the ``page_nav``
-  tag). Remaining work is explicit navigation ordering/grouping,
-  capability-based section selection, theme template fallback, and optional
-  ``importlib.metadata`` entry-point discovery for separately distributed pages.
+  tag), now with explicit ordering and grouping (``nav_order`` / ``nav_group``
+  and the ``page_nav_groups`` tag). Remaining work is capability-based section
+  selection, theme template fallback, and optional ``importlib.metadata``
+  entry-point discovery for separately distributed pages.
 
   See :doc:`page_plugins` and :doc:`../guide/creating_page_plugins`.
 

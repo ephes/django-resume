@@ -4,10 +4,14 @@
     {% for resume in resumes %}
       <li id="resume-{{ resume.slug }}" class="deletable-li">
         {{ resume.name }}:
-        {% page_nav_links resume as nav_links %}
-        {% for link in nav_links %}
-          <a class="underlined" href="{{ link.url }}"{% if is_editable %} hx-boost="true"{% endif %}>{{ link.title }}</a>
-          {% if not forloop.last %} | {% endif %}
+        {% page_nav_groups resume as nav_groups %}
+        {% for group in nav_groups %}
+          {% if group.title %}<span class="nav-group-label">{{ group.title }}:</span>{% endif %}
+          {% for link in group.links %}
+            <a class="underlined" href="{{ link.url }}"{% if is_editable %} hx-boost="true"{% endif %}>{{ link.title }}</a>
+            {% if not forloop.last %} | {% endif %}
+          {% endfor %}
+          {% if not forloop.last %} • {% endif %}
         {% endfor %}
         <button
           class="resume-delete-button"

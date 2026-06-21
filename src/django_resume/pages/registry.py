@@ -31,6 +31,15 @@ class PageRegistry:
     def get_all_pages(self) -> list[ResumePage]:
         return list(self.pages.values())
 
+    def get_ordered_pages(self) -> list[ResumePage]:
+        """Pages sorted by ``nav_order`` for navigation.
+
+        The sort is stable, so pages with an equal ``nav_order`` keep their
+        registration order (``self.pages`` is insertion-ordered). That makes
+        navigation deterministic for built-ins plus any third-party pages
+        regardless of how many share the same order value."""
+        return sorted(self.get_all_pages(), key=lambda page: page.nav_order)
+
     def get_urls(self) -> list[URLPattern]:
         def make_view(page: ResumePage) -> Callable[[HttpRequest, str], HttpResponse]:
             @require_http_methods(["GET"])

@@ -79,6 +79,13 @@ class ResumePage:
     # Human-friendly label for navigation menus. Empty means "do not advertise
     # this page in navigation" (e.g. the bare detail page can still set one).
     nav_title: str = ""
+    # Explicit navigation ordering. Lower sorts first; equal values fall back to
+    # registration order via a stable sort, so nav is deterministic across
+    # built-ins and third-party pages without relying on import timing.
+    nav_order: int = 0
+    # Navigation group label. Links sharing a ``nav_group`` render together; the
+    # empty default keeps a page in the implicit ungrouped bucket.
+    nav_group: str = ""
 
     def check_access(self, request: HttpRequest, resume: Resume) -> HttpResponse | None:
         """Return None to proceed, or a response to short-circuit."""

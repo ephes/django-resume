@@ -265,28 +265,46 @@ without a migration:
   template tag (``{% page_nav_links resume as nav_links %}``) renders the
   registry-driven link list, so the resume overview lists every registered
   page's link for a resume without hand-editing the template, and a discovered
-  third-party page appears there automatically. Link order follows registration
-  order; explicit ordering is future work.
+  third-party page appears there automatically. Link order is explicit via
+  ``nav_order`` (a stable sort, so equal values keep registration order) and
+  links bucket under ``nav_group`` -- see `Navigation Ordering And Grouping`_.
 
 The example project's ``core`` app demonstrates this with an editable
 ``PortfolioPage`` (``example/core/resume_pages.py``) that also appears in the
 resume overview's navigation. The authoring how-to is
 :doc:`../guide/creating_page_plugins`.
 
+Navigation Ordering And Grouping
+--------------------------------
+
+Navigation is deterministic and explicit rather than registration-ordered.
+
+* ``ResumePage.nav_order`` (an ``int``, default ``0``) controls sequence; lower
+  sorts first. ``PageRegistry.get_ordered_pages()`` returns pages sorted by
+  ``nav_order`` with a **stable** sort, so pages sharing an order keep their
+  registration order (built-ins first, then autodiscovered/entry-point pages).
+  Built-ins use 10 (Cover), 20 (CV), 30 (403 editor), leaving gaps for
+  third-party pages -- the example ``PortfolioPage`` uses ``nav_order = 15`` to
+  sit between Cover and CV even though it registers last.
+* ``ResumePage.nav_group`` (a ``str``, default ``""``) labels a group.
+  ``{% page_nav_links %}`` returns the flat ordered list (each entry carries its
+  ``group``); ``{% page_nav_groups %}`` returns the same links bucketed by group.
+  Groups appear in the order their first link does, and a group stays one
+  contiguous section even when its members interleave with other groups by
+  order (the grouping helper merges later members back into the existing
+  bucket). The resume overview renders ``page_nav_groups``.
+
+Capability tags for *section selection* are a separate axis (see `Section
+Selection`_); ``nav_order`` / ``nav_group`` are purely about menu presentation.
+
 Open Questions
 --------------
 
 Deferred to a later slice, not blocking the current page API:
 
-* Navigation ordering and grouping. Page nav entries (label via ``nav_title``,
-  per-resume visibility via ``is_visible``, rendered by the ``page_nav`` tag)
-  have shipped; what remains is explicit ordering control (entries currently
-  follow registration order) and any grouping/menu structure.
 * Generic page dispatcher versus directly generated routes. The first slice
   generates routes directly; a dispatcher is only needed if pages are later
   resolved by a stored type via the catch-all.
-* Theme template fallback: if an active theme lacks a page template, should it
-  fall back to the ``plain`` theme template?
 * Whether to revisit a hook framework such as pluggy after the explicit
   registry settles. Current decision: stay explicit.
 

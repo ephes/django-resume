@@ -37,6 +37,8 @@ class CoverLetterPage(ResumePage):
     template_name = "resume_detail.html"
     section_names = ["about", "identity", "cover", "theme"]
     nav_title = "Cover"
+    nav_order = 10
+    nav_group = "Resume"
 
 
 class CvPage(ResumePage):
@@ -45,6 +47,8 @@ class CvPage(ResumePage):
     template_name = "resume_cv.html"
     section_names = "__all__"
     nav_title = "CV"
+    nav_order = 20
+    nav_group = "Resume"
 
     def check_access(self, request: HttpRequest, resume: Resume) -> HttpResponse | None:
         token_plugin = plugin_registry.get_plugin(TokenPlugin.name)
@@ -71,6 +75,8 @@ class PermissionDeniedPage(ResumePage):
     path = "403/"
     template_name = "cv_403.html"
     nav_title = "403"
+    nav_order = 30
+    nav_group = "Owner tools"
     # No section_names: serve() renders via render_cv_403 and bypasses get_context.
 
     def is_visible(self, resume: Resume) -> bool:

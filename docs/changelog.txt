@@ -25,6 +25,12 @@ Features
   automatically. Pages set ``nav_title`` to be listed and can override
   ``is_visible`` for state-dependent links; the ``page_nav`` template tag
   renders the list anywhere.
+* Give page navigation explicit, deterministic ordering and grouping: pages set
+  ``nav_order`` (lower sorts first; a stable sort keeps registration order for
+  ties) and ``nav_group`` (a group label). The new ``{% page_nav_groups %}``
+  template tag renders links bucketed by group, and the resume overview uses it,
+  so a third-party page can place itself between the built-ins without editing a
+  template. See :doc:`guide/creating_page_plugins`.
 
 Refactor
 ^^^^^^^^

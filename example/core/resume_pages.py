@@ -20,6 +20,11 @@ class PortfolioPage(ResumePage):
     template_name = "portfolio.html"
     section_names = ["identity", "about", "skills", "projects"]
     nav_title = "Portfolio"
+    # Registered last (autodiscovered after the built-ins) yet ``nav_order``
+    # places it between Cover (10) and CV (20) in the "Resume" group -- proof
+    # that navigation order is explicit, not registration order.
+    nav_order = 15
+    nav_group = "Resume"
 
 
 page_registry.register(PortfolioPage)

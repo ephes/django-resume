@@ -175,8 +175,50 @@ cover letter page):
      <a href="{{ link.url }}">{{ link.title }}</a>{% if not forloop.last %} | {% endif %}
    {% endfor %}
 
-Links are ordered by registration order (built-ins first, then autodiscovered
-pages); explicit ordering control is future work.
+Ordering and grouping
+^^^^^^^^^^^^^^^^^^^^^^
+
+Navigation order is **explicit**, not registration order. Set ``nav_order`` (an
+integer, lower sorts first) to place a page wherever you want it among the
+built-ins and other third-party pages:
+
+.. code-block:: python
+
+   class PortfolioPage(ResumePage):
+       url_name = "portfolio"
+       path = "portfolio/"
+       template_name = "portfolio.html"
+       section_names = ["identity", "about", "skills", "projects"]
+       nav_title = "Portfolio"
+       nav_order = 15        # between the built-in Cover (10) and CV (20)
+       nav_group = "Resume"  # rendered under the "Resume" group heading
+
+The built-in pages use ``nav_order`` 10 (Cover), 20 (CV), and 30 (the 403
+editor), leaving gaps so a third-party page can slot in between. The sort is
+**stable**: pages that share a ``nav_order`` keep their registration order
+(built-ins first, then autodiscovered/entry-point pages), so navigation is
+deterministic regardless of import timing.
+
+Set ``nav_group`` to bucket links under a group label. ``page_nav_links``
+returns one flat ordered list (each entry now also carries its ``group``);
+``page_nav_groups`` returns the same links grouped:
+
+.. code-block:: html+django
+
+   {% load page_nav %}
+   {% page_nav_groups resume as nav_groups %}
+   {% for group in nav_groups %}
+     {% if group.title %}<strong>{{ group.title }}:</strong>{% endif %}
+     {% for link in group.links %}
+       <a href="{{ link.url }}">{{ link.title }}</a>{% if not forloop.last %} | {% endif %}
+     {% endfor %}
+   {% endfor %}
+
+Groups appear in the order their first link does (the lowest ``nav_order`` in
+the group, since the links arrive pre-sorted), and a group stays a single
+contiguous section even if its members interleave with other groups by order.
+The resume overview ("My Resumes") renders ``page_nav_groups`` for each resume,
+so a grouped, ordered link list appears there automatically.
 
 The bundled :doc:`example_project` ships exactly this ``PortfolioPage`` in its
 ``core`` app (``example/core/resume_pages.py`` plus ``plain`` and ``headwind``
