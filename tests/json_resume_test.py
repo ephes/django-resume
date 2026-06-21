@@ -8,6 +8,7 @@ from django_resume.plugins import SimplePlugin, ListPlugin
 from django_resume.plugins.about import AboutPlugin
 from django_resume.plugins.education import EducationPlugin
 from django_resume.plugins.identity import IdentityPlugin
+from django_resume.plugins.projects import ProjectsPlugin
 from django_resume.plugins.skills import SkillsPlugin
 from django_resume.plugins.timelines import (
     FreelanceTimelinePlugin,
@@ -172,3 +173,28 @@ def test_both_timeline_plugins_declare_multivalued_work():
         adapter = plugin_cls().get_export_adapters()["json_resume"]
         assert adapter.owned_paths == ("/work",)
         assert adapter.multivalued_paths == ("/work",)
+
+
+def test_projects_adapter_maps_items(resume):
+    plugin = ProjectsPlugin()
+    plugin.data.set_data(resume, {"items": [
+        {
+            "id": "1",
+            "title": "Cool Tool",
+            "url": "https://tool.example",
+            "description": "Does things",
+            "badges": ["python", ""],
+            "position": 0,
+        },
+    ]})
+    facts = plugin.get_structured_data(resume)
+    result = plugin.get_export_adapters()["json_resume"].export(facts)
+    assert result.contributions == [(
+        "/projects",
+        [{
+            "name": "Cool Tool",
+            "url": "https://tool.example",
+            "description": "Does things",
+            "keywords": ["python"],
+        }],
+    )]

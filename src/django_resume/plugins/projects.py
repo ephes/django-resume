@@ -14,6 +14,7 @@ from ..markdown import (
     markdown_to_textarea_input,
     underlined_link_handler,
 )
+from ..interchange.protocols import AdapterExport
 
 
 class ProjectItemForm(ListItemFormMixin, forms.Form):
@@ -124,6 +125,29 @@ class ProjectFlatForm(forms.Form):
         return context
 
 
+class ProjectsJsonResumeAdapter:
+    owned_paths = ("/projects",)
+    multivalued_paths: tuple[str, ...] = ()
+
+    def export(self, facts: dict) -> AdapterExport:
+        out: list[dict] = []
+        for item in facts.get("projects", []):
+            entry: dict[str, object] = {}
+            if item.get("title"):
+                entry["name"] = item["title"]
+            if item.get("url"):
+                entry["url"] = item["url"]
+            if item.get("description"):
+                entry["description"] = item["description"]
+            keywords = [keyword for keyword in item.get("keywords", []) if keyword]
+            if keywords:
+                entry["keywords"] = keywords
+            if entry:
+                out.append(entry)
+        contributions = [("/projects", out)] if out else []
+        return AdapterExport(contributions=contributions)
+
+
 class ProjectsPlugin(ListPlugin):
     name: str = "projects"
     verbose_name: str = "Projects"
@@ -161,3 +185,28 @@ class ProjectsPlugin(ListPlugin):
                 item["description"], handlers={"link": underlined_link_handler}
             )
         return context
+
+    def get_structured_data(self, resume) -> dict:
+        data = self.get_data(resume)
+        projects: list[dict] = []
+        for item in data.get("items", []):
+            badges = item.get("badges") or []
+            if isinstance(badges, str):
+                try:
+                    badges = json.loads(badges)
+                except (ValueError, TypeError):
+                    badges = []
+            if not isinstance(badges, list):
+                badges = []
+            projects.append({
+                "title": item.get("title", ""),
+                "url": item.get("url", ""),
+                "description": item.get("description", ""),
+                "keywords": badges,
+                "position": item.get("position", 0),
+            })
+        projects.sort(key=lambda entry: entry["position"])
+        return {"projects": projects}
+
+    def get_export_adapters(self) -> dict:
+        return {"json_resume": ProjectsJsonResumeAdapter()}
