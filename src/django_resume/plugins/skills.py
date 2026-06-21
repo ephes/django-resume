@@ -59,7 +59,14 @@ class SkillsPlugin(SimplePlugin):
 
     def get_structured_data(self, resume) -> dict:
         data = self.get_data(resume)
-        badges = data.get("badges", []) or []
+        badges = data.get("badges") or []
+        if isinstance(badges, str):
+            try:
+                badges = json.loads(badges)
+            except (ValueError, TypeError):
+                badges = []
+        if not isinstance(badges, list):
+            badges = []
         return {"skills": list(badges)}
 
     def get_export_adapters(self) -> dict:

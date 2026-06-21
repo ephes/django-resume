@@ -372,6 +372,13 @@ def test_full_resume_exports_and_validates(user):
     assert result.document["skills"] == [{"name": "Python"}, {"name": "Django"}]
 
 
+def test_skills_facts_parse_json_string_badges(resume):
+    plugin = SkillsPlugin()
+    plugin.data.set_data(resume, {"badges": '["Python", "Django"]'})
+    facts = plugin.get_structured_data(resume)
+    assert facts["skills"] == ["Python", "Django"]
+
+
 def test_conflicting_scalar_adapters_raise(resume):
     class _A:
         owned_paths = ("/basics/name",)
