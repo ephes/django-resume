@@ -13,8 +13,11 @@
 }
 
 :root {
-  /* one token condenses the per-entry breathing room back to print density */
+  /* condense the per-entry breathing room back to print density */
   --entry-pad: var(--s-2);
+  /* the date tab still renders ~1.8rem tall on paper, so the top clearance can't
+     go below it — only the gap above the headline shrinks (--s-1 → --s-2) */
+  --entry-pad-top: calc(var(--date-tab-block) + var(--s-2));
 }
 
 body.editorial-page {
@@ -27,5 +30,12 @@ body.editorial-page {
  * @page margin is the only frame */
 .editorial-sheet { padding: 0; max-inline-size: none; }
 
-/* drop the screen's bottom-air before the footer — print condenses to the page */
+/* drop the screen's section breathing room — print condenses to the page */
 .cv-main { padding-block-end: 0; }
+.cv-awards-bar { margin-block-end: 0; }
+.cv-root { padding-block-end: 0; }
+/* condense the remaining mobile section spacing for the single-column PDF
+   (the full A4 two-column print pass is still a later step) */
+.cv-header { padding-block-end: var(--s1); }
+.cv-awards-inner { padding-block-end: var(--s1); }
+.cv-awards-bar .award-box + .award-box { margin-block-start: var(--s-1); }

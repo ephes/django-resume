@@ -5,6 +5,11 @@ Changelog
 Unreleased
 ----------
 
+Features
+^^^^^^^^
+* Animate the editorial CV hairlines as they enter the viewport while preserving
+  static lines for reduced-motion and failed-script fallbacks
+
 0.2.0 - 2026-05-12
 ------------------
 

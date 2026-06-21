@@ -45,6 +45,8 @@
   --tag-size: 0.82rem;           /* skill chips + "Kunden:" — a touch below body text */
   --role-size: 1.1rem;           /* job role — header tagline + each work-entry sub-line, kept in sync */
   --entry-pad: var(--s1);        /* vertical breathing room per work entry (print condenses this) */
+  --date-tab-block: 1.8rem;      /* rendered height of the absolute date tab (font --s0, line-height 1.4, +0.2em padding) */
+  --entry-pad-top: calc(var(--date-tab-block) + var(--s-1));   /* entry TOP padding: clears the date tab + a small gap to the headline; print shrinks just the gap. --entry-pad stays the bottom value */
   --sheet-max: 64rem;            /* content sheet max width — also the axis the side art crops against */
   --aside-basis: 22rem;          /* fixed sidebar width, shared by header + body so dividers align */
   --bg-keep: 0.65;               /* fraction of the side art kept clear of the content (the other ~35% may slide under) */
@@ -68,10 +70,18 @@
 
 * { box-sizing: border-box; }
 
-/* Overscroll handling, cross-browser: paint the canvas (what the rubber-band
-   gutter reveals) near-black, like the header bar + footer, so the bounce shows
-   dark instead of the light page — top and bottom, in every engine including
-   iOS/Safari. The bounce itself is kept.
+/* Overscroll handling. This <html> near-black paints the rubber-band gutter on
+   desktop / non-iOS engines, like the header bar + footer.
+   NOTE (verified on iOS Safari, do not re-litigate): on iOS the bounce is painted
+   by the *body* solid background-color (creme), NOT by <html> and NOT by a
+   gradient/background-image (those stay inside the body box; only the solid colour
+   extends into the infinite canvas). iOS also ignores <meta theme-color> here and
+   tints the notch from the declared body background-COLOR — not from rendered
+   pixels (a full-width black ::before bar at the very top does NOT darken it), so
+   no top sliver/gradient can move it. The single body colour therefore drives the
+   notch + top bounce + bottom bounce together: asymmetric "black top / creme
+   bottom" is not achievable via the page background. theme-color is kept anyway
+   for Android/Chrome, which do honour it.
    The side art is position:sticky (see .cv-bg-layer), not a z-index:-1 fixed
    layer, so it no longer depends on background propagation — that is what lets
    <html> carry a background here without hiding the art, and it bounces along
@@ -84,7 +94,11 @@ body.editorial-page {
   margin: 0;
   font-family: "Saira", system-ui, sans-serif;
   font-weight: 300;
-  background-color: var(--editorial-bg);
+  /* Mobile: dark body so iOS tints the notch + rubber-band bounce dark (it samples
+     the body background-color — see the overscroll note above). The creme page sits
+     on .cv-root, which covers everything except the intended dark top bar (::before)
+     and the bounce. Reset to creme on desktop in the @container block. */
+  background-color: var(--editorial-fg);
   color: var(--editorial-fg);
   line-height: 1.4;
   /* query container for the layout switch below — the whole editorial layout is
@@ -93,11 +107,23 @@ body.editorial-page {
   container: editorial / inline-size;
 }
 
+/* Desktop resets the dark mobile body back to creme. This MUST be a media query,
+   NOT the @container block below: body is itself the query container, so it can't
+   respond to its own @container rule (the dark would otherwise leak onto the desktop
+   side-art margins, which multiply against the body backdrop). body width ≈ viewport
+   here, so 64rem lines up with the container breakpoint. */
+@media (min-width: 64rem) {
+  body.editorial-page { background-color: var(--editorial-bg); }
+}
+
 /* full-bleed black bar across the very top edge (like the template) */
 body.editorial-page::before {
   content: "";
   display: block;
-  block-size: 1.6rem;
+  /* fluid: ~2px on a phone, growing to the full 1.6rem by the desktop breakpoint
+     (preferred hits 1.6rem at ~1024px, then the max caps it — so desktop stays
+     exactly 1.6rem). Crosses the 2px floor around phone widths (~390px). */
+  block-size: clamp(2px, calc(3.72vw - 12.5px), 1.6rem);
   background: var(--editorial-fg);
   /* keep the bar above the sticky side art during the scroll transition */
   position: relative;
@@ -374,7 +400,7 @@ a { color: inherit; }
 .cv-aside { --stack-space: var(--s1); }
 .cv-rail {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: var(--script-rail) 1fr;
   align-items: stretch;
 }
 .cv-rail-label {
@@ -445,7 +471,9 @@ a { color: inherit; }
   font-size: var(--s0);
   line-height: 1.2;
 }
-.timeline-header-title { padding-inline-end: 9rem; }   /* keep company clear of the date tab */
+/* headline now sits below the date tab (see .timeline-entry top padding), so it
+   no longer needs to reserve space for it — full content width, like the body text */
+.timeline-header-title { padding-inline-end: 0; }
 .year-span {
   position: absolute;
   /* the entry box already reaches the divider (negative margin-inline-end),
@@ -473,7 +501,9 @@ a { color: inherit; }
 .timeline-entry {
   position: relative;
   border-block-start: var(--editorial-rule) solid var(--editorial-line);
-  padding-block: var(--entry-pad);
+  /* top padding clears the absolute date tab so the headline sits BELOW it and can
+     use the full content width; the bottom keeps the entry rhythm */
+  padding-block: var(--entry-pad-top) var(--entry-pad);
   /* stretch the box past the main column's right padding so the top rule runs
      flush to the divider; the inner content keeps the same right inset, and the
      date tab (inset-inline-end:0) lands on the divider automatically */
@@ -636,6 +666,98 @@ a { color: inherit; }
   color: var(--editorial-bg);
 }
 
+/* ------------------------------------------------------- line drawing ---- */
+@media (prefers-reduced-motion: no-preference) {
+  html.js-lines {
+    --line-draw-curve: cubic-bezier(0.2, 1.16, 0.34, 1);
+    --line-draw-vertical: 1500ms;
+    --line-draw-horizontal: 1180ms;
+  }
+
+  html.js-lines .editorial-sheet::before,
+  html.js-lines .editorial-sheet::after {
+    clip-path: inset(0 0 100% 0);
+    transition: clip-path var(--line-draw-vertical-local, var(--line-draw-vertical)) var(--line-draw-curve);
+  }
+  html.js-lines .editorial-sheet.cv-line-drawn::before,
+  html.js-lines .editorial-sheet.cv-line-drawn::after {
+    clip-path: inset(0);
+  }
+
+  html.js-lines .cv-header::after {
+    transform: scaleX(0);
+    transform-origin: right center;
+    transition: transform var(--line-draw-horizontal) var(--line-draw-curve);
+  }
+  html.js-lines .cv-header.cv-line-drawn::after { transform: scaleX(1); }
+
+  html.js-lines .cv-header-aside,
+  html.js-lines .cv-aside {
+    position: relative;
+    border-inline-start-color: transparent;
+  }
+  html.js-lines .cv-header-aside::before,
+  html.js-lines .cv-aside::before {
+    content: "";
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: calc(-1 * var(--editorial-rule));
+    border-inline-start: var(--editorial-rule) solid var(--editorial-line);
+    transform: scaleY(0);
+    transform-origin: top center;
+    transition: transform var(--line-draw-vertical-local, var(--line-draw-vertical)) var(--line-draw-curve);
+    pointer-events: none;
+  }
+  html.js-lines .cv-header-aside.cv-line-drawn::before,
+  html.js-lines .cv-aside.cv-line-drawn::before {
+    transform: scaleY(1);
+  }
+
+  html.js-lines .cv-rail-body::before {
+    transform: scaleY(0);
+    transform-origin: top center;
+    transition: transform var(--line-draw-vertical-local, var(--line-draw-vertical)) var(--line-draw-curve);
+  }
+  html.js-lines .cv-rail-body.cv-line-drawn::before { transform: scaleY(1); }
+
+  html.js-lines .timeline-entry {
+    border-block-start-color: transparent;
+  }
+  html.js-lines .timeline-entry::before {
+    content: "";
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline: 0;
+    border-block-start: var(--editorial-rule) solid var(--editorial-line);
+    transform: scaleX(0);
+    transform-origin: right center;
+    transition: transform var(--line-draw-horizontal) var(--line-draw-curve);
+    pointer-events: none;
+  }
+  html.js-lines .timeline-entry.cv-line-drawn::before { transform: scaleX(1); }
+
+  html.js-lines .cv-rail-body > section + section,
+  html.js-lines .cv-aside > .cv-rail + .cv-rail .cv-rail-body > :first-child {
+    position: relative;
+    border-block-start-color: transparent;
+  }
+  html.js-lines .cv-rail-body > section + section::before,
+  html.js-lines .cv-aside > .cv-rail + .cv-rail .cv-rail-body > :first-child::before {
+    content: "";
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline: 0;
+    border-block-start: var(--editorial-rule) solid var(--editorial-line);
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform var(--line-draw-horizontal) var(--line-draw-curve);
+    pointer-events: none;
+  }
+  html.js-lines .cv-line-drawn.cv-rail-divider::before {
+    transform: scaleX(1);
+  }
+}
+
 /* ------------------------------------------------------- education ------ */
 .education-box { display: grid; gap: 0.1em; }
 .education-year { font-weight: 600; font-size: var(--s0); }
@@ -709,6 +831,10 @@ a { color: inherit; }
   display: flex;
   flex-direction: column;
   padding-inline: var(--sheet-pad-inline);
+  padding-block-end: var(--s3);   /* air below the last section (Resources) before the page edge */
+  /* the creme page surface (incl. the side gutters via the inline padding) over the
+     dark body; the dark body then shows only in the notch + bounce. Reset on desktop. */
+  background-color: var(--editorial-bg);
 }
 .cv-stage,
 .editorial-sheet,
@@ -721,9 +847,12 @@ a { color: inherit; }
   display: block;
   flex: 0 0 auto;
   min-inline-size: 0;
-  padding: 0;
+  /* air below the last entry before the full-bleed Awards bar — half the desktop
+     column's bottom breathing room, which is too tall on a phone (print.css resets to 0) */
+  padding: 0 0 var(--s3);
   order: 3;
 }
+.cv-main h2 { text-align: center; }   /* centre the "Work Experience" lead label on mobile */
 /* card order; photo a touch bigger than 60vw, and shifted so the clip's long
    straight left edge (≈6.98% in from the box edge, per the SVG mask) lands on the
    contact rail line (= gutter + rotated-label column) */
@@ -741,9 +870,27 @@ a { color: inherit; }
   margin-inline-start: calc(var(--script-rail) - 0.0698 * var(--photo-w));
   margin-inline-end: 0;
 }
-.cv-header { order: 2; flex-direction: column; }
-.cv-awards-bar { order: 4; margin-inline: calc(-1 * var(--sheet-pad-inline)); }  /* full-bleed */
+.cv-header { order: 2; flex-direction: column; padding-block-end: var(--s2); }  /* a touch more air to Work Experience on mobile */
+.cv-awards-bar { order: 4; margin-block-end: var(--s3); margin-inline: calc(-1 * var(--sheet-pad-inline)); }  /* full-bleed + air below */
 .cv-rail   { order: 5; }
+/* Awards on mobile: the three areas (script label, award 1, award 2) become a
+   vertical Stack instead of the desktop 3-column row (conceptually a Switcher,
+   realised here as a Stack since the 64rem container query drives the split). The
+   dark bar stays full-bleed, but its content honours the usual page gutter. */
+.cv-awards-bar section { grid-template-columns: 1fr; gap: 0; }   /* spacing handled per-row below */
+/* less air at the top of the section, more below the last award */
+.cv-awards-inner { padding-block: var(--s1) var(--s3); padding-inline: var(--sheet-pad-inline); }
+/* full-width rule under the "Awards" heading; tight spacing down to the first award */
+.cv-awards-bar h2 {
+  text-align: center;          /* centre the label like Work Experience */
+  line-height: 0.8;             /* tighten the 1.4 script line box so the rule sits close under the word */
+  padding-block-end: 0;
+  border-block-end: var(--editorial-rule) solid var(--editorial-bg);
+  margin-block-end: var(--s0);  /* a bit more space from the rule down to the first award */
+}
+.cv-awards-bar .award-box { padding-inline: 0; text-align: center; }   /* centred, like the label */
+.cv-awards-bar .award-box + .award-box { margin-block-start: var(--s1); }  /* gap between the two awards */
+.cv-awards-bar .award-box:nth-child(1) { border-inline-end: 0; } /* drop the column divider when stacked */
 
 /* header stacks name over contact; drop the desktop rule + far-left contact divider */
 .cv-header-name {
@@ -763,19 +910,42 @@ a { color: inherit; }
      contact block is only as tall as its content (down to the email) */
   flex: 0 0 auto;
   margin-block-start: var(--s2);   /* clear gap below the name */
+  /* how far the contact divider line rises above the rail body to meet the
+     firstname's underline = vertical distance (lastname + role + the gap above).
+     Fluid so it tracks the name's vw-scaled type; tuned across phone widths. */
+  --contact-line-rise: calc(10vw + 59px);
+}
+/* extend the contact rail line up so its top sits on the firstname's underline;
+   trim the bottom so it ends flush with the last contact row (mail icon line) */
+.cv-header-aside .cv-rail-body::before {
+  inset-block-start: calc(-1 * var(--contact-line-rise));
+  inset-block-end: 5px;
+}
+/* re-centre the rotated "Contact" label on the now-taller visible line
+   (rotate(180deg) flips Y, so a positive translateY nudges it up the line) */
+.cv-header-aside .cv-rail-label {
+  transform: rotate(180deg) translateY(calc(var(--contact-line-rise) / 2));
 }
 
 /* resources rail no longer fills height; work entries don't reach a divider;
  * date tabs bleed to the right edge */
 .cv-aside > .cv-rail:last-child { flex: 0 1 auto; }
-.timeline-entry { margin-inline-end: 0; padding-inline-end: 0; }
-.year-span { inset-inline-end: calc(-1 * var(--sheet-pad-inline)); }
+/* bleed the entry's top rule to the sheet edge so the separator line meets the
+   date tab (which already bleeds there); inner content keeps its right inset */
+.timeline-entry {
+  margin-inline-end: calc(-1 * var(--sheet-pad-inline));
+  padding-inline-end: var(--sheet-pad-inline);
+}
+.year-span {
+  inset-inline-end: 0;        /* entry now reaches the edge, so the tab sits at 0 */
+  inset-block-start: -1px;    /* pull up 1px so the tab's top is flush with the rule (mobile rounds it off otherwise) */
+}
 
 /* ===================================================== desktop (wide) ======
  * Container query (not media query): the layout responds to the page container's
  * width, and it ADDS the two-column architecture on top of the mobile base. */
 @container editorial (min-width: 64rem) {
-  .cv-root { display: block; padding-inline: 0; }
+  .cv-root { display: block; padding-inline: 0; padding-block-end: 0; background-color: transparent; }
   .cv-stage { display: block; }
   .editorial-sheet {
     display: flex;                 /* restore the .stack column */
@@ -801,7 +971,8 @@ a { color: inherit; }
     margin-inline-start: calc(-1 * var(--photo-bleed-left));
     margin-inline-end: 0;
   }
-  .cv-header { flex-direction: row; }
+  .cv-header { flex-direction: row; padding-block-end: var(--s1); }
+  .cv-main h2 { text-align: start; }   /* lead label stays left on desktop */
   .cv-header-name { align-self: flex-end; margin-inline-start: 0; }
   .cv-firstname { text-indent: -0.085em; }
   .cv-role { text-align: end; font-size: var(--role-size); }
@@ -812,10 +983,23 @@ a { color: inherit; }
     flex: 0 0 var(--aside-basis);
     margin-block-start: 0;
   }
-  .cv-awards-bar { margin-inline: 0; }
+  /* contact line + label back to content-height / centred (the mobile rise is off) */
+  .cv-header-aside .cv-rail-body::before { inset-block-start: 0; inset-block-end: 0; }
+  .cv-header-aside .cv-rail-label { transform: rotate(180deg); }
+  .cv-awards-bar { margin-inline: 0; margin-block-end: 0; }
+  /* restore the desktop 3-column awards row + its insets/divider. The inner uses
+     the same inline padding as the sheet body, and the last column is exactly
+     --aside-basis wide, so the award column divider falls on the SAME vertical axis
+     as the main|aside divider in the header + body above it (one continuous line). */
+  .cv-awards-bar section { grid-template-columns: 0.5fr 1.2fr var(--aside-basis); gap: 0; }
+  .cv-awards-inner { padding-block: var(--s2); padding-inline: var(--sheet-pad-inline); }
+  .cv-awards-bar h2 { text-align: start; line-height: 1.4; padding-block-end: 0; border-block-end: 0; margin-block-end: 0; }   /* no heading rule on desktop */
+  .cv-awards-bar .award-box { padding-inline: var(--s1); text-align: start; }
+  .cv-awards-bar .award-box + .award-box { margin-block-start: 0; }
+  .cv-awards-bar .award-box:nth-child(1) { border-inline-end: var(--editorial-rule) solid var(--editorial-bg); }
   .cv-aside > .cv-rail:last-child { flex: 1; }
   .timeline-entry { margin-inline-end: calc(var(--s2) * -1); padding-inline-end: var(--s2); }
-  .year-span { inset-inline-end: 0; }
+  .year-span { inset-inline-end: 0; inset-block-start: 0; }   /* desktop tab already flush; drop the mobile 1px nudge */
   .cv-bg-layer { display: block; }
   /* back to source order */
   .cv-photo, .cv-header, .cv-main, .cv-awards-bar, .cv-rail { order: 0; }
