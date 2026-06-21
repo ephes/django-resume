@@ -1,16 +1,14 @@
-<main id="main-resumes-list" class="stack-large">
+{% load page_nav %}<main id="main-resumes-list" class="stack-large">
   <h2>Edit or Remove from List</h2>
   <ul id="resume-list" class="deletable-ul">
     {% for resume in resumes %}
       <li id="resume-{{ resume.slug }}" class="deletable-li">
         {{ resume.name }}:
-        <a class="underlined" href="{% url 'django_resume:detail' resume.slug %}"{% if is_editable %} hx-boost="true"{% endif %}>Cover</a>
-        |
-        <a class="underlined" href="{% url 'django_resume:cv' resume.slug %}"{% if is_editable %} hx-boost="true"{% endif %}>CV</a>
-        {% if resume.token_is_required %}
-          |
-          <a class="underlined" href="{% url 'django_resume:403' resume.slug %}"{% if is_editable %} hx-boost="true"{% endif %}>403</a>
-        {% endif %}
+        {% page_nav_links resume as nav_links %}
+        {% for link in nav_links %}
+          <a class="underlined" href="{{ link.url }}"{% if is_editable %} hx-boost="true"{% endif %}>{{ link.title }}</a>
+          {% if not forloop.last %} | {% endif %}
+        {% endfor %}
         <button
           class="resume-delete-button"
           hx-delete="{% url 'django_resume:delete' resume.slug %}"

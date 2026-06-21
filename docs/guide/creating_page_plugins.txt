@@ -135,6 +135,50 @@ for response-level concerns such as headers:
                return HttpResponse(status=403)
            return None
 
+Showing the page in navigation
+------------------------------
+
+Set ``nav_title`` to make the page advertise itself in navigation. The resume
+overview ("My Resumes") renders one link per registered page for each resume,
+built from the registry, so a page with a ``nav_title`` shows up there
+automatically next to the built-in Cover/CV links -- no template editing
+required:
+
+.. code-block:: python
+
+   class PortfolioPage(ResumePage):
+       url_name = "portfolio"
+       path = "portfolio/"
+       template_name = "portfolio.html"
+       section_names = ["identity", "about", "skills", "projects"]
+       nav_title = "Portfolio"
+
+A page with an empty ``nav_title`` (the default) is reachable by URL but not
+advertised. Override ``is_visible(resume)`` to hide the link in some states --
+the built-in 403 editor does this, only appearing when the resume requires an
+access token:
+
+.. code-block:: python
+
+   def is_visible(self, resume) -> bool:
+       return resume.token_is_required
+
+The links come from the ``page_nav`` template tag, so you can render the same
+registry-driven list anywhere (for example to link to the portfolio from the
+cover letter page):
+
+.. code-block:: html+django
+
+   {% load page_nav %}
+   {% page_nav_links resume as nav_links %}
+   {% for link in nav_links %}
+     <a href="{{ link.url }}">{{ link.title }}</a>{% if not forloop.last %} | {% endif %}
+   {% endfor %}
+
+Links are ordered by registration order (built-ins first, then autodiscovered
+pages); explicit ordering control is future work.
+
 The bundled :doc:`example_project` ships exactly this ``PortfolioPage`` in its
 ``core`` app (``example/core/resume_pages.py`` plus ``plain`` and ``headwind``
-templates), so you can see the whole flow end to end.
+templates), so you can see the whole flow end to end -- including the Portfolio
+link appearing in the resume overview.

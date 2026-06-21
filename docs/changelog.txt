@@ -19,6 +19,12 @@ Features
   URL name) without modifying ``django_resume`` or adding a migration. The
   bundled example project demonstrates this with an editable ``PortfolioPage``
   at ``/<slug>/portfolio/``. See :doc:`guide/creating_page_plugins`.
+* Generate the per-resume page links on the resume overview from the page
+  registry instead of hard-coding them, so every registered page (including
+  third-party pages such as the example Portfolio page) appears in navigation
+  automatically. Pages set ``nav_title`` to be listed and can override
+  ``is_visible`` for state-dependent links; the ``page_nav`` template tag
+  renders the list anywhere.
 
 Refactor
 ^^^^^^^^

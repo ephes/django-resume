@@ -58,7 +58,9 @@ The ``core`` app also contributes a custom **page** -- a third-party
 automatically on startup (see :doc:`creating_page_plugins`). It needs no change
 to django-resume itself and no migration.
 
-Visit it for any resume at ``/<slug>/portfolio/``, for example:
+Because it sets a ``nav_title``, its link also appears automatically in the
+resume overview ("My Resumes") next to the built-in Cover/CV links. Visit it for
+any resume at ``/<slug>/portfolio/``, for example:
 
 - `Portfolio page <http://localhost:8000/resume/jochen/portfolio/>`_
 

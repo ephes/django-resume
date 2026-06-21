@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, render
+from django.urls import reverse
 
 from ..models import Resume
 from ..plugins import plugin_registry
@@ -75,10 +76,27 @@ class ResumePage:
     path: str = ""
     template_name: str = ""
     section_names: list[str] | str = []
+    # Human-friendly label for navigation menus. Empty means "do not advertise
+    # this page in navigation" (e.g. the bare detail page can still set one).
+    nav_title: str = ""
 
     def check_access(self, request: HttpRequest, resume: Resume) -> HttpResponse | None:
         """Return None to proceed, or a response to short-circuit."""
         return None
+
+    def is_visible(self, resume: Resume) -> bool:
+        """Whether this page should be advertised in navigation for ``resume``.
+
+        Override for pages that are only relevant in some states (e.g. the 403
+        editor, which only matters when the resume requires an access token)."""
+        return True
+
+    def nav_url(self, resume: Resume) -> str:
+        """The URL of this page for ``resume``.
+
+        Uses the ``django_resume`` application namespace so it resolves
+        regardless of the instance namespace an integrator mounts the app under."""
+        return reverse(f"django_resume:{self.url_name}", kwargs={"slug": resume.slug})
 
     def get_context(
         self, request: HttpRequest, resume: Resume, *, base_context: dict

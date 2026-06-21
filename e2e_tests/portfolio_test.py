@@ -106,6 +106,29 @@ def test_owner_can_edit_about_section_on_portfolio_page(page: Page, live_server,
     expect(page.locator("#about", has_text=unique)).to_be_visible()
 
 
+def test_portfolio_link_in_overview_row_navigates_to_page(
+    page: Page, live_server, seed
+):
+    _admin_login(page, live_server, "jochen")
+
+    # The resume overview lists each resume with a link per registered page,
+    # generated from the page registry -- so the example PortfolioPage shows up
+    # automatically next to the built-in Cover/CV links.
+    page.goto(f"{live_server.url}/resume/")
+    row = page.locator("#resume-jochen")
+    expect(row).to_be_visible()
+    expect(row.get_by_role("link", name="Cover")).to_be_visible()
+    expect(row.get_by_role("link", name="CV")).to_be_visible()
+
+    portfolio_link = row.get_by_role("link", name="Portfolio")
+    expect(portfolio_link).to_be_visible()
+
+    # Clicking it lands on the portfolio page.
+    portfolio_link.click()
+    expect(page).to_have_url(f"{live_server.url}{PORTFOLIO_PATH}")
+    expect(page.locator("h1", has_text="Portfolio").first).to_be_visible()
+
+
 def test_non_owner_sees_no_edit_controls(page: Page, live_server, seed):
     _admin_login(page, live_server, "other")
 

@@ -35,7 +35,9 @@ Backlog Items
   redirect stays a plain redirect rather than a page. Third-party page discovery
   has shipped too: installed apps register pages from a ``resume_pages`` module,
   autodiscovered on startup, and the example ``core`` app demonstrates it with an
-  editable ``PortfolioPage``. Remaining work is navigation metadata,
+  editable ``PortfolioPage`` that also appears in the resume overview's
+  registry-driven navigation (``nav_title`` / ``is_visible`` / the ``page_nav``
+  tag). Remaining work is explicit navigation ordering/grouping,
   capability-based section selection, theme template fallback, and optional
   ``importlib.metadata`` entry-point discovery for separately distributed pages.
 

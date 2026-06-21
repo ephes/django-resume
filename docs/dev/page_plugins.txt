@@ -259,9 +259,18 @@ without a migration:
   theme under ``templates/django_resume/pages/{theme}/{template_name}``. The
   bare ``<slug:slug>/`` catch-all is still emitted last by construction, so a
   third-party ``path`` never shadows (or is shadowed by) the default page.
+* A page advertises itself in navigation by setting ``nav_title`` and, when
+  it is only relevant in some states, overriding ``is_visible(resume)`` (the
+  built-in 403 editor returns ``resume.token_is_required``). The ``page_nav``
+  template tag (``{% page_nav_links resume as nav_links %}``) renders the
+  registry-driven link list, so the resume overview lists every registered
+  page's link for a resume without hand-editing the template, and a discovered
+  third-party page appears there automatically. Link order follows registration
+  order; explicit ordering is future work.
 
 The example project's ``core`` app demonstrates this with an editable
-``PortfolioPage`` (``example/core/resume_pages.py``). The authoring how-to is
+``PortfolioPage`` (``example/core/resume_pages.py``) that also appears in the
+resume overview's navigation. The authoring how-to is
 :doc:`../guide/creating_page_plugins`.
 
 Open Questions
@@ -269,8 +278,10 @@ Open Questions
 
 Deferred to a later slice, not blocking the current page API:
 
-* Navigation metadata: how page navigation entries are represented and
-  ordered.
+* Navigation ordering and grouping. Page nav entries (label via ``nav_title``,
+  per-resume visibility via ``is_visible``, rendered by the ``page_nav`` tag)
+  have shipped; what remains is explicit ordering control (entries currently
+  follow registration order) and any grouping/menu structure.
 * Generic page dispatcher versus directly generated routes. The first slice
   generates routes directly; a dispatcher is only needed if pages are later
   resolved by a stored type via the catch-all.

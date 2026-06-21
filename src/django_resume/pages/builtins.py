@@ -36,6 +36,7 @@ class CoverLetterPage(ResumePage):
     path = ""
     template_name = "resume_detail.html"
     section_names = ["about", "identity", "cover", "theme"]
+    nav_title = "Cover"
 
 
 class CvPage(ResumePage):
@@ -43,6 +44,7 @@ class CvPage(ResumePage):
     path = "cv/"
     template_name = "resume_cv.html"
     section_names = "__all__"
+    nav_title = "CV"
 
     def check_access(self, request: HttpRequest, resume: Resume) -> HttpResponse | None:
         token_plugin = plugin_registry.get_plugin(TokenPlugin.name)
@@ -68,7 +70,13 @@ class PermissionDeniedPage(ResumePage):
     url_name = "403"
     path = "403/"
     template_name = "cv_403.html"
+    nav_title = "403"
     # No section_names: serve() renders via render_cv_403 and bypasses get_context.
+
+    def is_visible(self, resume: Resume) -> bool:
+        # The 403 editor is only meaningful when the resume gates its CV behind
+        # an access token; otherwise no one can ever see the 403 page.
+        return resume.token_is_required
 
     def check_access(self, request: HttpRequest, resume: Resume) -> HttpResponse | None:
         if not request.user.is_authenticated:

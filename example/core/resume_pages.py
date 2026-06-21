@@ -19,6 +19,7 @@ class PortfolioPage(ResumePage):
     path = "portfolio/"
     template_name = "portfolio.html"
     section_names = ["identity", "about", "skills", "projects"]
+    nav_title = "Portfolio"
 
 
 page_registry.register(PortfolioPage)
