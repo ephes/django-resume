@@ -3,6 +3,7 @@ import json
 from django import forms
 
 from .base import SimplePlugin
+from ..interchange.protocols import AdapterExport
 
 
 class SkillsForm(forms.Form):
@@ -20,6 +21,16 @@ class SkillsForm(forms.Form):
         if existing_badges is not None:
             return json.dumps(existing_badges)
         return json.dumps(self.initial_badges)
+
+
+class SkillsJsonResumeAdapter:
+    owned_paths = ("/skills",)
+    multivalued_paths: tuple[str, ...] = ()
+
+    def export(self, facts: dict) -> AdapterExport:
+        skills = [{"name": name} for name in facts.get("skills", []) if name]
+        contributions = [("/skills", skills)] if skills else []
+        return AdapterExport(contributions=contributions)
 
 
 class SkillsPlugin(SimplePlugin):
@@ -43,5 +54,13 @@ class SkillsPlugin(SimplePlugin):
         JSON format and submitted securely via the form.
         
         This plugin ensures a user-friendly way to manage and present professional skills,
-        keeping content editable while maintaining data integrity.    
+        keeping content editable while maintaining data integrity.
     """
+
+    def get_structured_data(self, resume) -> dict:
+        data = self.get_data(resume)
+        badges = data.get("badges", []) or []
+        return {"skills": list(badges)}
+
+    def get_export_adapters(self) -> dict:
+        return {"json_resume": SkillsJsonResumeAdapter()}

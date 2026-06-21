@@ -7,6 +7,7 @@ from django_resume.formats.json_resume.validation import validate_document
 from django_resume.plugins import SimplePlugin, ListPlugin
 from django_resume.plugins.about import AboutPlugin
 from django_resume.plugins.identity import IdentityPlugin
+from django_resume.plugins.skills import SkillsPlugin
 
 
 def test_vendored_schema_is_present_and_loadable():
@@ -87,3 +88,13 @@ def test_about_facts_and_adapter_map_to_summary(resume):
     result = adapter.export(facts)
     assert result.contributions == [("/basics/summary", "I build things.")]
     assert any("about.title" in note for note in result.notes)
+
+
+def test_skills_facts_and_adapter_map_to_skill_objects(resume):
+    plugin = SkillsPlugin()
+    plugin.data.set_data(resume, {"badges": ["Python", "Django", ""]})
+    facts = plugin.get_structured_data(resume)
+    assert facts["skills"] == ["Python", "Django", ""]
+    adapter = plugin.get_export_adapters()["json_resume"]
+    result = adapter.export(facts)
+    assert result.contributions == [("/skills", [{"name": "Python"}, {"name": "Django"}])]
