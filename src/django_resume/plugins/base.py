@@ -1,6 +1,14 @@
 from uuid import uuid4
 
-from typing import Protocol, runtime_checkable, Callable, TypeAlias, Any, cast
+from typing import (
+    Protocol,
+    runtime_checkable,
+    Callable,
+    TypeAlias,
+    Any,
+    cast,
+    TYPE_CHECKING,
+)
 
 from django import forms
 from django.contrib.auth.decorators import login_required
@@ -12,6 +20,9 @@ from django.core.exceptions import PermissionDenied
 from django.db import transaction
 
 from ..models import Resume
+
+if TYPE_CHECKING:
+    from ..interchange.protocols import ExportAdapter
 
 
 URLPatterns: TypeAlias = list[URLPattern]
@@ -55,6 +66,14 @@ class Plugin(Protocol):
         theme: str = "plain",
     ) -> object:
         """Return the object which is stored in context for the plugin."""
+        ...  # pragma: no cover
+
+    def get_structured_data(self, resume: Resume) -> dict:
+        """Return format-neutral, normalized facts for this resume."""
+        ...  # pragma: no cover
+
+    def get_export_adapters(self) -> dict[str, "ExportAdapter"]:
+        """Return a map of format id -> export adapter for this plugin."""
         ...  # pragma: no cover
 
 
@@ -550,6 +569,14 @@ class SimplePlugin:
 
     def get_data(self, resume: Resume) -> dict:
         return self.data.get_data(resume)
+
+    def get_structured_data(self, resume: Resume) -> dict:
+        """Format-neutral, normalized facts for export. Default: no facts."""
+        return {}
+
+    def get_export_adapters(self) -> dict[str, "ExportAdapter"]:
+        """Map of format id -> export adapter. Default: none."""
+        return {}
 
 
 class ListItemFormMixin(forms.Form):
@@ -1273,3 +1300,11 @@ class ListPlugin:
 
     def get_data(self, resume: Resume) -> dict:
         return self.data.get_data(resume)
+
+    def get_structured_data(self, resume: Resume) -> dict:
+        """Format-neutral, normalized facts for export. Default: no facts."""
+        return {}
+
+    def get_export_adapters(self) -> dict[str, "ExportAdapter"]:
+        """Map of format id -> export adapter. Default: none."""
+        return {}
