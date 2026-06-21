@@ -1,9 +1,13 @@
 import json
 from pathlib import Path
 
+import pytest
+
 import django_resume.formats.json_resume as json_resume_pkg
 from django_resume.formats.json_resume.dates import is_valid_resume_date
+from django_resume.formats.json_resume.export import export_resume
 from django_resume.formats.json_resume.validation import validate_document
+from django_resume.models import Resume
 from django_resume.plugins import SimplePlugin, ListPlugin
 from django_resume.plugins.about import AboutPlugin
 from django_resume.plugins.education import EducationPlugin
@@ -198,3 +202,23 @@ def test_projects_adapter_maps_items(resume):
             "keywords": ["python"],
         }],
     )]
+
+
+@pytest.mark.django_db
+def test_export_resume_assembles_validates_and_reports(user):
+    user.save()
+    resume = Resume.objects.create(name="Jane", slug="jane", owner=user)
+    IdentityPlugin().data.set_data(resume, {
+        "name": "Jane Doe", "email": "jane@example.com",
+    })
+    AboutPlugin().data.set_data(resume, {"title": "About", "text": "Hello"})
+    resume.save()
+
+    result = export_resume(resume)
+
+    assert result.document["basics"]["name"] == "Jane Doe"
+    assert result.document["basics"]["summary"] == "Hello"
+    assert result.report.valid
+    assert result.report.validation_errors == []
+    assert "identity" in result.report.mapped_plugins
+    assert "cover" in result.report.omitted_plugins
