@@ -55,6 +55,9 @@ Theme Extraction
   - Move the cover-letter templates and CSS (the ``.cover-letter`` block) into the
     django-resume editorial theme; reconcile the homepage overrides against the
     originals and delete them.
+  - Fold the homepage ``CoverPlugin`` subclass fields (``closing``,
+    ``signature_name``, ``signature_img``) into the upstream ``CoverPlugin`` and
+    drop the homepage override app.
   - Remove the ``homepage.handwriting`` app and the editorial overrides from
     ``homepage``; pin/release django-resume accordingly.
   - Gate on **visual parity**: the CV and the cover letter must render identically

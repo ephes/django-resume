@@ -4,7 +4,7 @@
 
 **Goal:** Build a reader-usable editorial **cover-letter page** (the django-resume `detail` view) inside the `homepage` project, reusing the CV's editorial design and the existing handwriting — recognizable header identical to the CV, an image-or-handwriting signature, and clean A4 print.
 
-**Architecture:** Develop entirely in `homepage` for a fast edit→refresh loop: the cover-letter templates are `homepage` template overrides of the editorial `detail`/`cover` templates, the layout is an app-local, tightly-scoped `.cover-letter` stylesheet layered after the editorial CSS, and the handwriting is the one already living in `homepage.handwriting`. The **only** django-resume change is a small, stable data-contract addition to the `cover` plugin (new fields cannot be overridden from homepage). Pulling all of this into the django-resume theme later is explicitly **out of scope** — it is a separate Backlog item ("Theme Extraction").
+**Architecture:** Develop entirely in `homepage` for a fast edit→refresh loop: the cover-letter templates are `homepage` template overrides of the editorial `detail`/`cover` templates, the layout is an app-local, tightly-scoped `.cover-letter` stylesheet layered after the editorial CSS, and the handwriting is the one already living in `homepage.handwriting`. There are **no** django-resume changes: the new cover fields (`closing`, signature name + image) are added by a homepage `CoverPlugin` subclass re-registered under name `"cover"` (the registry overrides by name). Pulling all of this into the django-resume theme later is explicitly **out of scope** — it is a separate Backlog item ("Theme Extraction").
 
 **Tech Stack:** Django template overrides + the existing `homepage.handwriting` tag, vanilla CSS/JS (CSS-first, JS as progressive enhancement), pytest, Playwright (Python) for visual verification, uv.
 
@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - **Develop in homepage.** All presentation (templates, CSS, handwriting usage) lives in `homepage` as overrides/app-local files. Do **not** move anything into the django-resume theme in this plan.
-- **One library touch only.** The `cover` plugin field additions (`closing`, `signature_img` + `clear_signature`, `signature_name`) go into django-resume's `cover.py` (editable install → live, no release). Nothing else in django-resume changes.
+- **Zero django-resume changes.** The new cover fields are added by a **homepage** `CoverPlugin` subclass re-registered under name `"cover"` — the plugin registry overrides by name (`registry.py._register`: it pops the old inline URLs, overwrites `plugins[name]`, re-adds URLs, clears caches). Rendering the fields needs nothing upstream: `ListPlugin.get_context` dumps `plugin_data["flat"]` into the context wholesale (base.py:1223), so any flat key is readable as `{{ cover.<key> }}`. The subclass exists only to (a) make the fields editable in the inline UI and (b) process the signature-image upload + expose its URL.
 - **Recognizable elements identical:** the letter's shared elements (name typography, `WERSDÖRFER`, role, rotated handwritten "Contact" label, contact icons, colours, spacing, fonts) must be identical to the CV — reuse the same identity header + editorial CSS, do not re-create.
 - **Signature precedence:** if `signature_img` is set, render the image; else render `signature_name` (default `identity.name`) as self-writing handwriting via `{% handwriting_label %}`.
 - **Graceful degradation:** no-JS and `prefers-reduced-motion: reduce` show the final written handwriting and static lines, fully readable.
@@ -60,48 +60,47 @@ git add pyproject.toml uv.lock commands.py
 git commit -m "Pin django-resume as an editable dev source so uv run keeps the editorial theme"
 ```
 
-### Task 2: Extend the `cover` plugin (closing + signature) — django-resume
+### Task 2: Add the cover fields via a homepage CoverPlugin subclass (zero django-resume changes)
 
-The single django-resume change: a stable data contract. TDD.
+Rendering needs nothing upstream (flat data is dumped into context — base.py:1223). A subclass re-registered under name `"cover"` adds the inline-edit form fields and the signature-image URL, entirely in homepage. TDD.
 
-**Files (django-resume):**
-- Modify: `src/django_resume/plugins/cover.py`
-- Test: `tests/plugins/test_cover.py` (follow the existing plugin-test pattern in `tests/`)
+**Files (homepage):**
+- Create: `homepage/resume_cover/__init__.py`, `homepage/resume_cover/apps.py`, `homepage/resume_cover/plugin.py`
+- Create: `homepage/resume_cover/tests/__init__.py`, `homepage/resume_cover/tests/test_plugin.py`
+- Modify: `config/settings/*.py` `INSTALLED_APPS` (add `"homepage.resume_cover"` **after** `"django_resume"`)
 
 **Interfaces:**
-- Produces: `cover` flat context gains `closing` (str), `signature_name` (str, may be ""), `signature_img` / `signature_img_url` (URL str or ""). Template precedence: image if set, else `signature_name|default:identity.name` as handwriting.
+- Produces: the registry's `"cover"` plugin is `EditorialCoverPlugin`; its flat form has `closing`, `signature_name`, `signature_img`, `clear_signature`; its `get_context` adds `signature_img_url`. Template reads `{{ cover.closing }}`, `{{ cover.signature_name }}`, `{{ cover.signature_img_url }}` (the flat dump + the get_context addition, both nested under `cover` by the view).
 
-- [ ] **Step 1: Write failing tests** in `tests/plugins/test_cover.py`:
+- [ ] **Step 1: Write failing tests** `homepage/resume_cover/tests/test_plugin.py`:
 
 ```python
-def test_cover_flat_form_has_closing_and_signature_fields():
-    from django_resume.plugins.cover import CoverFlatForm
-    f = CoverFlatForm()
-    assert "closing" in f.fields
-    assert "signature_name" in f.fields
-    assert "signature_img" in f.fields
-    assert "clear_signature" in f.fields
+def test_homepage_overrides_cover_plugin_in_registry():
+    from django_resume.plugins import plugin_registry
+    from homepage.resume_cover.plugin import EditorialCoverPlugin
+    p = plugin_registry.get_plugin("cover")
+    assert isinstance(p, EditorialCoverPlugin)
 
 
-def test_cover_flat_set_context_exposes_signature_and_closing():
-    from django_resume.plugins.cover import CoverFlatForm
-    ctx = {"edit_flat_url": "/x"}
-    CoverFlatForm.set_context(
-        {"closing": "Mit freundlichen Grüßen",
-         "signature_name": "Katharina Wersdörfer",
-         "signature_img": "", "subject": "Bewerbung"},
-        ctx,
-    )
-    assert ctx["cover"]["closing"] == "Mit freundlichen Grüßen"
-    assert ctx["cover"]["signature_name"] == "Katharina Wersdörfer"
-    assert ctx["cover"]["signature_img_url"] == ""   # no image -> empty -> template falls back to name
+def test_editorial_cover_flat_form_has_new_fields():
+    from homepage.resume_cover.plugin import EditorialCoverFlatForm
+    f = EditorialCoverFlatForm()
+    for name in ("closing", "signature_name", "signature_img", "clear_signature"):
+        assert name in f.fields
 ```
 
-- [ ] **Step 2: Run, expect FAIL.** `cd ~/gitprojects/django-resume && uv run pytest tests/plugins/test_cover.py -q -k "closing or signature"` → FAIL.
+- [ ] **Step 2: Run, expect FAIL.** `cd ~/gitprojects/homepage && uv run pytest homepage/resume_cover/tests/test_plugin.py -q` → FAIL (module/app not present).
 
-- [ ] **Step 3: Implement in `CoverFlatForm`** (cover.py). Add fields after `salutation` (cover.py:89-91), extend `image_fields`, add the URL property, and extend `set_context`:
+- [ ] **Step 3: Create the plugin** `homepage/resume_cover/plugin.py`:
 
 ```python
+from django import forms
+from django.core.files.storage import default_storage
+
+from django_resume.plugins.cover import CoverPlugin, CoverFlatForm, CoverItemForm
+
+
+class EditorialCoverFlatForm(CoverFlatForm):
     closing = forms.CharField(
         widget=forms.TextInput(), required=False, max_length=200,
         initial="Mit freundlichen Grüßen",
@@ -121,20 +120,42 @@ def test_cover_flat_set_context_exposes_signature_and_closing():
     @property
     def signature_img_url(self) -> str:
         return self.get_image_url_for_field(self.initial.get("signature_img", ""))
+
+
+class EditorialCoverPlugin(CoverPlugin):
+    @staticmethod
+    def get_form_classes():
+        return {"item": CoverItemForm, "flat": EditorialCoverFlatForm}
+
+    def get_context(self, request, plugin_data, resume_pk, *, context, edit=False, theme="plain"):
+        context = super().get_context(
+            request, plugin_data, resume_pk, context=context, edit=edit, theme=theme
+        )
+        sig = plugin_data.get("flat", {}).get("signature_img", "")
+        context["signature_img_url"] = default_storage.url(sig) if sig else ""
+        return context
 ```
 
-In `set_context`, add to the `context["cover"]` dict:
+- [ ] **Step 4: Register it** `homepage/resume_cover/apps.py`:
 
 ```python
-            "closing": item.get("closing", ""),
-            "signature_name": item.get("signature_name", ""),
-            "signature_img": ImageFormMixin.get_image_url_for_field(item.get("signature_img", "")),
-            "signature_img_url": ImageFormMixin.get_image_url_for_field(item.get("signature_img", "")),
+from django.apps import AppConfig
+
+
+class ResumeCoverConfig(AppConfig):
+    name = "homepage.resume_cover"
+
+    def ready(self):
+        from django_resume.plugins import plugin_registry
+        from .plugin import EditorialCoverPlugin
+        plugin_registry.register(EditorialCoverPlugin)   # overrides "cover" by name
 ```
 
-- [ ] **Step 4: Run, expect PASS + check.** `uv run pytest tests/plugins/test_cover.py -q` → PASS; then `just check` → green (lint, mypy, tests).
+Add `default_app_config` is unnecessary on modern Django; just add `"homepage.resume_cover"` to `INSTALLED_APPS` **after** `"django_resume"` so its `ready()` runs last and wins the override.
 
-- [ ] **Step 5: Commit (django-resume).** `git add src/django_resume/plugins/cover.py tests/plugins/test_cover.py && git commit -m "Add closing + image-or-name signature fields to the cover plugin"`.
+- [ ] **Step 5: Run, expect PASS.** `cd ~/gitprojects/homepage && uv run pytest homepage/resume_cover/tests/test_plugin.py -q` → PASS.
+
+- [ ] **Step 6: Commit (homepage).** `git add homepage/resume_cover config/settings && git commit -m "Override the cover plugin in homepage with closing + signature fields"`.
 
 ### Task 3: Override the editorial `detail` page in homepage (editorial shell + header)
 
@@ -306,7 +327,7 @@ Pulling the finished cover-letter templates + CSS **and** the handwriting into t
 
 ## Self-review notes (coverage)
 
-- Spec "cover fields: closing, signature image + name default identity.name" → Task 2 + Task 4 precedence.
+- Spec "cover fields: closing, signature image + name default identity.name" → Task 2 (homepage `CoverPlugin` subclass, zero upstream changes) + Task 4 precedence.
 - Spec "identical recognizable header, no photo" → Task 3.
 - Spec "layout per PDF" → Tasks 4–5; "Print A4" → Task 6.
 - Spec "dev-env stable / uv run safe" → Task 1.
