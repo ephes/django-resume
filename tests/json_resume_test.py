@@ -6,6 +6,7 @@ from django_resume.formats.json_resume.dates import is_valid_resume_date
 from django_resume.formats.json_resume.validation import validate_document
 from django_resume.plugins import SimplePlugin, ListPlugin
 from django_resume.plugins.about import AboutPlugin
+from django_resume.plugins.education import EducationPlugin
 from django_resume.plugins.identity import IdentityPlugin
 from django_resume.plugins.skills import SkillsPlugin
 
@@ -98,3 +99,36 @@ def test_skills_facts_and_adapter_map_to_skill_objects(resume):
     adapter = plugin.get_export_adapters()["json_resume"]
     result = adapter.export(facts)
     assert result.contributions == [("/skills", [{"name": "Python"}, {"name": "Django"}])]
+
+
+def test_education_adapter_maps_valid_entry(resume):
+    plugin = EducationPlugin()
+    plugin.data.set_data(resume, {
+        "school_name": "State University",
+        "school_url": "https://uni.example",
+        "start": "2010",
+        "end": "2014",
+    })
+    facts = plugin.get_structured_data(resume)
+    adapter = plugin.get_export_adapters()["json_resume"]
+    result = adapter.export(facts)
+    assert result.contributions == [(
+        "/education",
+        [{
+            "institution": "State University",
+            "url": "https://uni.example",
+            "startDate": "2010",
+            "endDate": "2014",
+        }],
+    )]
+    assert result.notes == []
+
+
+def test_education_adapter_omits_and_reports_invalid_date(resume):
+    plugin = EducationPlugin()
+    plugin.data.set_data(resume, {"school_name": "Uni", "start": "start", "end": ""})
+    facts = plugin.get_structured_data(resume)
+    result = plugin.get_export_adapters()["json_resume"].export(facts)
+    entry = dict(result.contributions)["/education"][0]
+    assert entry == {"institution": "Uni"}
+    assert any("start" in note for note in result.notes)
