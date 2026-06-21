@@ -30,35 +30,30 @@
 - Modify: `pyproject.toml` `[tool.uv.sources]`
 - Modify: `commands.py` (dev + git source lists)
 
-- [ ] **Step 1: Add the editable source.** In `~/gitprojects/homepage/pyproject.toml`, under `[tool.uv.sources]` (alongside the cast packages), add:
+> **DONE** (homepage commit `1c57b2c`). Built as a **git source** (branch
+> `editorial-theme`), not a committed editable path: homepage's prek hook blocks
+> committing local paths, and the plan makes **no** django-resume changes, so the
+> git source is the correct CI/prod-safe default. Editable-via-`switch-to-dev-environment`
+> is wired but optional (only needed if you want to hack on django-resume itself).
+
+- [x] **Step 1: Add the git source.** In `pyproject.toml` `[tool.uv.sources]` (alongside the cast packages):
 
 ```toml
-django-resume = { path = "../django-resume", editable = true }
+django-resume = { git = "https://github.com/ephes/django-resume", branch = "editorial-theme" }
 ```
 
-- [ ] **Step 2: Manage it via the dev/git switches.** In `commands.py`:
-  - in `switch_to_dev_environment()` add `("django-resume", projects_dir / "django-resume")` to the editable list;
-  - in `switch_to_git_sources()` add `"django-resume": {"git": "https://github.com/ephes/django-resume", "branch": "editorial-theme"}` to the default sources. (The `editorial-theme` branch must be pushed for the git source to resolve in CI/production.)
+This also fixes CI/prod, which were silently on PyPI `0.2.0` (no editorial theme at all).
 
-- [ ] **Step 3: Re-lock and verify `uv run` is safe.**
+- [x] **Step 2: Wire the dev/git switches.** In `commands.py`:
+  - `switch_to_dev_environment()` editable list += `("django-resume", projects_dir / "django-resume")`;
+  - `switch_to_git_sources()` defaults += `"django-resume": {"git": "https://github.com/ephes/django-resume", "branch": "editorial-theme"}`.
+  (`origin/editorial-theme` carries the editorial theme — verified at commit `6f825f4`.)
 
-```bash
-cd ~/gitprojects/homepage
-uv lock
-uv run python -c "import django_resume, os; print(os.path.realpath(django_resume.__file__))"
-```
+- [x] **Step 3: Re-lock + verify `uv run` is safe.** `uv lock` resolved django-resume to `git+…@editorial-theme` (`6f825f4`); `uv sync` replaced the temporary editable install with the git build. `uv run` now serves the editorial theme instead of clobbering to `0.2.0`. (Import path is `.venv/.../site-packages` — the **git build**, not PyPI 0.2.0; the editorial `base.html` resolves, which 0.2.0 lacks.)
 
-Expected: a path **inside `~/gitprojects/django-resume`** (editable), not `.venv/.../site-packages`.
+- [x] **Step 4: Smoke test.** `uv run python manage.py runserver 0.0.0.0:8003` + `curl … /resume/katharina/cv/?token=localpreview2026` → **200**, handwriting + hairlines render.
 
-- [ ] **Step 4: Smoke-test the CV still renders.** `uv run python manage.py runserver 0.0.0.0:8003`, then `curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:8003/resume/katharina/cv/?token=localpreview2026"` → `200`.
-
-- [ ] **Step 5: Commit (homepage).**
-
-```bash
-cd ~/gitprojects/homepage
-git add pyproject.toml uv.lock commands.py
-git commit -m "Pin django-resume as an editable dev source so uv run keeps the editorial theme"
-```
+- [x] **Step 5: Commit (homepage).** `git add pyproject.toml uv.lock commands.py` → commit `1c57b2c` "Source django-resume from the editorial-theme branch; add to dev/git source switches".
 
 ### Task 2: Add the cover fields via a homepage CoverPlugin subclass (zero django-resume changes)
 
