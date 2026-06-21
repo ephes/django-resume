@@ -1,7 +1,11 @@
 import json
+import json as _json
+from io import StringIO
 from pathlib import Path
 
 import pytest
+from django.core.management import call_command
+from django.core.management.base import CommandError
 
 import django_resume.formats.json_resume as json_resume_pkg
 from django_resume.formats.json_resume.dates import is_valid_resume_date
@@ -222,3 +226,24 @@ def test_export_resume_assembles_validates_and_reports(user):
     assert result.report.validation_errors == []
     assert "identity" in result.report.mapped_plugins
     assert "cover" in result.report.omitted_plugins
+
+
+@pytest.mark.django_db
+def test_command_writes_valid_json_to_stdout(user):
+    user.save()
+    resume = Resume.objects.create(name="Jane", slug="jane-cli", owner=user)
+    IdentityPlugin().data.set_data(resume, {"name": "Jane Doe"})
+    resume.save()
+
+    stdout, stderr = StringIO(), StringIO()
+    call_command("export_json_resume", "jane-cli", stdout=stdout, stderr=stderr)
+
+    document = _json.loads(stdout.getvalue())
+    assert document["basics"]["name"] == "Jane Doe"
+    assert "Mapped plugins" in stderr.getvalue()
+
+
+@pytest.mark.django_db
+def test_command_errors_on_unknown_slug():
+    with pytest.raises(CommandError):
+        call_command("export_json_resume", "does-not-exist")
