@@ -23,6 +23,10 @@ ContextDict: TypeAlias = dict[str, Any]
 class Plugin(Protocol):
     name: str
     verbose_name: str
+    # Capability tags a page can select on (see ``ResumePage.section_names`` /
+    # ``ByCapability``). Empty means the plugin is not advertised as selectable
+    # content -- e.g. access-control or UI-control plugins.
+    capabilities: tuple[str, ...]
 
     def get_admin_urls(self, admin_view: Callable) -> URLPatterns:
         """Return a list of urls that are used to manage the plugin data in the Django admin interface."""
@@ -441,6 +445,7 @@ class SimplePlugin:
 
     name = "simple_plugin"
     verbose_name = "Simple Plugin"
+    capabilities: tuple[str, ...] = ()
     template_class: type[ThemedTemplates] = SimpleThemedTemplates
     init_hooks: list[Callable] = []
 
@@ -1156,6 +1161,7 @@ class ListPlugin:
 
     name = "list_plugin"
     verbose_name = "List Plugin"
+    capabilities: tuple[str, ...] = ()
     template_class: type[ThemedTemplates] = ListThemedTemplates
     sort_by_reverse_position: bool = True
 

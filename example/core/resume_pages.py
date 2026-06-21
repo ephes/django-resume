@@ -11,14 +11,17 @@ and the existing section-plugin context -- and its content lives in the existing
 section plugins' ``Resume.plugin_data``, so it needs no new model or migration.
 """
 
-from django_resume.pages import ResumePage, page_registry
+from django_resume.pages import ResumePage, by_capability, page_registry
 
 
 class PortfolioPage(ResumePage):
     url_name = "portfolio"
     path = "portfolio/"
     template_name = "portfolio.html"
-    section_names = ["identity", "about", "skills", "projects"]
+    # Select sections by capability instead of by name: every plugin tagged
+    # "portfolio" (identity, about, skills, projects) is included, so adding a
+    # new portfolio-suitable section plugin later needs no edit here.
+    section_names = by_capability("portfolio")
     nav_title = "Portfolio"
     # Registered last (autodiscovered after the built-ins) yet ``nav_order``
     # places it between Cover (10) and CV (20) in the "Resume" group -- proof

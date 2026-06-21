@@ -1,6 +1,6 @@
 from django.utils.module_loading import autodiscover_modules
 
-from .base import ResumePage
+from .base import ByCapability, ResumePage, by_capability
 from .builtins import register_builtin_pages
 from .registry import PageRegistry, page_registry
 
@@ -19,6 +19,8 @@ def autodiscover_pages() -> None:
 
 __all__ = [
     "ResumePage",
+    "ByCapability",
+    "by_capability",
     "PageRegistry",
     "page_registry",
     "register_builtin_pages",

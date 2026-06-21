@@ -103,6 +103,7 @@ class CoverFlatForm(ImageFormMixin, forms.Form):
 class CoverPlugin(ListPlugin):
     name: str = "cover"
     verbose_name: str = "Cover Letter"
+    capabilities: tuple[str, ...] = ("cover",)
     inline: ListInline
 
     @staticmethod

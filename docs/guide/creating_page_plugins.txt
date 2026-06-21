@@ -62,10 +62,56 @@ The attributes are:
    Resolved as ``django_resume/pages/{resume.current_theme}/{template_name}``.
 
 ``section_names``
-   The section plugins whose context the page builds, by name. It is an
-   *inclusion filter*, not an ordering -- the template decides layout by
-   including sections by name (``{% include about.templates.main %}``). Use the
-   string ``"__all__"`` to include every registered section plugin.
+   The section plugins whose context the page builds. It is an *inclusion
+   filter*, not an ordering -- the template decides layout by including sections
+   by name (``{% include about.templates.main %}``). Three forms are accepted:
+
+   * an explicit list of plugin names, e.g. ``["identity", "about"]``;
+   * the string ``"__all__"`` to include every registered section plugin;
+   * a capability selector, ``by_capability("portfolio")``, to include every
+     plugin tagged with that capability (see `Selecting sections by
+     capability`_ below).
+
+Selecting sections by capability
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Listing plugins by name couples a page to a fixed set of sections. Instead, a
+page can select sections by *capability*: each section plugin advertises a
+``capabilities`` tuple, and ``by_capability(...)`` includes every plugin that
+matches. The built-in content plugins are tagged so that, for example,
+``identity``, ``about``, ``skills``, and ``projects`` all carry ``"portfolio"``:
+
+.. code-block:: python
+
+   from django_resume.pages import ResumePage, by_capability, page_registry
+
+
+   class PortfolioPage(ResumePage):
+       url_name = "portfolio"
+       path = "portfolio/"
+       template_name = "portfolio.html"
+       section_names = by_capability("portfolio")
+       nav_title = "Portfolio"
+
+``by_capability("portfolio")`` matches a plugin that carries *any* of the given
+tags; pass ``match="all"`` to require *all* of them, and several tags to widen
+the match:
+
+.. code-block:: python
+
+   section_names = by_capability("cv", "experience")             # any of these
+   section_names = by_capability("portfolio", "cv", match="all")  # all of these
+
+Tag your own section plugin by setting its ``capabilities`` so a capability-based
+page can pick it up automatically::
+
+   class TestimonialsPlugin(SimplePlugin):
+       name = "testimonials"
+       capabilities = ("portfolio",)
+
+Selection is deterministic (registry order) and the access/UI-control plugins
+(``token``, ``theme``) carry no capabilities, so they are never selected as
+content. Explicit lists and ``"__all__"`` keep working unchanged.
 
 Add a template
 --------------

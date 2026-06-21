@@ -75,6 +75,7 @@ class IdentityForm(ImageFormMixin, forms.Form):
 class IdentityPlugin(SimplePlugin):
     name: str = "identity"
     verbose_name: str = "Identity Information"
+    capabilities: tuple[str, ...] = ("identity", "contact", "portfolio", "cv")
     admin_form_class = inline_form_class = IdentityForm
     prompt = """
         Create a django-resume plugin to display and manage a person’s profile information. The plugin

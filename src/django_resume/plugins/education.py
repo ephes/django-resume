@@ -20,6 +20,7 @@ class EducationForm(forms.Form):
 class EducationPlugin(SimplePlugin):
     name: str = "education"
     verbose_name: str = "Education"
+    capabilities: tuple[str, ...] = ("education", "cv")
     admin_form_class = inline_form_class = EducationForm
     prompt = """
         Create a django-resume plugin to display education-related information. The plugin should

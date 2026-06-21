@@ -31,6 +31,12 @@ Features
   template tag renders links bucketed by group, and the resume overview uses it,
   so a third-party page can place itself between the built-ins without editing a
   template. See :doc:`guide/creating_page_plugins`.
+* Let a page select its sections by *capability* in addition to by name or
+  ``"__all__"``: section plugins advertise a ``capabilities`` tuple and a page
+  sets ``section_names = by_capability("portfolio")`` to include every matching
+  plugin (``match="any"`` by default, or ``match="all"``). The built-in content
+  plugins are tagged, and the example Portfolio page now selects its sections by
+  capability. See :doc:`guide/creating_page_plugins`.
 
 Refactor
 ^^^^^^^^

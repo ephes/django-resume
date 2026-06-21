@@ -1,11 +1,51 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
 
 from ..models import Resume
 from ..plugins import plugin_registry
+
+
+@dataclass(frozen=True)
+class ByCapability:
+    """Select section plugins by capability tag rather than by name.
+
+    Assign it to a page's :attr:`ResumePage.section_names` to include every
+    registered plugin whose :attr:`~django_resume.plugins.base.Plugin.capabilities`
+    satisfy this selector. ``match="any"`` (the default) includes a plugin that
+    carries at least one requested capability; ``match="all"`` requires every
+    one. An empty capability set matches nothing.
+
+    Prefer the :func:`by_capability` factory for the ergonomic call site
+    ``by_capability("portfolio")`` / ``by_capability("a", "b", match="all")``.
+    """
+
+    capabilities: tuple[str, ...]
+    match: str = "any"
+
+    def __post_init__(self) -> None:
+        if self.match not in ("any", "all"):
+            raise ValueError(
+                f"ByCapability.match must be 'any' or 'all', got {self.match!r}"
+            )
+
+    def matches(self, plugin: object) -> bool:
+        wanted = set(self.capabilities)
+        if not wanted:
+            return False
+        have = set(getattr(plugin, "capabilities", ()) or ())
+        if self.match == "all":
+            return wanted <= have
+        return bool(wanted & have)
+
+
+def by_capability(*capabilities: str, match: str = "any") -> ByCapability:
+    """Build a :class:`ByCapability` selector from positional capability tags."""
+    return ByCapability(capabilities=capabilities, match=match)
 
 
 def get_edit_and_show_urls(request: HttpRequest) -> tuple[str, str]:
@@ -37,11 +77,17 @@ def build_section_context(
     request: HttpRequest,
     resume: Resume,
     base_context: dict,
-    section_names: list[str] | str,
+    section_names: list[str] | str | ByCapability,
 ) -> dict:
     show_edit_button = base_context.get("show_edit_button", False)
     theme = resume.current_theme
-    if section_names == "__all__":
+    if isinstance(section_names, ByCapability):
+        plugins = [
+            plugin
+            for plugin in plugin_registry.get_all_plugins()
+            if section_names.matches(plugin)
+        ]
+    elif section_names == "__all__":
         plugins = plugin_registry.get_all_plugins()
     else:
         plugins = [
@@ -75,7 +121,7 @@ class ResumePage:
     url_name: str = ""
     path: str = ""
     template_name: str = ""
-    section_names: list[str] | str = []
+    section_names: list[str] | str | ByCapability = []
     # Human-friendly label for navigation menus. Empty means "do not advertise
     # this page in navigation" (e.g. the bare detail page can still set one).
     nav_title: str = ""

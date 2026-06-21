@@ -25,6 +25,7 @@ class SkillsForm(forms.Form):
 class SkillsPlugin(SimplePlugin):
     name: str = "skills"
     verbose_name: str = "Skills"
+    capabilities: tuple[str, ...] = ("skills", "portfolio", "cv")
     admin_form_class = inline_form_class = SkillsForm
     prompt = """
         Create a django-resume plugin to display a list of skills as badges on a webpage. The plugin
