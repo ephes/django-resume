@@ -21,9 +21,18 @@ no longer plain views; they are registered ``ResumePage`` classes
 ``detail`` page) is emitted last by construction, so the more specific
 ``cv/`` and ``403/`` routes still resolve unambiguously. The URL names
 (``detail``, ``cv``, ``403``) are preserved for ``reverse()`` and external
-links. See :doc:`../dev/page_plugins` for the page registry, and
-:doc:`../guide/creating_page_plugins` for adding your own pages from an
-installed app.
+links.
+
+The page templates below resolve as
+``django_resume/pages/{resume.current_theme}/{template_name}`` and fall back to
+the ``plain`` theme (frame and section fragments together) when the active theme
+ships no such template, so a missing theme template does not raise
+``TemplateDoesNotExist``. Pages also support explicit navigation
+ordering/grouping (``nav_order`` / ``nav_group``), capability-based section
+selection (``by_capability(...)``), and registration from installed apps
+(``resume_pages``) or separately distributed packages (``django_resume.pages``
+entry points). See :doc:`../dev/page_plugins` for the page registry and
+:doc:`../guide/creating_page_plugins` for adding your own pages.
 
 The URL patterns are found in ``django_resume.urls`` (shown below for
 reference):

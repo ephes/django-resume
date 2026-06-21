@@ -11,6 +11,8 @@ def test_autodiscover_pages_loads_resume_pages_modules(mocker):
     project's ``PortfolioPage``) is proven by the live-server e2e test.
     """
     loader = mocker.patch("django_resume.pages.autodiscover_modules")
+    # Isolate from the entry-point extension point (covered in entrypoints_test).
+    mocker.patch("django_resume.pages.load_entry_point_pages")
 
     autodiscover_pages()
 

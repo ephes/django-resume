@@ -8,26 +8,33 @@ Goal
 Provide a first-class page API for django-resume so built-in pages and
 third-party pages use the same extension mechanism.
 
-The current section plugin API is good at storing and rendering resume facts.
-The current page structure is still mostly hard-coded: the cover/detail page,
-CV page, CV redirect, and permission-denied page are defined directly in
-``django_resume.urls`` and ``django_resume.views``.
+The section plugin API is good at storing and rendering resume facts. The page
+API described here lifts page structure out of hard-coded
+``django_resume.urls`` / ``django_resume.views`` into registered ``ResumePage``
+classes, so built-in and third-party pages use the same mechanism.
 
-This document is a planning document. The research questions have been
-answered (see `Research Summary`_), the first slice is scoped (see
-`Decisions`_ and `Implementation Sketch`_), and a small set of genuinely open
-questions remain for a later slice (see `Open Questions`_).
-The internal-registry slice described in `Implementation Sketch`_ has
-been implemented in ``django_resume.pages``; ``CvPage`` keeps ``section_names
-= "__all__"`` deliberately, because its template renders every registered
-content section (capability or explicit-list selection is available for pages
-that want a subset).
+This document is the design record for that API. The research questions have
+been answered (see `Research Summary`_), the decisions are recorded (see
+`Decisions`_), and the API is **implemented** in ``django_resume.pages``; only
+a small set of genuinely open questions remain (see `Open Questions`_). What
+has shipped:
 
-Third-party page discovery has also shipped: installed apps can now register
-their own pages from a ``resume_pages`` module, autodiscovered on startup (see
-`Third-Party Pages`_). The bundled example project's ``core`` app demonstrates
-it with an editable ``PortfolioPage``. The user-facing how-to lives in
-:doc:`../guide/creating_page_plugins`.
+* The page registry and the three built-in pages behind their existing URL
+  names. ``CvPage`` keeps ``section_names = "__all__"`` deliberately, because
+  its template renders every registered content section.
+* Third-party discovery: installed apps register pages from a ``resume_pages``
+  module (see `Third-Party Pages`_), and separately distributed packages
+  register through ``importlib.metadata`` entry points (see `Entry-Point
+  Pages`_).
+* Explicit navigation ordering and grouping (see `Navigation Ordering And
+  Grouping`_), capability-based section selection (see `Section Selection`_),
+  and a predictable theme template fallback to ``plain`` (see `Theme Template
+  Fallback`_).
+
+The bundled example project demonstrates the third-party paths: its ``core``
+app ships an editable ``PortfolioPage`` (``resume_pages`` autodiscovery) and the
+``resume_entrypoint_demo`` distribution ships a ``ContactPage`` (entry point).
+The user-facing how-to lives in :doc:`../guide/creating_page_plugins`.
 
 Problem
 -------
@@ -93,9 +100,11 @@ handful of names and **zero migrations per page type**.
 Decisions
 ---------
 
-These decisions scope the first slice. They are deliberately conservative: an
+These decisions shaped the page API. They were deliberately conservative: an
 internal registry that converts the existing pages without committing to a
-large public API.
+large public API up front. The follow-on capabilities (navigation
+ordering/grouping, capability-based selection, theme fallback, entry-point
+discovery) layered onto these without revisiting them.
 
 #. **A separate** ``page_registry``. Mirror the existing ``plugin_registry``
    (a module-level singleton with ``register`` / ``get`` / ``get_urls``)
@@ -105,9 +114,9 @@ large public API.
    plugins and ``Resume.plugin_data``.
 #. **Built-ins registered in core**, explicitly, in ``AppConfig.ready`` before
    ``register_plugins``. Third-party pages are then autodiscovered from each
-   installed app's ``resume_pages`` module (see `Third-Party Pages`_);
-   ``importlib.metadata`` entry points for fully separate page distributions
-   remain a possible future addition.
+   installed app's ``resume_pages`` module, and separately distributed packages
+   register through ``importlib.metadata`` entry points (see `Third-Party
+   Pages`_) -- both run before the URLconf is built.
 #. **Each page owns a** ``path`` **subsegment under** ``<slug:slug>/``. The
    default/root page uses ``path = ""``. ``page_registry.get_urls`` guarantees
    the bare/most-general route is emitted *last* by construction (sorted on
@@ -263,13 +272,15 @@ without a migration:
 * ``django_resume.pages.autodiscover_pages()`` imports a ``resume_pages``
   module from every installed app on startup, mirroring the admin's
   ``autodiscover_modules`` side-effect import. Each module registers its pages
-  with ``page_registry`` at import time.
+  with ``page_registry`` at import time. It then calls
+  ``load_entry_point_pages()`` so packages that are *not* installed Django apps
+  can contribute pages too (see `Entry-Point Pages`_).
 * ``AppConfig.ready`` runs ``register_pages()`` (built-ins), then
-  ``autodiscover_pages()`` (third-party), then ``register_plugins()``. The page
-  registry must be complete before that last step, because the first plugin
-  registration imports ``django_resume.urls``, which evaluates
-  ``page_registry.get_urls()`` exactly once. A page registered after that import
-  would not get a route.
+  ``autodiscover_pages()`` (third-party ``resume_pages`` modules **and** entry
+  points), then ``register_plugins()``. The page registry must be complete
+  before that last step, because the first plugin registration imports
+  ``django_resume.urls``, which evaluates ``page_registry.get_urls()`` exactly
+  once. A page registered after that import would not get a route.
 * A page subclasses ``ResumePage``, sets ``url_name`` / ``path`` /
   ``template_name`` / ``section_names``, and ships a template per supported
   theme under ``templates/django_resume/pages/{theme}/{template_name}``. The
@@ -289,6 +300,36 @@ The example project's ``core`` app demonstrates this with an editable
 ``PortfolioPage`` (``example/core/resume_pages.py``) that also appears in the
 resume overview's navigation. The authoring how-to is
 :doc:`../guide/creating_page_plugins`.
+
+Entry-Point Pages
+-----------------
+
+A package that is **not** an installed Django app -- so its ``resume_pages``
+module is never autodiscovered -- can still contribute pages through
+``importlib.metadata`` entry points. This is the path for a page shipped as its
+own PyPI distribution, independent of the project's ``INSTALLED_APPS``.
+
+* The package declares an entry point in the ``django_resume.pages`` group::
+
+    [project.entry-points."django_resume.pages"]
+    contact = "mypkg.pages:ContactPage"
+
+* ``load_entry_point_pages()`` loads each entry point's target and registers it:
+  a ``ResumePage`` subclass is registered directly; a zero-argument callable is
+  invoked so it can register its own pages; anything else raises ``TypeError``.
+* It runs inside ``autodiscover_pages()`` (after ``resume_pages`` modules and
+  before ``register_plugins()``), so entry-point pages exist before the URLconf
+  freezes and get routes under the same trailing-catch-all ordering guarantee.
+  Registration order is built-ins, then ``resume_pages`` modules, then entry
+  points -- which is also the stable-sort tiebreaker for navigation.
+* Because such a package is not in ``INSTALLED_APPS``, ``APP_DIRS`` does not find
+  its templates; an entry-point page that wants themed templates must ship them
+  on a configured template path, or override ``serve`` to render directly.
+
+The bundled ``example/resume_entrypoint_demo`` distribution demonstrates this:
+it is installed (editable) but absent from ``INSTALLED_APPS``, and its
+``ContactPage`` is reachable at ``<slug>/contact/`` purely via the entry point.
+The live-server test ``e2e_tests/entrypoint_page_test.py`` proves it renders.
 
 Navigation Ordering And Grouping
 --------------------------------
@@ -336,11 +377,13 @@ others falls back only for the missing ones. The ``plain`` theme short-circuits
 Open Questions
 --------------
 
-Deferred to a later slice, not blocking the current page API:
+Genuinely future, not blocking the current (shipped) page API:
 
-* Generic page dispatcher versus directly generated routes. The first slice
-  generates routes directly; a dispatcher is only needed if pages are later
-  resolved by a stored type via the catch-all.
+* Generic page dispatcher versus directly generated routes. The registry
+  generates routes directly today; a dispatcher is only needed if pages are
+  later resolved by a stored type via the catch-all.
+* Admin-configurable per-resume section selection (see `Section Selection`_),
+  which is product/UI work rather than page-API work.
 * Whether to revisit a hook framework such as pluggy after the explicit
   registry settles. Current decision: stay explicit.
 
@@ -399,8 +442,11 @@ exports — consistent with that plan's layout and permission exclusion rule.
 Implementation Sketch
 ---------------------
 
-First slice — internal page registry, identical URLs, no third-party
-discovery:
+Historical record of the first slice — the internal page registry with
+identical URLs and no third-party discovery yet. It shipped as described below;
+``resume_pages`` autodiscovery, entry-point discovery, navigation
+ordering/grouping, capability selection, and theme fallback were layered on
+afterwards (see the sections above):
 
 #. Add a ``pages`` module: the ``ResumePage`` base class, a ``PageRegistry``
    with ``register`` / ``get`` / ``get_urls``, and a module-level

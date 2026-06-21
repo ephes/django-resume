@@ -274,3 +274,50 @@ The bundled :doc:`example_project` ships exactly this ``PortfolioPage`` in its
 ``core`` app (``example/core/resume_pages.py`` plus ``plain`` and ``headwind``
 templates), so you can see the whole flow end to end -- including the Portfolio
 link appearing in the resume overview.
+
+Shipping a page as its own package
+----------------------------------
+
+A ``resume_pages`` module is discovered only for **installed apps** (entries in
+``INSTALLED_APPS``). To ship a page as a standalone distribution that any
+django-resume project can ``pip install`` -- without that project adding your
+package to ``INSTALLED_APPS`` -- register it through an ``importlib.metadata``
+entry point in the ``django_resume.pages`` group:
+
+.. code-block:: toml
+
+   # pyproject.toml of your distribution
+   [project.entry-points."django_resume.pages"]
+   contact = "mypkg.pages:ContactPage"
+
+On startup django-resume loads each entry point's target: a
+:class:`~django_resume.pages.ResumePage` subclass is registered directly, and a
+zero-argument callable is invoked so it can register several pages itself. This
+runs before the URLconf is built, so the page gets a real route just like an
+autodiscovered one, and the bare ``<slug:slug>/`` catch-all still sorts last.
+
+Because such a package is **not** in ``INSTALLED_APPS``, ``APP_DIRS`` will not
+find templates inside it. Either add your template directory to the project's
+``TEMPLATES`` ``DIRS``, or override ``serve`` to render without a theme template:
+
+.. code-block:: python
+
+   from django.http import HttpResponse
+   from django.template import Context, Template
+
+   from django_resume.pages import ResumePage
+
+   _TEMPLATE = Template("<h1>Contact {{ resume.name }}</h1>")
+
+
+   class ContactPage(ResumePage):
+       url_name = "contact"
+       path = "contact/"
+       section_names = []
+
+       def serve(self, request, resume, base_context):
+           return HttpResponse(_TEMPLATE.render(Context(base_context)))
+
+The bundled ``example/resume_entrypoint_demo`` distribution is exactly this: it
+is installed but not a Django app, and its ``ContactPage`` is reachable at
+``<slug>/contact/`` purely through the entry point.

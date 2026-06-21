@@ -26,25 +26,6 @@ Backlog Items
 
   See :doc:`jsonresume`.
 
-* Build pluggable resume pages and site structure.
-
-  The page registry is implemented: the cover/detail, CV, and permission-denied
-  pages are registered ``ResumePage`` classes behind the existing URL names,
-  with section selection, access control (CV token enforcement lifted out of the
-  render side effect), and themed template resolution owned by the page. The CV
-  redirect stays a plain redirect rather than a page. Third-party page discovery
-  has shipped too: installed apps register pages from a ``resume_pages`` module,
-  autodiscovered on startup, and the example ``core`` app demonstrates it with an
-  editable ``PortfolioPage`` that also appears in the resume overview's
-  registry-driven navigation (``nav_title`` / ``is_visible`` / the ``page_nav``
-  tag), now with explicit ordering and grouping (``nav_order`` / ``nav_group``
-  and the ``page_nav_groups`` tag), capability-based section selection
-  (``by_capability(...)`` plus per-plugin ``capabilities`` tags), and a
-  predictable theme template fallback to ``plain``. Remaining work is optional
-  ``importlib.metadata`` entry-point discovery for separately distributed pages.
-
-  See :doc:`page_plugins` and :doc:`../guide/creating_page_plugins`.
-
 * Design application workflows and agentic job/project outreach.
 
   Explore how django-resume can use structured resume data to draft, queue,

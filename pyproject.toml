@@ -65,6 +65,19 @@ dev = [
     "ruff>=0.11",
 ]
 
+# Browser (Playwright) e2e tests only. Kept out of the default ``dev`` group so
+# the core dev tooling never pulls in a uv-only local path dependency. The
+# demo distribution is installed editable purely to exercise the entry-point
+# page-discovery path end to end; it is not a Django app (not in INSTALLED_APPS)
+# and is never part of the published django-resume wheel. Install it with
+# ``uv sync --group e2e`` before running the e2e suite.
+e2e = [
+    "resume-entrypoint-demo",
+]
+
+[tool.uv.sources]
+resume-entrypoint-demo = { path = "example/resume_entrypoint_demo", editable = true }
+
 [project.scripts]
 count-lines-of-code = "django_resume.entrypoints.loc:count_lines_of_code"
 llm-content = "django_resume.entrypoints.llm_content:llm_content"

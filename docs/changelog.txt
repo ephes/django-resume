@@ -42,6 +42,12 @@ Features
   coherent -- the page frame and its section fragments both render through
   ``plain`` -- and it is per template, so a theme that provides only some page
   templates falls back only for the missing ones.
+* Discover resume pages from separately distributed packages via
+  ``importlib.metadata`` entry points (the ``django_resume.pages`` group), in
+  addition to installed apps' ``resume_pages`` modules. A package that is not in
+  ``INSTALLED_APPS`` can ship a page (a ``ResumePage`` subclass or a registering
+  callable) that gets a route on startup, before the URLconf freezes. See
+  :doc:`guide/creating_page_plugins`.
 
 Refactor
 ^^^^^^^^
