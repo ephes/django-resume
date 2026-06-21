@@ -110,9 +110,7 @@ class IdentityJsonResumeAdapter:
             contributions.append(("/basics/profiles", profiles))
         for key in ("pronouns", "location_name", "location_url", "avatar_alt"):
             if facts.get(key):
-                notes.append(
-                    f"identity.{key} has no JSON Resume mapping; not exported"
-                )
+                notes.append(f"identity.{key} has no JSON Resume mapping; not exported")
         return AdapterExport(contributions=contributions, notes=notes)
 
 

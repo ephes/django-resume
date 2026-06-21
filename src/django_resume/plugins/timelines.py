@@ -241,16 +241,18 @@ class TimelineMixin:
                     badges = []
             if not isinstance(badges, list):
                 badges = []
-            work.append({
-                "company_name": item.get("company_name", ""),
-                "company_url": item.get("company_url", ""),
-                "role": item.get("role", ""),
-                "description": item.get("description", ""),
-                "start": item.get("start", ""),
-                "end": item.get("end", ""),
-                "badges": badges,
-                "position": item.get("position", 0),
-            })
+            work.append(
+                {
+                    "company_name": item.get("company_name", ""),
+                    "company_url": item.get("company_url", ""),
+                    "role": item.get("role", ""),
+                    "description": item.get("description", ""),
+                    "start": item.get("start", ""),
+                    "end": item.get("end", ""),
+                    "badges": badges,
+                    "position": item.get("position", 0),
+                }
+            )
         work.sort(key=lambda entry: entry["position"])
         return {"work": work}
 

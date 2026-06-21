@@ -45,7 +45,9 @@ def _resolved(name, adapter):
 def test_build_document_merges_disjoint_basics_pointers():
     identity = _Adapter(("/basics/name",), (), [("/basics/name", "Jane")])
     about = _Adapter(("/basics/summary",), (), [("/basics/summary", "Hi")])
-    doc, notes = build_document([_resolved("identity", identity), _resolved("about", about)])
+    doc, notes = build_document(
+        [_resolved("identity", identity), _resolved("about", about)]
+    )
     assert doc == {"basics": {"name": "Jane", "summary": "Hi"}}
     assert notes == []
 

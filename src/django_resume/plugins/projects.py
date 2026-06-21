@@ -198,13 +198,15 @@ class ProjectsPlugin(ListPlugin):
                     badges = []
             if not isinstance(badges, list):
                 badges = []
-            projects.append({
-                "title": item.get("title", ""),
-                "url": item.get("url", ""),
-                "description": item.get("description", ""),
-                "keywords": badges,
-                "position": item.get("position", 0),
-            })
+            projects.append(
+                {
+                    "title": item.get("title", ""),
+                    "url": item.get("url", ""),
+                    "description": item.get("description", ""),
+                    "keywords": badges,
+                    "position": item.get("position", 0),
+                }
+            )
         projects.sort(key=lambda entry: entry["position"])
         return {"projects": projects}
 

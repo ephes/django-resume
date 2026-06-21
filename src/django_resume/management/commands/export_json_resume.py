@@ -37,8 +37,7 @@ class Command(BaseCommand):
         )
         omitted = (
             ", ".join(
-                f"{name} ({reason})"
-                for name, reason in report.omitted_plugins.items()
+                f"{name} ({reason})" for name, reason in report.omitted_plugins.items()
             )
             or "(none)"
         )
