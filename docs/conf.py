@@ -9,7 +9,7 @@
 project = "django-resume"
 copyright = "2025, Jochen Wersdörfer"
 author = "Jochen Wersdörfer"
-version = release = "0.2.0"
+version = release = "0.3.0"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration

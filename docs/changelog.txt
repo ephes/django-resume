@@ -5,6 +5,9 @@ Changelog
 Unreleased
 ----------
 
+0.3.0 - 2026-06-21
+------------------
+
 Behavior Changes
 ^^^^^^^^^^^^^^^^
 * The CV page (``/<slug>/cv/``) is now ``GET``-only and returns HTTP 405 for
