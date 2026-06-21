@@ -4,6 +4,7 @@ from django.http import HttpRequest
 
 from .base import SimplePlugin, ContextDict
 from ..images import ImageFormMixin
+from ..interchange.protocols import AdapterExport
 
 
 class IdentityForm(ImageFormMixin, forms.Form):
@@ -72,6 +73,49 @@ class IdentityForm(ImageFormMixin, forms.Form):
         return self.get_image_url_for_field(self.initial.get("avatar_img", ""))
 
 
+class IdentityJsonResumeAdapter:
+    owned_paths = (
+        "/basics/name",
+        "/basics/label",
+        "/basics/email",
+        "/basics/phone",
+        "/basics/image",
+        "/basics/profiles",
+    )
+    multivalued_paths: tuple[str, ...] = ()
+
+    def export(self, facts: dict) -> AdapterExport:
+        contributions: list[tuple[str, object]] = []
+        notes: list[str] = []
+        for pointer, key in (
+            ("/basics/name", "name"),
+            ("/basics/label", "tagline"),
+            ("/basics/email", "email"),
+            ("/basics/phone", "phone"),
+            ("/basics/image", "avatar_url"),
+        ):
+            value = facts.get(key, "")
+            if value:
+                contributions.append((pointer, value))
+        profiles = []
+        for network, key in (
+            ("GitHub", "github"),
+            ("LinkedIn", "linkedin"),
+            ("Mastodon", "mastodon"),
+        ):
+            url = facts.get(key, "")
+            if url:
+                profiles.append({"network": network, "url": url})
+        if profiles:
+            contributions.append(("/basics/profiles", profiles))
+        for key in ("pronouns", "location_name", "location_url", "avatar_alt"):
+            if facts.get(key):
+                notes.append(
+                    f"identity.{key} has no JSON Resume mapping; not exported"
+                )
+        return AdapterExport(contributions=contributions, notes=notes)
+
+
 class IdentityPlugin(SimplePlugin):
     name: str = "identity"
     verbose_name: str = "Identity Information"
@@ -114,3 +158,24 @@ class IdentityPlugin(SimplePlugin):
             plugin_data.get("avatar_img", "")
         )
         return context
+
+    def get_structured_data(self, resume) -> dict:
+        data = self.get_data(resume)
+        avatar = data.get("avatar_img") or ""
+        return {
+            "name": data.get("name", ""),
+            "tagline": data.get("tagline", ""),
+            "email": data.get("email", ""),
+            "phone": data.get("phone", ""),
+            "avatar_url": default_storage.url(avatar) if avatar else "",
+            "github": data.get("github", ""),
+            "linkedin": data.get("linkedin", ""),
+            "mastodon": data.get("mastodon", ""),
+            "pronouns": data.get("pronouns", ""),
+            "location_name": data.get("location_name", ""),
+            "location_url": data.get("location_url", ""),
+            "avatar_alt": data.get("avatar_alt", ""),
+        }
+
+    def get_export_adapters(self) -> dict:
+        return {"json_resume": IdentityJsonResumeAdapter()}
