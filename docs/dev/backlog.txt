@@ -31,3 +31,50 @@ Research Needed
   of those.
 
   Related old issue: `#7 <https://github.com/ephes/django-resume/issues/7>`_.
+
+Theme Extraction
+----------------
+
+* Extract the editorial cover-letter (and the handwriting) from ``homepage`` into
+  the django-resume editorial theme. **(Large.)**
+
+  The editorial cover-letter page, its styling, and the self-writing handwriting
+  are being developed inside the ``homepage`` project (as template overrides +
+  app-local CSS/JS) so the design can iterate fast against a live resume without
+  editable-install fragility or package releases. This is deliberate: more
+  homepage work lands first (e.g. the portfolio) before any extraction.
+
+  Once the homepage design is finished, frozen, and fully editable, lift it into
+  django-resume as a clean theme in one deliberate pass:
+
+  - Move the runtime handwriting (font-free composer + ``glyph_data.json`` +
+    ``{% handwriting_label %}`` tag + ``handwriting.css``/``.js`` + tests) from
+    ``homepage.handwriting`` into django-resume, wired into the editorial
+    ``base.html`` so the theme is self-contained (handwriting ``js-hw`` coexists
+    with the hairline ``js-lines`` animation).
+  - Move the cover-letter templates and CSS (the ``.cover-letter`` block) into the
+    django-resume editorial theme; reconcile the homepage overrides against the
+    originals and delete them.
+  - Remove the ``homepage.handwriting`` app and the editorial overrides from
+    ``homepage``; pin/release django-resume accordingly.
+  - Gate on **visual parity**: the CV and the cover letter must render identically
+    before/after the move (desktop + mobile + print), per the design spec.
+  - Repoint the ``handwriting-anim`` pipeline's ``glyph_data.json`` copy target to
+    django-resume.
+
+  Design spec (local/untracked):
+  ``docs/superpowers/specs/2026-06-22-editorial-cover-letter-and-handwriting-migration-design.md``.
+
+Process & Documentation
+-----------------------
+
+* Decide how to track design specs and pull the editorial cover-letter spec into
+  the repo.
+
+  The design for the editorial cover-letter page and the handwriting migration
+  lives locally at
+  ``docs/superpowers/specs/2026-06-22-editorial-cover-letter-and-handwriting-migration-design.md``
+  but is currently untracked because ``.gitignore`` ignores ``specs/``. Clarify
+  with the development team whether design specs should be versioned (and where),
+  then bring this document into git accordingly (``git add -f`` at the current
+  path, or relocate to a tracked docs path).
