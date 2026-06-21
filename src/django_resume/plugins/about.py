@@ -11,6 +11,7 @@ from ..markdown import (
     textarea_input_to_html,
     textarea_input_to_markdown,
 )
+from ..interchange.protocols import AdapterExport
 
 
 class AboutForm(forms.Form):
@@ -31,6 +32,21 @@ class AboutForm(forms.Form):
 
     def clean_text(self) -> str:
         return textarea_input_to_markdown(self.cleaned_data["text"])
+
+
+class AboutJsonResumeAdapter:
+    owned_paths = ("/basics/summary",)
+    multivalued_paths: tuple[str, ...] = ()
+
+    def export(self, facts: dict) -> AdapterExport:
+        contributions: list[tuple[str, object]] = []
+        notes: list[str] = []
+        summary = facts.get("summary", "")
+        if summary:
+            contributions.append(("/basics/summary", summary))
+        if facts.get("title"):
+            notes.append("about.title has no JSON Resume mapping; not exported")
+        return AdapterExport(contributions=contributions, notes=notes)
 
 
 class AboutPlugin(SimplePlugin):
@@ -71,3 +87,10 @@ class AboutPlugin(SimplePlugin):
         context["text_plain"] = markdown_to_plain_text(text_markdown)
         context["text_html"] = markdown_to_html(text_markdown)
         return context
+
+    def get_structured_data(self, resume) -> dict:
+        data = self.get_data(resume)
+        return {"summary": data.get("text", ""), "title": data.get("title", "")}
+
+    def get_export_adapters(self) -> dict:
+        return {"json_resume": AboutJsonResumeAdapter()}

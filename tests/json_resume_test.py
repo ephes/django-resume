@@ -5,6 +5,7 @@ import django_resume.formats.json_resume as json_resume_pkg
 from django_resume.formats.json_resume.dates import is_valid_resume_date
 from django_resume.formats.json_resume.validation import validate_document
 from django_resume.plugins import SimplePlugin, ListPlugin
+from django_resume.plugins.about import AboutPlugin
 from django_resume.plugins.identity import IdentityPlugin
 
 
@@ -75,3 +76,14 @@ def test_identity_facts_and_adapter_map_to_basics(resume):
     assert any("pronouns" in note for note in result.notes)
     assert any("location_name" in note for note in result.notes)
     assert any("avatar_alt" in note for note in result.notes)
+
+
+def test_about_facts_and_adapter_map_to_summary(resume):
+    plugin = AboutPlugin()
+    plugin.data.set_data(resume, {"title": "About me", "text": "I build things."})
+    facts = plugin.get_structured_data(resume)
+    assert facts["summary"] == "I build things."
+    adapter = plugin.get_export_adapters()["json_resume"]
+    result = adapter.export(facts)
+    assert result.contributions == [("/basics/summary", "I build things.")]
+    assert any("about.title" in note for note in result.notes)
