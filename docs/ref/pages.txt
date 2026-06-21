@@ -1,0 +1,260 @@
+=================
+The Page Registry
+=================
+
+.. module:: django_resume.pages
+   :synopsis: Registry and base class for pluggable resume pages.
+
+.. admonition:: About this document
+
+   This is the API reference for the resume *page* extension point: the
+   :class:`ResumePage` base class, the :class:`PageRegistry`, capability-based
+   section selection, page discovery, and the navigation template tags.
+
+   For a task-oriented how-to (defining a page, templates, navigation, shipping
+   a page as its own package) see :doc:`../guide/creating_page_plugins`. For the
+   design rationale see :doc:`../dev/page_plugins`. The three built-in pages
+   (``CoverLetterPage``, ``CvPage``, ``PermissionDeniedPage``) are documented in
+   :doc:`views`.
+
+
+Overview
+========
+
+A *page* is a registered :class:`ResumePage` subclass that owns a route under
+``<slug:slug>/``, the section plugins it renders, access control, navigation
+metadata, and themed-template selection. Pages mirror content plugins: there is
+a :class:`PageRegistry` and a module-level :data:`page_registry` singleton,
+exactly as :doc:`registry` describes for plugins. Page content keeps living in
+the section plugins' ``Resume.plugin_data``, so adding a page needs no model and
+no migration.
+
+
+ResumePage
+==========
+
+.. class:: ResumePage
+
+   Base class for a registered resume page. Subclass it, set the class
+   attributes, and override the hooks you need.
+
+   .. attribute:: url_name
+
+      The URL name used for ``reverse()`` (e.g. ``reverse("django_resume:cv",
+      kwargs={"slug": slug})``). It is also the registry key, so it must be
+      unique across registered pages.
+
+   .. attribute:: path
+
+      The sub-segment appended to ``<slug:slug>/``. Use ``""`` for the
+      default/root page; the bare ``<slug:slug>/`` catch-all is always emitted
+      last by :meth:`PageRegistry.get_urls`, so more specific paths never shadow
+      it (and it never shadows them).
+
+   .. attribute:: template_name
+
+      Resolved as ``django_resume/pages/{theme}/{template_name}`` where ``theme``
+      is :func:`resolve_page_theme` of the resume — the active theme if it ships
+      the template, otherwise the ``plain`` fallback.
+
+   .. attribute:: section_names
+
+      Which section plugins the page builds context for. Accepts an explicit
+      list of plugin names (``["identity", "about"]``), the string ``"__all__"``
+      (every registered section plugin), or a :class:`ByCapability` selector
+      from :func:`by_capability`. It is an inclusion filter, not an ordering —
+      the template decides layout by including sections by name.
+
+   .. attribute:: nav_title
+
+      Human-friendly label for navigation menus. The empty default means the
+      page is reachable by URL but not advertised in navigation.
+
+   .. attribute:: nav_order
+
+      Integer navigation order; lower sorts first. The sort is stable, so pages
+      sharing a value keep registration order. Default ``0``. The built-ins use
+      10 (Cover), 20 (CV), 30 (the 403 editor).
+
+   .. attribute:: nav_group
+
+      Navigation group label. Links sharing a ``nav_group`` render together
+      under :func:`page_nav_groups`. The empty default keeps the page in the
+      implicit ungrouped bucket.
+
+   .. method:: check_access(request, resume)
+
+      Return ``None`` to proceed, or an :class:`~django.http.HttpResponse` to
+      short-circuit (e.g. a 403 or a login redirect). Default: ``None``.
+
+   .. method:: is_visible(resume)
+
+      Whether the page is advertised in navigation for ``resume``. Override for
+      state-dependent links (the built-in 403 editor returns
+      ``resume.token_is_required``). Default: ``True``.
+
+   .. method:: nav_url(resume)
+
+      The page's URL for ``resume``, reversed via the ``django_resume``
+      application namespace.
+
+   .. method:: get_context(request, resume, *, base_context)
+
+      Build the template context. The default resolves the theme (with
+      ``plain`` fallback) and calls :func:`build_section_context` for
+      :attr:`section_names`, so the section fragments render through the same
+      theme the page frame resolves to.
+
+   .. method:: serve(request, resume, base_context)
+
+      Build the page response. The default renders
+      :attr:`template_name` for the resolved theme with the context from
+      :meth:`get_context`. Override to take full control of rendering (for
+      example to return an :class:`~django.http.HttpResponse` without a themed
+      template).
+
+   .. method:: finalize_response(response, request, resume)
+
+      Post-process every response the dispatcher returns — including a
+      short-circuit response from :meth:`check_access` — e.g. to set headers.
+      Default: returns ``response`` unchanged.
+
+
+Selecting sections by capability
+================================
+
+.. function:: by_capability(*capabilities, match="any")
+
+   Build a :class:`ByCapability` selector for :attr:`ResumePage.section_names`.
+   With ``match="any"`` (the default) a plugin is included if it carries at
+   least one of ``capabilities``; with ``match="all"`` it must carry every one.
+   An empty capability set matches nothing. Any other ``match`` value raises
+   ``ValueError``.
+
+   ::
+
+      section_names = by_capability("portfolio")
+      section_names = by_capability("portfolio", "cv", match="all")
+
+   Section plugins advertise their tags through
+   :attr:`Plugin.capabilities <django_resume.plugins.base.Plugin.capabilities>`
+   (a ``tuple[str, ...]``, empty by default). Access/UI-control plugins such as
+   ``token`` and ``theme`` carry no capabilities and are never selected as
+   content.
+
+.. class:: ByCapability
+
+   The selector returned by :func:`by_capability`; a frozen dataclass with
+   ``capabilities`` and ``match`` fields and a ``matches(plugin)`` predicate.
+   Prefer the :func:`by_capability` factory at call sites.
+
+
+PageRegistry
+============
+
+.. class:: PageRegistry
+
+   A registry of resume page classes, instantiated once as the
+   :data:`page_registry` singleton.
+
+   .. method:: register(page_class)
+
+      Instantiate ``page_class`` and store it under its
+      :attr:`~ResumePage.url_name`. Re-registering the same ``url_name``
+      replaces the entry.
+
+   .. method:: register_page_list(page_classes)
+
+      Call :meth:`register` for each class in ``page_classes``.
+
+   .. method:: unregister(page_class)
+
+      Remove the page registered under ``page_class.url_name`` (a no-op if
+      absent).
+
+   .. method:: get_page(url_name)
+
+      Return the registered page instance for ``url_name``, or ``None``.
+
+   .. method:: get_all_pages()
+
+      Return all registered page instances in registration order.
+
+   .. method:: get_ordered_pages()
+
+      Return all registered pages sorted by :attr:`~ResumePage.nav_order`. The
+      sort is stable, so equal orders keep registration order — navigation is
+      deterministic for built-ins plus any third-party pages.
+
+   .. method:: get_urls()
+
+      Return the generated ``URLPattern`` list, one ``<slug:slug>/{path}`` per
+      page, with the bare ``<slug:slug>/`` (``path == ""``) catch-all emitted
+      last by construction. ``django_resume.urls`` splices this into its
+      ``urlpatterns``.
+
+.. data:: page_registry
+
+   The module-level singleton instance of :class:`PageRegistry`, shared across
+   the application.
+
+
+Discovery
+=========
+
+Built-in pages are registered in ``AppConfig.ready`` before plugin
+registration. Third-party pages are then discovered two ways, both *before*
+``django_resume.urls`` is imported (which evaluates
+:meth:`PageRegistry.get_urls` once), so every page has a route before the
+URLconf freezes.
+
+.. function:: autodiscover_pages()
+
+   Import each installed app's top-level ``resume_pages`` module (mirroring
+   Django admin's ``autodiscover_modules``) so apps register pages by import
+   side-effect, then call :func:`load_entry_point_pages`.
+
+.. function:: load_entry_point_pages()
+
+   Register pages contributed by separately distributed packages that are *not*
+   installed Django apps, through :data:`ENTRY_POINT_GROUP` entry points. Each
+   entry point loads to either a :class:`ResumePage` subclass (registered
+   directly) or a zero-argument callable (invoked so it can register its own
+   pages); any other target raises ``TypeError``. Loading is idempotent.
+
+.. data:: ENTRY_POINT_GROUP
+
+   The entry-point group name, ``"django_resume.pages"``. A distribution
+   declares an entry point in this group::
+
+      [project.entry-points."django_resume.pages"]
+      contact = "mypkg.pages:ContactPage"
+
+
+Navigation template tags
+========================
+
+Load the tags with ``{% load page_nav %}``. Both take a ``resume`` and return
+only pages that have a :attr:`~ResumePage.nav_title` and are
+:meth:`~ResumePage.is_visible` for that resume.
+
+``page_nav_links resume``
+   Returns a flat list of ``{"title", "url", "group"}`` entries, ordered by
+   :attr:`~ResumePage.nav_order`.
+
+``page_nav_groups resume``
+   Returns the same links bucketed by :attr:`~ResumePage.nav_group` as
+   ``{"title", "links"}`` groups. Groups appear in the order their first link
+   does, and a group stays one contiguous section even if its members interleave
+   with other groups by order. The resume overview renders this tag.
+
+.. code-block:: html+django
+
+   {% load page_nav %}
+   {% page_nav_groups resume as nav_groups %}
+   {% for group in nav_groups %}
+     {% if group.title %}<strong>{{ group.title }}:</strong>{% endif %}
+     {% for link in group.links %}
+       <a href="{{ link.url }}">{{ link.title }}</a>{% if not forloop.last %} | {% endif %}
+     {% endfor %}
+   {% endfor %}

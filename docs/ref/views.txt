@@ -27,12 +27,14 @@ The page templates below resolve as
 ``django_resume/pages/{resume.current_theme}/{template_name}`` and fall back to
 the ``plain`` theme (frame and section fragments together) when the active theme
 ships no such template, so a missing theme template does not raise
-``TemplateDoesNotExist``. Pages also support explicit navigation
-ordering/grouping (``nav_order`` / ``nav_group``), capability-based section
-selection (``by_capability(...)``), and registration from installed apps
-(``resume_pages``) or separately distributed packages (``django_resume.pages``
-entry points). See :doc:`../dev/page_plugins` for the page registry and
-:doc:`../guide/creating_page_plugins` for adding your own pages.
+``TemplateDoesNotExist``.
+
+The page registry itself -- the :class:`~django_resume.pages.ResumePage` base
+class, :class:`~django_resume.pages.PageRegistry`, capability-based section
+selection, page discovery (installed apps and entry points), and the navigation
+template tags -- is documented in :doc:`pages`. See
+:doc:`../guide/creating_page_plugins` to add your own pages and
+:doc:`../dev/page_plugins` for the design rationale.
 
 The URL patterns are found in ``django_resume.urls`` (shown below for
 reference):

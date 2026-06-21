@@ -33,6 +33,7 @@ See it in action:
     ref/simple_plugin
     ref/list_plugin
     ref/registry
+    ref/pages
     ref/views
     ref/settings
 
