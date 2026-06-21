@@ -11,6 +11,11 @@ import django_resume.formats.json_resume as json_resume_pkg
 from django_resume.formats.json_resume.dates import is_valid_resume_date
 from django_resume.formats.json_resume.export import export_resume
 from django_resume.formats.json_resume.validation import validate_document
+from django_resume.interchange.coordinator import (
+    ResolvedAdapter,
+    PathConflictError,
+    build_document,
+)
 from django_resume.models import Resume
 from django_resume.plugins import SimplePlugin, ListPlugin
 from django_resume.plugins.about import AboutPlugin
@@ -63,19 +68,22 @@ def test_validate_document_reports_bad_date_pattern():
 
 def test_identity_facts_and_adapter_map_to_basics(resume):
     plugin = IdentityPlugin()
-    plugin.data.set_data(resume, {
-        "name": "Jane Doe",
-        "tagline": "Engineer",
-        "email": "jane@example.com",
-        "phone": "+1 555",
-        "github": "https://github.com/jane",
-        "linkedin": "https://linkedin.com/in/jane",
-        "mastodon": "",
-        "pronouns": "she/her",
-        "location_name": "Berlin",
-        "location_url": "https://maps.example/berlin",
-        "avatar_alt": "Jane's headshot",
-    })
+    plugin.data.set_data(
+        resume,
+        {
+            "name": "Jane Doe",
+            "tagline": "Engineer",
+            "email": "jane@example.com",
+            "phone": "+1 555",
+            "github": "https://github.com/jane",
+            "linkedin": "https://linkedin.com/in/jane",
+            "mastodon": "",
+            "pronouns": "she/her",
+            "location_name": "Berlin",
+            "location_url": "https://maps.example/berlin",
+            "avatar_alt": "Jane's headshot",
+        },
+    )
     facts = plugin.get_structured_data(resume)
     assert facts["name"] == "Jane Doe"
     adapter = plugin.get_export_adapters()["json_resume"]
@@ -111,29 +119,38 @@ def test_skills_facts_and_adapter_map_to_skill_objects(resume):
     assert facts["skills"] == ["Python", "Django", ""]
     adapter = plugin.get_export_adapters()["json_resume"]
     result = adapter.export(facts)
-    assert result.contributions == [("/skills", [{"name": "Python"}, {"name": "Django"}])]
+    assert result.contributions == [
+        ("/skills", [{"name": "Python"}, {"name": "Django"}])
+    ]
 
 
 def test_education_adapter_maps_valid_entry(resume):
     plugin = EducationPlugin()
-    plugin.data.set_data(resume, {
-        "school_name": "State University",
-        "school_url": "https://uni.example",
-        "start": "2010",
-        "end": "2014",
-    })
+    plugin.data.set_data(
+        resume,
+        {
+            "school_name": "State University",
+            "school_url": "https://uni.example",
+            "start": "2010",
+            "end": "2014",
+        },
+    )
     facts = plugin.get_structured_data(resume)
     adapter = plugin.get_export_adapters()["json_resume"]
     result = adapter.export(facts)
-    assert result.contributions == [(
-        "/education",
-        [{
-            "institution": "State University",
-            "url": "https://uni.example",
-            "startDate": "2010",
-            "endDate": "2014",
-        }],
-    )]
+    assert result.contributions == [
+        (
+            "/education",
+            [
+                {
+                    "institution": "State University",
+                    "url": "https://uni.example",
+                    "startDate": "2010",
+                    "endDate": "2014",
+                }
+            ],
+        )
+    ]
     assert result.notes == []
 
 
@@ -149,30 +166,37 @@ def test_education_adapter_omits_and_reports_invalid_date(resume):
 
 def test_timeline_adapter_maps_items_to_work_and_omits_bad_dates(resume):
     plugin = FreelanceTimelinePlugin()
-    plugin.data.set_data(resume, {"items": [
+    plugin.data.set_data(
+        resume,
         {
-            "id": "1",
-            "company_name": "ACME",
-            "company_url": "https://acme.example",
-            "role": "Engineer",
-            "description": "Built things",
-            "start": "2019",
-            "end": "nope",
-            "badges": ["remote", "full-time"],
-            "position": 1,
+            "items": [
+                {
+                    "id": "1",
+                    "company_name": "ACME",
+                    "company_url": "https://acme.example",
+                    "role": "Engineer",
+                    "description": "Built things",
+                    "start": "2019",
+                    "end": "nope",
+                    "badges": ["remote", "full-time"],
+                    "position": 1,
+                },
+            ]
         },
-    ]})
+    )
     facts = plugin.get_structured_data(resume)
     result = plugin.get_export_adapters()["json_resume"].export(facts)
     work = dict(result.contributions)["/work"]
-    assert work == [{
-        "name": "ACME",
-        "url": "https://acme.example",
-        "position": "Engineer",
-        "summary": "Built things",
-        "highlights": ["remote", "full-time"],
-        "startDate": "2019",
-    }]
+    assert work == [
+        {
+            "name": "ACME",
+            "url": "https://acme.example",
+            "position": "Engineer",
+            "summary": "Built things",
+            "highlights": ["remote", "full-time"],
+            "startDate": "2019",
+        }
+    ]
     assert any("end date" in note for note in result.notes)
 
 
@@ -185,36 +209,49 @@ def test_both_timeline_plugins_declare_multivalued_work():
 
 def test_projects_adapter_maps_items(resume):
     plugin = ProjectsPlugin()
-    plugin.data.set_data(resume, {"items": [
+    plugin.data.set_data(
+        resume,
         {
-            "id": "1",
-            "title": "Cool Tool",
-            "url": "https://tool.example",
-            "description": "Does things",
-            "badges": ["python", ""],
-            "position": 0,
+            "items": [
+                {
+                    "id": "1",
+                    "title": "Cool Tool",
+                    "url": "https://tool.example",
+                    "description": "Does things",
+                    "badges": ["python", ""],
+                    "position": 0,
+                },
+            ]
         },
-    ]})
+    )
     facts = plugin.get_structured_data(resume)
     result = plugin.get_export_adapters()["json_resume"].export(facts)
-    assert result.contributions == [(
-        "/projects",
-        [{
-            "name": "Cool Tool",
-            "url": "https://tool.example",
-            "description": "Does things",
-            "keywords": ["python"],
-        }],
-    )]
+    assert result.contributions == [
+        (
+            "/projects",
+            [
+                {
+                    "name": "Cool Tool",
+                    "url": "https://tool.example",
+                    "description": "Does things",
+                    "keywords": ["python"],
+                }
+            ],
+        )
+    ]
 
 
 @pytest.mark.django_db
 def test_export_resume_assembles_validates_and_reports(user):
     user.save()
     resume = Resume.objects.create(name="Jane", slug="jane", owner=user)
-    IdentityPlugin().data.set_data(resume, {
-        "name": "Jane Doe", "email": "jane@example.com",
-    })
+    IdentityPlugin().data.set_data(
+        resume,
+        {
+            "name": "Jane Doe",
+            "email": "jane@example.com",
+        },
+    )
     AboutPlugin().data.set_data(resume, {"title": "About", "text": "Hello"})
     resume.save()
 
@@ -247,3 +284,108 @@ def test_command_writes_valid_json_to_stdout(user):
 def test_command_errors_on_unknown_slug():
     with pytest.raises(CommandError):
         call_command("export_json_resume", "does-not-exist")
+
+
+@pytest.mark.django_db
+def test_full_resume_exports_and_validates(user):
+    user.save()
+    resume = Resume.objects.create(name="Jane", slug="jane-full", owner=user)
+    IdentityPlugin().data.set_data(
+        resume,
+        {
+            "name": "Jane Doe",
+            "email": "jane@example.com",
+            "tagline": "Engineer",
+            "github": "https://github.com/jane",
+        },
+    )
+    AboutPlugin().data.set_data(resume, {"title": "About", "text": "Hello there."})
+    SkillsPlugin().data.set_data(resume, {"badges": ["Python", "Django"]})
+    EducationPlugin().data.set_data(
+        resume,
+        {
+            "school_name": "Uni",
+            "school_url": "https://uni.example",
+            "start": "2010",
+            "end": "2014",
+        },
+    )
+    FreelanceTimelinePlugin().data.set_data(
+        resume,
+        {
+            "items": [
+                {
+                    "id": "f1",
+                    "company_name": "Acme",
+                    "company_url": "https://acme.example",
+                    "role": "Dev",
+                    "description": "work",
+                    "start": "2015",
+                    "end": "2018",
+                    "badges": ["remote"],
+                    "position": 1,
+                },
+            ]
+        },
+    )
+    EmployedTimelinePlugin().data.set_data(
+        resume,
+        {
+            "items": [
+                {
+                    "id": "e1",
+                    "company_name": "BigCo",
+                    "company_url": "https://bigco.example",
+                    "role": "Lead",
+                    "description": "work",
+                    "start": "2018",
+                    "end": "2022",
+                    "badges": [],
+                    "position": 1,
+                },
+            ]
+        },
+    )
+    ProjectsPlugin().data.set_data(
+        resume,
+        {
+            "items": [
+                {
+                    "id": "p1",
+                    "title": "Tool",
+                    "url": "https://tool.example",
+                    "description": "does things",
+                    "badges": ["python"],
+                    "position": 0,
+                },
+            ]
+        },
+    )
+    resume.save()
+
+    result = export_resume(resume)
+
+    assert result.report.valid, result.report.validation_errors
+    # Both timeline plugins contributed to a single concatenated work array.
+    assert {entry["name"] for entry in result.document["work"]} == {"Acme", "BigCo"}
+    assert result.document["education"][0]["institution"] == "Uni"
+    assert result.document["skills"] == [{"name": "Python"}, {"name": "Django"}]
+
+
+def test_conflicting_scalar_adapters_raise(resume):
+    class _A:
+        owned_paths = ("/basics/name",)
+        multivalued_paths = ()
+
+        def export(self, facts):
+            from django_resume.interchange.protocols import AdapterExport
+
+            return AdapterExport(contributions=[("/basics/name", "x")])
+
+    with pytest.raises(PathConflictError):
+        build_document(
+            [
+                ResolvedAdapter("a", _A(), {}),
+                ResolvedAdapter("b", _A(), {}),
+            ]
+        )
