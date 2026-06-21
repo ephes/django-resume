@@ -5,6 +5,15 @@ Changelog
 Unreleased
 ----------
 
+Features
+^^^^^^^^
+* Add a ``export_json_resume`` management command that exports a resume to a
+  JSON Resume v1.0.0 document, validated against a pinned copy of the upstream
+  schema. Plugins map their data through plugin-owned JSON Resume adapters built
+  on a new ``get_structured_data`` facts API; plugins without an adapter (cover,
+  theme, token, permission_denied) are omitted and reported. See
+  :doc:`guide/usage`.
+
 0.3.0 - 2026-06-21
 ------------------
 

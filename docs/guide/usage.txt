@@ -42,3 +42,18 @@ The supported formatting is intentionally limited to:
 
 Rendered HTML is sanitized before it is marked safe, so raw HTML is not preserved
 and dangerous link protocols are removed.
+
+Exporting to JSON Resume
+------------------------
+
+Export a resume to the JSON Resume interchange format with::
+
+    python manage.py export_json_resume <slug> [--output FILE]
+
+The document is written to stdout (or ``--output FILE``); an export report --
+mapped plugins, omitted plugins, dropped fields, and any omitted invalid dates --
+is written to stderr. The command exits non-zero if the document fails
+validation against the pinned JSON Resume v1.0.0 schema and writes no output.
+
+This first release supports export only. Import, signed round-trips, and an
+in-app download are tracked as future work in the JSON Resume plan.

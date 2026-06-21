@@ -89,6 +89,23 @@ integrate seamlessly with django-resume:
 
    :return: A list (or ``list-like``) of URLs (patterns) for inline editing.
 
+Export hooks
+============
+
+A content plugin can opt into the import/export framework with two optional
+methods (both default to "nothing exported" on the base classes):
+
+* ``get_structured_data(resume) -> dict`` returns format-neutral, normalized
+  facts (stable field names, machine-readable values) for the resume.
+* ``get_export_adapters() -> dict`` maps a format id (e.g. ``"json_resume"``) to
+  an export adapter.
+
+An export adapter declares ``owned_paths`` (the JSON Pointers it writes) and
+``multivalued_paths`` (array paths several adapters may concatenate into), and
+implements ``export(facts) -> AdapterExport`` returning ``contributions``
+(``(pointer, value)`` pairs, each pointer one of ``owned_paths``) and ``notes``
+(dropped fields or other diagnostics surfaced in the export report).
+
 Usage Example
 =============
 
