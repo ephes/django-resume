@@ -36,18 +36,11 @@ Backlog Items
 
   See :doc:`application_workflows`.
 
-* Document agent-assisted plugin authoring.
+* Document agent-assisted plugin authoring. **(Deprecated — will not be done.)**
 
-  Coding agents are now a better fit for plugin generation than a productized
-  LLM workflow inside django-resume. Instead of maintaining provider
-  integrations, prompt orchestration, or an MCP server as runtime or package
-  functionality, document how an agent should create a filesystem plugin using
-  the current plugin APIs.
-
-  The useful output should be durable documentation or a small agent skill:
-  describe the expected plugin files, base classes, forms, templates, URL and
-  admin integration points, tests, and constraints to preserve. Keep this as
-  authoring guidance for humans and coding agents, not as generated runtime
-  behavior.
+  Deprecated on 2026-06-21. Coding agents already build django-resume plugins
+  directly against the existing plugin APIs, so django-resume does not need to
+  ship or document a dedicated agent-assisted authoring feature. Plugin
+  generation stays an external concern handled by the agent of the moment.
 
   Related old issue: `#7 <https://github.com/ephes/django-resume/issues/7>`_.
