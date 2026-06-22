@@ -1,5 +1,7 @@
 import json
 import json as _json
+import sys
+import time
 from io import StringIO
 from pathlib import Path
 
@@ -12,11 +14,22 @@ from django.urls import reverse
 import django_resume.formats.json_resume as json_resume_pkg
 from django_resume.formats.json_resume.dates import is_valid_resume_date
 from django_resume.formats.json_resume.export import export_resume
+from django_resume.formats.json_resume.export import portable_document
 from django_resume.formats.json_resume.importer import (
     JsonResumeImportError,
     MAX_INPUT_BYTES,
     import_resume_document,
     load_document,
+)
+from django_resume.formats.json_resume import themes as json_resume_themes
+from django_resume.formats.json_resume.themes import (
+    JsonResumeThemeError,
+    RenderedTheme,
+    ThemeSearchResult,
+    install_theme,
+    render_theme,
+    search_themes,
+    selected_theme_name,
 )
 from django_resume.formats.json_resume.validation import validate_document
 from django_resume.interchange.coordinator import (
@@ -944,6 +957,286 @@ def test_import_resume_document_rejects_adapter_without_source_paths(user):
             registry=_Registry(),
             restore_django_resume_data=False,
         )
+
+
+def test_portable_document_strips_django_resume_private_envelope():
+    document = {
+        "basics": {"name": "Jane"},
+        "meta": {
+            "version": "v1.0.0",
+            "django_resume": {"plugin_data": {"token": {"items": ["secret"]}}},
+        },
+    }
+
+    result = portable_document(document)
+
+    assert result == {"basics": {"name": "Jane"}, "meta": {"version": "v1.0.0"}}
+    assert "django_resume" in document["meta"]
+
+
+def test_portable_document_removes_empty_meta_after_stripping_envelope():
+    document = {
+        "basics": {"name": "Jane"},
+        "meta": {"django_resume": {"plugin_data": {}}},
+    }
+
+    assert portable_document(document) == {"basics": {"name": "Jane"}}
+
+
+def test_search_themes_queries_npm_registry_and_filters_results(monkeypatch):
+    payload = {
+        "objects": [
+            {
+                "package": {
+                    "name": "jsonresume-theme-even",
+                    "version": "0.26.1",
+                    "description": "Flat theme",
+                    "keywords": ["jsonresume-theme"],
+                }
+            },
+            {
+                "package": {
+                    "name": "@jsonresume/jsonresume-theme-professional",
+                    "version": "1.0.0",
+                    "description": "Official theme",
+                    "keywords": ["jsonresume-theme"],
+                }
+            },
+            {
+                "package": {
+                    "name": "not-a-theme",
+                    "version": "1.0.0",
+                    "description": "Nope",
+                    "keywords": [],
+                }
+            },
+        ]
+    }
+    seen_urls = []
+
+    class _Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        @staticmethod
+        def read():
+            return json.dumps(payload).encode("utf-8")
+
+    def fake_urlopen(url, timeout):
+        seen_urls.append(url)
+        assert timeout == 8.0
+        return _Response()
+
+    monkeypatch.setattr(json_resume_themes, "urlopen", fake_urlopen)
+
+    results = search_themes("even")
+
+    assert [result.name for result in results] == [
+        "jsonresume-theme-even",
+        "@jsonresume/jsonresume-theme-professional",
+    ]
+    assert "keywords%3Ajsonresume-theme+even" in seen_urls[0]
+
+
+def test_install_theme_runs_npm_install_in_configured_cache(
+    tmp_path, settings, monkeypatch
+):
+    settings.DJANGO_RESUME_JSON_RESUME_THEME_DIR = tmp_path / "themes"
+    commands = []
+
+    monkeypatch.setattr(json_resume_themes.shutil, "which", lambda name: f"/bin/{name}")
+
+    def fake_run(command, *, cwd, timeout):
+        commands.append((command, cwd, timeout))
+        return json_resume_themes.subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(json_resume_themes, "_run_process", fake_run)
+
+    install_theme("jsonresume-theme-even")
+
+    command, cwd, timeout = commands[0]
+    assert command[:2] == ["/bin/npm", "install"]
+    assert "resumed" in command
+    assert "jsonresume-theme-even" in command
+    assert cwd == tmp_path / "themes"
+    assert timeout == 90.0
+
+
+def test_install_theme_rejects_unsupported_package_name():
+    with pytest.raises(JsonResumeThemeError, match="Unsupported JSON Resume theme"):
+        install_theme("--ignore-scripts")
+
+
+def test_run_process_rejects_oversized_child_output(settings):
+    settings.DJANGO_RESUME_JSON_RESUME_PROCESS_OUTPUT_MAX_BYTES = 32
+
+    with pytest.raises(JsonResumeThemeError, match="stdout exceeded maximum size"):
+        json_resume_themes._run_process(
+            [
+                sys.executable,
+                "-c",
+                "import sys; sys.stdout.write('x' * 1000); sys.stdout.flush()",
+            ],
+            cwd=Path.cwd(),
+            timeout=5,
+        )
+
+
+def test_run_process_timeout_kills_descendants_holding_output_pipes():
+    started = time.perf_counter()
+
+    with pytest.raises(JsonResumeThemeError, match="timed out"):
+        json_resume_themes._run_process(
+            [
+                sys.executable,
+                "-c",
+                (
+                    "import subprocess, sys, time; "
+                    "subprocess.Popen([sys.executable, '-c', "
+                    "'import time; time.sleep(2)']); "
+                    "time.sleep(5)"
+                ),
+            ],
+            cwd=Path.cwd(),
+            timeout=0.2,
+        )
+
+    assert time.perf_counter() - started < 1.5
+
+
+@pytest.mark.django_db
+def test_render_theme_writes_portable_resume_and_returns_html(
+    tmp_path, settings, monkeypatch, user
+):
+    settings.DJANGO_RESUME_JSON_RESUME_THEME_DIR = tmp_path / "themes"
+    target = json_resume_themes.cache_dir()
+    resumed_bin = target / "node_modules" / ".bin" / "resumed"
+    resumed_bin.parent.mkdir(parents=True)
+    resumed_bin.write_text("#!/usr/bin/env node\n", encoding="utf-8")
+    user.save()
+    resume = Resume.objects.create(name="Jane", slug="jane-theme", owner=user)
+    IdentityPlugin().data.set_data(resume, {"name": "Jane Doe"})
+    resume.save()
+    written_resume = {}
+
+    def fake_run(command, *, cwd, timeout):
+        resume_path = Path(command[2])
+        output_path = Path(command[command.index("--output") + 1])
+        written_resume.update(json.loads(resume_path.read_text(encoding="utf-8")))
+        output_path.write_text("<html><body>Even Jane</body></html>", encoding="utf-8")
+        return json_resume_themes.subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(json_resume_themes, "_run_process", fake_run)
+
+    rendered = render_theme(resume, "jsonresume-theme-even")
+
+    assert rendered.html == "<html><body>Even Jane</body></html>"
+    assert rendered.theme_name == "jsonresume-theme-even"
+    assert written_resume["basics"]["name"] == "Jane Doe"
+    assert "django_resume" not in written_resume.get("meta", {})
+
+
+@pytest.mark.django_db
+def test_json_resume_theme_selector_searches_for_owner(client, user, monkeypatch):
+    user.save()
+    resume = Resume.objects.create(name="Jane", slug="jane-selector", owner=user)
+    client.force_login(user)
+
+    monkeypatch.setattr(
+        "django_resume.views.search_themes",
+        lambda query: [
+            ThemeSearchResult(
+                name="jsonresume-theme-even",
+                version="0.26.1",
+                description="Flat theme",
+                keywords=("jsonresume-theme",),
+            )
+        ],
+    )
+
+    response = client.get(
+        reverse("django_resume:json-resume-themes", kwargs={"slug": resume.slug}),
+        {"q": "even"},
+    )
+
+    assert response.status_code == 200
+    content = response.content.decode("utf-8")
+    assert "jsonresume-theme-even" in content
+    assert "Install and apply" in content
+
+
+@pytest.mark.django_db
+def test_json_resume_theme_selector_requires_owner(client, user, django_user_model):
+    user.save()
+    other = django_user_model.objects.create_user(username="other", password="pw")
+    resume = Resume.objects.create(name="Jane", slug="jane-theme-private", owner=user)
+
+    response = client.get(
+        reverse("django_resume:json-resume-themes", kwargs={"slug": resume.slug})
+    )
+    assert response.status_code == 302
+
+    client.force_login(other)
+    response = client.get(
+        reverse("django_resume:json-resume-themes", kwargs={"slug": resume.slug})
+    )
+    assert response.status_code == 404
+
+
+@pytest.mark.django_db
+def test_install_json_resume_theme_view_applies_selected_theme(
+    client, user, monkeypatch
+):
+    user.save()
+    resume = Resume.objects.create(name="Jane", slug="jane-install-theme", owner=user)
+    client.force_login(user)
+    installed = []
+
+    def fake_install(package_name):
+        installed.append(package_name)
+
+    monkeypatch.setattr("django_resume.views.install_theme", fake_install)
+
+    response = client.post(
+        reverse(
+            "django_resume:json-resume-theme-install", kwargs={"slug": resume.slug}
+        ),
+        {"package": "jsonresume-theme-even", "q": "even & clean"},
+    )
+
+    assert response.status_code == 302
+    assert response["Location"].endswith("?q=even+%26+clean")
+    assert installed == ["jsonresume-theme-even"]
+    resume.refresh_from_db()
+    assert selected_theme_name(resume) == "jsonresume-theme-even"
+
+
+@pytest.mark.django_db
+def test_render_json_resume_theme_view_returns_theme_html(client, user, monkeypatch):
+    user.save()
+    resume = Resume.objects.create(name="Jane", slug="jane-render-theme", owner=user)
+    client.force_login(user)
+
+    monkeypatch.setattr(
+        "django_resume.views.render_selected_theme",
+        lambda resume: RenderedTheme(
+            html="<html><body>Themed Jane</body></html>",
+            theme_name="jsonresume-theme-even",
+            notes=(),
+        ),
+    )
+
+    response = client.get(
+        reverse("django_resume:json-resume-rendered", kwargs={"slug": resume.slug})
+    )
+
+    assert response.status_code == 200
+    assert response.content == b"<html><body>Themed Jane</body></html>"
+    assert response.headers["Cache-Control"] == "private, no-store"
+    assert "Content-Security-Policy" in response.headers
 
 
 @pytest.mark.django_db

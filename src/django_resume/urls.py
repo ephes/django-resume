@@ -19,6 +19,21 @@ urlpatterns = [
     path("", views.resume_list, name="list"),
     path("<slug:slug>/delete/", views.resume_delete, name="delete"),
     path("<slug:slug>/json-resume/", views.export_json_resume, name="json-resume"),
+    path(
+        "<slug:slug>/json-resume/themes/",
+        views.json_resume_theme_selector,
+        name="json-resume-themes",
+    ),
+    path(
+        "<slug:slug>/json-resume/themes/install/",
+        views.install_json_resume_theme,
+        name="json-resume-theme-install",
+    ),
+    path(
+        "<slug:slug>/json-resume/rendered/",
+        views.render_json_resume_theme,
+        name="json-resume-rendered",
+    ),
     path("cv/<slug:slug>/", CvRedirectView.as_view(), name="cv-redirect"),
     # cover, cv and 403 pages (generated; bare "<slug:slug>/" catch-all is last)
     *page_registry.get_urls(),

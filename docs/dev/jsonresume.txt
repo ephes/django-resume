@@ -40,6 +40,9 @@ Current Design Gates
   deferred trusted-round-trip phase?
 * What stable item identity model should support future merge-by-item updates
   and restoration of unknown item-level extensions?
+* What stronger child-process isolation and sandboxing limits should be required
+  before adding PDF rendering, public previews, or support for unreviewed
+  community themes in production deployments?
 
 The ``Remaining Work`` section is the authoritative task breakdown. This section
 only highlights design gates that affect the decisions below.
@@ -148,6 +151,13 @@ decisions and should not contradict them.
   target resume. Trusted destructive defaults should apply only for trusted
   target-matching exports; mismatches should use untrusted-document defaults and
   produce a warning.
+* Existing JSON Resume themes should be reused by rendering a validated JSON
+  Resume document with the Node-based JSON Resume theme ecosystem, not by
+  porting those templates into Django templates. Theme rendering is a
+  presentation step layered on top of export. It should consume a portable JSON
+  Resume projection by default, with django-resume's private extension envelope
+  stripped unless the caller explicitly requests a private same-application
+  artifact.
 
 Relationship To Other Planning Work
 -----------------------------------
@@ -166,6 +176,112 @@ registry's catch-all ``<slug:slug>/`` route; the page registry owns that
 ordering.
 
 See :doc:`application_workflows` and :doc:`page_plugins`.
+
+External JSON Resume Themes
+---------------------------
+
+JSON Resume's theme ecosystem is npm-based. The current JSON Resume
+documentation recommends ``resumed`` for rendering ``resume.json`` with a theme;
+themes are npm packages or local directories and conventionally expose a
+``render(resume)`` function that returns HTML. The JSON Resume themes page
+lists hundreds of community packages. JSON Resume tooling can also produce PDFs
+when the selected renderer and host environment supply the required browser or
+PDF tooling.
+
+django-resume should support that ecosystem by producing a clean JSON Resume
+document and, optionally, invoking a configured renderer. It should not try to
+translate npm themes into Django templates. Theme packages execute JavaScript
+during rendering and their returned HTML can contain arbitrary markup, styles,
+and scripts, so they must be treated as trusted server-side code installed by
+the site operator, not as user-submitted templates.
+
+The viable implementation options are:
+
+* Documentation-only handoff. Document a workflow such as exporting a portable
+  JSON Resume document and running ``resumed render resume.json --theme
+  jsonresume-theme-even --output resume.html`` in a local npm project. This has
+  no runtime security or dependency risk and is enough for developers who are
+  comfortable with the JSON Resume toolchain, but it does not provide an
+  integrated django-resume command, preview, or PDF download.
+* Managed renderer command. Add an optional ``render_json_resume`` management
+  command that exports a resume, derives a portable projection, writes it to a
+  temporary file, and invokes a configured local renderer such as
+  ``node_modules/.bin/resumed``. The command would accept an allowlisted theme
+  key and an output format such as ``html`` or ``pdf``. This remains a useful
+  future operator and CI surface, even though owner-only HTML rendering is now
+  available through web views.
+* Authenticated in-app rendering. Add owner-only routes for theme search,
+  installation, preview, or download. The current implementation uses this
+  route for private HTML rendering with npm package-name validation, local cache
+  installation, portable-projection rendering, private caching, and restrictive
+  response headers. It should not expose arbitrary npm package installation to
+  anonymous users. Public CV views and token-protected resume pages should not
+  imply permission to render or download themed JSON Resume artifacts.
+* Native Django rendering of JSON Resume themes. Implement a Django template
+  pack that reads the JSON Resume projection. This may be useful as a built-in
+  fallback, but it does not satisfy the goal of reusing the existing JSON Resume
+  theme ecosystem and should not be the primary answer to external theme
+  compatibility.
+
+The implemented path is staged:
+
+* Document the external ``resumed`` workflow for users who only need
+  interoperable themed HTML or PDF outside django-resume.
+* Provide owner-only web routes that search npm for JSON Resume theme packages,
+  install the selected package and ``resumed`` into a local cache, apply the
+  selected package to one resume, and render private HTML from a portable JSON
+  Resume projection.
+* Defer PDF support, public preview, and stronger untrusted-theme isolation
+  until the deployment contract for browser tooling and process sandboxing is
+  explicit.
+
+The renderer configuration should be explicit and deployment-owned. The current
+implementation installs ``resumed`` and selected npm packages into
+``DJANGO_RESUME_JSON_RESUME_THEME_DIR`` and enforces a maximum HTML output size
+with ``DJANGO_RESUME_JSON_RESUME_RENDER_MAX_BYTES``. A future operator-focused
+command or stricter production mode may add an explicit renderer allowlist
+setting that maps local keys to command paths, supported output formats,
+timeouts, and approved theme keys.
+
+Rendering should use the portable projection by default. Until the internal
+``export_resume()`` helper has first-class export intents, the renderer should
+derive that projection by deep-copying the exported document and removing
+``meta.django_resume`` before passing it to external theme tooling. A private
+round-trip render mode may pass the complete document only for owner-run
+workflows, and reports should warn that theme packages may read django-resume's
+private extension envelope even if they usually ignore unknown fields.
+
+The subprocess contract should be conservative:
+
+* Invoke the renderer without a shell and pass resume/theme/output paths as
+  arguments.
+* Use a temporary working directory and input/output files created with
+  owner-only permissions, such as ``0700`` for directories and ``0600`` for
+  files, clean up intermediate files, and avoid putting resume JSON in
+  command-line arguments where it may appear in process listings.
+* Run the child process with a minimal environment and a deterministic ``PATH``;
+  CPU and memory limits beyond the timeout may be deployment-specific, but the
+  renderer contract should not require passing application secrets to Node.
+* Enforce a timeout and maximum stdout/stderr/output-file size.
+* Capture renderer stderr in the report, bounded and redacted where possible.
+* Fail closed if the export report is invalid, the theme key is unknown, the
+  renderer exits non-zero, or the output file is absent or too large.
+* Do not fetch schemas, renderers, or themes from the network during rendering.
+  The owner-only search and install flow may contact the npm registry, but the
+  render step must use already-installed local packages.
+
+HTML output should be treated as renderer-owned. The management command may
+write the HTML file verbatim because the caller is running trusted local code.
+Any future HTTP preview should use an iframe sandbox, restrictive content
+security policy, private caching, and no authenticated django-resume UI chrome
+inside the rendered theme document. Download responses should use owner-only
+authorization and may prefer ``Content-Disposition: attachment`` to avoid
+executing third-party theme scripts in the django-resume origin.
+
+PDF output should be optional. The spec should not make Puppeteer, Playwright,
+Chrome, or wkhtmltopdf a core Python dependency. A renderer definition may
+advertise ``pdf`` support only when the deployment provides the required Node
+or browser tooling.
 
 Plugin-Based Approach
 ---------------------
@@ -716,6 +832,12 @@ resume-level permission checks.
   schema-version warnings, but should avoid leaking redacted plugin data.
 * Import views and commands should enforce maximum input size and nesting-depth
   limits before schema validation and extension lifting.
+* Theme rendering should require the same permission as JSON Resume export.
+  Management commands are operator-run, while web views should be authenticated
+  and owner-only. The owner install flow must validate npm package names before
+  installing them, and production deployments that need stricter control should
+  add configured local allowlist keys because npm themes execute code during
+  rendering.
 
 Core Boundary
 -------------
@@ -781,6 +903,17 @@ Blocking tasks for initial implementation:
 * Check whether existing JSON Resume tooling can be reused for validation or
   conversion tests.
 
+Remaining JSON Resume theme-rendering work:
+
+* Decide whether a separate ``render_json_resume`` management command is still
+  needed now that the owner-only web selector can install, apply, and render
+  themes.
+* Add PDF rendering support only after the deployment contract for Puppeteer,
+  browser binaries, or another HTML-to-PDF tool is explicit.
+* Add stronger process isolation options for deployments that allow unreviewed
+  community themes, such as containerized rendering or host-level memory and
+  CPU limits.
+
 Deferred trusted-round-trip phase:
 
 * Implement provenance signing and verification together for django-resume
@@ -818,6 +951,10 @@ Because the envelope currently contains application-private plugin payloads,
 including access-control data when token plugins are configured, these exports
 are private backup or migration files rather than public registry uploads unless
 the envelope is removed.
+This also means the raw JSON download is not the ideal input for external JSON
+Resume themes. Users can still render it with tools that ignore unknown
+``meta`` fields, but django-resume's theme-rendered route derives a portable
+projection and strips ``meta.django_resume`` before invoking the Node renderer.
 The same export is available to authenticated resume owners through the
 non-page ``<slug>/json-resume/`` route, which is ordered before the page
 registry catch-all.
@@ -846,5 +983,11 @@ freelance/employed timeline split.
 Portable import also reports currently unsupported standard fields such as
 additional education entries, unmapped profile networks, ``basics.url``, skill
 levels or keywords, and defaulted section titles.
-Update-in-place imports, signatures, freshness checks, and trusted destructive
-defaults remain deferred.
+Theme rendering support currently lets authenticated owners search npm for
+``jsonresume-theme-*`` and ``@jsonresume/jsonresume-theme-*`` packages, install
+the selected theme plus ``resumed`` into a local cache, store that package name
+under ``integration_data["json_resume"]["theme"]``, and open a private rendered
+HTML page. Rendering derives a portable projection with
+``meta.django_resume`` stripped before passing data to the Node renderer.
+Update-in-place imports, signatures, freshness checks, trusted destructive
+defaults, and PDF rendering remain deferred.

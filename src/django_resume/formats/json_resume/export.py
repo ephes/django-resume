@@ -17,6 +17,22 @@ class JsonResumeExport:
     report: ExportReport
 
 
+def portable_document(document: dict) -> dict:
+    """Return a JSON Resume document suitable for external tools.
+
+    django-resume's private round-trip envelope lives at
+    ``meta.django_resume``. External JSON Resume themes should not receive that
+    data by default because it can contain application-private plugin payloads.
+    """
+    result = deepcopy(document)
+    meta = result.get("meta")
+    if isinstance(meta, dict):
+        meta.pop("django_resume", None)
+        if not meta:
+            result.pop("meta", None)
+    return result
+
+
 def _source_document_for_unchanged_import(
     resume: Resume, document: dict
 ) -> dict | None:

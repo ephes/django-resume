@@ -16,3 +16,29 @@ timestamp.
 Set this to a ``datetime.timedelta`` to enforce token expiration, or ``None`` to
 disable age-based expiry checks. Older stored token entries without a
 ``created`` timestamp continue to work for backward compatibility.
+
+``DJANGO_RESUME_JSON_RESUME_THEME_DIR``
+=======================================
+
+Default: ``BASE_DIR / ".django-resume-jsonresume-themes"``
+
+Directory used by the JSON Resume theme selector to install ``resumed`` and
+selected npm theme packages. The directory is created with owner-only
+permissions when possible.
+
+``DJANGO_RESUME_JSON_RESUME_RENDER_MAX_BYTES``
+==============================================
+
+Default: ``5000000``
+
+Maximum size, in bytes, of the HTML file produced by a JSON Resume theme render.
+Rendering fails if the output exceeds this limit.
+
+``DJANGO_RESUME_JSON_RESUME_PROCESS_OUTPUT_MAX_BYTES``
+======================================================
+
+Default: ``200000``
+
+Maximum size, in bytes, captured from each stdout or stderr stream while running
+``npm install`` or the JSON Resume renderer. The child process is terminated if
+either stream exceeds this limit.

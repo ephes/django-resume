@@ -13,6 +13,8 @@
           {% endfor %}
           {% if not forloop.last %} • {% endif %}
         {% endfor %}
+        •
+        <a class="underlined" href="{% url 'django_resume:json-resume-themes' resume.slug %}"{% if is_editable %} hx-boost="true"{% endif %}>JSON Resume Themes</a>
         <button
           class="resume-delete-button"
           hx-delete="{% url 'django_resume:delete' resume.slug %}"

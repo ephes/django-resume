@@ -71,6 +71,29 @@ as CV tokens when those are present. Remove the ``meta.django_resume`` envelope
 before sharing an export with third-party JSON Resume hosting or tooling that
 does not need same-application restoration.
 
+Rendering with JSON Resume Themes
+---------------------------------
+
+Authenticated resume owners can search for npm JSON Resume themes from
+``/<resume-prefix>/<slug>/json-resume/themes/``. The selector queries the npm
+registry for packages named like ``jsonresume-theme-*`` or
+``@jsonresume/jsonresume-theme-*``. Clicking **Install and apply** runs
+``npm install`` into django-resume's configured local theme cache, installs the
+``resumed`` renderer plus the selected theme, and stores the selected package
+name in ``Resume.integration_data``.
+
+Once a theme is selected, owners can open
+``/<resume-prefix>/<slug>/json-resume/rendered/`` to view the resume rendered
+through that theme. The renderer receives a portable JSON Resume projection:
+django-resume removes its private ``meta.django_resume`` envelope before writing
+the temporary ``resume.json`` passed to the Node renderer.
+
+Theme packages execute JavaScript during rendering. Only authenticated owners
+can install or render themes through these views, but the installed npm packages
+should still be treated as trusted local code. django-resume does not install
+themes for anonymous visitors, and public CV pages or token-protected CV links
+do not imply permission to install or render JSON Resume themes.
+
 Importing from JSON Resume
 --------------------------
 

@@ -27,6 +27,12 @@ Features
   import/render/export check. Import reports lossy portable mappings, rejects
   malformed round-trip envelopes, detects import source-path conflicts, and
   returns clean command errors for unreadable or invalid JSON input files.
+* Add owner-only JSON Resume theme support. Resume owners can search npm for
+  JSON Resume themes, install and apply a selected npm package into a local
+  theme cache, and open a private rendered HTML page generated through the
+  ``resumed`` renderer. Rendering uses a portable JSON Resume projection with
+  django-resume's private ``meta.django_resume`` envelope stripped before the
+  Node theme runs.
 
 0.3.0 - 2026-06-21
 ------------------

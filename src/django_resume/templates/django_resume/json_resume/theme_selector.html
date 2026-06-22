@@ -1,0 +1,62 @@
+{% extends "django_resume/pages/plain/base.html" %}
+
+{% block title %}JSON Resume Themes{% endblock title %}
+
+{% block body %}
+  <body>
+  <main class="stack-large">
+    <header class="stack">
+      <p><a class="underlined" href="{% url 'django_resume:list' %}">Resumes</a></p>
+      <h1>JSON Resume Themes</h1>
+      <p>{{ resume.name }}</p>
+      {% if selected_theme %}
+        <p>
+          Selected theme:
+          <code>{{ selected_theme }}</code>
+          <a class="underlined" href="{% url 'django_resume:json-resume-rendered' resume.slug %}" target="_blank" rel="noopener">Open rendered page</a>
+        </p>
+      {% else %}
+        <p>No JSON Resume theme is selected yet.</p>
+      {% endif %}
+    </header>
+
+    {% if error %}
+      <p class="error">{{ error|escape }}</p>
+    {% endif %}
+
+    <section class="stack">
+      <h2>Search npm themes</h2>
+      <form method="get" action="{% url 'django_resume:json-resume-themes' resume.slug %}" class="stack">
+        <span class="cluster">
+          <label for="q">Theme search</label>
+          <input id="q" name="q" type="search" value="{{ query }}" placeholder="even, professional, stackoverflow">
+          <button type="submit">Search</button>
+        </span>
+      </form>
+    </section>
+
+    {% if results %}
+      <section class="stack">
+        <h2>Results</h2>
+        <ul class="stack">
+          {% for theme in results %}
+            <li class="stack stack-card">
+              <strong>{{ theme.name }}</strong>
+              {% if theme.version %}<span>{{ theme.version }}</span>{% endif %}
+              {% if theme.description %}<p>{{ theme.description }}</p>{% endif %}
+              <form method="post" action="{% url 'django_resume:json-resume-theme-install' resume.slug %}">
+                {% csrf_token %}
+                <input type="hidden" name="package" value="{{ theme.name }}">
+                <input type="hidden" name="q" value="{{ query }}">
+                <button type="submit">Install and apply</button>
+              </form>
+            </li>
+          {% endfor %}
+        </ul>
+      </section>
+    {% elif query and not error %}
+      <p>No JSON Resume themes found.</p>
+    {% endif %}
+  </main>
+  </body>
+{% endblock body %}
