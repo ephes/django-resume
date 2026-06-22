@@ -62,8 +62,8 @@ def test_owner_searches_installs_applies_and_opens_json_resume_theme(
     _admin_login(page, live_server, "jochen")
     page.goto(f"{live_server.url}/resume/")
     row = page.locator("#resume-jochen")
-    expect(row.get_by_role("link", name="JSON Resume Themes")).to_be_visible()
-    row.get_by_role("link", name="JSON Resume Themes").click()
+    expect(row.get_by_role("link", name="Themes")).to_be_visible()
+    row.get_by_role("link", name="Themes").click()
 
     expect(page.locator("h1", has_text="JSON Resume Themes")).to_be_visible()
     page.get_by_label("Theme search").fill("even")

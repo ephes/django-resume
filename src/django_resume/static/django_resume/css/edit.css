@@ -184,6 +184,27 @@ input[type="checkbox"]:checked::before {
     border-bottom: calc(0.7 * var(--border-thin)) solid var(--font-color);
 }
 
+.resume-overview-row {
+    flex-wrap: nowrap;
+}
+
+.resume-row-content {
+    flex: 1 1 auto;
+    min-inline-size: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.resume-row-name {
+    color: var(--font-color);
+}
+
+.resume-nav-link,
+.resume-nav-separator {
+    white-space: nowrap;
+}
+
 .resume-delete-button,
 .plugin-delete-button {
     margin-inline-start: auto;
@@ -193,6 +214,10 @@ input[type="checkbox"]:checked::before {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+}
+
+.resume-delete-button .edit-icon-small {
+    color: red;
 }
 
 /* for the delete button of badges */

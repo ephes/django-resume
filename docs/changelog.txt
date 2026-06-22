@@ -34,6 +34,11 @@ Features
   django-resume's private ``meta.django_resume`` envelope stripped before the
   Node theme runs.
 
+Fixes
+^^^^^
+* Keep the editable resume overview compact after adding JSON Resume theme
+  actions by shortening the theme link and preserving inline link separators.
+
 0.3.0 - 2026-06-21
 ------------------
 

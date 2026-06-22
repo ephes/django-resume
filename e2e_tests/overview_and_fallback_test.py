@@ -40,18 +40,17 @@ def test_overview_renders_grouped_ordered_nav(page: Page, live_server, seed):
     row = page.locator("#resume-jochen")
     expect(row).to_be_visible()
 
-    # Group labels render, in order: the public "Resume" group then "Owner tools".
-    expect(row.get_by_text("Resume:", exact=False)).to_be_visible()
-    expect(row.get_by_text("Owner tools:", exact=False)).to_be_visible()
+    # The overview keeps the compact inline list layout.
+    expect(row.get_by_text("Jochen:", exact=False)).to_be_visible()
 
     # Links appear in explicit nav_order, NOT registration order: PortfolioPage
     # registers last but nav_order=15 puts it between Cover (10) and CV (20).
     link_texts = [t.strip() for t in row.get_by_role("link").all_inner_texts()]
-    assert link_texts == ["Cover", "Portfolio", "CV", "403"]
+    assert link_texts == ["Cover", "Portfolio", "CV", "403", "Themes"]
 
-    # The "Resume" group label precedes the "Owner tools" label in the DOM.
+    # Public page links still precede owner-only actions in the row.
     row_text = row.inner_text()
-    assert row_text.index("Resume:") < row_text.index("Owner tools:")
+    assert row_text.index("CV") < row_text.index("403")
 
 
 def test_page_renders_via_plain_fallback_for_themeless_theme(

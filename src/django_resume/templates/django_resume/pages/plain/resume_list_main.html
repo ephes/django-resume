@@ -2,29 +2,28 @@
   <h2>Edit or Remove from List</h2>
   <ul id="resume-list" class="deletable-ul">
     {% for resume in resumes %}
-      <li id="resume-{{ resume.slug }}" class="deletable-li">
-        {{ resume.name }}:
-        {% page_nav_groups resume as nav_groups %}
-        {% for group in nav_groups %}
-          {% if group.title %}<span class="nav-group-label">{{ group.title }}:</span>{% endif %}
-          {% for link in group.links %}
-            <a class="underlined" href="{{ link.url }}"{% if is_editable %} hx-boost="true"{% endif %}>{{ link.title }}</a>
-            {% if not forloop.last %} | {% endif %}
+      {% page_nav_links resume as nav_links %}
+      <li id="resume-{{ resume.slug }}" class="deletable-li resume-overview-row">
+        <span class="resume-row-content">
+          <span class="resume-row-name">{{ resume.name }}:</span>
+          {% for link in nav_links %}
+            {% if not forloop.first %}
+              <span class="resume-nav-separator">|</span>
+            {% endif %}
+            <a class="underlined resume-nav-link" href="{{ link.url }}"{% if is_editable %} hx-boost="true"{% endif %}>{{ link.title }}</a>
           {% endfor %}
-          {% if not forloop.last %} • {% endif %}
-        {% endfor %}
-        •
-        <a class="underlined" href="{% url 'django_resume:json-resume-themes' resume.slug %}"{% if is_editable %} hx-boost="true"{% endif %}>JSON Resume Themes</a>
+          {% if nav_links %}<span class="resume-nav-separator">|</span>{% endif %}
+          <a class="underlined resume-nav-link" href="{% url 'django_resume:json-resume-themes' resume.slug %}"{% if is_editable %} hx-boost="true"{% endif %}>Themes</a>
+        </span>
         <button
           class="resume-delete-button"
+          type="button"
+          aria-label="Delete {{ resume.name }}"
           hx-delete="{% url 'django_resume:delete' resume.slug %}"
           hx-target="#resume-{{ resume.slug }}"
           hx-swap="delete"
         >
-          <svg
-            class="edit-icon-small"
-            style="color: red !important;"
-          >
+          <svg class="edit-icon-small">
             <use href="#delete"></use>
           </svg>
         </button>
