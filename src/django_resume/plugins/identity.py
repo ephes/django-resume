@@ -81,6 +81,7 @@ class IdentityJsonResumeAdapter:
         "/basics/email",
         "/basics/phone",
         "/basics/image",
+        "/basics/location",
         "/basics/profiles",
     )
     multivalued_paths: tuple[str, ...] = ()
@@ -109,7 +110,10 @@ class IdentityJsonResumeAdapter:
                 profiles.append({"network": network, "url": url})
         if profiles:
             contributions.append(("/basics/profiles", profiles))
-        for key in ("pronouns", "location_name", "location_url", "avatar_alt"):
+        location_name = facts.get("location_name", "")
+        if location_name:
+            contributions.append(("/basics/location", {"address": location_name}))
+        for key in ("pronouns", "location_url", "avatar_alt"):
             if facts.get(key):
                 notes.append(f"identity.{key} has no JSON Resume mapping; not exported")
         return AdapterExport(contributions=contributions, notes=notes)

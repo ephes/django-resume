@@ -77,10 +77,11 @@ Rendering with JSON Resume Themes
 Authenticated resume owners can search for npm JSON Resume themes from
 ``/<resume-prefix>/<slug>/json-resume/themes/``. The selector queries the npm
 registry for packages named like ``jsonresume-theme-*`` or
-``@jsonresume/jsonresume-theme-*``. Clicking **Install and apply** runs
-``npm install`` into django-resume's configured local theme cache, installs the
-``resumed`` renderer plus the selected theme, and stores the selected package
-name in ``Resume.integration_data``.
+``@jsonresume/jsonresume-theme-*``, lists the available themes by default, and
+uses the search box to filter that list locally. Clicking **Install and apply**
+runs ``npm install`` into django-resume's configured local theme cache, installs
+the ``resumed`` renderer plus the selected theme, and stores the selected
+package name in ``Resume.integration_data``.
 
 Once a theme is selected, owners can open
 ``/<resume-prefix>/<slug>/json-resume/rendered/`` to view the resume rendered

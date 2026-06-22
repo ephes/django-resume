@@ -81,3 +81,38 @@ def test_owner_searches_installs_applies_and_opens_json_resume_theme(
     expect(rendered.locator("h1", has_text="Even Theme Rendered")).to_be_visible()
     expect(rendered.get_by_text("Jochen Example")).to_be_visible()
     rendered.close()
+
+
+def test_theme_install_button_shows_pending_feedback(
+    page: Page, live_server, seed, monkeypatch
+):
+    from django_resume.formats.json_resume.themes import ThemeSearchResult
+
+    monkeypatch.setattr(
+        "django_resume.views.search_themes",
+        lambda query: [
+            ThemeSearchResult(
+                name="jsonresume-theme-even",
+                version="0.26.1",
+                description="Flat JSON Resume theme",
+                keywords=("jsonresume-theme",),
+            )
+        ],
+    )
+
+    _admin_login(page, live_server, "jochen")
+    page.goto(f"{live_server.url}/resume/jochen/json-resume/themes/")
+    page.evaluate(
+        """() => {
+            const form = document.querySelector("[data-theme-install-form]");
+            form.addEventListener("submit", event => event.preventDefault(), {capture: true});
+        }"""
+    )
+
+    button = page.locator("[data-install-submit]")
+    expect(button).to_have_text("Install and apply")
+    button.click()
+
+    expect(button).to_be_disabled()
+    expect(button).to_have_text("Installing...")
+    expect(page.locator("[data-install-status]")).to_be_visible()

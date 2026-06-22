@@ -19,6 +19,7 @@ from ...models import Resume
 from .export import export_resume, portable_document
 
 NPM_SEARCH_URL = "https://registry.npmjs.org/-/v1/search"
+THEME_SEARCH_SIZE = 100
 THEME_PACKAGE_RE = re.compile(
     r"^(?:jsonresume-theme-[a-z0-9][a-z0-9._-]*|"
     r"@jsonresume/jsonresume-theme-[a-z0-9][a-z0-9._-]*)$"
@@ -99,13 +100,11 @@ def set_selected_theme(resume: Resume, package_name: str) -> None:
 
 
 def search_themes(
-    query: str = "", *, size: int = 12, timeout: float = 8.0
+    query: str = "", *, size: int = THEME_SEARCH_SIZE, timeout: float = 8.0
 ) -> list[ThemeSearchResult]:
     query = query.strip()
     search_text = "keywords:jsonresume-theme"
-    if query:
-        search_text = f"{search_text} {query}"
-    params = urlencode({"text": search_text, "size": min(max(size, 1), 50)})
+    params = urlencode({"text": search_text, "size": min(max(size, 1), 250)})
     url = f"{NPM_SEARCH_URL}?{params}"
     try:
         with urlopen(url, timeout=timeout) as response:
@@ -114,7 +113,10 @@ def search_themes(
         raise JsonResumeThemeError(f"Could not search npm registry: {exc}") from exc
     except json.JSONDecodeError as exc:
         raise JsonResumeThemeError("npm registry returned invalid JSON") from exc
-    return _parse_search_results(payload)
+    results = _parse_search_results(payload)
+    if query:
+        results = _filter_theme_results(results, query)
+    return results
 
 
 def install_theme(package_name: str, *, timeout: float = 90.0) -> None:
@@ -154,7 +156,7 @@ def render_theme(
     if not exported.report.valid:
         errors = "; ".join(exported.report.validation_errors)
         raise JsonResumeThemeError(f"JSON Resume export is invalid: {errors}")
-    document = portable_document(exported.document)
+    document = _theme_document(portable_document(exported.document))
     target = cache_dir()
     resumed = _resumed_bin(target)
     if not resumed.exists():
@@ -223,6 +225,47 @@ def _parse_search_results(payload: dict[str, Any]) -> list[ThemeSearchResult]:
             )
         )
     return results
+
+
+def _theme_document(document: dict[str, Any]) -> dict[str, Any]:
+    basics = document.setdefault("basics", {})
+    if isinstance(basics, dict):
+        location = basics.get("location")
+        if not isinstance(location, dict):
+            location = {}
+            basics["location"] = location
+        for key in ("address", "postalCode", "city", "region", "countryCode"):
+            if not isinstance(location.get(key), str):
+                location[key] = ""
+        if "website" not in basics:
+            basics["website"] = basics.get("url", "")
+        if "picture" not in basics:
+            basics["picture"] = basics.get("image", "")
+    return document
+
+
+def _filter_theme_results(
+    results: list[ThemeSearchResult], query: str
+) -> list[ThemeSearchResult]:
+    terms = [term.casefold() for term in query.split() if term.strip()]
+    if not terms:
+        return results
+
+    def searchable_text(result: ThemeSearchResult) -> str:
+        return " ".join(
+            (
+                result.name,
+                result.version,
+                result.description,
+                " ".join(result.keywords),
+            )
+        ).casefold()
+
+    return [
+        result
+        for result in results
+        if all(term in searchable_text(result) for term in terms)
+    ]
 
 
 def _theme_state(resume: Resume) -> dict:

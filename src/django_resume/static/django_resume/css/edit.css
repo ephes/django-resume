@@ -220,6 +220,10 @@ input[type="checkbox"]:checked::before {
     color: red;
 }
 
+.theme-install-status {
+    margin-inline-start: var(--s-2);
+}
+
 /* for the delete button of badges */
 
 .badge {

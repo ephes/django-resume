@@ -109,11 +109,10 @@ def json_resume_theme_selector(request: HttpRequest, slug: str) -> HttpResponse:
     query = request.GET.get("q", "")
     results = []
     error = ""
-    if query:
-        try:
-            results = search_themes(query)
-        except JsonResumeThemeError as exc:
-            error = str(exc)
+    try:
+        results = search_themes(query)
+    except JsonResumeThemeError as exc:
+        error = str(exc)
     return render(
         request,
         "django_resume/json_resume/theme_selector.html",
@@ -141,13 +140,18 @@ def install_json_resume_theme(request: HttpRequest, slug: str) -> HttpResponse:
         install_theme(package_name)
         set_selected_theme(resume, package_name)
     except JsonResumeThemeError as exc:
+        results = []
+        try:
+            results = search_themes(query)
+        except JsonResumeThemeError:
+            pass
         return render(
             request,
             "django_resume/json_resume/theme_selector.html",
             {
                 "resume": resume,
                 "query": query,
-                "results": [],
+                "results": results,
                 "selected_theme": selected_theme_name(resume),
                 "error": str(exc),
                 "is_editable": True,
@@ -178,7 +182,7 @@ def render_json_resume_theme(request: HttpRequest, slug: str) -> HttpResponse:
     response = HttpResponse(rendered.html, content_type="text/html; charset=utf-8")
     response["Cache-Control"] = "private, no-store"
     response["Content-Security-Policy"] = (
-        "default-src 'none'; img-src data: https:; style-src 'unsafe-inline'; "
+        "default-src 'none'; img-src 'self' data: https:; style-src 'unsafe-inline'; "
         "font-src data: https:; base-uri 'none'; form-action 'none'"
     )
     response["X-Frame-Options"] = "SAMEORIGIN"

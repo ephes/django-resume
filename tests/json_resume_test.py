@@ -124,9 +124,13 @@ def test_identity_facts_and_adapter_map_to_basics(resume):
         {"network": "GitHub", "url": "https://github.com/jane"},
         {"network": "LinkedIn", "url": "https://linkedin.com/in/jane"},
     ]
+    assert contributions["/basics/location"] == {"address": "Berlin"}
     assert any("pronouns" in note for note in result.notes)
-    assert any("location_name" in note for note in result.notes)
+    assert not any("location_name" in note for note in result.notes)
+    assert any("location_url" in note for note in result.notes)
     assert any("avatar_alt" in note for note in result.notes)
+    contributions = dict(adapter.export({"name": "Jane Doe"}).contributions)
+    assert "/basics/location" not in contributions
 
 
 def test_about_facts_and_adapter_map_to_summary(resume):
@@ -1034,11 +1038,16 @@ def test_search_themes_queries_npm_registry_and_filters_results(monkeypatch):
 
     results = search_themes("even")
 
+    assert [result.name for result in results] == ["jsonresume-theme-even"]
+    assert "keywords%3Ajsonresume-theme" in seen_urls[0]
+    assert "even" not in seen_urls[0]
+
+    results = search_themes("")
+
     assert [result.name for result in results] == [
         "jsonresume-theme-even",
         "@jsonresume/jsonresume-theme-professional",
     ]
-    assert "keywords%3Ajsonresume-theme+even" in seen_urls[0]
 
 
 def test_install_theme_runs_npm_install_in_configured_cache(
@@ -1136,7 +1145,61 @@ def test_render_theme_writes_portable_resume_and_returns_html(
     assert rendered.html == "<html><body>Even Jane</body></html>"
     assert rendered.theme_name == "jsonresume-theme-even"
     assert written_resume["basics"]["name"] == "Jane Doe"
+    assert written_resume["basics"]["location"] == {
+        "address": "",
+        "postalCode": "",
+        "city": "",
+        "region": "",
+        "countryCode": "",
+    }
+    assert written_resume["basics"]["website"] == ""
+    assert written_resume["basics"]["picture"] == ""
     assert "django_resume" not in written_resume.get("meta", {})
+
+
+@pytest.mark.django_db
+def test_render_theme_normalizes_document_for_brittle_theme_shapes(
+    tmp_path, settings, monkeypatch, user
+):
+    settings.DJANGO_RESUME_JSON_RESUME_THEME_DIR = tmp_path / "themes"
+    target = json_resume_themes.cache_dir()
+    resumed_bin = target / "node_modules" / ".bin" / "resumed"
+    resumed_bin.parent.mkdir(parents=True)
+    resumed_bin.write_text("#!/usr/bin/env node\n", encoding="utf-8")
+    user.save()
+    resume = Resume.objects.create(name="Jane", slug="jane-a11y-theme", owner=user)
+    IdentityPlugin().data.set_data(
+        resume,
+        {
+            "name": "Jane Doe",
+            "location_name": "Berlin",
+            "avatar_img": "avatars/jane.png",
+        },
+    )
+    resume.save()
+    written_resume = {}
+
+    def fake_run(command, *, cwd, timeout):
+        resume_path = Path(command[2])
+        output_path = Path(command[command.index("--output") + 1])
+        written_resume.update(json.loads(resume_path.read_text(encoding="utf-8")))
+        output_path.write_text("<html><body>A11y Jane</body></html>", encoding="utf-8")
+        return json_resume_themes.subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(json_resume_themes, "_run_process", fake_run)
+
+    render_theme(resume, "jsonresume-theme-a11y")
+
+    basics = written_resume["basics"]
+    assert basics["location"] == {
+        "address": "Berlin",
+        "postalCode": "",
+        "city": "",
+        "region": "",
+        "countryCode": "",
+    }
+    assert basics["picture"] == basics["image"]
+    assert basics["website"] == ""
 
 
 @pytest.mark.django_db
@@ -1144,28 +1207,30 @@ def test_json_resume_theme_selector_searches_for_owner(client, user, monkeypatch
     user.save()
     resume = Resume.objects.create(name="Jane", slug="jane-selector", owner=user)
     client.force_login(user)
+    seen_queries = []
 
-    monkeypatch.setattr(
-        "django_resume.views.search_themes",
-        lambda query: [
+    def fake_search(query):
+        seen_queries.append(query)
+        return [
             ThemeSearchResult(
                 name="jsonresume-theme-even",
                 version="0.26.1",
                 description="Flat theme",
                 keywords=("jsonresume-theme",),
             )
-        ],
-    )
+        ]
+
+    monkeypatch.setattr("django_resume.views.search_themes", fake_search)
 
     response = client.get(
-        reverse("django_resume:json-resume-themes", kwargs={"slug": resume.slug}),
-        {"q": "even"},
+        reverse("django_resume:json-resume-themes", kwargs={"slug": resume.slug})
     )
 
     assert response.status_code == 200
     content = response.content.decode("utf-8")
     assert "jsonresume-theme-even" in content
     assert "Install and apply" in content
+    assert seen_queries == [""]
 
 
 @pytest.mark.django_db
@@ -1237,6 +1302,7 @@ def test_render_json_resume_theme_view_returns_theme_html(client, user, monkeypa
     assert response.content == b"<html><body>Themed Jane</body></html>"
     assert response.headers["Cache-Control"] == "private, no-store"
     assert "Content-Security-Policy" in response.headers
+    assert "img-src 'self' data: https:" in response.headers["Content-Security-Policy"]
 
 
 @pytest.mark.django_db

@@ -44,19 +44,37 @@
               <strong>{{ theme.name }}</strong>
               {% if theme.version %}<span>{{ theme.version }}</span>{% endif %}
               {% if theme.description %}<p>{{ theme.description }}</p>{% endif %}
-              <form method="post" action="{% url 'django_resume:json-resume-theme-install' resume.slug %}">
+              <form method="post" action="{% url 'django_resume:json-resume-theme-install' resume.slug %}" data-theme-install-form>
                 {% csrf_token %}
                 <input type="hidden" name="package" value="{{ theme.name }}">
                 <input type="hidden" name="q" value="{{ query }}">
-                <button type="submit">Install and apply</button>
+                <button type="submit" data-install-submit>Install and apply</button>
+                <span class="theme-install-status" data-install-status role="status" aria-live="polite" hidden>Installing...</span>
               </form>
             </li>
           {% endfor %}
         </ul>
       </section>
     {% elif query and not error %}
-      <p>No JSON Resume themes found.</p>
+      <p>No matching JSON Resume themes found.</p>
     {% endif %}
+    <script>
+      document.addEventListener("submit", function (event) {
+          const form = event.target;
+          if (!(form instanceof HTMLFormElement) || !form.matches("[data-theme-install-form]")) {
+              return;
+          }
+          const button = form.querySelector("[data-install-submit]");
+          const status = form.querySelector("[data-install-status]");
+          if (button) {
+              button.disabled = true;
+              button.textContent = "Installing...";
+          }
+          if (status) {
+              status.hidden = false;
+          }
+      });
+    </script>
   </main>
   </body>
 {% endblock body %}

@@ -38,6 +38,10 @@ Fixes
 ^^^^^
 * Keep the editable resume overview compact after adding JSON Resume theme
   actions by shortening the theme link and preserving inline link separators.
+* List available JSON Resume npm themes by default, filter that list locally,
+  and show immediate pending feedback while a theme install is running.
+* Normalize JSON Resume fields expected by brittle third-party themes and allow
+  rendered themes to load same-origin media images under the response CSP.
 
 0.3.0 - 2026-06-21
 ------------------
