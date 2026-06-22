@@ -93,7 +93,7 @@ Export hooks
 ============
 
 A content plugin can opt into the import/export framework with two optional
-methods (both default to "nothing exported" on the base classes):
+export methods (both default to "nothing exported" on the base classes):
 
 * ``get_structured_data(resume) -> dict`` returns format-neutral, normalized
   facts (stable field names, machine-readable values) for the resume.
@@ -105,6 +105,38 @@ An export adapter declares ``owned_paths`` (the JSON Pointers it writes) and
 implements ``export(facts) -> AdapterExport`` returning ``contributions``
 (``(pointer, value)`` pairs, each pointer one of ``owned_paths``) and ``notes``
 (dropped fields or other diagnostics surfaced in the export report).
+
+Import hooks
+============
+
+Plugins can opt into JSON Resume import with ``get_import_adapters() -> dict``.
+The base classes return an empty mapping. An import adapter declares
+``source_paths`` (JSON Pointers it consumes) and implements
+``import_data(document) -> AdapterImport``. The returned ``plugin_data`` is
+stored under that plugin's name when a portable JSON Resume document is imported.
+Import source paths must be unique and non-overlapping across adapters; conflicts
+abort the import as configuration errors.
+
+For django-resume round-trip exports, ``meta.django_resume.plugin_data`` is
+restored before portable adapters are used. This preserves plugin fields that do
+not have a standard JSON Resume representation. Restored plugin data is accepted
+only when the envelope is an object of plugin-name keys to object payloads.
+
+For imported JSON Resume documents, django-resume stores the parsed source
+document, the adapter-generated projection, and the imported plugin-data
+snapshot in resume integration state. If a later export sees the same projection
+and the same plugin data, it re-emits the parsed source document so unsupported
+standard fields owned by no bundled plugin are not lost during an unchanged
+import/export check. Once plugin data changes, export uses the current plugin
+adapters and the normal django-resume extension envelope.
+
+The bundled timeline import adapter maps the portable JSON Resume ``/work``
+array into ``employed_timeline`` and reports that JSON Resume does not preserve
+the django-resume freelance/employed split. Plugins that need a different
+portable split should provide their own import adapter or use
+``meta.django_resume.plugin_data`` for exact round trips.
+Import adapters should add report notes for any standard JSON Resume fields they
+deliberately ignore or normalize.
 
 Usage Example
 =============

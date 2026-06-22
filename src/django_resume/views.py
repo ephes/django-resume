@@ -1,3 +1,4 @@
+import json
 from typing import Any
 
 from django.contrib.auth.decorators import login_required
@@ -5,6 +6,8 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render, get_object_or_404
 from django.views.decorators.http import require_http_methods
 
+from .formats.json_resume.export import export_resume
+from .interchange.coordinator import PathConflictError
 from .forms import ResumeForm
 from .models import Resume
 
@@ -56,3 +59,31 @@ def resume_delete(request: HttpRequest, slug: str) -> HttpResponse:
 
     resume.delete()
     return HttpResponse(status=200)  # 200 instead of 204 for htmx compatibility
+
+
+@login_required
+@require_http_methods(["GET"])
+def export_json_resume(request: HttpRequest, slug: str) -> HttpResponse:
+    """Download one owned resume as a JSON Resume document."""
+    resume = get_object_or_404(Resume, slug=slug)
+    if resume.owner != request.user:
+        return HttpResponse(status=404)
+    try:
+        result = export_resume(resume)
+    except PathConflictError:
+        return HttpResponse(
+            "Adapter configuration error",
+            content_type="text/plain; charset=utf-8",
+            status=500,
+        )
+    if not result.report.valid:
+        return HttpResponse(
+            "\n".join(result.report.validation_errors),
+            content_type="text/plain; charset=utf-8",
+            status=422,
+        )
+    payload = json.dumps(result.document, indent=2, ensure_ascii=False) + "\n"
+    response = HttpResponse(payload, content_type="application/json; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="{resume.slug}.json"'
+    response["Cache-Control"] = "private, no-store"
+    return response

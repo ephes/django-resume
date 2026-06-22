@@ -13,6 +13,14 @@ class AdapterExport:
     notes: list[str] = field(default_factory=list)
 
 
+@dataclass(frozen=True)
+class AdapterImport:
+    """Plugin data imported from one interchange document."""
+
+    plugin_data: dict
+    notes: list[str] = field(default_factory=list)
+
+
 @runtime_checkable
 class ExportAdapter(Protocol):
     # Fine-grained JSON Pointers this adapter writes.
@@ -23,4 +31,14 @@ class ExportAdapter(Protocol):
 
     def export(self, facts: dict) -> AdapterExport:
         """Map structured facts to contributions for one resume."""
+        ...
+
+
+@runtime_checkable
+class ImportAdapter(Protocol):
+    # JSON Pointers this adapter consumes.
+    source_paths: tuple[str, ...]
+
+    def import_data(self, document: dict) -> AdapterImport:
+        """Map a complete interchange document to plugin data."""
         ...

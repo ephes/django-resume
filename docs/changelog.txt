@@ -10,9 +10,23 @@ Features
 * Add a ``export_json_resume`` management command that exports a resume to a
   JSON Resume v1.0.0 document, validated against a pinned copy of the upstream
   schema. Plugins map their data through plugin-owned JSON Resume adapters built
-  on a new ``get_structured_data`` facts API; plugins without an adapter (cover,
-  theme, token, permission_denied) are omitted and reported. See
-  :doc:`guide/usage`.
+  on a new ``get_structured_data`` facts API. Exports include a
+  ``meta.django_resume`` extension envelope so a django-resume import can
+  preserve plugin data that has no portable JSON Resume field, while the
+  portable projection remains schema-valid. Authenticated resume owners can
+  also download the same JSON document at ``/<slug>/json-resume/`` within the
+  installed resume URL prefix. See :doc:`guide/usage`.
+* Add an ``import_json_resume`` management command that creates a fresh resume
+  from a JSON Resume file for a caller-supplied owner and slug. The command
+  imports portable JSON Resume sections through plugin-owned adapters and
+  restores ``meta.django_resume.plugin_data`` by default when importing a
+  django-resume round-trip export. Imported
+  ``meta.django_resume.preserved_extensions`` are stored and emitted again on
+  later exports. Unchanged imported JSON Resume documents are retained and
+  re-exported exactly as parsed so third-party standard sections survive an
+  import/render/export check. Import reports lossy portable mappings, rejects
+  malformed round-trip envelopes, detects import source-path conflicts, and
+  returns clean command errors for unreadable or invalid JSON input files.
 
 0.3.0 - 2026-06-21
 ------------------

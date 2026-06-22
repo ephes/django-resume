@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import Any
 
+from .conflicts import detect_path_conflicts
 from .pointer import set_pointer
 from .protocols import AdapterExport, ExportAdapter
 
@@ -36,34 +37,36 @@ def collect_adapters(
     return resolved, omitted
 
 
-def _is_ancestor(ancestor: str, descendant: str) -> bool:
-    """True if ``descendant`` is ``ancestor`` itself or nested beneath it."""
-    return descendant == ancestor or descendant.startswith(ancestor + "/")
-
-
 def _check_conflicts(resolved: list[ResolvedAdapter]) -> None:
-    # claims: path -> list of (plugin_name, is_multivalued)
-    claims: dict[str, list[tuple[str, bool]]] = {}
+    claims: dict[str, list[str]] = {}
+    multivalued_claims: dict[str, list[bool]] = {}
     for item in resolved:
         multivalued = set(item.adapter.multivalued_paths)
         for path in item.adapter.owned_paths:
-            claims.setdefault(path, []).append((item.plugin_name, path in multivalued))
+            claims.setdefault(path, []).append(item.plugin_name)
+            multivalued_claims.setdefault(path, []).append(path in multivalued)
     # Identical-path claims are allowed only if every claimer marks it multivalued.
-    for path, claimers in claims.items():
-        if len(claimers) > 1 and not all(is_mv for _, is_mv in claimers):
-            names = ", ".join(name for name, _ in claimers)
-            raise PathConflictError(
-                f"Multiple adapters claim non-multivalued path {path!r}: {names}"
-            )
+    scalar_claims = {
+        path: claimers
+        for path, claimers in claims.items()
+        if len(claimers) > 1 and not all(multivalued_claims[path])
+    }
+    conflict = detect_path_conflicts(scalar_claims)
+    if conflict is not None and conflict.kind == "duplicate":
+        names = ", ".join(conflict.claimers or [])
+        raise PathConflictError(
+            f"Multiple adapters claim non-multivalued path {conflict.path!r}: {names}"
+        )
     # Ancestor/descendant overlaps between *different* paths are always an error:
     # an adapter owning a parent object would overwrite another's child writes.
-    paths = sorted(claims)
-    for index, parent in enumerate(paths):
-        for child in paths[index + 1 :]:
-            if parent != child and _is_ancestor(parent, child):
-                raise PathConflictError(
-                    f"Overlapping write paths {parent!r} and {child!r}"
-                )
+    conflict = detect_path_conflicts(
+        {path: [claimers[0]] for path, claimers in claims.items()}
+    )
+    if conflict is not None and conflict.kind == "overlap":
+        if conflict.parent is not None and conflict.child is not None:
+            raise PathConflictError(
+                f"Overlapping write paths {conflict.parent!r} and {conflict.child!r}"
+            )
 
 
 def build_document(resolved: list[ResolvedAdapter]) -> tuple[dict, list[str]]:

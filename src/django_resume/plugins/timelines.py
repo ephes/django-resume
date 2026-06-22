@@ -20,7 +20,8 @@ from ..markdown import (
     markdown_to_textarea_input,
     underlined_link_handler,
 )
-from ..interchange.protocols import AdapterExport
+from ..interchange.pointer import get_pointer
+from ..interchange.protocols import AdapterExport, AdapterImport
 from ..formats.json_resume.dates import is_valid_resume_date
 
 
@@ -63,6 +64,37 @@ class TimelineJsonResumeAdapter:
                 work.append(entry)
         contributions = [("/work", work)] if work else []
         return AdapterExport(contributions=contributions, notes=notes)
+
+    source_paths = ("/work",)
+
+    def import_data(self, document: dict) -> AdapterImport:
+        work = get_pointer(document, "/work", []) or []
+        items = []
+        for position, entry in enumerate(
+            item for item in work if isinstance(item, dict)
+        ):
+            items.append(
+                {
+                    "id": f"json-resume-work-{position + 1}",
+                    "company_name": entry.get("name", ""),
+                    "company_url": entry.get("url", ""),
+                    "role": entry.get("position", ""),
+                    "description": entry.get("summary", ""),
+                    "start": entry.get("startDate", ""),
+                    "end": entry.get("endDate", ""),
+                    "badges": entry.get("highlights", []) or [],
+                    "position": position,
+                }
+            )
+        if not items:
+            return AdapterImport(plugin_data={})
+        return AdapterImport(
+            plugin_data={"flat": {"title": "Work Experience"}, "items": items},
+            notes=[
+                "JSON Resume /work imported into employed_timeline; portable "
+                "JSON Resume cannot distinguish freelance and employed timelines"
+            ],
+        )
 
 
 class TimelineThemedTemplates(ListThemedTemplates):
@@ -265,8 +297,14 @@ class FreelanceTimelinePlugin(TimelineMixin, ListPlugin):
     verbose_name = "Freelance Timeline"
     capabilities: tuple[str, ...] = ("experience", "cv")
 
+    def get_import_adapters(self) -> dict:
+        return {}
+
 
 class EmployedTimelinePlugin(TimelineMixin, ListPlugin):
     name = "employed_timeline"
     verbose_name = "Employed Timeline"
     capabilities: tuple[str, ...] = ("experience", "cv")
+
+    def get_import_adapters(self) -> dict:
+        return {"json_resume": TimelineJsonResumeAdapter()}

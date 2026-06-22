@@ -14,7 +14,8 @@ from ..markdown import (
     markdown_to_textarea_input,
     underlined_link_handler,
 )
-from ..interchange.protocols import AdapterExport
+from ..interchange.pointer import get_pointer
+from ..interchange.protocols import AdapterExport, AdapterImport
 
 
 class ProjectItemForm(ListItemFormMixin, forms.Form):
@@ -147,6 +148,34 @@ class ProjectsJsonResumeAdapter:
         contributions = [("/projects", out)] if out else []
         return AdapterExport(contributions=contributions)
 
+    source_paths = ("/projects",)
+
+    def import_data(self, document: dict) -> AdapterImport:
+        projects = get_pointer(document, "/projects", []) or []
+        items = []
+        for position, entry in enumerate(
+            item for item in projects if isinstance(item, dict)
+        ):
+            items.append(
+                {
+                    "id": f"json-resume-project-{position + 1}",
+                    "title": entry.get("name", ""),
+                    "url": entry.get("url", ""),
+                    "description": entry.get("description", ""),
+                    "badges": entry.get("keywords", []) or [],
+                    "position": position,
+                }
+            )
+        if not items:
+            return AdapterImport(plugin_data={})
+        return AdapterImport(
+            plugin_data={"flat": {"title": "Projects"}, "items": items},
+            notes=[
+                "projects.flat.title defaulted to 'Projects'; JSON Resume "
+                "projects does not include a section title"
+            ],
+        )
+
 
 class ProjectsPlugin(ListPlugin):
     name: str = "projects"
@@ -211,4 +240,7 @@ class ProjectsPlugin(ListPlugin):
         return {"projects": projects}
 
     def get_export_adapters(self) -> dict:
+        return {"json_resume": ProjectsJsonResumeAdapter()}
+
+    def get_import_adapters(self) -> dict:
         return {"json_resume": ProjectsJsonResumeAdapter()}

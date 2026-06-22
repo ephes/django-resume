@@ -18,6 +18,7 @@ urlpatterns = [
     # resumes (non-page routes)
     path("", views.resume_list, name="list"),
     path("<slug:slug>/delete/", views.resume_delete, name="delete"),
+    path("<slug:slug>/json-resume/", views.export_json_resume, name="json-resume"),
     path("cv/<slug:slug>/", CvRedirectView.as_view(), name="cv-redirect"),
     # cover, cv and 403 pages (generated; bare "<slug:slug>/" catch-all is last)
     *page_registry.get_urls(),

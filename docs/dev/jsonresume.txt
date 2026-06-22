@@ -803,4 +803,48 @@ Future work:
 Implementation Sketch
 ---------------------
 
-To be filled in after the remaining work above is resolved.
+The current unsigned implementation supports management-command export and
+create-only import.
+
+``export_json_resume`` emits standard JSON Resume fields through plugin-owned
+export adapters and also writes a django-resume extension envelope at
+``meta.django_resume``. The envelope currently includes
+``meta.django_resume.plugin_data`` so same-application imports can recreate a
+fresh resume without losing django-resume-only fields such as display dates,
+section titles, local image paths, or adapterless plugin data. The standard
+projection remains valid against the vendored JSON Resume v1.0.0 schema; values
+that do not fit portable fields are reported and kept in the extension envelope.
+Because the envelope currently contains application-private plugin payloads,
+including access-control data when token plugins are configured, these exports
+are private backup or migration files rather than public registry uploads unless
+the envelope is removed.
+The same export is available to authenticated resume owners through the
+non-page ``<slug>/json-resume/`` route, which is ordered before the page
+registry catch-all.
+
+``import_json_resume`` creates a new resume for a caller-supplied owner and slug.
+By default, if ``meta.django_resume.plugin_data`` is present, that payload is
+restored into the new resume. Passing ``--portable-only`` ignores the envelope
+and maps standard JSON Resume sections through plugin-owned import adapters.
+The restored plugin-data envelope is validated before writing: it must be an
+object whose values are plugin payload objects. Import adapter source paths are
+checked for duplicate or overlapping claims before any adapter data is applied.
+If ``meta.django_resume.preserved_extensions`` is present, it is stored under
+``integration_data["json_resume"]["preserved_extensions"]`` and emitted again
+on later JSON Resume exports.
+All successful imports also store the parsed source document, the
+adapter-generated source projection, and the imported plugin-data snapshot under
+``integration_data["json_resume"]``. If a later export's current adapter
+projection and full plugin data still match those stored values, export re-emits
+the parsed source document exactly. This gives third-party JSON Resume samples
+an exact unchanged import/render/export path without hiding later plugin-data
+edits; once plugin data changes, export regenerates the document from adapters
+and writes the django-resume extension envelope.
+The current portable ``/work`` import maps all entries into
+``employed_timeline`` and reports that JSON Resume cannot recover the original
+freelance/employed timeline split.
+Portable import also reports currently unsupported standard fields such as
+additional education entries, unmapped profile networks, ``basics.url``, skill
+levels or keywords, and defaulted section titles.
+Update-in-place imports, signatures, freshness checks, and trusted destructive
+defaults remain deferred.

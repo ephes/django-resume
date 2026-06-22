@@ -4,7 +4,8 @@ from django.http import HttpRequest
 
 from .base import SimplePlugin, ContextDict
 from ..images import ImageFormMixin
-from ..interchange.protocols import AdapterExport
+from ..interchange.pointer import get_pointer
+from ..interchange.protocols import AdapterExport, AdapterImport
 
 
 class IdentityForm(ImageFormMixin, forms.Form):
@@ -113,6 +114,58 @@ class IdentityJsonResumeAdapter:
                 notes.append(f"identity.{key} has no JSON Resume mapping; not exported")
         return AdapterExport(contributions=contributions, notes=notes)
 
+    source_paths = (
+        "/basics/name",
+        "/basics/label",
+        "/basics/email",
+        "/basics/phone",
+        "/basics/image",
+        "/basics/url",
+        "/basics/location",
+        "/basics/profiles",
+    )
+
+    def import_data(self, document: dict) -> AdapterImport:
+        basics = get_pointer(document, "/basics", {}) or {}
+        if not isinstance(basics, dict):
+            return AdapterImport(plugin_data={}, notes=["basics is not an object"])
+        plugin_data = {
+            "name": basics.get("name", ""),
+            "tagline": basics.get("label", ""),
+            "email": basics.get("email", ""),
+            "phone": basics.get("phone", ""),
+            "github": "",
+            "linkedin": "",
+            "mastodon": "",
+            "pronouns": "",
+            "location_name": "",
+            "location_url": "",
+            "avatar_img": "",
+            "avatar_alt": "",
+        }
+        notes = []
+        for profile in basics.get("profiles", []) or []:
+            if not isinstance(profile, dict):
+                continue
+            network = str(profile.get("network", "")).lower()
+            url = profile.get("url", "")
+            if network == "github":
+                plugin_data["github"] = url
+            elif network == "linkedin":
+                plugin_data["linkedin"] = url
+            elif network == "mastodon":
+                plugin_data["mastodon"] = url
+            else:
+                label = profile.get("network") or profile.get("url") or "(unknown)"
+                notes.append(f"basics.profiles entry {label!r} is not imported")
+        if basics.get("url"):
+            notes.append("basics.url is not imported by the identity plugin")
+        if basics.get("image"):
+            notes.append("basics.image cannot be imported into local avatar storage")
+        if basics.get("location"):
+            notes.append("basics.location is not imported by the identity plugin")
+        return AdapterImport(plugin_data=plugin_data, notes=notes)
+
 
 class IdentityPlugin(SimplePlugin):
     name: str = "identity"
@@ -176,4 +229,7 @@ class IdentityPlugin(SimplePlugin):
         }
 
     def get_export_adapters(self) -> dict:
+        return {"json_resume": IdentityJsonResumeAdapter()}
+
+    def get_import_adapters(self) -> dict:
         return {"json_resume": IdentityJsonResumeAdapter()}

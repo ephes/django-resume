@@ -22,7 +22,7 @@ from django.db import transaction
 from ..models import Resume
 
 if TYPE_CHECKING:
-    from ..interchange.protocols import ExportAdapter
+    from ..interchange.protocols import ExportAdapter, ImportAdapter
 
 
 URLPatterns: TypeAlias = list[URLPattern]
@@ -74,6 +74,10 @@ class Plugin(Protocol):
 
     def get_export_adapters(self) -> dict[str, "ExportAdapter"]:
         """Return a map of format id -> export adapter for this plugin."""
+        ...  # pragma: no cover
+
+    def get_import_adapters(self) -> dict[str, "ImportAdapter"]:
+        """Return a map of format id -> import adapter for this plugin."""
         ...  # pragma: no cover
 
 
@@ -576,6 +580,10 @@ class SimplePlugin:
 
     def get_export_adapters(self) -> dict[str, "ExportAdapter"]:
         """Map of format id -> export adapter. Default: none."""
+        return {}
+
+    def get_import_adapters(self) -> dict[str, "ImportAdapter"]:
+        """Map of format id -> import adapter. Default: none."""
         return {}
 
 
@@ -1307,4 +1315,8 @@ class ListPlugin:
 
     def get_export_adapters(self) -> dict[str, "ExportAdapter"]:
         """Map of format id -> export adapter. Default: none."""
+        return {}
+
+    def get_import_adapters(self) -> dict[str, "ImportAdapter"]:
+        """Map of format id -> import adapter. Default: none."""
         return {}

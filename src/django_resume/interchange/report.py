@@ -9,3 +9,13 @@ class ExportReport:
     notes: list[str] = field(default_factory=list)
     valid: bool = True
     validation_errors: list[str] = field(default_factory=list)
+
+
+@dataclass
+class ImportReport:
+    mapped_plugins: list[str] = field(default_factory=list)
+    restored_plugins: list[str] = field(default_factory=list)
+    omitted_plugins: dict[str, str] = field(default_factory=dict)
+    notes: list[str] = field(default_factory=list)
+    valid: bool = True
+    validation_errors: list[str] = field(default_factory=list)

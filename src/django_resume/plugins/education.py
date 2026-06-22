@@ -1,7 +1,8 @@
 from django import forms
 
 from .base import SimplePlugin
-from ..interchange.protocols import AdapterExport
+from ..interchange.pointer import get_pointer
+from ..interchange.protocols import AdapterExport, AdapterImport
 from ..formats.json_resume.dates import is_valid_resume_date
 
 
@@ -43,6 +44,27 @@ class EducationJsonResumeAdapter:
         contributions = [("/education", [entry])] if entry else []
         return AdapterExport(contributions=contributions, notes=notes)
 
+    source_paths = ("/education",)
+
+    def import_data(self, document: dict) -> AdapterImport:
+        education = get_pointer(document, "/education", []) or []
+        if not education or not isinstance(education[0], dict):
+            return AdapterImport(plugin_data={})
+        entry = education[0]
+        plugin_data = {
+            "school_name": entry.get("institution", ""),
+            "school_url": entry.get("url", ""),
+            "start": entry.get("startDate", ""),
+            "end": entry.get("endDate", ""),
+        }
+        notes = []
+        if len(education) > 1:
+            notes.append(
+                "education entries beyond the first were not imported; "
+                "the bundled education plugin stores one entry"
+            )
+        return AdapterImport(plugin_data=plugin_data, notes=notes)
+
 
 class EducationPlugin(SimplePlugin):
     name: str = "education"
@@ -72,4 +94,7 @@ class EducationPlugin(SimplePlugin):
         }
 
     def get_export_adapters(self) -> dict:
+        return {"json_resume": EducationJsonResumeAdapter()}
+
+    def get_import_adapters(self) -> dict:
         return {"json_resume": EducationJsonResumeAdapter()}

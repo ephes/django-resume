@@ -11,7 +11,8 @@ from ..markdown import (
     textarea_input_to_html,
     textarea_input_to_markdown,
 )
-from ..interchange.protocols import AdapterExport
+from ..interchange.pointer import get_pointer
+from ..interchange.protocols import AdapterExport, AdapterImport
 
 
 class AboutForm(forms.Form):
@@ -47,6 +48,20 @@ class AboutJsonResumeAdapter:
         if facts.get("title"):
             notes.append("about.title has no JSON Resume mapping; not exported")
         return AdapterExport(contributions=contributions, notes=notes)
+
+    source_paths = ("/basics/summary",)
+
+    def import_data(self, document: dict) -> AdapterImport:
+        summary = get_pointer(document, "/basics/summary", "")
+        if not summary:
+            return AdapterImport(plugin_data={})
+        return AdapterImport(
+            plugin_data={"title": "About", "text": summary},
+            notes=[
+                "about.title defaulted to 'About'; JSON Resume basics.summary "
+                "does not include a section title"
+            ],
+        )
 
 
 class AboutPlugin(SimplePlugin):
@@ -93,4 +108,7 @@ class AboutPlugin(SimplePlugin):
         return {"summary": data.get("text", ""), "title": data.get("title", "")}
 
     def get_export_adapters(self) -> dict:
+        return {"json_resume": AboutJsonResumeAdapter()}
+
+    def get_import_adapters(self) -> dict:
         return {"json_resume": AboutJsonResumeAdapter()}

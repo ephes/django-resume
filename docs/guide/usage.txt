@@ -54,6 +54,66 @@ The document is written to stdout (or ``--output FILE``); an export report --
 mapped plugins, omitted plugins, dropped fields, and any omitted invalid dates --
 is written to stderr. The command exits non-zero if the document fails
 validation against the pinned JSON Resume v1.0.0 schema and writes no output.
+Authenticated owners can also download the same export from
+``/<resume-prefix>/<slug>/json-resume/``. The URL returns ``application/json``
+with an attachment filename of ``<slug>.json`` and is deliberately owner-only,
+even if the public CV is tokenless.
 
-This first release supports export only. Import, signed round-trips, and an
-in-app download are tracked as future work in the JSON Resume plan.
+Exports include a ``meta.django_resume`` extension envelope with django-resume
+plugin data needed for exact same-application round trips. Standard JSON Resume
+fields remain schema-valid; django-resume-only values such as display dates that
+do not match JSON Resume's date pattern stay in the extension envelope instead
+of being forced into portable fields.
+Treat django-resume exports as private backup or migration files, not public
+registry uploads: the ``meta.django_resume.plugin_data`` envelope contains
+application-private plugin data, including access-control plugin settings such
+as CV tokens when those are present. Remove the ``meta.django_resume`` envelope
+before sharing an export with third-party JSON Resume hosting or tooling that
+does not need same-application restoration.
+
+Importing from JSON Resume
+--------------------------
+
+Create a new resume from a JSON Resume file with::
+
+    python manage.py import_json_resume resume.json --owner <username> --slug <new-slug> [--name "Display name"]
+
+The slug must not already exist. If ``--name`` is omitted, the command uses
+``basics.name`` and falls back to the slug.
+Missing, unreadable, oversized, or invalid JSON files fail with a normal command
+error instead of a traceback. Invalid slugs and names that exceed the resume
+model's maximum length are also rejected before a database row is created.
+
+When importing a document exported by django-resume, the command restores
+``meta.django_resume.plugin_data`` by default. This preserves django-resume-only
+plugin data and makes export/import/export round trips deterministic. The
+envelope payload must be an object whose plugin payloads are objects; malformed
+payloads are rejected before a resume is created. Pass ``--portable-only`` to
+ignore that envelope and import only standard JSON Resume sections through the
+plugin adapters.
+
+Imports also retain the original source document and the adapter-generated
+projection in ``Resume.integration_data``. If both the current adapter
+projection and full plugin data are still unchanged on a later export,
+django-resume re-emits the original JSON Resume document exactly as parsed.
+This preserves unsupported standard sections and fields from third-party JSON
+Resume files, such as the official schema sample. After plugin data changes,
+export falls back to a freshly generated django-resume JSON Resume document with
+the normal ``meta.django_resume`` extension envelope.
+
+If an imported document contains ``meta.django_resume.preserved_extensions``,
+django-resume stores that list in ``Resume.integration_data`` and includes it in
+later JSON Resume exports.
+
+Portable-only import is intentionally lossy where JSON Resume cannot represent
+django-resume's plugin boundaries. In particular, the standard ``work`` array is
+imported into ``employed_timeline`` and the original freelance/employed split
+cannot be inferred; the import report notes this. Portable-only import also
+reports JSON Resume fields that no bundled plugin adapter currently owns or
+cannot store, including additional education entries, unknown profile networks,
+``basics.url``, and skill levels or keywords. If two import adapters claim the
+same source path, the import fails with a configuration error instead of
+double-importing data.
+
+Signed provenance, update-in-place imports, and an in-app download are tracked
+as future work in the JSON Resume plan.

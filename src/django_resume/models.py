@@ -23,6 +23,7 @@ class Resume(models.Model):
     slug = models.SlugField(max_length=255, unique=True)
     owner = models.ForeignKey(get_user_model(), on_delete=models.CASCADE)
     plugin_data = models.JSONField(default=dict, blank=True, null=False)
+    integration_data = models.JSONField(default=dict, blank=True, null=False)
 
     objects: ResumeManager = ResumeManager()
 
@@ -51,4 +52,6 @@ class Resume(models.Model):
     def save(self, *args, **kwargs) -> None:
         if self.plugin_data is None:
             self.plugin_data = {}
+        if self.integration_data is None:
+            self.integration_data = {}
         super().save(*args, **kwargs)

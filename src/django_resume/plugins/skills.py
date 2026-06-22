@@ -3,7 +3,8 @@ import json
 from django import forms
 
 from .base import SimplePlugin
-from ..interchange.protocols import AdapterExport
+from ..interchange.pointer import get_pointer
+from ..interchange.protocols import AdapterExport, AdapterImport
 
 
 class SkillsForm(forms.Form):
@@ -31,6 +32,29 @@ class SkillsJsonResumeAdapter:
         skills = [{"name": name} for name in facts.get("skills", []) if name]
         contributions = [("/skills", skills)] if skills else []
         return AdapterExport(contributions=contributions)
+
+    source_paths = ("/skills",)
+
+    def import_data(self, document: dict) -> AdapterImport:
+        skills = get_pointer(document, "/skills", []) or []
+        notes = []
+        for item in skills:
+            if not isinstance(item, dict):
+                continue
+            name = item.get("name") or "(unnamed skill)"
+            if item.get("level"):
+                notes.append(f"skills entry {name!r} level is not imported")
+            if item.get("keywords"):
+                notes.append(f"skills entry {name!r} keywords are not imported")
+        badges = [
+            item.get("name", "")
+            for item in skills
+            if isinstance(item, dict) and item.get("name")
+        ]
+        return AdapterImport(
+            plugin_data={"badges": badges} if badges else {},
+            notes=notes,
+        )
 
 
 class SkillsPlugin(SimplePlugin):
@@ -70,4 +94,7 @@ class SkillsPlugin(SimplePlugin):
         return {"skills": list(badges)}
 
     def get_export_adapters(self) -> dict:
+        return {"json_resume": SkillsJsonResumeAdapter()}
+
+    def get_import_adapters(self) -> dict:
         return {"json_resume": SkillsJsonResumeAdapter()}

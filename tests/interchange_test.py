@@ -1,6 +1,6 @@
 import pytest
 
-from django_resume.interchange.pointer import set_pointer
+from django_resume.interchange.pointer import get_pointer, has_pointer, set_pointer
 from django_resume.interchange.protocols import AdapterExport
 from django_resume.interchange.coordinator import (
     ResolvedAdapter,
@@ -25,6 +25,14 @@ def test_set_pointer_sets_list_value_whole():
 def test_set_pointer_rejects_relative_pointer():
     with pytest.raises(ValueError):
         set_pointer({}, "basics/name", "x")
+
+
+def test_get_pointer_returns_nested_values_and_default():
+    doc = {"basics": {"name": "Jane"}}
+    assert get_pointer(doc, "/basics/name") == "Jane"
+    assert get_pointer(doc, "/basics/email", "") == ""
+    assert has_pointer(doc, "/basics/name")
+    assert not has_pointer(doc, "/basics/email")
 
 
 class _Adapter:
