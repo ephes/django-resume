@@ -25,11 +25,17 @@ from django_resume.formats.json_resume import themes as json_resume_themes
 from django_resume.formats.json_resume.themes import (
     JsonResumeThemeError,
     RenderedTheme,
+    ThemeCatalogEntry,
     ThemeSearchResult,
+    catalog_theme,
+    dynamic_theme_install_allowed,
+    install_catalog_theme,
     install_theme,
     render_theme,
     search_themes,
+    selected_catalog_theme_key,
     selected_theme_name,
+    set_selected_catalog_theme,
 )
 from django_resume.formats.json_resume.validation import validate_document
 from django_resume.interchange.coordinator import (
@@ -987,6 +993,66 @@ def test_portable_document_removes_empty_meta_after_stripping_envelope():
     assert portable_document(document) == {"basics": {"name": "Jane"}}
 
 
+def test_theme_catalog_has_valid_default_entries():
+    catalog = json_resume_themes.theme_catalog()
+
+    assert len(catalog) >= 4
+    assert all(isinstance(entry, ThemeCatalogEntry) for entry in catalog)
+    assert catalog_theme("even").package == "jsonresume-theme-even"
+    assert catalog_theme("even").version == "0.26.1"
+    assert catalog_theme("even").enabled is True
+
+
+def test_theme_catalog_accepts_setting_override(settings):
+    settings.DJANGO_RESUME_JSON_RESUME_THEME_CATALOG = {
+        "custom": {
+            "package": "jsonresume-theme-even",
+            "version": "0.26.1",
+            "display_name": "Custom Even",
+            "description": "Deployment approved theme.",
+            "preview_image": "/static/themes/even.png",
+            "registry_preview_url": "https://registry.example/even",
+            "enabled": True,
+        }
+    }
+
+    catalog = json_resume_themes.theme_catalog()
+
+    assert [entry.key for entry in catalog] == ["custom"]
+    assert catalog[0].display_name == "Custom Even"
+
+
+def test_theme_catalog_rejects_invalid_entries(settings):
+    settings.DJANGO_RESUME_JSON_RESUME_THEME_CATALOG = [
+        {
+            "key": "../bad",
+            "package": "jsonresume-theme-even",
+            "version": "0.26.1",
+            "display_name": "Bad",
+            "description": "",
+            "preview_image": "",
+            "registry_preview_url": "",
+            "enabled": True,
+        }
+    ]
+
+    with pytest.raises(
+        JsonResumeThemeError, match="Invalid JSON Resume theme catalog key"
+    ):
+        json_resume_themes.theme_catalog()
+
+
+def test_dynamic_theme_install_is_disabled_by_default(settings):
+    if hasattr(settings, "DJANGO_RESUME_JSON_RESUME_ALLOW_DYNAMIC_THEME_INSTALL"):
+        del settings.DJANGO_RESUME_JSON_RESUME_ALLOW_DYNAMIC_THEME_INSTALL
+
+    assert dynamic_theme_install_allowed() is False
+
+    settings.DJANGO_RESUME_JSON_RESUME_ALLOW_DYNAMIC_THEME_INSTALL = True
+
+    assert dynamic_theme_install_allowed() is True
+
+
 def test_search_themes_queries_npm_registry_and_filters_results(monkeypatch):
     payload = {
         "objects": [
@@ -1072,6 +1138,27 @@ def test_install_theme_runs_npm_install_in_configured_cache(
     assert "jsonresume-theme-even" in command
     assert cwd == tmp_path / "themes"
     assert timeout == 90.0
+
+
+def test_install_catalog_theme_uses_pinned_package_version(
+    tmp_path, settings, monkeypatch
+):
+    settings.DJANGO_RESUME_JSON_RESUME_THEME_DIR = tmp_path / "themes"
+    commands = []
+
+    monkeypatch.setattr(json_resume_themes.shutil, "which", lambda name: f"/bin/{name}")
+
+    def fake_run(command, *, cwd, timeout):
+        commands.append(command)
+        return json_resume_themes.subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(json_resume_themes, "_run_process", fake_run)
+
+    entry = install_catalog_theme("even")
+
+    assert entry.package == "jsonresume-theme-even"
+    assert commands[0][-1] == "jsonresume-theme-even@0.26.1"
+    assert "jsonresume-theme-even" not in commands[0]
 
 
 def test_install_theme_rejects_unsupported_package_name():
@@ -1203,9 +1290,73 @@ def test_render_theme_normalizes_document_for_brittle_theme_shapes(
 
 
 @pytest.mark.django_db
-def test_json_resume_theme_selector_searches_for_owner(client, user, monkeypatch):
+def test_selected_catalog_theme_uses_key_storage_and_resolves_package(user):
+    user.save()
+    resume = Resume.objects.create(name="Jane", slug="jane-catalog-key", owner=user)
+
+    set_selected_catalog_theme(resume, "even")
+
+    resume.refresh_from_db()
+    assert resume.integration_data["json_resume"]["theme"] == {
+        "key": "even",
+        "package": "jsonresume-theme-even",
+        "version": "0.26.1",
+    }
+    assert selected_catalog_theme_key(resume) == "even"
+    assert selected_theme_name(resume) == "jsonresume-theme-even"
+
+
+@pytest.mark.django_db
+def test_selected_theme_name_keeps_legacy_package_fallback(user):
+    user.save()
+    resume = Resume.objects.create(
+        name="Jane",
+        slug="jane-legacy-theme",
+        owner=user,
+        integration_data={
+            "json_resume": {"theme": {"package": "jsonresume-theme-even"}}
+        },
+    )
+
+    assert selected_catalog_theme_key(resume) is None
+    assert selected_theme_name(resume) == "jsonresume-theme-even"
+
+
+@pytest.mark.django_db
+def test_json_resume_theme_selector_shows_catalog_without_dynamic_search(
+    client, user, monkeypatch
+):
     user.save()
     resume = Resume.objects.create(name="Jane", slug="jane-selector", owner=user)
+    client.force_login(user)
+
+    monkeypatch.setattr(
+        "django_resume.views.search_themes",
+        lambda query: pytest.fail("default selector must not search npm"),
+    )
+
+    response = client.get(
+        reverse("django_resume:json-resume-themes", kwargs={"slug": resume.slug})
+    )
+
+    assert response.status_code == 200
+    content = response.content.decode("utf-8")
+    assert "jsonresume-theme-even" in content
+    assert "Use theme" in content
+    assert "Preview" in content
+    assert "Development discovery" not in content
+    assert "Install and apply" not in content
+
+
+@pytest.mark.django_db
+def test_json_resume_theme_selector_shows_dynamic_search_when_enabled(
+    client, user, settings, monkeypatch
+):
+    settings.DJANGO_RESUME_JSON_RESUME_ALLOW_DYNAMIC_THEME_INSTALL = True
+    user.save()
+    resume = Resume.objects.create(
+        name="Jane", slug="jane-dynamic-selector", owner=user
+    )
     client.force_login(user)
     seen_queries = []
 
@@ -1223,14 +1374,15 @@ def test_json_resume_theme_selector_searches_for_owner(client, user, monkeypatch
     monkeypatch.setattr("django_resume.views.search_themes", fake_search)
 
     response = client.get(
-        reverse("django_resume:json-resume-themes", kwargs={"slug": resume.slug})
+        reverse("django_resume:json-resume-themes", kwargs={"slug": resume.slug}),
+        {"q": "even"},
     )
 
     assert response.status_code == 200
     content = response.content.decode("utf-8")
-    assert "jsonresume-theme-even" in content
+    assert "Development discovery" in content
     assert "Install and apply" in content
-    assert seen_queries == [""]
+    assert seen_queries == ["even"]
 
 
 @pytest.mark.django_db
@@ -1252,9 +1404,37 @@ def test_json_resume_theme_selector_requires_owner(client, user, django_user_mod
 
 
 @pytest.mark.django_db
-def test_install_json_resume_theme_view_applies_selected_theme(
+def test_dynamic_install_json_resume_theme_view_rejects_by_default(
     client, user, monkeypatch
 ):
+    user.save()
+    resume = Resume.objects.create(
+        name="Jane", slug="jane-install-theme-disabled", owner=user
+    )
+    client.force_login(user)
+
+    monkeypatch.setattr(
+        "django_resume.views.install_theme",
+        lambda package_name: pytest.fail("dynamic install must be disabled"),
+    )
+
+    response = client.post(
+        reverse(
+            "django_resume:json-resume-theme-install", kwargs={"slug": resume.slug}
+        ),
+        {"package": "jsonresume-theme-even"},
+    )
+
+    assert response.status_code == 404
+    resume.refresh_from_db()
+    assert selected_theme_name(resume) is None
+
+
+@pytest.mark.django_db
+def test_dynamic_install_json_resume_theme_view_applies_when_enabled(
+    client, user, settings, monkeypatch
+):
+    settings.DJANGO_RESUME_JSON_RESUME_ALLOW_DYNAMIC_THEME_INSTALL = True
     user.save()
     resume = Resume.objects.create(name="Jane", slug="jane-install-theme", owner=user)
     client.force_login(user)
@@ -1277,6 +1457,138 @@ def test_install_json_resume_theme_view_applies_selected_theme(
     assert installed == ["jsonresume-theme-even"]
     resume.refresh_from_db()
     assert selected_theme_name(resume) == "jsonresume-theme-even"
+
+
+@pytest.mark.django_db
+def test_preview_catalog_theme_renders_without_persisting_selection(
+    client, user, monkeypatch
+):
+    user.save()
+    resume = Resume.objects.create(name="Jane", slug="jane-preview-theme", owner=user)
+    client.force_login(user)
+    installed = []
+
+    monkeypatch.setattr(
+        "django_resume.views.install_catalog_theme",
+        lambda key: installed.append(key) or catalog_theme(key),
+    )
+    monkeypatch.setattr(
+        "django_resume.views.render_catalog_theme",
+        lambda resume, key: RenderedTheme(
+            html=f"<html><body>{key} preview</body></html>",
+            theme_name="jsonresume-theme-even",
+            notes=(),
+        ),
+    )
+
+    response = client.post(
+        reverse(
+            "django_resume:json-resume-theme-preview",
+            kwargs={"slug": resume.slug, "key": "even"},
+        )
+    )
+
+    assert response.status_code == 200
+    assert response.content == b"<html><body>even preview</body></html>"
+    assert response.headers["Cache-Control"] == "private, no-store"
+    assert installed == ["even"]
+    resume.refresh_from_db()
+    assert selected_theme_name(resume) is None
+
+
+@pytest.mark.django_db
+def test_use_catalog_theme_persists_catalog_key(client, user, monkeypatch):
+    user.save()
+    resume = Resume.objects.create(name="Jane", slug="jane-use-theme", owner=user)
+    client.force_login(user)
+    installed = []
+
+    monkeypatch.setattr(
+        "django_resume.views.install_catalog_theme",
+        lambda key: installed.append(key) or catalog_theme(key),
+    )
+
+    response = client.post(
+        reverse(
+            "django_resume:json-resume-theme-use",
+            kwargs={"slug": resume.slug, "key": "even"},
+        )
+    )
+
+    assert response.status_code == 302
+    assert installed == ["even"]
+    resume.refresh_from_db()
+    assert selected_catalog_theme_key(resume) == "even"
+    assert selected_theme_name(resume) == "jsonresume-theme-even"
+
+
+@pytest.mark.django_db
+def test_catalog_theme_routes_reject_unknown_or_disabled_keys(
+    client, user, settings, monkeypatch
+):
+    settings.DJANGO_RESUME_JSON_RESUME_THEME_CATALOG = [
+        {
+            "key": "disabled",
+            "package": "jsonresume-theme-even",
+            "version": "0.26.1",
+            "display_name": "Disabled",
+            "description": "",
+            "preview_image": "",
+            "registry_preview_url": "",
+            "enabled": False,
+        }
+    ]
+    user.save()
+    resume = Resume.objects.create(name="Jane", slug="jane-disabled-theme", owner=user)
+    client.force_login(user)
+    monkeypatch.setattr(
+        "django_resume.views.install_catalog_theme",
+        lambda key: pytest.fail("disabled catalog theme must not install"),
+    )
+
+    preview_response = client.post(
+        reverse(
+            "django_resume:json-resume-theme-preview",
+            kwargs={"slug": resume.slug, "key": "disabled"},
+        )
+    )
+    use_response = client.post(
+        reverse(
+            "django_resume:json-resume-theme-use",
+            kwargs={"slug": resume.slug, "key": "unknown"},
+        )
+    )
+
+    assert preview_response.status_code == 404
+    assert use_response.status_code == 404
+
+
+@pytest.mark.django_db
+def test_catalog_theme_preview_and_use_require_owner(
+    client, user, django_user_model, monkeypatch
+):
+    user.save()
+    other = django_user_model.objects.create_user(username="other", password="pw")
+    resume = Resume.objects.create(name="Jane", slug="jane-private-preview", owner=user)
+    preview_url = reverse(
+        "django_resume:json-resume-theme-preview",
+        kwargs={"slug": resume.slug, "key": "even"},
+    )
+    use_url = reverse(
+        "django_resume:json-resume-theme-use",
+        kwargs={"slug": resume.slug, "key": "even"},
+    )
+    monkeypatch.setattr(
+        "django_resume.views.install_catalog_theme",
+        lambda key: pytest.fail("unauthorized routes must not install"),
+    )
+
+    assert client.post(preview_url).status_code == 302
+    assert client.post(use_url).status_code == 302
+
+    client.force_login(other)
+    assert client.post(preview_url).status_code == 404
+    assert client.post(use_url).status_code == 404
 
 
 @pytest.mark.django_db

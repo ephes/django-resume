@@ -24,10 +24,79 @@ THEME_PACKAGE_RE = re.compile(
     r"^(?:jsonresume-theme-[a-z0-9][a-z0-9._-]*|"
     r"@jsonresume/jsonresume-theme-[a-z0-9][a-z0-9._-]*)$"
 )
+THEME_CATALOG_KEY_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
+THEME_EXACT_VERSION_RE = re.compile(r"^[0-9]+(?:\.[0-9]+){2}(?:[-+][0-9A-Za-z.-]+)?$")
+
+DEFAULT_THEME_CATALOG = (
+    {
+        "key": "even",
+        "package": "jsonresume-theme-even",
+        "version": "0.26.1",
+        "display_name": "Even",
+        "description": "A clean, balanced JSON Resume theme with strong defaults.",
+        "preview_image": "https://jsonresume.org/img/themes/even.png",
+        "registry_preview_url": "https://registry.jsonresume.org/themes/even",
+        "enabled": True,
+    },
+    {
+        "key": "flat",
+        "package": "jsonresume-theme-flat",
+        "version": "0.3.7",
+        "display_name": "Flat",
+        "description": "A compact flat layout for straightforward resumes.",
+        "preview_image": "https://jsonresume.org/img/themes/flat.png",
+        "registry_preview_url": "https://registry.jsonresume.org/themes/flat",
+        "enabled": True,
+    },
+    {
+        "key": "stackoverflow",
+        "package": "jsonresume-theme-stackoverflow",
+        "version": "3.3.0",
+        "display_name": "Stack Overflow",
+        "description": "A technical resume style inspired by developer profiles.",
+        "preview_image": "https://jsonresume.org/img/themes/stackoverflow.png",
+        "registry_preview_url": "https://registry.jsonresume.org/themes/stackoverflow",
+        "enabled": True,
+    },
+    {
+        "key": "colophon",
+        "package": "jsonresume-theme-colophon",
+        "version": "0.2.0",
+        "display_name": "Colophon",
+        "description": "A precise editorial theme with restrained typography.",
+        "preview_image": "https://jsonresume.org/img/themes/colophon.png",
+        "registry_preview_url": "https://registry.jsonresume.org/themes/colophon",
+        "enabled": True,
+    },
+    {
+        "key": "claude",
+        "package": "jsonresume-theme-claude",
+        "version": "1.0.0",
+        "display_name": "Claude",
+        "description": "A modern theme with generous spacing and clear sections.",
+        "preview_image": "https://jsonresume.org/img/themes/claude.png",
+        "registry_preview_url": "https://registry.jsonresume.org/themes/claude",
+        "enabled": True,
+    },
+    {
+        "key": "creative-confidence",
+        "package": "jsonresume-theme-creative-confidence",
+        "version": "1.0.0",
+        "display_name": "Creative Confidence",
+        "description": "A polished visual theme for creative professional resumes.",
+        "preview_image": "https://jsonresume.org/img/themes/creative-confidence.png",
+        "registry_preview_url": "https://registry.jsonresume.org/themes/creative-confidence",
+        "enabled": True,
+    },
+)
 
 
 class JsonResumeThemeError(RuntimeError):
     """Raised when theme discovery, installation, or rendering fails."""
+
+
+class UnknownThemeCatalogKey(JsonResumeThemeError):
+    """Raised when a requested catalog key is unknown or disabled."""
 
 
 @dataclass(frozen=True)
@@ -36,6 +105,18 @@ class ThemeSearchResult:
     version: str
     description: str
     keywords: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class ThemeCatalogEntry:
+    key: str
+    package: str
+    version: str
+    display_name: str
+    description: str
+    preview_image: str
+    registry_preview_url: str
+    enabled: bool
 
 
 @dataclass(frozen=True)
@@ -65,6 +146,27 @@ def is_theme_package_name(value: str) -> bool:
     return bool(THEME_PACKAGE_RE.fullmatch(value))
 
 
+def dynamic_theme_install_allowed() -> bool:
+    return bool(
+        getattr(
+            settings, "DJANGO_RESUME_JSON_RESUME_ALLOW_DYNAMIC_THEME_INSTALL", False
+        )
+    )
+
+
+def theme_catalog() -> tuple[ThemeCatalogEntry, ...]:
+    configured = getattr(settings, "DJANGO_RESUME_JSON_RESUME_THEME_CATALOG", None)
+    raw_catalog = DEFAULT_THEME_CATALOG if configured is None else configured
+    return tuple(_catalog_entries(raw_catalog))
+
+
+def catalog_theme(key: str, *, enabled_only: bool = True) -> ThemeCatalogEntry:
+    for entry in theme_catalog():
+        if entry.key == key and (entry.enabled or not enabled_only):
+            return entry
+    raise UnknownThemeCatalogKey(f"Unknown JSON Resume theme catalog key {key!r}")
+
+
 def cache_dir() -> Path:
     configured = getattr(settings, "DJANGO_RESUME_JSON_RESUME_THEME_DIR", None)
     if configured:
@@ -79,21 +181,54 @@ def cache_dir() -> Path:
 
 def selected_theme_name(resume: Resume) -> str | None:
     theme_state = _theme_state(resume)
+    key = theme_state.get("key")
+    if isinstance(key, str):
+        try:
+            return catalog_theme(key).package
+        except JsonResumeThemeError:
+            return None
     package = theme_state.get("package")
     return (
         package if isinstance(package, str) and is_theme_package_name(package) else None
     )
 
 
+def selected_catalog_theme_key(resume: Resume) -> str | None:
+    theme_state = _theme_state(resume)
+    key = theme_state.get("key")
+    if isinstance(key, str):
+        try:
+            return catalog_theme(key).key
+        except JsonResumeThemeError:
+            return None
+    return None
+
+
 def set_selected_theme(resume: Resume, package_name: str) -> None:
     _validate_theme_name(package_name)
+    _set_theme_state(resume, {"package": package_name})
+
+
+def set_selected_catalog_theme(resume: Resume, key: str) -> None:
+    entry = catalog_theme(key)
+    _set_theme_state(
+        resume,
+        {
+            "key": entry.key,
+            "package": entry.package,
+            "version": entry.version,
+        },
+    )
+
+
+def _set_theme_state(resume: Resume, theme_state: dict[str, str]) -> None:
     integration_data = resume.integration_data
     if not isinstance(integration_data, dict):
         integration_data = {}
     json_resume_state = integration_data.get("json_resume")
     if not isinstance(json_resume_state, dict):
         json_resume_state = {}
-    json_resume_state["theme"] = {"package": package_name}
+    json_resume_state["theme"] = theme_state
     integration_data["json_resume"] = json_resume_state
     resume.integration_data = integration_data
     resume.save(update_fields=["integration_data"])
@@ -121,6 +256,16 @@ def search_themes(
 
 def install_theme(package_name: str, *, timeout: float = 90.0) -> None:
     _validate_theme_name(package_name)
+    _install_theme_packages([package_name], timeout=timeout)
+
+
+def install_catalog_theme(key: str, *, timeout: float = 90.0) -> ThemeCatalogEntry:
+    entry = catalog_theme(key)
+    _install_theme_packages([f"{entry.package}@{entry.version}"], timeout=timeout)
+    return entry
+
+
+def _install_theme_packages(packages: list[str], *, timeout: float) -> None:
     npm = shutil.which("npm")
     if npm is None:
         raise JsonResumeThemeError("npm is required to install JSON Resume themes")
@@ -134,7 +279,7 @@ def install_theme(package_name: str, *, timeout: float = 90.0) -> None:
         "--no-fund",
         "--save",
         "resumed",
-        package_name,
+        *packages,
     ]
     completed = _run_process(command, cwd=target, timeout=timeout)
     if completed.returncode != 0:
@@ -200,6 +345,75 @@ def render_theme(
         theme_name=theme_name,
         notes=tuple(exported.report.notes),
     )
+
+
+def render_catalog_theme(
+    resume: Resume, key: str, *, timeout: float = 30.0
+) -> RenderedTheme:
+    entry = catalog_theme(key)
+    return render_theme(resume, entry.package, timeout=timeout)
+
+
+def _catalog_entries(raw_catalog) -> list[ThemeCatalogEntry]:
+    if isinstance(raw_catalog, dict):
+        iterable = [
+            {"key": key, **value} if isinstance(value, dict) else value
+            for key, value in raw_catalog.items()
+        ]
+    else:
+        iterable = list(raw_catalog)
+    entries = [_catalog_entry(item) for item in iterable]
+    seen = set()
+    for entry in entries:
+        if entry.key in seen:
+            raise JsonResumeThemeError(
+                f"Duplicate JSON Resume theme catalog key {entry.key!r}"
+            )
+        seen.add(entry.key)
+    return entries
+
+
+def _catalog_entry(item) -> ThemeCatalogEntry:
+    if isinstance(item, ThemeCatalogEntry):
+        entry = item
+    elif isinstance(item, dict):
+        entry = ThemeCatalogEntry(
+            key=str(item.get("key", "")),
+            package=str(item.get("package", "")),
+            version=str(item.get("version", "")),
+            display_name=str(item.get("display_name", "")),
+            description=str(item.get("description", "")),
+            preview_image=str(item.get("preview_image", "")),
+            registry_preview_url=str(item.get("registry_preview_url", "")),
+            enabled=item.get("enabled", True),
+        )
+    else:
+        raise JsonResumeThemeError("JSON Resume theme catalog entries must be objects")
+    _validate_catalog_entry(entry)
+    return entry
+
+
+def _validate_catalog_entry(entry: ThemeCatalogEntry) -> None:
+    if not THEME_CATALOG_KEY_RE.fullmatch(entry.key):
+        raise JsonResumeThemeError(
+            f"Invalid JSON Resume theme catalog key {entry.key!r}"
+        )
+    if not is_theme_package_name(entry.package):
+        raise JsonResumeThemeError(
+            f"Invalid JSON Resume theme package {entry.package!r}"
+        )
+    if not THEME_EXACT_VERSION_RE.fullmatch(entry.version):
+        raise JsonResumeThemeError(
+            f"JSON Resume theme catalog entry {entry.key!r} must pin an exact version"
+        )
+    if not entry.display_name:
+        raise JsonResumeThemeError(
+            f"JSON Resume theme catalog entry {entry.key!r} needs a display name"
+        )
+    if not isinstance(entry.enabled, bool):
+        raise JsonResumeThemeError(
+            f"JSON Resume theme catalog entry {entry.key!r} enabled must be a boolean"
+        )
 
 
 def _parse_search_results(payload: dict[str, Any]) -> list[ThemeSearchResult]:

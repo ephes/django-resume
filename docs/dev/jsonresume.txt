@@ -217,6 +217,12 @@ The viable implementation options are:
   response headers. It should not expose arbitrary npm package installation to
   anonymous users. Public CV views and token-protected resume pages should not
   imply permission to render or download themed JSON Resume artifacts.
+* Curated in-app theme catalog. Ship or configure a deployment-owned catalog of
+  approved JSON Resume themes with pinned npm package versions, display names,
+  preview image metadata, and stable catalog keys. The owner UI should browse
+  and preview this curated set rather than searching and installing arbitrary
+  npm packages by default. This gives users a gallery-like theme chooser while
+  keeping executable JavaScript dependencies under operator control.
 * Native Django rendering of JSON Resume themes. Implement a Django template
   pack that reads the JSON Resume projection. This may be useful as a built-in
   fallback, but it does not satisfy the goal of reusing the existing JSON Resume
@@ -227,21 +233,74 @@ The implemented path is staged:
 
 * Document the external ``resumed`` workflow for users who only need
   interoperable themed HTML or PDF outside django-resume.
-* Provide owner-only web routes that search npm for JSON Resume theme packages,
-  install the selected package and ``resumed`` into a local cache, apply the
-  selected package to one resume, and render private HTML from a portable JSON
-  Resume projection.
-* Defer PDF support, public preview, and stronger untrusted-theme isolation
-  until the deployment contract for browser tooling and process sandboxing is
-  explicit.
+* Provide owner-only web routes that can render private HTML from a portable
+  JSON Resume projection.
+* Treat the current owner-triggered npm search/install flow as a development
+  and discovery aid, not the desired production default. It validates package
+  names and keeps rendering owner-only, but installed themes still execute
+  third-party JavaScript on the server.
+* Use a curated gallery of preconfigured, pinned themes as the default product
+  flow. Operators decide which packages are available, at which versions, and
+  when the catalog is refreshed. The application browses, previews, and applies
+  only catalog themes unless dynamic npm installation is explicitly enabled.
+* Defer PDF support and deeper untrusted-theme sandboxing until the deployment
+  contract for browser tooling, containers, process isolation, and host-level
+  resource limits is explicit.
 
 The renderer configuration should be explicit and deployment-owned. The current
 implementation installs ``resumed`` and selected npm packages into
 ``DJANGO_RESUME_JSON_RESUME_THEME_DIR`` and enforces a maximum HTML output size
-with ``DJANGO_RESUME_JSON_RESUME_RENDER_MAX_BYTES``. A future operator-focused
-command or stricter production mode may add an explicit renderer allowlist
-setting that maps local keys to command paths, supported output formats,
-timeouts, and approved theme keys.
+with ``DJANGO_RESUME_JSON_RESUME_RENDER_MAX_BYTES``. Theme catalog entries map
+stable local keys to package names, exact versions, display metadata, preview
+images, registry preview URLs, and enabled/disabled state. A checked-in default
+catalog provides an initial curated list, and deployments can replace it with
+``DJANGO_RESUME_JSON_RESUME_THEME_CATALOG``. Catalog preview and selection may
+install the pinned package lazily into the cache; dynamic owner-triggered npm
+search/install is hidden and rejected unless
+``DJANGO_RESUME_JSON_RESUME_ALLOW_DYNAMIC_THEME_INSTALL`` is explicitly enabled.
+Deployments that need tighter supply-chain control should install from a
+lockfile or equivalent pinned dependency set before owners preview or select
+themes.
+
+Theme Gallery And Previews
+--------------------------
+
+The JSON Resume website provides a visual theme gallery with screenshot images
+and registry preview URLs. A 2026-06-23 snapshot found 61 gallery screenshot
+slugs on ``https://jsonresume.org/themes``. The npm registry keyword search for
+``jsonresume-theme`` returned 67 package hits, and django-resume's stricter
+package-name validation accepted 56 of them. These numbers are volatile and
+should be treated as research snapshots rather than product invariants.
+
+The selector is gallery-first:
+
+* Display catalog themes as cards with a preview image, human-readable name,
+  package/version, and short status such as installed, unavailable, or selected.
+* Start with preview image metadata derived from ``jsonresume.org/themes`` where
+  licensing and hotlinking/caching are acceptable. Do not make page rendering
+  depend on the remote site being available; deployments should be able to cache
+  or override preview image URLs.
+* Later, generate django-resume-owned preview images from the installed catalog
+  with a screenshot tool such as Simon Willison's ``shot-scraper``. Generated
+  previews should use a stable sample JSON Resume document and be refreshed by
+  an operator/developer command, not on every page request.
+* Previewing is separate from selecting. The preview action posts to a route
+  whose path encodes the catalog key and renders without changing
+  ``Resume.integration_data``. A separate **Use theme** action persists the
+  chosen theme under ``Resume.integration_data["json_resume"]["theme"]``.
+  Persisting a selected theme is useful for "open rendered page" links, but it
+  is not required just to inspect a theme.
+* The persistence action uses explicit **Use theme** wording. A card click does
+  not both install executable code and persist selection.
+
+Theme parity comparison against ``registry.jsonresume.org`` is useful research
+but should not become automated regression coverage yet. A research pass can
+import a JSON Resume sample into the example app, render the same catalog theme
+locally, fetch or generate the registry render for that sample, and compare
+screenshots and HTML to understand differences. Expected differences may come
+from theme package versions, registry renderer behavior, image/CSP handling, or
+django-resume import/export mappings. The output of this research should inform
+catalog choices and compatibility fixes, not block normal test runs.
 
 Rendering should use the portable projection by default. Until the internal
 ``export_resume()`` helper has first-class export intents, the renderer should
@@ -272,11 +331,12 @@ The subprocess contract should be conservative:
 
 HTML output should be treated as renderer-owned. The management command may
 write the HTML file verbatim because the caller is running trusted local code.
-Any future HTTP preview should use an iframe sandbox, restrictive content
-security policy, private caching, and no authenticated django-resume UI chrome
-inside the rendered theme document. Download responses should use owner-only
-authorization and may prefer ``Content-Disposition: attachment`` to avoid
-executing third-party theme scripts in the django-resume origin.
+HTTP preview/render responses use restrictive content security policy, private
+caching, and no authenticated django-resume UI chrome inside the rendered theme
+document. A future public or embedded preview should add iframe sandboxing.
+Download responses should use owner-only authorization and may prefer
+``Content-Disposition: attachment`` to avoid executing third-party theme scripts
+in the django-resume origin.
 
 PDF output should be optional. The spec should not make Puppeteer, Playwright,
 Chrome, or wkhtmltopdf a core Python dependency. A renderer definition may
@@ -834,10 +894,11 @@ resume-level permission checks.
   limits before schema validation and extension lifting.
 * Theme rendering should require the same permission as JSON Resume export.
   Management commands are operator-run, while web views should be authenticated
-  and owner-only. The owner install flow must validate npm package names before
-  installing them, and production deployments that need stricter control should
-  add configured local allowlist keys because npm themes execute code during
-  rendering.
+  and owner-only. The production-facing web flow should prefer curated,
+  deployment-owned catalog keys that resolve to pinned installed packages. Any
+  owner-triggered npm installation flow must be explicitly enabled, validate npm
+  package names before installing them, and be documented as executing
+  third-party JavaScript during rendering.
 
 Core Boundary
 -------------
@@ -906,8 +967,14 @@ Blocking tasks for initial implementation:
 Remaining JSON Resume theme-rendering work:
 
 * Decide whether a separate ``render_json_resume`` management command is still
-  needed now that the owner-only web selector can install, apply, and render
-  themes.
+  needed now that owner-only web rendering exists. Consider the command as an
+  operator/CI surface rather than as a replacement for the curated gallery.
+* Generate or cache django-resume-owned catalog preview images instead of
+  depending on remote preview image URLs in the checked-in default catalog.
+* Run a research-only parity pass against ``registry.jsonresume.org`` using an
+  imported JSON Resume sample to compare local themed output with registry
+  themed output. Do not turn this into normal regression coverage until the
+  renderer/version contract is stable enough to make failures actionable.
 * Add PDF rendering support only after the deployment contract for Puppeteer,
   browser binaries, or another HTML-to-PDF tool is explicit.
 * Add stronger process isolation options for deployments that allow unreviewed

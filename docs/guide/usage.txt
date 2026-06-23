@@ -74,14 +74,19 @@ does not need same-application restoration.
 Rendering with JSON Resume Themes
 ---------------------------------
 
-Authenticated resume owners can search for npm JSON Resume themes from
-``/<resume-prefix>/<slug>/json-resume/themes/``. The selector queries the npm
-registry for packages named like ``jsonresume-theme-*`` or
-``@jsonresume/jsonresume-theme-*``, lists the available themes by default, and
-uses the search box to filter that list locally. Clicking **Install and apply**
-runs ``npm install`` into django-resume's configured local theme cache, installs
-the ``resumed`` renderer plus the selected theme, and stores the selected
-package name in ``Resume.integration_data``.
+Authenticated resume owners can choose from a curated JSON Resume theme catalog
+at ``/<resume-prefix>/<slug>/json-resume/themes/``. The catalog is deployment
+owned: each entry has a stable local key, an npm package name, and an exact
+pinned version. The default page shows catalog cards with preview images,
+package/version metadata, a local filter, a **Preview** action, and a separate
+**Use theme** action.
+
+**Preview** opens a private rendered HTML page for that catalog theme without
+changing ``Resume.integration_data``. **Use theme** runs ``npm install`` for the
+pinned catalog package and stores the selected catalog key under
+``Resume.integration_data["json_resume"]["theme"]``. Existing resumes that
+stored a selected theme as ``{"package": "jsonresume-theme-..."}`` continue to
+render through that legacy package state.
 
 Once a theme is selected, owners can open
 ``/<resume-prefix>/<slug>/json-resume/rendered/`` to view the resume rendered
@@ -90,10 +95,22 @@ django-resume removes its private ``meta.django_resume`` envelope before writing
 the temporary ``resume.json`` passed to the Node renderer.
 
 Theme packages execute JavaScript during rendering. Only authenticated owners
-can install or render themes through these views, but the installed npm packages
-should still be treated as trusted local code. django-resume does not install
+can preview, select, or render themes through these views, but catalog packages
+should still be treated as trusted local code chosen by the site operator.
+Preview and **Use theme** may run ``npm install`` for the pinned catalog package
+into django-resume's configured local theme cache. Rendering itself uses the
+local cache and does not fetch schemas, renderers, or themes from the network.
+django-resume does not install
 themes for anonymous visitors, and public CV pages or token-protected CV links
 do not imply permission to install or render JSON Resume themes.
+
+Arbitrary npm theme search and install is disabled by default. Operators can
+set ``DJANGO_RESUME_JSON_RESUME_ALLOW_DYNAMIC_THEME_INSTALL = True`` to show the
+old npm search/install UI as a visibly separate development-discovery section.
+That mode lets resume owners install packages named like
+``jsonresume-theme-*`` or ``@jsonresume/jsonresume-theme-*`` from npm, so it
+should not be enabled for production deployments unless owner-triggered
+third-party JavaScript execution is an accepted risk.
 
 Importing from JSON Resume
 --------------------------

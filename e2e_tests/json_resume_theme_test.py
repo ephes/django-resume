@@ -1,4 +1,4 @@
-"""Browser coverage for the example JSON Resume theme selector flow."""
+"""Browser coverage for the example JSON Resume theme catalog flow."""
 
 import pytest
 from playwright.sync_api import Page, expect
@@ -27,29 +27,30 @@ def _admin_login(page: Page, live_server, username: str) -> None:
     page.wait_for_url(f"{live_server.url}/admin/")
 
 
-def test_owner_searches_installs_applies_and_opens_json_resume_theme(
+def test_owner_previews_then_uses_catalog_json_resume_theme(
     page: Page, live_server, seed, monkeypatch
 ):
     from django_resume.formats.json_resume.themes import (
         RenderedTheme,
-        ThemeSearchResult,
+        catalog_theme,
         selected_theme_name,
     )
 
     monkeypatch.setattr(
-        "django_resume.views.search_themes",
-        lambda query: [
-            ThemeSearchResult(
-                name="jsonresume-theme-even",
-                version="0.26.1",
-                description="Flat JSON Resume theme",
-                keywords=("jsonresume-theme",),
-            )
-        ],
+        "django_resume.views.install_catalog_theme", lambda key: catalog_theme(key)
     )
-    monkeypatch.setattr("django_resume.views.install_theme", lambda package_name: None)
 
-    def fake_render(resume):
+    def fake_preview_render(resume, key):
+        assert selected_theme_name(resume) is None
+        return RenderedTheme(
+            html=f"<html><body><h1>{key.title()} Preview</h1><p>Jochen Example</p></body></html>",
+            theme_name="jsonresume-theme-even",
+            notes=(),
+        )
+
+    monkeypatch.setattr("django_resume.views.render_catalog_theme", fake_preview_render)
+
+    def fake_selected_render(resume):
         assert selected_theme_name(resume) == "jsonresume-theme-even"
         return RenderedTheme(
             html="<html><body><h1>Even Theme Rendered</h1><p>Jochen Example</p></body></html>",
@@ -57,7 +58,9 @@ def test_owner_searches_installs_applies_and_opens_json_resume_theme(
             notes=(),
         )
 
-    monkeypatch.setattr("django_resume.views.render_selected_theme", fake_render)
+    monkeypatch.setattr(
+        "django_resume.views.render_selected_theme", fake_selected_render
+    )
 
     _admin_login(page, live_server, "jochen")
     page.goto(f"{live_server.url}/resume/")
@@ -66,14 +69,33 @@ def test_owner_searches_installs_applies_and_opens_json_resume_theme(
     row.get_by_role("link", name="Themes").click()
 
     expect(page.locator("h1", has_text="JSON Resume Themes")).to_be_visible()
-    page.get_by_label("Theme search").fill("even")
-    page.get_by_role("button", name="Search").click()
+    expect(page.get_by_text("Theme catalog")).to_be_visible()
+    expect(page.get_by_text("jsonresume-theme-even@0.26.1")).to_be_visible()
+    expect(page.get_by_text("Development discovery")).not_to_be_visible()
+    expect(page.get_by_role("button", name="Install and apply")).to_have_count(0)
 
-    expect(page.get_by_text("jsonresume-theme-even")).to_be_visible()
-    page.get_by_role("button", name="Install and apply").click(force=True)
+    page.get_by_label("Filter catalog").fill("even")
+    expect(page.locator("[data-theme-card]").filter(has_text="Even")).to_be_visible()
 
+    even_card = page.locator("[data-theme-card]").filter(
+        has_text="jsonresume-theme-even"
+    )
+    expect(even_card.locator("img")).to_have_attribute(
+        "src", "https://jsonresume.org/img/themes/even.png"
+    )
+
+    with page.expect_popup() as popup_info:
+        even_card.get_by_role("button", name="Preview").click(force=True)
+    preview = popup_info.value
+    expect(preview.locator("h1", has_text="Even Preview")).to_be_visible()
+    expect(preview.get_by_text("Jochen Example")).to_be_visible()
+    preview.close()
+
+    expect(page.get_by_text("No JSON Resume theme is selected yet.")).to_be_visible()
+
+    even_card.get_by_role("button", name="Use theme").click(force=True)
     expect(page.get_by_text("Selected theme:")).to_be_visible()
-    expect(page.get_by_role("code")).to_have_text("jsonresume-theme-even")
+    expect(page.get_by_text("jsonresume-theme-even", exact=True)).to_be_visible()
 
     with page.expect_popup() as popup_info:
         page.get_by_role("link", name="Open rendered page").click(force=True)
@@ -83,21 +105,13 @@ def test_owner_searches_installs_applies_and_opens_json_resume_theme(
     rendered.close()
 
 
-def test_theme_install_button_shows_pending_feedback(
+def test_catalog_use_button_shows_pending_feedback(
     page: Page, live_server, seed, monkeypatch
 ):
-    from django_resume.formats.json_resume.themes import ThemeSearchResult
+    from django_resume.formats.json_resume.themes import catalog_theme
 
     monkeypatch.setattr(
-        "django_resume.views.search_themes",
-        lambda query: [
-            ThemeSearchResult(
-                name="jsonresume-theme-even",
-                version="0.26.1",
-                description="Flat JSON Resume theme",
-                keywords=("jsonresume-theme",),
-            )
-        ],
+        "django_resume.views.install_catalog_theme", lambda key: catalog_theme(key)
     )
 
     _admin_login(page, live_server, "jochen")
@@ -109,10 +123,10 @@ def test_theme_install_button_shows_pending_feedback(
         }"""
     )
 
-    button = page.locator("[data-install-submit]")
-    expect(button).to_have_text("Install and apply")
+    button = page.locator("[data-install-submit]").first
+    expect(button).to_have_text("Use theme")
     button.click()
 
     expect(button).to_be_disabled()
     expect(button).to_have_text("Installing...")
-    expect(page.locator("[data-install-status]")).to_be_visible()
+    expect(page.locator("[data-install-status]").first).to_be_visible()

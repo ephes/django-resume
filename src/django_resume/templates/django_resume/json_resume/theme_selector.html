@@ -25,38 +25,82 @@
     {% endif %}
 
     <section class="stack">
-      <h2>Search npm themes</h2>
-      <form method="get" action="{% url 'django_resume:json-resume-themes' resume.slug %}" class="stack">
-        <span class="cluster">
-          <label for="q">Theme search</label>
-          <input id="q" name="q" type="search" value="{{ query }}" placeholder="even, professional, stackoverflow">
-          <button type="submit">Search</button>
-        </span>
-      </form>
+      <h2>Theme catalog</h2>
+      <label for="theme-filter">Filter catalog</label>
+      <input id="theme-filter" type="search" placeholder="even, colophon, stackoverflow" data-theme-filter>
+      <ul class="theme-gallery" data-theme-gallery>
+        {% for theme in catalog %}
+          <li class="theme-card{% if selected_catalog_key == theme.key or selected_theme == theme.package %} theme-card-selected{% endif %}" data-theme-card data-theme-search="{{ theme.display_name }} {{ theme.package }} {{ theme.version }} {{ theme.description }} {{ theme.key }}">
+            <div class="theme-preview-frame">
+              {% if theme.preview_image %}
+                <img src="{{ theme.preview_image }}" alt="{{ theme.display_name }} preview" loading="lazy" onerror="this.closest('.theme-preview-frame').classList.add('theme-preview-missing'); this.remove();">
+              {% else %}
+                <span>No preview image</span>
+              {% endif %}
+            </div>
+            <div class="stack theme-card-body">
+              <div>
+                <h3>{{ theme.display_name }}</h3>
+                {% if selected_catalog_key == theme.key or selected_theme == theme.package %}
+                  <p class="theme-status">Selected</p>
+                {% elif not theme.enabled %}
+                  <p class="theme-status">Unavailable</p>
+                {% endif %}
+              </div>
+              <p class="theme-package"><code>{{ theme.package }}@{{ theme.version }}</code></p>
+              <p>{{ theme.description }}</p>
+              <div class="cluster theme-card-actions">
+                {% if theme.enabled %}
+                  <form method="post" action="{% url 'django_resume:json-resume-theme-preview' resume.slug theme.key %}" target="_blank" rel="noopener" data-theme-preview-form>
+                    {% csrf_token %}
+                    <button type="submit">Preview</button>
+                  </form>
+                  <form method="post" action="{% url 'django_resume:json-resume-theme-use' resume.slug theme.key %}" data-theme-install-form>
+                    {% csrf_token %}
+                    <button type="submit" data-install-submit>Use theme</button>
+                    <span class="theme-install-status" data-install-status role="status" aria-live="polite" hidden>Installing...</span>
+                  </form>
+                {% endif %}
+              </div>
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+      <p data-theme-empty hidden>No matching catalog themes found.</p>
     </section>
 
-    {% if results %}
-      <section class="stack">
-        <h2>Results</h2>
-        <ul class="stack">
-          {% for theme in results %}
-            <li class="stack stack-card">
-              <strong>{{ theme.name }}</strong>
-              {% if theme.version %}<span>{{ theme.version }}</span>{% endif %}
-              {% if theme.description %}<p>{{ theme.description }}</p>{% endif %}
-              <form method="post" action="{% url 'django_resume:json-resume-theme-install' resume.slug %}" data-theme-install-form>
-                {% csrf_token %}
-                <input type="hidden" name="package" value="{{ theme.name }}">
-                <input type="hidden" name="q" value="{{ query }}">
-                <button type="submit" data-install-submit>Install and apply</button>
-                <span class="theme-install-status" data-install-status role="status" aria-live="polite" hidden>Installing...</span>
-              </form>
-            </li>
-          {% endfor %}
-        </ul>
+    {% if allow_dynamic_install %}
+      <section class="stack theme-discovery">
+        <h2>Development discovery</h2>
+        <p>Dynamic npm search and install is enabled for this deployment.</p>
+        <form method="get" action="{% url 'django_resume:json-resume-themes' resume.slug %}" class="stack">
+          <span class="cluster">
+            <label for="q">Theme search</label>
+            <input id="q" name="q" type="search" value="{{ query }}" placeholder="even, colophon, stackoverflow">
+            <button type="submit">Search npm</button>
+          </span>
+        </form>
+        {% if results %}
+          <ul class="stack">
+            {% for theme in results %}
+              <li class="stack stack-card">
+                <strong>{{ theme.name }}</strong>
+                {% if theme.version %}<span>{{ theme.version }}</span>{% endif %}
+                {% if theme.description %}<p>{{ theme.description }}</p>{% endif %}
+                <form method="post" action="{% url 'django_resume:json-resume-theme-install' resume.slug %}" data-theme-install-form>
+                  {% csrf_token %}
+                  <input type="hidden" name="package" value="{{ theme.name }}">
+                  <input type="hidden" name="q" value="{{ query }}">
+                  <button type="submit" data-install-submit>Install and apply</button>
+                  <span class="theme-install-status" data-install-status role="status" aria-live="polite" hidden>Installing...</span>
+                </form>
+              </li>
+            {% endfor %}
+          </ul>
+        {% elif query and not error %}
+          <p>No matching JSON Resume themes found.</p>
+        {% endif %}
       </section>
-    {% elif query and not error %}
-      <p>No matching JSON Resume themes found.</p>
     {% endif %}
     <script>
       document.addEventListener("submit", function (event) {
@@ -74,6 +118,27 @@
               status.hidden = false;
           }
       });
+
+      const filter = document.querySelector("[data-theme-filter]");
+      const empty = document.querySelector("[data-theme-empty]");
+      const cards = Array.from(document.querySelectorAll("[data-theme-card]"));
+      if (filter) {
+          filter.addEventListener("input", function () {
+              const terms = filter.value.toLocaleLowerCase().split(/\s+/).filter(Boolean);
+              let visible = 0;
+              for (const card of cards) {
+                  const text = (card.dataset.themeSearch || "").toLocaleLowerCase();
+                  const match = terms.every((term) => text.includes(term));
+                  card.hidden = !match;
+                  if (match) {
+                      visible += 1;
+                  }
+              }
+              if (empty) {
+                  empty.hidden = visible !== 0;
+              }
+          });
+      }
     </script>
   </main>
   </body>

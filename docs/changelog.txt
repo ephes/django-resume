@@ -27,19 +27,21 @@ Features
   import/render/export check. Import reports lossy portable mappings, rejects
   malformed round-trip envelopes, detects import source-path conflicts, and
   returns clean command errors for unreadable or invalid JSON input files.
-* Add owner-only JSON Resume theme support. Resume owners can search npm for
-  JSON Resume themes, install and apply a selected npm package into a local
-  theme cache, and open a private rendered HTML page generated through the
-  ``resumed`` renderer. Rendering uses a portable JSON Resume projection with
-  django-resume's private ``meta.django_resume`` envelope stripped before the
-  Node theme runs.
+* Add owner-only JSON Resume theme support. Resume owners can browse a curated
+  catalog of deployment-owned, pinned npm JSON Resume themes, preview a catalog
+  theme without changing the selected theme, use a separate action to persist a
+  selected catalog key, and open a private rendered HTML page generated through
+  the ``resumed`` renderer. Rendering uses a portable JSON Resume projection
+  with django-resume's private ``meta.django_resume`` envelope stripped before
+  the Node theme runs. Arbitrary npm search/install is disabled by default and
+  remains available only behind an explicit development-discovery setting.
 
 Fixes
 ^^^^^
 * Keep the editable resume overview compact after adding JSON Resume theme
   actions by shortening the theme link and preserving inline link separators.
-* List available JSON Resume npm themes by default, filter that list locally,
-  and show immediate pending feedback while a theme install is running.
+* Show immediate pending feedback while a JSON Resume catalog theme install or
+  opt-in dynamic theme install is running.
 * Normalize JSON Resume fields expected by brittle third-party themes and allow
   rendered themes to load same-origin media images under the response CSP.
 

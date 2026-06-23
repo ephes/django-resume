@@ -22,9 +22,30 @@ disable age-based expiry checks. Older stored token entries without a
 
 Default: ``BASE_DIR / ".django-resume-jsonresume-themes"``
 
-Directory used by the JSON Resume theme selector to install ``resumed`` and
-selected npm theme packages. The directory is created with owner-only
+Directory used by the JSON Resume theme catalog to install ``resumed`` and
+pinned catalog npm theme packages. The directory is created with owner-only
 permissions when possible.
+
+``DJANGO_RESUME_JSON_RESUME_THEME_CATALOG``
+===========================================
+
+Default: a small checked-in curated catalog.
+
+Catalog entries may be a list of dictionaries or a mapping from catalog key to
+entry metadata. Each entry must provide a stable key, a valid JSON Resume npm
+theme package name, an exact version, display metadata, preview image metadata,
+and a boolean ``enabled`` value. Disabled entries can be shown as unavailable
+but cannot be previewed or selected.
+
+``DJANGO_RESUME_JSON_RESUME_ALLOW_DYNAMIC_THEME_INSTALL``
+=========================================================
+
+Default: ``False``
+
+When ``False``, the owner theme selector shows only the curated pinned catalog
+and the arbitrary npm search/install endpoint rejects requests. Set this to
+``True`` only for development or discovery deployments that accept
+owner-triggered installation and execution of third-party npm theme code.
 
 ``DJANGO_RESUME_JSON_RESUME_RENDER_MAX_BYTES``
 ==============================================

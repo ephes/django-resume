@@ -30,6 +30,16 @@ urlpatterns = [
         name="json-resume-theme-install",
     ),
     path(
+        "<slug:slug>/json-resume/themes/<slug:key>/preview/",
+        views.preview_json_resume_catalog_theme,
+        name="json-resume-theme-preview",
+    ),
+    path(
+        "<slug:slug>/json-resume/themes/<slug:key>/use/",
+        views.use_json_resume_catalog_theme,
+        name="json-resume-theme-use",
+    ),
+    path(
         "<slug:slug>/json-resume/rendered/",
         views.render_json_resume_theme,
         name="json-resume-rendered",
