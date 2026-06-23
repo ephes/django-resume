@@ -67,6 +67,15 @@ class IdentityForm(ImageFormMixin, forms.Form):
     )
     image_fields = [("avatar_img", "clear_avatar")]
 
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        # Only the name is mandatory. Everything else (pronouns, tagline, the
+        # contact details, the social links) is optional so a resume can leave
+        # out whatever it doesn't use instead of being forced to fill it in.
+        for field_name, field in self.fields.items():
+            if field_name != "name":
+                field.required = False
+
     @property
     def avatar_img_url(self) -> str:
         return self.get_image_url_for_field(self.initial.get("avatar_img", ""))
