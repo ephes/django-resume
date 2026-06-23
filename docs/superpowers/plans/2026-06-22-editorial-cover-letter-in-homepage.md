@@ -57,6 +57,13 @@ This also fixes CI/prod, which were silently on PyPI `0.2.0` (no editorial theme
 
 ### Task 2: Add the cover fields via a homepage CoverPlugin subclass (zero django-resume changes)
 
+> **DONE** (homepage commit `6fe3faa`). Added app `homepage/resume_cover/`
+> (`EditorialCoverFlatForm` + `EditorialCoverPlugin`), registered in `apps.ready()`
+> and placed in `LOCAL_APPS` (loads after `django_resume`). Tests pass (registry
+> returns the subclass; flat form has `closing`/`signature_name`/`signature_img`/
+> `clear_signature` plus the inherited fields). Verified live: registry resolves
+> `EditorialCoverPlugin`, CV + detail pages both 200. Zero django-resume changes.
+
 Rendering needs nothing upstream (flat data is dumped into context — base.py:1223). A subclass re-registered under name `"cover"` adds the inline-edit form fields and the signature-image URL, entirely in homepage. TDD.
 
 **Files (homepage):**
