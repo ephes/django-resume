@@ -10,6 +10,19 @@
 
 **Design spec:** `~/gitprojects/django-resume/docs/superpowers/specs/2026-06-22-editorial-cover-letter-and-handwriting-migration-design.md` (local/untracked).
 
+## Status (as of 2026-06-23 handoff)
+
+**Done & pushed:**
+- **Task 1** (homepage `1c57b2c`): django-resume pinned as a **git source** on branch `editorial-theme` in `pyproject.toml` + `commands.py` switches. `uv run` is now safe (serves the editorial theme, not PyPI 0.2.0).
+- **Task 2** (homepage `6fe3faa`): cover fields added via the homepage `CoverPlugin` subclass app `homepage/resume_cover/` (`closing`, `signature_name`, `signature_img`, `clear_signature`; `get_context` adds `signature_img_url`), registered in `INSTALLED_APPS` after `django_resume`. Tests pass.
+- **Bonus editorial-theme fixes** (django-resume `editorial-theme`, pushed to `64fa0e4`): timeline edit form date-tab fly-off + entry-padding collapse (`4b1cb7d`); all identity fields except `name` made optional (`55a6ac6`). homepage relocked to `64fa0e4` (homepage `3f3e9dc`).
+
+**Current state:** homepage on branch `editorial-resume-theme` @ `3f3e9dc`; django-resume git-sourced at `editorial-theme` @ `64fa0e4` (no editable install — `uv run` is durable). Dev server running at `:8003`. Owner login `katharina` / `Passwort`; edit mode = login + `?edit=true` same-host.
+
+**Next:** **Task 3** onward (resume_detail override → cover templates → cover.css → print → verify). See the handoff prompt / the per-task DONE banners below.
+
+**Known gotchas for the next tasks:** the `ImageFormMixin` second-image bug (`images.py` hardcodes `cleaned_data["avatar_img"]` for dimension calc → signature upload crashes with no avatar — handle in `EditorialCoverFlatForm`); and the cover `flat_form.html` hardcodes its rendered fields (override it in homepage to expose the new signature/closing inputs).
+
 ## Global Constraints
 
 - **Develop in homepage.** All presentation (templates, CSS, handwriting usage) lives in `homepage` as overrides/app-local files. Do **not** move anything into the django-resume theme in this plan.
