@@ -32,6 +32,34 @@ Research Needed
 
   Related old issue: `#7 <https://github.com/ephes/django-resume/issues/7>`_.
 
+Editorial Theme — Edit Mode
+---------------------------
+
+* Polish the editorial **edit-mode appearance / per-field editing view**.
+
+  The inline edit forms render with the generic default form markup, unstyled in
+  the editorial layout — e.g. clicking the identity edit pencil swaps in a plain
+  block (name / "Location" / "Social Links" / a small avatar circle) that breaks
+  out of the editorial header instead of matching it, so editing fields and the
+  photo upload (the avatar circle is the upload trigger) are not obvious. Style
+  the editorial edit forms (identity first) so editing is visible and on-brand.
+  (Already fixed along the way: the timeline date tab flying off + the entry
+  padding collapsing on edit.)
+
+* Make the **"Resources" links editable** (Lebenslauf/CV PDF, Portfolio).
+
+  They are currently hardcoded placeholders in the homepage ``resume_cv.html``
+  override (``<a href="#">…</a>``) with no data/plugin backing, so there is no
+  edit affordance. Making them editable needs a small data model — a dedicated
+  resources/links plugin, or reusing the existing ``projects`` plugin — plus an
+  editorial template and an inline edit form. Not a quick fix (plugin-scale).
+
+* Editable section labels (optional/related).
+
+  The rotated script labels ("Contact", "Let's talk about", "Education",
+  "Resources") are hardcoded template strings, so they are not editable either.
+  Same shape of fix as Resources if they should become data-driven.
+
 Theme Extraction
 ----------------
 
