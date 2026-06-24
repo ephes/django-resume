@@ -48,6 +48,8 @@
   --date-tab-block: 1.8rem;      /* rendered height of the absolute date tab (font --s0, line-height 1.4, +0.2em padding) */
   --entry-pad-top: calc(var(--date-tab-block) + var(--s-1));   /* entry TOP padding: clears the date tab + a small gap to the headline; print shrinks just the gap. --entry-pad stays the bottom value */
   --sheet-max: 64rem;            /* content sheet max width — also the axis the side art crops against */
+  --bg-anchor: var(--sheet-max); /* axis the side art parks against; lowered in the tablet tier so the art peeks before the desktop width (decoupled from the sheet width) */
+  --cv-peek: 3rem;               /* width of side-art revealed beside the sheet in the tablet tier */
   --aside-basis: 22rem;          /* fixed sidebar width, shared by header + body so dividers align */
   --bg-keep: 0.65;               /* fraction of the side art kept clear of the content (the other ~35% may slide under) */
   --bg-w-left: calc(100vh * 1118 / 2200);   /* art display width = aspect x viewport height */
@@ -170,6 +172,43 @@ a { color: inherit; }
   background-size: 560px;
 }
 .editorial-sheet.stack { --stack-space: var(--s-1); }
+/* nicer line breaks for body copy (avoids orphans / ragged last lines), so the
+   content reads well even when columns stay narrow. Inherited by all text. */
+.editorial-sheet { text-wrap: pretty; }
+
+/* CV single-column identity column: the photo and the name+contact block share
+   one centred column (~firstname width + padding L/R), so the whole header block
+   sits aligned and centred. Excludes the cover letter (.cover-sheet), which has
+   no photo. The two-column tier overrides both back to the desktop layout. */
+.editorial-sheet:not(.cover-sheet) {
+  /* shrink the name a touch in single-column (proportional firstname:lastname) */
+  --name-scale: 0.85;
+  /* photo column = firstname width (~3.82x its font) + a sheet-padding each side,
+     so the photo is the name width plus 2x the inline padding. Capped so the
+     vertical "Contact" still fits in the side gap. */
+  --id-col: min(
+    calc(3.82 * var(--name-scale, 1) * clamp(3rem, 14.3vw, 6.5rem) + 2 * var(--sheet-pad-inline)),
+    calc(100% - 2 * var(--script-rail))
+  );
+}
+.editorial-sheet:not(.cover-sheet) .cv-header {
+  inline-size: 100%;
+  max-inline-size: var(--id-col);
+  margin-inline: auto;
+}
+/* shift the whole contact section left so the rail line (right of "Contact")
+   lands on the photo's bottom-left Spitze (≈ block-left + 3.49% of the photo
+   width, since the photo is optically nudged left by half its 6.98% inset).
+   Flexible: tracks the photo width via --id-col. */
+.editorial-sheet:not(.cover-sheet) .cv-header-aside {
+  margin-inline-start: calc(0.0349 * var(--id-col) - var(--script-rail) + 6px);
+  /* the rail line rises to the photo's bottom Spitze (above the whole name).
+     Empirical fluid curve that plateaus once the name font caps (~727px). It
+     depends only on the photo/name geometry above — NOT on the number of contact
+     rows below (those grow the line's anchored bottom) — so it stays docked if a
+     contact row is added. */
+  --contact-line-rise: clamp(124px, calc(17.8vw + 84px), 214px);
+}
 /* irregular broken "paper edge" down the sheet's outer edges — different on each
    side, suggesting a torn sheet at the transition into the sketch decorations.
    Desktop-only (toggled on with the side art below): without the art there is
@@ -233,11 +272,11 @@ a { color: inherit; }
  * it never floats detached from the edge. */
 .cv-bg--left {
   inline-size: var(--bg-w-left);
-  left: min(0px, calc(50vw - var(--sheet-max) / 2 - var(--bg-keep) * var(--bg-w-left)));
+  left: min(0px, calc(50vw - var(--bg-anchor) / 2 - var(--bg-keep) * var(--bg-w-left)));
 }
 .cv-bg--right {
   inline-size: var(--bg-w-right);
-  right: min(0px, calc(50vw - var(--sheet-max) / 2 - var(--bg-keep) * var(--bg-w-right)));
+  right: min(0px, calc(50vw - var(--bg-anchor) / 2 - var(--bg-keep) * var(--bg-w-right)));
 }
 .cv-bg picture { display: block; block-size: 100%; }
 .cv-bg img {
@@ -302,7 +341,9 @@ a { color: inherit; }
   /* fluid; the vw term only bites below the 6.5rem cap (≈ phones/tablets), so the
      desktop name (capped) is unchanged — it just lets the name grow on phones,
      ~ up to the photo's right edge */
-  font-size: clamp(3rem, 14.3vw, 6.5rem);
+  /* --name-scale (default 1) lets the CV single-column shrink the name a touch
+     while keeping firstname:lastname proportion; the photo column tracks it. */
+  font-size: calc(var(--name-scale, 1) * clamp(3rem, 14.3vw, 6.5rem));
   /* optically pull the first glyph flush with the tracked surname below it;
      em-based so it scales with the (fluid) name size */
   text-indent: -0.085em;
@@ -312,7 +353,7 @@ a { color: inherit; }
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  font-size: clamp(1.1rem, 5.7vw, 2.2rem);
+  font-size: calc(var(--name-scale, 1) * clamp(1.1rem, 5.7vw, 2.2rem));
 }
 .cv-role { margin: var(--s-1) 0 0; font-size: var(--role-size); font-weight: 350; text-align: end; }
 
@@ -858,17 +899,16 @@ a { color: inherit; }
    contact rail line (= gutter + rotated-label column) */
 .cv-photo {
   order: 1;
-  margin-block-start: 0;
-  /* Equal VISIBLE margins. The clip insets the straight left edge by ~6.98% of
-     the width, so a plain centred box reads left-heavy. So: pick the margin (the
-     rail line = gutter + rotated-label column), derive the box width from it, and
-     offset the box so the straight left edge sits on the left margin and the
-     square right edge on the mirrored right margin. No fixed size — fully fluid. */
-  --photo-vmargin: calc(var(--sheet-pad-inline) + var(--script-rail));
-  --photo-w: calc((100vw - 2 * var(--photo-vmargin)) / 0.9302);
-  inline-size: var(--photo-w);
-  margin-inline-start: calc(var(--script-rail) - 0.0698 * var(--photo-w));
-  margin-inline-end: 0;
+  /* snap to the sheet's top edge (directly under the dark top strip): cancel the
+     sheet's top padding so there is no creme gap above the photo */
+  margin-block-start: calc(-1 * var(--s2));
+  /* Photo shares the identity column (~firstname width + padding), centred. */
+  inline-size: var(--id-col);
+  margin-inline: auto;
+  /* The clip insets the straight left edge by ~6.98% (Spitze top-left + bottom-
+     left, square right), so a plain-centred box leaves a wider white strip on the
+     left. Shift left by HALF that inset so the white strips L/R are equal. */
+  transform: translateX(calc(-0.0349 * var(--id-col)));
 }
 .cv-header { order: 2; flex-direction: column; padding-block-end: var(--s2); }  /* a touch more air to Work Experience on mobile */
 .cv-awards-bar { order: 4; margin-block-end: var(--s3); margin-inline: calc(-1 * var(--sheet-pad-inline)); }  /* full-bleed + air below */
@@ -926,6 +966,10 @@ a { color: inherit; }
 .cv-header-aside .cv-rail-label {
   transform: rotate(180deg) translateY(calc(var(--contact-line-rise) / 2));
 }
+/* single-column: drop the divider line LEFT of the (vertical) "Contact" label —
+   there is no name column beside it here, so it just reads as a stray short line.
+   (The contact rail line on its RIGHT stays.) The two-column tier restores it. */
+html.js-lines .cv-header-aside::before { display: none; }
 
 /* resources rail no longer fills height; work entries don't reach a divider;
  * date tabs bleed to the right edge */
@@ -941,19 +985,36 @@ a { color: inherit; }
   inset-block-start: -1px;    /* pull up 1px so the tab's top is flush with the rule (mobile rounds it off otherwise) */
 }
 
-/* ===================================================== desktop (wide) ======
- * Container query (not media query): the layout responds to the page container's
- * width, and it ADDS the two-column architecture on top of the mobile base. */
-@container editorial (min-width: 64rem) {
-  .cv-root { display: block; padding-inline: 0; padding-block-end: 0; background-color: transparent; }
+/* ===================================================== tablet tier =========
+ * Container query (not media query). At this width the decorative side art is
+ * brought in (peeking beside a sheet that is now narrower than the container)
+ * together with the torn paper edges, while the CV stays SINGLE-column. Below
+ * this the sheet is full-bleed with no art and no outer lines (phone portrait). */
+@container editorial (min-width: 46rem) {
+  /* --bg-anchor lowered so the art parks at the container edges (decoupled from
+     the full sheet width), making it peek well before the desktop width. */
+  /* single-column shows a generous side gap so more of the illustration reads;
+     the two-column tier tightens it back (less room with two columns). */
+  .cv-root { display: block; padding-inline: 0; padding-block-end: 0; background-color: transparent; --bg-anchor: 22rem; --cv-peek: 6rem; }
   .cv-stage { display: block; }
   .editorial-sheet {
     display: flex;                 /* restore the .stack column */
     margin-block-start: -100vh;
     margin-block-start: -100dvh;   /* pull the sheet up over the sticky side art */
+    /* narrower than the container so the side art peeks in the side gaps */
+    max-inline-size: min(var(--sheet-max), calc(100cqi - 2 * var(--cv-peek)));
   }
   .editorial-sheet::before,
   .editorial-sheet::after { display: block; }   /* torn paper edges */
+  .cv-bg-layer { display: block; }
+}
+
+/* ===================================================== wide tier ============
+ * Adds the two-column CV architecture on top of the tablet tier, once there is
+ * enough width for two columns to read comfortably (~975px). */
+@container editorial (min-width: 61rem) {
+  .cv-root { --cv-peek: 3rem; }   /* tighter side gap once two columns appear */
+  .editorial-sheet:not(.cover-sheet) { --name-scale: 1; }   /* full-size name in two columns */
   .cv-body { display: flex; }
   .cv-aside { display: flex; }          /* restore the .stack-large column */
   .cv-main {
@@ -970,8 +1031,9 @@ a { color: inherit; }
     margin-block-start: calc(-1 * (var(--s-1) + var(--editorial-rule)));
     margin-inline-start: calc(-1 * var(--photo-bleed-left));
     margin-inline-end: 0;
+    transform: none;   /* the single-column optical nudge does not apply in two columns */
   }
-  .cv-header { flex-direction: row; padding-block-end: var(--s1); }
+  .cv-header { flex-direction: row; padding-block-end: var(--s1); max-inline-size: none; margin-inline: 0; }
   .cv-main h2 { text-align: start; }   /* lead label stays left on desktop */
   .cv-header-name { align-self: flex-end; margin-inline-start: 0; }
   .cv-firstname { text-indent: -0.085em; }
@@ -982,7 +1044,9 @@ a { color: inherit; }
     padding-inline-start: var(--s-1);
     flex: 0 0 var(--aside-basis);
     margin-block-start: 0;
+    margin-inline-start: 0;   /* no single-column Spitze shift in two columns */
   }
+  html.js-lines .cv-header-aside::before { display: block; }   /* divider returns beside the two-column name */
   /* contact line + label back to content-height / centred (the mobile rise is off) */
   .cv-header-aside .cv-rail-body::before { inset-block-start: 0; inset-block-end: 0; }
   .cv-header-aside .cv-rail-label { transform: rotate(180deg); }
@@ -1003,4 +1067,12 @@ a { color: inherit; }
   .cv-bg-layer { display: block; }
   /* back to source order */
   .cv-photo, .cv-header, .cv-main, .cv-awards-bar, .cv-rail { order: 0; }
+}
+
+/* ===================================================== roomy tier ===========
+ * From ~1080px let the sheet grow a little wider so the OUTER margin (the empty
+ * band around the sheet) tightens and the content uses more of the width.
+ * Shared by CV + cover letter. */
+@container editorial (min-width: 67.5rem) {
+  .cv-root { --sheet-max: 70rem; }
 }
