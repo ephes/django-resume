@@ -13,7 +13,7 @@
             <a class="underlined resume-nav-link" href="{{ link.url }}"{% if is_editable %} hx-boost="true"{% endif %}>{{ link.title }}</a>
           {% endfor %}
           {% if nav_links %}<span class="resume-nav-separator">|</span>{% endif %}
-          <a class="underlined resume-nav-link" href="{% url 'django_resume:json-resume-themes' resume.slug %}"{% if is_editable %} hx-boost="true"{% endif %}>Themes</a>
+          <a class="underlined resume-nav-link" href="{% url 'django_resume:json-resume-themes' resume.slug %}"{% if is_editable %} hx-boost="true"{% endif %}>JSON Themes</a>
         </span>
         <button
           class="resume-delete-button"

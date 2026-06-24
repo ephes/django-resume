@@ -177,8 +177,50 @@ ordering.
 
 See :doc:`application_workflows` and :doc:`page_plugins`.
 
-External JSON Resume Themes
----------------------------
+External JSON Resume Render Themes
+----------------------------------
+
+Theme Vocabulary
+~~~~~~~~~~~~~~~~
+
+The product should avoid using the unqualified word "theme" when both theme
+systems are visible. The preferred terms are:
+
+* **page theme** for django-resume's own Django template set. A page theme
+  controls built-in pages, page plugins, editing views, cover-letter content,
+  and section plugin templates. The current stored value still lives in the
+  existing ``theme`` plugin data for compatibility.
+* **JSON Resume render theme** for an npm package that renders a JSON Resume
+  document, such as ``jsonresume-theme-even``. It is selected under
+  ``integration_data["json_resume"]["theme"]`` and is used only by JSON Resume
+  render/export routes.
+* **theme catalog entry** for a deployment-owned allowlist item that maps a
+  stable local key to one pinned JSON Resume render theme package version plus
+  display metadata.
+
+The normal ``/<slug>/cv/`` route should continue to render the django-resume CV
+page with the selected page theme. The JSON Resume rendered view should remain
+a visibly separate owner-only artifact under ``/<slug>/json-resume/rendered/``.
+If a future product flow offers a public JSON Resume-rendered CV, it should use
+an explicit route, label, and permission model rather than silently changing the
+meaning of the existing CV page.
+
+Naming options considered:
+
+* Keep both concepts named "theme" and rely on route context. This is lowest
+  churn but confusing in the editor and overview because one selector changes
+  django-resume pages while the other runs an exported document through npm.
+* Rename django-resume themes to **page themes** and JSON Resume themes to
+  **render themes**. This preserves current storage and code concepts while
+  making the UI and docs clear. This is the preferred near-term path.
+* Rename JSON Resume themes to **renderer presets** or **export styles**. This
+  is the least ambiguous product language, but it hides JSON Resume's own
+  ecosystem term and would create more translation between docs, package names,
+  and UI.
+* Let a selected JSON Resume render theme replace the normal CV route. This
+  makes theme selection feel unified, but it mixes two rendering pipelines,
+  complicates permissions and token behavior, and makes cover/editing pages
+  unaffected by the same setting. Keep it out of the default flow.
 
 JSON Resume's theme ecosystem is npm-based. The current JSON Resume
 documentation recommends ``resumed`` for rendering ``resume.json`` with a theme;
@@ -286,21 +328,34 @@ The selector is gallery-first:
   an operator/developer command, not on every page request.
 * Previewing is separate from selecting. The preview action posts to a route
   whose path encodes the catalog key and renders without changing
-  ``Resume.integration_data``. A separate **Use theme** action persists the
+  ``Resume.integration_data``. A separate **Use render theme** action persists the
   chosen theme under ``Resume.integration_data["json_resume"]["theme"]``.
   Persisting a selected theme is useful for "open rendered page" links, but it
   is not required just to inspect a theme.
-* The persistence action uses explicit **Use theme** wording. A card click does
-  not both install executable code and persist selection.
+* The persistence action uses explicit **Use render theme** wording. A card
+  click does not both install executable code and persist selection.
 
-Theme parity comparison against ``registry.jsonresume.org`` is useful research
-but should not become automated regression coverage yet. A research pass can
-import a JSON Resume sample into the example app, render the same catalog theme
-locally, fetch or generate the registry render for that sample, and compare
-screenshots and HTML to understand differences. Expected differences may come
-from theme package versions, registry renderer behavior, image/CSP handling, or
-django-resume import/export mappings. The output of this research should inform
-catalog choices and compatibility fixes, not block normal test runs.
+Visual parity comparison against ``registry.jsonresume.org`` should harden the
+theme-rendering work, but it should start as an explicit optional harness rather
+than normal regression coverage. The harness should:
+
+* Fetch or vendor the official JSON Resume example document used by the JSON
+  Resume site.
+* Import it into the example app and immediately export the portable projection
+  so unsupported-field losses are visible in the report.
+* Render that projection locally with each enabled catalog render theme through
+  the same ``resumed`` path used by the web view.
+* Capture screenshots for the upstream registry render and the local render at
+  fixed desktop and print-like viewports.
+* Compare screenshots with a perceptual threshold and write an HTML/PNG diff
+  report for review.
+
+The first useful gate should be "reviewable and reproducible" rather than
+"pixel-identical". Expected differences may come from theme package versions,
+registry renderer behavior, network images, font availability, CSP/media
+handling, or django-resume import/export mappings. Once catalog versions,
+renderer versions, fonts, and fixture data are pinned tightly enough, selected
+themes can graduate to CI coverage with theme-specific thresholds.
 
 Rendering should use the portable projection by default. Until the internal
 ``export_resume()`` helper has first-class export intents, the renderer should
@@ -971,10 +1026,9 @@ Remaining JSON Resume theme-rendering work:
   operator/CI surface rather than as a replacement for the curated gallery.
 * Generate or cache django-resume-owned catalog preview images instead of
   depending on remote preview image URLs in the checked-in default catalog.
-* Run a research-only parity pass against ``registry.jsonresume.org`` using an
-  imported JSON Resume sample to compare local themed output with registry
-  themed output. Do not turn this into normal regression coverage until the
-  renderer/version contract is stable enough to make failures actionable.
+* Build the optional visual parity harness described above. Keep the first
+  version outside normal ``just check`` and use its report to find import/export
+  and renderer-compatibility bugs before promoting stable theme cases to CI.
 * Add PDF rendering support only after the deployment contract for Puppeteer,
   browser binaries, or another HTML-to-PDF tool is explicit.
 * Add stronger process isolation options for deployments that allow unreviewed
@@ -1050,11 +1104,13 @@ freelance/employed timeline split.
 Portable import also reports currently unsupported standard fields such as
 additional education entries, unmapped profile networks, ``basics.url``, skill
 levels or keywords, and defaulted section titles.
-Theme rendering support currently lets authenticated owners search npm for
-``jsonresume-theme-*`` and ``@jsonresume/jsonresume-theme-*`` packages, install
-the selected theme plus ``resumed`` into a local cache, store that package name
-under ``integration_data["json_resume"]["theme"]``, and open a private rendered
-HTML page. Rendering derives a portable projection with
+JSON Resume render theme support currently lets authenticated owners browse a
+curated catalog, and optionally search npm for ``jsonresume-theme-*`` and
+``@jsonresume/jsonresume-theme-*`` packages when dynamic discovery is enabled.
+It installs the selected render theme plus ``resumed`` into a local cache,
+stores that package name or catalog key under
+``integration_data["json_resume"]["theme"]``, and opens a private rendered HTML
+page. Rendering derives a portable projection with
 ``meta.django_resume`` stripped before passing data to the Node renderer.
 Update-in-place imports, signatures, freshness checks, trusted destructive
 defaults, and PDF rendering remain deferred.

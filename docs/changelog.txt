@@ -35,6 +35,9 @@ Features
   with django-resume's private ``meta.django_resume`` envelope stripped before
   the Node theme runs. Arbitrary npm search/install is disabled by default and
   remains available only behind an explicit development-discovery setting.
+* Clarify theme terminology in the UI and documentation: django-resume template
+  styling is a page theme, while npm-backed JSON Resume packages are JSON Resume
+  render themes.
 
 Fixes
 ^^^^^

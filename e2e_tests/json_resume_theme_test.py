@@ -65,16 +65,16 @@ def test_owner_previews_then_uses_catalog_json_resume_theme(
     _admin_login(page, live_server, "jochen")
     page.goto(f"{live_server.url}/resume/")
     row = page.locator("#resume-jochen")
-    expect(row.get_by_role("link", name="Themes")).to_be_visible()
-    row.get_by_role("link", name="Themes").click()
+    expect(row.get_by_role("link", name="JSON Themes")).to_be_visible()
+    row.get_by_role("link", name="JSON Themes").click()
 
-    expect(page.locator("h1", has_text="JSON Resume Themes")).to_be_visible()
-    expect(page.get_by_text("Theme catalog")).to_be_visible()
+    expect(page.locator("h1", has_text="JSON Resume Render Themes")).to_be_visible()
+    expect(page.get_by_role("heading", name="Render theme catalog")).to_be_visible()
     expect(page.get_by_text("jsonresume-theme-even@0.26.1")).to_be_visible()
     expect(page.get_by_text("Development discovery")).not_to_be_visible()
     expect(page.get_by_role("button", name="Install and apply")).to_have_count(0)
 
-    page.get_by_label("Filter catalog").fill("even")
+    page.get_by_label("Filter render theme catalog").fill("even")
     expect(page.locator("[data-theme-card]").filter(has_text="Even")).to_be_visible()
 
     even_card = page.locator("[data-theme-card]").filter(
@@ -85,24 +85,31 @@ def test_owner_previews_then_uses_catalog_json_resume_theme(
     )
 
     with page.expect_popup() as popup_info:
-        even_card.get_by_role("button", name="Preview").click(force=True)
+        even_card.get_by_role("button", name="Preview render").click(force=True)
     preview = popup_info.value
     expect(preview.locator("h1", has_text="Even Preview")).to_be_visible()
     expect(preview.get_by_text("Jochen Example")).to_be_visible()
     preview.close()
 
-    expect(page.get_by_text("No JSON Resume theme is selected yet.")).to_be_visible()
+    expect(
+        page.get_by_text("No JSON Resume render theme is selected yet.")
+    ).to_be_visible()
 
-    even_card.get_by_role("button", name="Use theme").click(force=True)
-    expect(page.get_by_text("Selected theme:")).to_be_visible()
+    even_card.get_by_role("button", name="Use render theme").click(force=True)
+    expect(page.get_by_text("Selected JSON Resume render theme:")).to_be_visible()
     expect(page.get_by_text("jsonresume-theme-even", exact=True)).to_be_visible()
 
-    with page.expect_popup() as popup_info:
-        page.get_by_role("link", name="Open rendered page").click(force=True)
-    rendered = popup_info.value
-    expect(rendered.locator("h1", has_text="Even Theme Rendered")).to_be_visible()
-    expect(rendered.get_by_text("Jochen Example")).to_be_visible()
-    rendered.close()
+    rendered_href = page.get_by_role("link", name="Open rendered page").get_attribute(
+        "href"
+    )
+    assert rendered_href is not None
+    rendered = page.context.new_page()
+    try:
+        rendered.goto(f"{live_server.url}{rendered_href}")
+        expect(rendered.locator("h1", has_text="Even Theme Rendered")).to_be_visible()
+        expect(rendered.get_by_text("Jochen Example")).to_be_visible()
+    finally:
+        rendered.close()
 
 
 def test_catalog_use_button_shows_pending_feedback(
@@ -124,7 +131,7 @@ def test_catalog_use_button_shows_pending_feedback(
     )
 
     button = page.locator("[data-install-submit]").first
-    expect(button).to_have_text("Use theme")
+    expect(button).to_have_text("Use render theme")
     button.click()
 
     expect(button).to_be_disabled()

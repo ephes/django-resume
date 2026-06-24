@@ -3,15 +3,15 @@
   {% if show_edit_button %}
     <div class="flex items-center justify-between group">
       <div>
-        <h2 class="text-xl font-semibold text-slate-800 mb-2">Theme Settings</h2>
-        <p class="text-slate-600">Current theme: <span class="font-medium text-blue-600">{{ theme.name|title }}</span></p>
+        <h2 class="text-xl font-semibold text-slate-800 mb-2">Page Theme Settings</h2>
+        <p class="text-slate-600">Current page theme: <span class="font-medium text-blue-600">{{ theme.name|title }}</span></p>
       </div>
       <button
         class="opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-2 rounded-lg hover:bg-slate-50 text-slate-500 hover:text-slate-700"
         hx-get="{{ theme.edit_url }}"
         hx-target="#theme"
         hx-swap="outerHTML"
-        title="Change theme"
+        title="Change page theme"
       >
         <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zM21 5a2 2 0 00-2-2h-4a2 2 0 00-2 2v12a4 4 0 004 4h4a2 2 0 002-2V5z"></path>
@@ -20,8 +20,8 @@
     </div>
   {% else %}
     <div>
-      <h2 class="text-xl font-semibold text-slate-800 mb-2">Theme Settings</h2>
-      <p class="text-slate-600">Current theme: <span class="font-medium text-blue-600">{{ theme.name|title }}</span></p>
+      <h2 class="text-xl font-semibold text-slate-800 mb-2">Page Theme Settings</h2>
+      <p class="text-slate-600">Current page theme: <span class="font-medium text-blue-600">{{ theme.name|title }}</span></p>
     </div>
   {% endif %}
 

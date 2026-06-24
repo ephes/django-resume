@@ -46,7 +46,7 @@ def test_overview_renders_grouped_ordered_nav(page: Page, live_server, seed):
     # Links appear in explicit nav_order, NOT registration order: PortfolioPage
     # registers last but nav_order=15 puts it between Cover (10) and CV (20).
     link_texts = [t.strip() for t in row.get_by_role("link").all_inner_texts()]
-    assert link_texts == ["Cover", "Portfolio", "CV", "403", "Themes"]
+    assert link_texts == ["Cover", "Portfolio", "CV", "403", "JSON Themes"]
 
     # Public page links still precede owner-only actions in the row.
     row_text = row.inner_text()

@@ -1342,8 +1342,8 @@ def test_json_resume_theme_selector_shows_catalog_without_dynamic_search(
     assert response.status_code == 200
     content = response.content.decode("utf-8")
     assert "jsonresume-theme-even" in content
-    assert "Use theme" in content
-    assert "Preview" in content
+    assert "Use render theme" in content
+    assert "Preview render" in content
     assert "Development discovery" not in content
     assert "Install and apply" not in content
 

@@ -1,22 +1,22 @@
 {% extends "django_resume/pages/plain/base.html" %}
 
-{% block title %}JSON Resume Themes{% endblock title %}
+{% block title %}JSON Resume Render Themes{% endblock title %}
 
 {% block body %}
   <body>
   <main class="stack-large">
     <header class="stack">
       <p><a class="underlined" href="{% url 'django_resume:list' %}">Resumes</a></p>
-      <h1>JSON Resume Themes</h1>
+      <h1>JSON Resume Render Themes</h1>
       <p>{{ resume.name }}</p>
       {% if selected_theme %}
         <p>
-          Selected theme:
+          Selected JSON Resume render theme:
           <code>{{ selected_theme }}</code>
           <a class="underlined" href="{% url 'django_resume:json-resume-rendered' resume.slug %}" target="_blank" rel="noopener">Open rendered page</a>
         </p>
       {% else %}
-        <p>No JSON Resume theme is selected yet.</p>
+        <p>No JSON Resume render theme is selected yet.</p>
       {% endif %}
     </header>
 
@@ -25,8 +25,8 @@
     {% endif %}
 
     <section class="stack">
-      <h2>Theme catalog</h2>
-      <label for="theme-filter">Filter catalog</label>
+      <h2>Render theme catalog</h2>
+      <label for="theme-filter">Filter render theme catalog</label>
       <input id="theme-filter" type="search" placeholder="even, colophon, stackoverflow" data-theme-filter>
       <ul class="theme-gallery" data-theme-gallery>
         {% for theme in catalog %}
@@ -53,11 +53,11 @@
                 {% if theme.enabled %}
                   <form method="post" action="{% url 'django_resume:json-resume-theme-preview' resume.slug theme.key %}" target="_blank" rel="noopener" data-theme-preview-form>
                     {% csrf_token %}
-                    <button type="submit">Preview</button>
+                    <button type="submit">Preview render</button>
                   </form>
                   <form method="post" action="{% url 'django_resume:json-resume-theme-use' resume.slug theme.key %}" data-theme-install-form>
                     {% csrf_token %}
-                    <button type="submit" data-install-submit>Use theme</button>
+                    <button type="submit" data-install-submit>Use render theme</button>
                     <span class="theme-install-status" data-install-status role="status" aria-live="polite" hidden>Installing...</span>
                   </form>
                 {% endif %}
@@ -75,7 +75,7 @@
         <p>Dynamic npm search and install is enabled for this deployment.</p>
         <form method="get" action="{% url 'django_resume:json-resume-themes' resume.slug %}" class="stack">
           <span class="cluster">
-            <label for="q">Theme search</label>
+            <label for="q">Render theme search</label>
             <input id="q" name="q" type="search" value="{{ query }}" placeholder="even, colophon, stackoverflow">
             <button type="submit">Search npm</button>
           </span>
