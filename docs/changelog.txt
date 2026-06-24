@@ -35,6 +35,9 @@ Features
   with django-resume's private ``meta.django_resume`` envelope stripped before
   the Node theme runs. Arbitrary npm search/install is disabled by default and
   remains available only behind an explicit development-discovery setting.
+* Add ``DJANGO_RESUME_JSON_RESUME_ALLOW_THEME_SCRIPTS`` for deployments that
+  trust their curated JSON Resume render themes and need browser-side theme
+  JavaScript to run in rendered theme HTML.
 * Clarify theme terminology in the UI and documentation: django-resume template
   styling is a page theme, while npm-backed JSON Resume packages are JSON Resume
   render themes.
@@ -47,6 +50,9 @@ Fixes
   opt-in dynamic theme install is running.
 * Normalize JSON Resume fields expected by brittle third-party themes and allow
   rendered themes to load same-origin media images under the response CSP.
+* Clarify that catalog screenshots and public registry demos are illustrative;
+  the exact render preview is the owner-only local **Preview render** action for
+  the current resume and pinned package version.
 
 0.3.0 - 2026-06-21
 ------------------

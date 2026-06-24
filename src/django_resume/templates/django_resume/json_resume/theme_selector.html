@@ -9,6 +9,7 @@
       <p><a class="underlined" href="{% url 'django_resume:list' %}">Resumes</a></p>
       <h1>JSON Resume Render Themes</h1>
       <p>{{ resume.name }}</p>
+      <p class="theme-preview-note">Catalog images and external registry demos are illustrative and may use different resume data or theme package versions. Use Preview render for this resume and the pinned local package.</p>
       {% if selected_theme %}
         <p>
           Selected JSON Resume render theme:

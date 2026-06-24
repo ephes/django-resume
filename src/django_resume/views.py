@@ -2,6 +2,7 @@ import json
 from typing import Any
 from urllib.parse import urlencode
 
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import redirect, render, get_object_or_404
@@ -262,9 +263,19 @@ def render_json_resume_theme(request: HttpRequest, slug: str) -> HttpResponse:
 def _theme_html_response(html: str) -> HttpResponse:
     response = HttpResponse(html, content_type="text/html; charset=utf-8")
     response["Cache-Control"] = "private, no-store"
-    response["Content-Security-Policy"] = (
-        "default-src 'none'; img-src 'self' data: https:; style-src 'unsafe-inline'; "
-        "font-src data: https:; base-uri 'none'; form-action 'none'"
-    )
+    response["Content-Security-Policy"] = _theme_content_security_policy()
     response["X-Frame-Options"] = "SAMEORIGIN"
     return response
+
+
+def _theme_content_security_policy() -> str:
+    style_src = "style-src 'unsafe-inline'"
+    script_src = ""
+    if getattr(settings, "DJANGO_RESUME_JSON_RESUME_ALLOW_THEME_SCRIPTS", False):
+        style_src = "style-src 'unsafe-inline' https://fonts.googleapis.com"
+        script_src = " script-src 'unsafe-inline';"
+    return (
+        "default-src 'none'; img-src 'self' data: https:; "
+        f"{style_src};{script_src} font-src data: https:; "
+        "base-uri 'none'; form-action 'none'"
+    )

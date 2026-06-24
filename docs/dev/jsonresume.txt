@@ -313,6 +313,11 @@ slugs on ``https://jsonresume.org/themes``. The npm registry keyword search for
 ``jsonresume-theme`` returned 67 package hits, and django-resume's stricter
 package-name validation accepted 56 of them. These numbers are volatile and
 should be treated as research snapshots rather than product invariants.
+Registry demos should not be treated as exact previews for django-resume's
+catalog entries: they may use different resume data or a different installed
+theme package version than the locally pinned catalog. The exact preview
+surface is the owner-only **Preview render** action, which renders the current
+resume with the catalog package version configured for this deployment.
 
 The selector is gallery-first:
 
@@ -348,7 +353,10 @@ than normal regression coverage. The harness should:
 * Capture screenshots for the upstream registry render and the local render at
   fixed desktop and print-like viewports.
 * Compare screenshots with a perceptual threshold and write an HTML/PNG diff
-  report for review.
+  report for review. If a theme emits browser-side JavaScript, parity checks
+  that compare browser output to standalone theme HTML should enable
+  ``DJANGO_RESUME_JSON_RESUME_ALLOW_THEME_SCRIPTS`` or account for the default
+  CSP blocking runtime scripts.
 
 The first useful gate should be "reviewable and reproducible" rather than
 "pixel-identical". Expected differences may come from theme package versions,

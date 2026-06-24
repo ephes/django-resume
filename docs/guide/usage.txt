@@ -90,6 +90,10 @@ deployment owned: each entry has a stable local key, an npm package name, and
 an exact pinned version. The default page shows catalog cards with preview
 images, package/version metadata, a local filter, a **Preview render** action,
 and a separate **Use render theme** action.
+Catalog images and public registry demos are illustrative only: the JSON
+Resume registry may render different resume data or a different package version
+than the deployment-pinned catalog entry. Use **Preview render** to see the
+actual local output for the current resume and pinned package.
 
 **Preview render** opens a private rendered HTML page for that catalog theme
 without changing ``Resume.integration_data``. **Use render theme** runs
@@ -116,6 +120,17 @@ the local cache and does not fetch schemas, renderers, or themes from the
 network. django-resume does not install themes for anonymous visitors, and
 public CV pages or token-protected CV links do not imply permission to install
 or render JSON Resume themes.
+
+Rendered theme responses use a restrictive Content Security Policy by default:
+inline styles are allowed for theme CSS, but browser-executed theme scripts and
+remote stylesheet links are blocked. Operators who trust their curated render
+themes and need browser-side theme JavaScript, such as date-duration custom
+elements emitted by some themes, can set
+``DJANGO_RESUME_JSON_RESUME_ALLOW_THEME_SCRIPTS = True``. That opt-in also
+allows Google Fonts stylesheet links while keeping external scripts blocked.
+Because inline theme scripts can still read the rendered page and trigger
+allowed image requests, enabling this setting means trusting curated themes with
+the rendered resume data.
 
 Arbitrary npm theme search and install is disabled by default. Operators can
 set ``DJANGO_RESUME_JSON_RESUME_ALLOW_DYNAMIC_THEME_INSTALL = True`` to show the

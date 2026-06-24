@@ -22,6 +22,7 @@ e2e_tests/e2e_test_db.sqlite3*
 
 # Javascript
 node_modules/
+example/.django-resume-jsonresume-themes/
 
 # playwright
 auth.json

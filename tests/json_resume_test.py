@@ -1344,6 +1344,7 @@ def test_json_resume_theme_selector_shows_catalog_without_dynamic_search(
     assert "jsonresume-theme-even" in content
     assert "Use render theme" in content
     assert "Preview render" in content
+    assert "may use different resume data or theme package versions" in content
     assert "Development discovery" not in content
     assert "Install and apply" not in content
 
@@ -1491,6 +1492,9 @@ def test_preview_catalog_theme_renders_without_persisting_selection(
     assert response.status_code == 200
     assert response.content == b"<html><body>even preview</body></html>"
     assert response.headers["Cache-Control"] == "private, no-store"
+    csp = response.headers["Content-Security-Policy"]
+    assert "script-src" not in csp
+    assert "https://fonts.googleapis.com" not in csp
     assert installed == ["even"]
     resume.refresh_from_db()
     assert selected_theme_name(resume) is None
@@ -1614,7 +1618,83 @@ def test_render_json_resume_theme_view_returns_theme_html(client, user, monkeypa
     assert response.content == b"<html><body>Themed Jane</body></html>"
     assert response.headers["Cache-Control"] == "private, no-store"
     assert "Content-Security-Policy" in response.headers
-    assert "img-src 'self' data: https:" in response.headers["Content-Security-Policy"]
+    csp = response.headers["Content-Security-Policy"]
+    assert "img-src 'self' data: https:" in csp
+    assert "style-src 'unsafe-inline'" in csp
+    assert "script-src" not in csp
+    assert "https://fonts.googleapis.com" not in csp
+
+
+@pytest.mark.django_db
+def test_render_json_resume_theme_view_can_allow_theme_scripts(
+    client, user, settings, monkeypatch
+):
+    settings.DJANGO_RESUME_JSON_RESUME_ALLOW_THEME_SCRIPTS = True
+    user.save()
+    resume = Resume.objects.create(
+        name="Jane", slug="jane-render-theme-scripts", owner=user
+    )
+    client.force_login(user)
+
+    monkeypatch.setattr(
+        "django_resume.views.render_selected_theme",
+        lambda resume: RenderedTheme(
+            html='<html><body><script type="module">customElements</script></body></html>',
+            theme_name="jsonresume-theme-even",
+            notes=(),
+        ),
+    )
+
+    response = client.get(
+        reverse("django_resume:json-resume-rendered", kwargs={"slug": resume.slug})
+    )
+
+    assert response.status_code == 200
+    csp = response.headers["Content-Security-Policy"]
+    assert "style-src 'unsafe-inline' https://fonts.googleapis.com" in csp
+    assert "script-src 'unsafe-inline';" in csp
+    script_src = csp.split("script-src", 1)[1].split(";", 1)[0]
+    assert "'self'" not in script_src
+    assert "https:" not in script_src
+
+
+@pytest.mark.django_db
+def test_preview_json_resume_catalog_theme_can_allow_theme_scripts(
+    client, user, settings, monkeypatch
+):
+    settings.DJANGO_RESUME_JSON_RESUME_ALLOW_THEME_SCRIPTS = True
+    user.save()
+    resume = Resume.objects.create(
+        name="Jane", slug="jane-preview-theme-scripts", owner=user
+    )
+    client.force_login(user)
+
+    monkeypatch.setattr(
+        "django_resume.views.install_catalog_theme", lambda key: catalog_theme(key)
+    )
+    monkeypatch.setattr(
+        "django_resume.views.render_catalog_theme",
+        lambda resume, key: RenderedTheme(
+            html="<html><body>preview with scripts</body></html>",
+            theme_name="jsonresume-theme-even",
+            notes=(),
+        ),
+    )
+
+    response = client.post(
+        reverse(
+            "django_resume:json-resume-theme-preview",
+            kwargs={"slug": resume.slug, "key": "even"},
+        )
+    )
+
+    assert response.status_code == 200
+    csp = response.headers["Content-Security-Policy"]
+    assert "style-src 'unsafe-inline' https://fonts.googleapis.com" in csp
+    assert "script-src 'unsafe-inline';" in csp
+    script_src = csp.split("script-src", 1)[1].split(";", 1)[0]
+    assert "'self'" not in script_src
+    assert "https:" not in script_src
 
 
 @pytest.mark.django_db

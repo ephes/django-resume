@@ -224,6 +224,11 @@ input[type="checkbox"]:checked::before {
     margin-inline-start: var(--s-2);
 }
 
+.theme-preview-note {
+    color: var(--color-middlegrey);
+    font-size: 0.9rem;
+}
+
 .theme-gallery {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
