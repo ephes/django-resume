@@ -90,6 +90,10 @@ deployment owned: each entry has a stable local key, an npm package name, and
 an exact pinned version. The default page shows catalog cards with preview
 images, package/version metadata, a local filter, a **Preview render** action,
 and a separate **Use render theme** action.
+For example, the local example server can open the Smaugustus Emberflame theme
+catalog at
+`http://localhost:8000/resume/smaugustus-emberflame/json-resume/themes/
+<http://localhost:8000/resume/smaugustus-emberflame/json-resume/themes/>`_.
 Catalog images and public registry demos are illustrative only: the JSON
 Resume registry may render different resume data or a different package version
 than the deployment-pinned catalog entry. Use **Preview render** to see the
@@ -110,6 +114,33 @@ is a separate export/render artifact. The renderer receives a portable JSON
 Resume projection: django-resume removes its private ``meta.django_resume``
 envelope before writing the temporary ``resume.json`` passed to the Node
 renderer.
+
+Developers and site operators can also render a static HTML file outside
+django-resume with the JSON Resume command-line tooling. First export the
+resume::
+
+    python manage.py export_json_resume <slug> --output resume.django-resume.json
+
+Then install ``resumed`` and the theme package in a local npm project and render
+the file::
+
+    npm install resumed jsonresume-theme-even
+    npx resumed render resume.django-resume.json --theme jsonresume-theme-even --output resume.html
+
+This is useful for private local output, CI artifacts, or publishing a static
+HTML file through a separate deployment process. The exported JSON contains
+django-resume's private ``meta.django_resume`` envelope, so strip it before
+giving the file to third-party hosting, registry uploads, or any theme package
+you do not fully trust::
+
+    jq 'del(.meta.django_resume) | if .meta == {} then del(.meta) else . end' \
+      resume.django-resume.json > resume.json
+    npx resumed render resume.json --theme jsonresume-theme-even --output resume.html
+
+The command-line renderer is separate from the in-app preview. It uses whichever
+``resumed`` and theme package versions are installed in that npm project, while
+the django-resume owner UI uses the deployment-pinned catalog and local theme
+cache.
 
 Theme packages execute JavaScript during rendering. Only authenticated owners
 can preview, select, or render themes through these views, but catalog packages
@@ -143,46 +174,15 @@ third-party JavaScript execution is an accepted risk.
 Importing from JSON Resume
 --------------------------
 
-Create a new resume from a JSON Resume file with::
+JSON Resume import is not currently available to website users. There is no
+in-app upload/import page yet, so users cannot create or update a resume by
+uploading a ``resume.json`` file through the browser.
 
-    python manage.py import_json_resume resume.json --owner <username> --slug <new-slug> [--name "Display name"]
+The project has internal import machinery and a management command used by
+tests and development, but that is not a practical product workflow for hosted
+sites. A useful import feature should be an authenticated in-app flow that lets
+the owner upload a JSON Resume file, previews what will be created or changed,
+reports lossy mappings, and only then applies the import.
 
-The slug must not already exist. If ``--name`` is omitted, the command uses
-``basics.name`` and falls back to the slug.
-Missing, unreadable, oversized, or invalid JSON files fail with a normal command
-error instead of a traceback. Invalid slugs and names that exceed the resume
-model's maximum length are also rejected before a database row is created.
-
-When importing a document exported by django-resume, the command restores
-``meta.django_resume.plugin_data`` by default. This preserves django-resume-only
-plugin data and makes export/import/export round trips deterministic. The
-envelope payload must be an object whose plugin payloads are objects; malformed
-payloads are rejected before a resume is created. Pass ``--portable-only`` to
-ignore that envelope and import only standard JSON Resume sections through the
-plugin adapters.
-
-Imports also retain the original source document and the adapter-generated
-projection in ``Resume.integration_data``. If both the current adapter
-projection and full plugin data are still unchanged on a later export,
-django-resume re-emits the original JSON Resume document exactly as parsed.
-This preserves unsupported standard sections and fields from third-party JSON
-Resume files, such as the official schema sample. After plugin data changes,
-export falls back to a freshly generated django-resume JSON Resume document with
-the normal ``meta.django_resume`` extension envelope.
-
-If an imported document contains ``meta.django_resume.preserved_extensions``,
-django-resume stores that list in ``Resume.integration_data`` and includes it in
-later JSON Resume exports.
-
-Portable-only import is intentionally lossy where JSON Resume cannot represent
-django-resume's plugin boundaries. In particular, the standard ``work`` array is
-imported into ``employed_timeline`` and the original freelance/employed split
-cannot be inferred; the import report notes this. Portable-only import also
-reports JSON Resume fields that no bundled plugin adapter currently owns or
-cannot store, including additional education entries, unknown profile networks,
-``basics.url``, and skill levels or keywords. If two import adapters claim the
-same source path, the import fails with a configuration error instead of
-double-importing data.
-
-Signed provenance, update-in-place imports, and an in-app download are tracked
-as future work in the JSON Resume plan.
+Signed provenance, update-in-place imports, and that in-app import flow are
+tracked as future work in the JSON Resume plan.

@@ -53,6 +53,10 @@ Fixes
 * Clarify that catalog screenshots and public registry demos are illustrative;
   the exact render preview is the owner-only local **Preview render** action for
   the current resume and pinned package version.
+* Document how to export a JSON Resume file and render static HTML outside
+  django-resume with ``resumed`` and a locally installed JSON Resume theme.
+* Clarify the website-owner JSON Resume theme link and note that JSON Resume
+  import is not yet available as a practical website-user workflow.
 
 0.3.0 - 2026-06-21
 ------------------
