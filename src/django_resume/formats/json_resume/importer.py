@@ -1,8 +1,14 @@
+import errno
+import http.client
 import json
+import ipaddress
+import socket
+import ssl
 from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
+from urllib.parse import urljoin, urlparse
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
@@ -23,16 +29,33 @@ from .validation import validate_document
 
 FORMAT_ID = "json_resume"
 MAX_INPUT_BYTES = 2 * 1024 * 1024
+URL_FETCH_TIMEOUT_SECONDS = 10
+MAX_URL_REDIRECTS = 5
 
 
 class JsonResumeImportError(ValueError):
     """Raised when a JSON Resume document cannot be imported."""
+
+    def __init__(self, message: str, *, field: str | None = None) -> None:
+        super().__init__(message)
+        self.field = field
 
 
 @dataclass
 class JsonResumeImport:
     resume: Resume | None
     report: ImportReport
+
+
+@dataclass(frozen=True)
+class _ResolvedImportURL:
+    url: str
+    scheme: str
+    hostname: str
+    port: int
+    address: str
+    request_target: str
+    host_header: str
 
 
 def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict:
@@ -44,6 +67,20 @@ def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict:
     return result
 
 
+def _coerce_document(document: object) -> dict:
+    if not isinstance(document, dict):
+        raise JsonResumeImportError("JSON Resume document must be an object")
+    return document
+
+
+def _loads_document(text: str) -> dict:
+    try:
+        document = json.loads(text, object_pairs_hook=_reject_duplicate_keys)
+    except json.JSONDecodeError as exc:
+        raise JsonResumeImportError(f"Invalid JSON: {exc}") from exc
+    return _coerce_document(document)
+
+
 def load_document(path: str | Path) -> dict:
     input_path = Path(path)
     try:
@@ -51,15 +88,220 @@ def load_document(path: str | Path) -> dict:
             raise JsonResumeImportError(
                 f"Input exceeds maximum size of {MAX_INPUT_BYTES} bytes"
             )
-        with input_path.open(encoding="utf-8") as handle:
-            document = json.load(handle, object_pairs_hook=_reject_duplicate_keys)
+        text = input_path.read_text(encoding="utf-8")
     except OSError as exc:
         raise JsonResumeImportError(f"Could not read {input_path}: {exc}") from exc
-    except json.JSONDecodeError as exc:
-        raise JsonResumeImportError(f"Invalid JSON: {exc}") from exc
-    if not isinstance(document, dict):
-        raise JsonResumeImportError("JSON Resume document must be an object")
-    return document
+    except UnicodeDecodeError as exc:
+        raise JsonResumeImportError(f"Invalid UTF-8 in {input_path}: {exc}") from exc
+    return _loads_document(text)
+
+
+def load_document_bytes(data: bytes, *, source: str = "input") -> dict:
+    if len(data) > MAX_INPUT_BYTES:
+        raise JsonResumeImportError(
+            f"Input exceeds maximum size of {MAX_INPUT_BYTES} bytes"
+        )
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise JsonResumeImportError(f"Invalid UTF-8 in {source}: {exc}") from exc
+    return _loads_document(text)
+
+
+def _is_public_address(address: str) -> bool:
+    try:
+        ip = ipaddress.ip_address(address)
+    except ValueError:
+        return False
+    if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped is not None:
+        ip = ip.ipv4_mapped
+    return (
+        ip.is_global
+        and not ip.is_loopback
+        and not ip.is_link_local
+        and not ip.is_private
+        and not ip.is_multicast
+        and not ip.is_reserved
+        and not ip.is_unspecified
+    )
+
+
+def _validate_import_url(url: str) -> _ResolvedImportURL:
+    parsed = urlparse(url)
+    if parsed.scheme not in {"http", "https"}:
+        raise JsonResumeImportError(
+            "JSON Resume URL must use http or https", field="source_url"
+        )
+    if parsed.username or parsed.password:
+        raise JsonResumeImportError(
+            "JSON Resume URL must not include credentials", field="source_url"
+        )
+    if not parsed.hostname:
+        raise JsonResumeImportError(
+            "JSON Resume URL must include a host", field="source_url"
+        )
+    try:
+        port = parsed.port
+    except ValueError as exc:
+        raise JsonResumeImportError(
+            f"Invalid JSON Resume URL port: {exc}", field="source_url"
+        ) from exc
+    if port is None:
+        port = 443 if parsed.scheme == "https" else 80
+    try:
+        resolved = socket.getaddrinfo(parsed.hostname, port, type=socket.SOCK_STREAM)
+    except OSError as exc:
+        raise JsonResumeImportError(
+            f"Could not resolve JSON Resume URL: {exc}", field="source_url"
+        ) from exc
+    if not resolved:
+        raise JsonResumeImportError(
+            "Could not resolve JSON Resume URL", field="source_url"
+        )
+    address = str(resolved[0][4][0])
+    for _family, _type, _proto, _canonname, sockaddr in resolved:
+        if not _is_public_address(str(sockaddr[0])):
+            raise JsonResumeImportError(
+                "JSON Resume URL host must resolve to a public address",
+                field="source_url",
+            )
+    request_target = parsed.path or "/"
+    if parsed.query:
+        request_target = f"{request_target}?{parsed.query}"
+    host_header = parsed.hostname
+    if ":" in host_header and not host_header.startswith("["):
+        host_header = f"[{host_header}]"
+    default_port = 443 if parsed.scheme == "https" else 80
+    if port != default_port:
+        host_header = f"{host_header}:{port}"
+    return _ResolvedImportURL(
+        url=url,
+        scheme=parsed.scheme,
+        hostname=parsed.hostname,
+        port=port,
+        address=address,
+        request_target=request_target,
+        host_header=host_header,
+    )
+
+
+def _set_tcp_no_delay(sock: socket.socket) -> None:
+    try:
+        sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+    except OSError as exc:
+        if exc.errno != errno.ENOPROTOOPT:
+            raise
+
+
+class _PinnedHTTPConnection(http.client.HTTPConnection):
+    def __init__(self, host: str, port: int, address: str) -> None:
+        super().__init__(host, port=port, timeout=URL_FETCH_TIMEOUT_SECONDS)
+        self._resolved_address = address
+
+    def connect(self) -> None:
+        self.sock = socket.create_connection(
+            (self._resolved_address, self.port),
+            self.timeout,
+        )
+        _set_tcp_no_delay(self.sock)
+
+
+class _PinnedHTTPSConnection(http.client.HTTPSConnection):
+    def __init__(self, host: str, port: int, address: str) -> None:
+        self._ssl_context = ssl.create_default_context()
+        super().__init__(
+            host,
+            port=port,
+            timeout=URL_FETCH_TIMEOUT_SECONDS,
+            context=self._ssl_context,
+        )
+        self._resolved_address = address
+
+    def connect(self) -> None:
+        sock = socket.create_connection(
+            (self._resolved_address, self.port),
+            self.timeout,
+        )
+        _set_tcp_no_delay(sock)
+        self.sock = self._ssl_context.wrap_socket(
+            sock,
+            server_hostname=self.host,
+        )
+
+
+def _connection_for_url(url: _ResolvedImportURL) -> http.client.HTTPConnection:
+    connection_class = (
+        _PinnedHTTPSConnection if url.scheme == "https" else _PinnedHTTPConnection
+    )
+    return connection_class(url.hostname, url.port, url.address)
+
+
+def load_document_url(url: str) -> dict:
+    current_url = url
+    for _redirect in range(MAX_URL_REDIRECTS + 1):
+        checked_url = _validate_import_url(current_url)
+        connection = _connection_for_url(checked_url)
+        try:
+            connection.request(
+                "GET",
+                checked_url.request_target,
+                headers={
+                    "Host": checked_url.host_header,
+                    "Accept": (
+                        "application/json, application/schema+json;q=0.9, */*;q=0.1"
+                    ),
+                    "User-Agent": "django-resume-json-import",
+                },
+            )
+            response = connection.getresponse()
+            if response.status in {301, 302, 303, 307, 308}:
+                location = response.getheader("Location")
+                if not location:
+                    raise JsonResumeImportError(
+                        "Could not read JSON Resume URL: redirect without Location",
+                        field="source_url",
+                    )
+                current_url = urljoin(checked_url.url, location)
+                continue
+            if response.status >= 400:
+                raise JsonResumeImportError(
+                    f"Could not read JSON Resume URL: HTTP {response.status}",
+                    field="source_url",
+                )
+            content_length = response.headers.get("Content-Length")
+            if content_length is not None:
+                try:
+                    content_length_value = int(content_length)
+                except ValueError:
+                    content_length_value = 0
+                if content_length_value > MAX_INPUT_BYTES:
+                    raise JsonResumeImportError(
+                        f"Input exceeds maximum size of {MAX_INPUT_BYTES} bytes",
+                        field="source_url",
+                    )
+            data = response.read(MAX_INPUT_BYTES + 1)
+        except JsonResumeImportError:
+            raise
+        except (http.client.HTTPException, OSError) as exc:
+            raise JsonResumeImportError(
+                f"Could not read JSON Resume URL: {exc}", field="source_url"
+            ) from exc
+        finally:
+            connection.close()
+        if len(data) > MAX_INPUT_BYTES:
+            raise JsonResumeImportError(
+                f"Input exceeds maximum size of {MAX_INPUT_BYTES} bytes",
+                field="source_url",
+            )
+        try:
+            return load_document_bytes(data, source=checked_url.url)
+        except JsonResumeImportError as exc:
+            exc.field = "source_url"
+            raise
+    raise JsonResumeImportError(
+        f"Could not read JSON Resume URL: exceeded {MAX_URL_REDIRECTS} redirects",
+        field="source_url",
+    )
 
 
 def _validate_restored_plugin_data(plugin_data: object) -> list[str]:
@@ -177,17 +419,21 @@ def _validate_resume_metadata(*, slug: str, name: str) -> None:
     slug_max_length = cast(int, Resume._meta.get_field("slug").max_length)
     if len(slug) > slug_max_length:
         raise JsonResumeImportError(
-            f"Resume slug exceeds maximum length of {slug_max_length} characters"
+            f"Resume slug exceeds maximum length of {slug_max_length} characters",
+            field="slug",
         )
     try:
         validate_slug(slug)
     except ValidationError as exc:
-        raise JsonResumeImportError(f"Invalid resume slug {slug!r}") from exc
+        raise JsonResumeImportError(
+            f"Invalid resume slug {slug!r}", field="slug"
+        ) from exc
 
     name_max_length = cast(int, Resume._meta.get_field("name").max_length)
     if len(name) > name_max_length:
         raise JsonResumeImportError(
-            f"Resume name exceeds maximum length of {name_max_length} characters"
+            f"Resume name exceeds maximum length of {name_max_length} characters",
+            field="name",
         )
 
 
@@ -209,7 +455,9 @@ def import_resume_document(
             report=ImportReport(valid=False, validation_errors=errors),
         )
     if Resume.objects.filter(slug=slug).exists():
-        raise JsonResumeImportError(f"A resume with slug {slug!r} already exists")
+        raise JsonResumeImportError(
+            f"A resume with slug {slug!r} already exists", field="slug"
+        )
 
     django_resume_meta_value = get_pointer(document, "/meta/django_resume", None)
     if django_resume_meta_value is None:
@@ -285,7 +533,7 @@ def import_resume_document(
             )
     except IntegrityError as exc:
         raise JsonResumeImportError(
-            f"A resume with slug {slug!r} already exists"
+            f"A resume with slug {slug!r} already exists", field="slug"
         ) from exc
     return JsonResumeImport(resume=resume, report=report)
 

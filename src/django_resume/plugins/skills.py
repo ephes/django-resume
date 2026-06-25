@@ -38,19 +38,26 @@ class SkillsJsonResumeAdapter:
     def import_data(self, document: dict) -> AdapterImport:
         skills = get_pointer(document, "/skills", []) or []
         notes = []
+        badges = []
         for item in skills:
             if not isinstance(item, dict):
                 continue
             name = item.get("name") or "(unnamed skill)"
             if item.get("level"):
                 notes.append(f"skills entry {name!r} level is not imported")
-            if item.get("keywords"):
-                notes.append(f"skills entry {name!r} keywords are not imported")
-        badges = [
-            item.get("name", "")
-            for item in skills
-            if isinstance(item, dict) and item.get("name")
-        ]
+            keywords = item.get("keywords")
+            if isinstance(keywords, list):
+                imported_keywords = [
+                    keyword
+                    for keyword in keywords
+                    if isinstance(keyword, str) and keyword
+                ]
+                if imported_keywords:
+                    badges.extend(imported_keywords)
+                    notes.append(f"skills entry {name!r} category name is not imported")
+                    continue
+            if item.get("name"):
+                badges.append(item["name"])
         return AdapterImport(
             plugin_data={"badges": badges} if badges else {},
             notes=notes,

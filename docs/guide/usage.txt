@@ -174,15 +174,24 @@ third-party JavaScript execution is an accepted risk.
 Importing from JSON Resume
 --------------------------
 
-JSON Resume import is not currently available to website users. There is no
-in-app upload/import page yet, so users cannot create or update a resume by
-uploading a ``resume.json`` file through the browser.
+Authenticated owners can import a JSON Resume file from the resume overview.
+The import form creates a new resume owned by the current user from either an
+uploaded ``resume.json`` file or an HTTP(S) JSON Resume URL, plus a
+caller-supplied slug. Provide exactly one source. URL imports are limited to
+public-address ``http`` or ``https`` URLs and use the same input-size limit as
+file uploads. The optional name field overrides ``basics.name``; when neither
+is present, django-resume uses the slug as the resume name.
 
-The project has internal import machinery and a management command used by
-tests and development, but that is not a practical product workflow for hosted
-sites. A useful import feature should be an authenticated in-app flow that lets
-the owner upload a JSON Resume file, previews what will be created or changed,
-reports lossy mappings, and only then applies the import.
+The browser import matches the management command's create-only behavior. It
+validates the incoming document against the pinned JSON Resume v1.0.0 schema,
+rejects duplicate JSON object keys, requires a globally unique slug, and reports
+mapped, restored, omitted, or lossy plugin data after a successful import.
+By default, a django-resume round-trip export restores
+``meta.django_resume.plugin_data`` so application-private fields can survive a
+backup or migration. Select **Standard JSON Resume fields only** to ignore that
+private envelope and import only standard JSON Resume fields through plugin
+adapters.
 
-Signed provenance, update-in-place imports, and that in-app import flow are
-tracked as future work in the JSON Resume plan.
+Signed provenance and update-in-place imports remain future work in the JSON
+Resume plan. Browser import currently creates a fresh resume; it does not merge
+or replace data in an existing resume.

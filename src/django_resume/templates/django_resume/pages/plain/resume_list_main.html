@@ -57,4 +57,110 @@
       </div>
     </form>
   </div>
+  <hr/>
+  <div class="stack">
+    <h3>Import JSON Resume</h3>
+    {% if imported_resume %}
+      <div class="stack">
+        <p>Imported {{ imported_resume.name }}.</p>
+        {% if import_report.mapped_plugins %}
+          <p>Mapped plugins: {{ import_report.mapped_plugins|join:", " }}.</p>
+        {% endif %}
+        {% if import_report.restored_plugins %}
+          <p>Restored plugins: {{ import_report.restored_plugins|join:", " }}.</p>
+        {% endif %}
+        {% if import_report.omitted_plugins %}
+          <details>
+            <summary>Omitted plugins</summary>
+            <ul>
+              {% for plugin_name, reason in import_report.omitted_plugins.items %}
+                <li>{{ plugin_name }}: {{ reason }}</li>
+              {% endfor %}
+            </ul>
+          </details>
+        {% endif %}
+        {% if import_report.notes %}
+          <ul>
+            {% for note in import_report.notes %}
+              <li>{{ note }}</li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      </div>
+    {% endif %}
+    <form
+      hx-post='{% url "django_resume:json-resume-import" %}'
+      hx-target="#main-resumes-list"
+      hx-swap="outerHTML"
+      hx-encoding="multipart/form-data"
+      enctype="multipart/form-data"
+      class="stack"
+    >
+      <span class="cluster">
+        <label for="json-resume-file">JSON Resume file:</label>
+        <input id="json-resume-file" type="file" name="file" accept="application/json,.json"/>
+      </span>
+      {% for error in import_form.file.errors %}
+        <p class="error">{{ error|escape }}</p>
+      {% endfor %}
+      <span class="cluster">
+        <label for="json-resume-source-url">JSON Resume URL:</label>
+        <input
+          id="json-resume-source-url"
+          type="url"
+          name="source_url"
+          value="{{ import_form.source_url.value|default_if_none:'' }}"
+          placeholder="https://example.com/resume.json"
+        />
+      </span>
+      {% for error in import_form.source_url.errors %}
+        <p class="error">{{ error|escape }}</p>
+      {% endfor %}
+      <span class="cluster">
+        <label for="json-resume-name">Name of the resume:</label>
+        <input
+          id="json-resume-name"
+          type="text"
+          name="name"
+          value="{{ import_form.name.value|default_if_none:'' }}"
+          placeholder="Defaults to basics.name"
+        />
+      </span>
+      {% for error in import_form.name.errors %}
+        <p class="error">{{ error|escape }}</p>
+      {% endfor %}
+      <span class="cluster">
+        <label for="json-resume-slug">Slug of the resume:</label>
+        <input
+          id="json-resume-slug"
+          type="text"
+          name="slug"
+          value="{{ import_form.slug.value|default_if_none:'' }}"
+          placeholder="unique-slug"
+        />
+      </span>
+      {% for error in import_form.slug.errors %}
+        <p class="error">{{ error|escape }}</p>
+      {% endfor %}
+      <span class="cluster">
+        <label for="json-resume-portable-only">Standard JSON Resume fields only:</label>
+        <input
+          id="json-resume-portable-only"
+          type="checkbox"
+          name="portable_only"
+          {% if import_form.portable_only.value %}checked{% endif %}
+        />
+      </span>
+      {% for error in import_form.non_field_errors %}
+        <p class="error">{{ error|escape }}</p>
+      {% endfor %}
+      <div class="cluster">
+        <button type="submit" class="svg-button">
+          <svg class="edit-icon-small">
+            <use href="#add"></use>
+          </svg>
+        </button>
+      </div>
+    </form>
+  </div>
 </main>

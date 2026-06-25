@@ -416,11 +416,13 @@ out of exported documents, and page config lives in Python page classes rather
 than in ``Resume.plugin_data``, so there is nothing for a JSON Resume adapter
 to pick up. Three boundaries keep the two plans aligned:
 
-* **The page registry owns** ``<slug:slug>/`` **route ordering.** JSON Resume's
-  URL-based export/import endpoints live under the resume slug but are not
-  pages — they render no theme or sections, so they are ordinary non-page
-  routes like ``delete`` and ``cv-redirect``. They must be emitted ahead of the
-  bare catch-all, under the same structural ordering guarantee described in
+* **The page registry owns** ``<slug:slug>/`` **route ordering.** Existing-resume
+  JSON Resume routes such as export, render-theme selection, and rendered-theme
+  previews live under the resume slug but are not pages — they render no normal
+  page theme or sections, so they are ordinary non-page routes like ``delete``
+  and ``cv-redirect``. Create-import has no target resume yet and lives at a
+  top-level non-page URL. All of these routes must be emitted ahead of the bare
+  catch-all, under the same structural ordering guarantee described in
   `Routing`_.
 * **Page access and export permission are different surfaces.** ``check_access``
   gates *viewing* a rendered page (public detail, token-gated CV). JSON Resume

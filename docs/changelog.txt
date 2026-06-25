@@ -27,6 +27,12 @@ Features
   import/render/export check. Import reports lossy portable mappings, rejects
   malformed round-trip envelopes, detects import source-path conflicts, and
   returns clean command errors for unreadable or invalid JSON input files.
+  Authenticated resume owners can also import a JSON Resume file from the
+  resume overview to create a fresh owned resume. The browser workflow accepts
+  an uploaded JSON file or public HTTP(S) JSON URL, a unique slug, an optional
+  name override, and a ``portable only`` option for ignoring django-resume's
+  private round-trip envelope, then reports mapped, restored, omitted, and
+  lossy data inline.
 * Add owner-only JSON Resume theme support. Resume owners can browse a curated
   catalog of deployment-owned, pinned npm JSON Resume themes, preview a catalog
   theme without changing the selected theme, use a separate action to persist a
@@ -55,8 +61,7 @@ Fixes
   the current resume and pinned package version.
 * Document how to export a JSON Resume file and render static HTML outside
   django-resume with ``resumed`` and a locally installed JSON Resume theme.
-* Clarify the website-owner JSON Resume theme link and note that JSON Resume
-  import is not yet available as a practical website-user workflow.
+* Clarify the website-owner JSON Resume theme link.
 
 0.3.0 - 2026-06-21
 ------------------

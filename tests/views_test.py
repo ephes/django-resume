@@ -1,8 +1,11 @@
+import json
 import re
 
 import pytest
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 
+from django_resume.formats.json_resume.importer import MAX_INPUT_BYTES
 from django_resume.models import Resume
 from django_resume.plugins import plugin_registry, TokenPlugin
 
@@ -11,6 +14,14 @@ def anchor_with_attrs(content, href, *attrs):
     lookaheads = "".join(rf"(?=[^>]*\b{re.escape(attr)})" for attr in attrs)
     return re.search(
         rf"<a\b(?=[^>]*\bhref=\"{re.escape(href)}\"){lookaheads}[^>]*>", content
+    )
+
+
+def json_resume_upload(document, *, name="resume.json"):
+    return SimpleUploadedFile(
+        name,
+        json.dumps(document).encode("utf-8"),
+        content_type="application/json",
     )
 
 
@@ -52,6 +63,8 @@ def test_get_resume_list_view(client, resume):
     assert anchor_with_attrs(content, detail_url, 'hx-boost="true"')
     assert anchor_with_attrs(content, cv_url, 'hx-boost="true"')
     assert anchor_with_attrs(content, permission_denied_url, 'hx-boost="true"')
+    assert reverse("resume:json-resume-import") in content
+    assert 'hx-encoding="multipart/form-data"' in content
 
 
 @pytest.mark.django_db
@@ -95,6 +108,300 @@ def test_post_resume_list_view(client, django_user_model):
     # And the form should have an error
     content = r.content.decode("utf-8")
     assert "Enter a valid “slug”" in content
+
+
+@pytest.mark.django_db
+def test_import_json_resume_view_creates_resume(client, django_user_model):
+    user = django_user_model.objects.create_user(username="test", password="test")
+    client.login(username="test", password="test")
+
+    response = client.post(
+        reverse("resume:json-resume-import"),
+        {
+            "file": json_resume_upload(
+                {"basics": {"name": "Browser Jane", "email": "jane@example.com"}}
+            ),
+            "slug": "browser-jane",
+        },
+    )
+
+    assert response.status_code == 200
+    imported = Resume.objects.get(slug="browser-jane")
+    assert imported.owner == user
+    assert imported.name == "Browser Jane"
+    content = response.content.decode("utf-8")
+    assert content.startswith("<main")
+    assert "Imported Browser Jane." in content
+    assert "Mapped plugins:" in content
+
+
+@pytest.mark.django_db
+def test_import_json_resume_view_creates_resume_from_url(
+    client, django_user_model, monkeypatch
+):
+    user = django_user_model.objects.create_user(username="test", password="test")
+    client.login(username="test", password="test")
+
+    def load_document_url(url):
+        assert url == "https://example.com/resume.json"
+        return {"basics": {"name": "URL Jane", "email": "jane@example.com"}}
+
+    monkeypatch.setattr("django_resume.views.load_document_url", load_document_url)
+
+    response = client.post(
+        reverse("resume:json-resume-import"),
+        {
+            "source_url": "https://example.com/resume.json",
+            "slug": "url-jane",
+        },
+    )
+
+    assert response.status_code == 200
+    imported = Resume.objects.get(slug="url-jane")
+    assert imported.owner == user
+    assert imported.name == "URL Jane"
+    assert "Imported URL Jane." in response.content.decode("utf-8")
+
+
+@pytest.mark.django_db
+def test_import_json_resume_view_requires_exactly_one_source(client, django_user_model):
+    django_user_model.objects.create_user(username="test", password="test")
+    client.login(username="test", password="test")
+
+    missing_response = client.post(
+        reverse("resume:json-resume-import"),
+        {"slug": "missing-source"},
+    )
+    assert missing_response.status_code == 200
+    assert "Provide either a JSON Resume file or a JSON Resume URL." in (
+        missing_response.content.decode("utf-8")
+    )
+
+    both_response = client.post(
+        reverse("resume:json-resume-import"),
+        {
+            "file": json_resume_upload({"basics": {"name": "Browser Jane"}}),
+            "source_url": "https://example.com/resume.json",
+            "slug": "both-sources",
+        },
+    )
+    assert both_response.status_code == 200
+    assert "Provide either a JSON Resume file or a JSON Resume URL." in (
+        both_response.content.decode("utf-8")
+    )
+    assert not Resume.objects.filter(
+        slug__in=["missing-source", "both-sources"]
+    ).exists()
+
+
+@pytest.mark.django_db
+def test_import_json_resume_view_requires_login(client):
+    response = client.post(
+        reverse("resume:json-resume-import"),
+        {
+            "file": json_resume_upload({"basics": {"name": "Browser Jane"}}),
+            "slug": "browser-jane",
+        },
+    )
+
+    assert response.status_code == 302
+    assert "login" in response.url
+
+
+@pytest.mark.django_db
+def test_import_json_resume_view_restores_round_trip_plugin_data(
+    client, django_user_model
+):
+    django_user_model.objects.create_user(username="test", password="test")
+    client.login(username="test", password="test")
+
+    response = client.post(
+        reverse("resume:json-resume-import"),
+        {
+            "file": json_resume_upload(
+                {
+                    "basics": {"name": "Round Trip Jane"},
+                    "meta": {
+                        "django_resume": {
+                            "plugin_data": {
+                                "token": {"flat": {"token_required": False}}
+                            }
+                        }
+                    },
+                }
+            ),
+            "slug": "round-trip-jane",
+        },
+    )
+
+    assert response.status_code == 200
+    imported = Resume.objects.get(slug="round-trip-jane")
+    assert imported.plugin_data["token"] == {"flat": {"token_required": False}}
+    content = response.content.decode("utf-8")
+    assert "Restored plugins: token." in content
+
+
+@pytest.mark.django_db
+def test_import_json_resume_view_portable_only_ignores_round_trip_plugin_data(
+    client, django_user_model
+):
+    django_user_model.objects.create_user(username="test", password="test")
+    client.login(username="test", password="test")
+
+    response = client.post(
+        reverse("resume:json-resume-import"),
+        {
+            "file": json_resume_upload(
+                {
+                    "basics": {"name": "Portable Jane"},
+                    "meta": {
+                        "django_resume": {
+                            "plugin_data": {
+                                "token": {"flat": {"token_required": False}}
+                            }
+                        }
+                    },
+                }
+            ),
+            "slug": "portable-jane",
+            "portable_only": "on",
+        },
+    )
+
+    assert response.status_code == 200
+    imported = Resume.objects.get(slug="portable-jane")
+    assert "token" not in imported.plugin_data
+    content = response.content.decode("utf-8")
+    assert "did not store source JSON Resume document" in content
+
+
+@pytest.mark.django_db
+def test_import_json_resume_view_surfaces_duplicate_slug(client, django_user_model):
+    user = django_user_model.objects.create_user(username="test", password="test")
+    Resume.objects.create(name="Existing", slug="existing", owner=user)
+    client.login(username="test", password="test")
+
+    response = client.post(
+        reverse("resume:json-resume-import"),
+        {
+            "file": json_resume_upload({"basics": {"name": "Browser Jane"}}),
+            "slug": "existing",
+        },
+    )
+
+    assert response.status_code == 200
+    assert Resume.objects.filter(slug="existing").count() == 1
+    content = response.content.decode("utf-8")
+    assert "A resume with slug &#x27;existing&#x27; already exists" in content
+
+
+@pytest.mark.django_db
+def test_import_json_resume_view_surfaces_invalid_json(client, django_user_model):
+    django_user_model.objects.create_user(username="test", password="test")
+    client.login(username="test", password="test")
+    upload = SimpleUploadedFile(
+        "resume.json", b'{"basics": ', content_type="application/json"
+    )
+
+    response = client.post(
+        reverse("resume:json-resume-import"),
+        {"file": upload, "slug": "invalid-json"},
+    )
+
+    assert response.status_code == 200
+    assert not Resume.objects.filter(slug="invalid-json").exists()
+    assert "Invalid JSON:" in response.content.decode("utf-8")
+
+
+@pytest.mark.django_db
+def test_import_json_resume_view_rejects_oversize_before_reading(
+    client, django_user_model
+):
+    django_user_model.objects.create_user(username="test", password="test")
+    client.login(username="test", password="test")
+    upload = SimpleUploadedFile(
+        "resume.json", b" " * (MAX_INPUT_BYTES + 1), content_type="application/json"
+    )
+
+    response = client.post(
+        reverse("resume:json-resume-import"),
+        {"file": upload, "slug": "oversize-json"},
+    )
+
+    assert response.status_code == 200
+    assert not Resume.objects.filter(slug="oversize-json").exists()
+    content = response.content.decode("utf-8")
+    assert f"Input exceeds maximum size of {MAX_INPUT_BYTES} bytes" in content
+
+
+@pytest.mark.django_db
+def test_import_json_resume_view_attaches_imported_name_errors_to_name_field(
+    client, django_user_model
+):
+    django_user_model.objects.create_user(username="test", password="test")
+    client.login(username="test", password="test")
+
+    response = client.post(
+        reverse("resume:json-resume-import"),
+        {
+            "file": json_resume_upload({"basics": {"name": "J" * 256}}),
+            "slug": "overlong-imported-name",
+        },
+    )
+
+    assert response.status_code == 200
+    assert not Resume.objects.filter(slug="overlong-imported-name").exists()
+    form = response.context["import_form"]
+    assert "Resume name exceeds maximum length" in form.errors["name"][0]
+    assert "file" not in form.errors
+
+
+@pytest.mark.django_db
+def test_import_json_resume_view_surfaces_schema_errors(client, django_user_model):
+    django_user_model.objects.create_user(username="test", password="test")
+    client.login(username="test", password="test")
+
+    response = client.post(
+        reverse("resume:json-resume-import"),
+        {
+            "file": json_resume_upload(
+                {"basics": {"name": "Browser Jane"}, "work": "not an array"}
+            ),
+            "slug": "schema-error",
+        },
+    )
+
+    assert response.status_code == 200
+    assert not Resume.objects.filter(slug="schema-error").exists()
+    assert "work: &#x27;not an array&#x27; is not of type &#x27;array&#x27;" in (
+        response.content.decode("utf-8")
+    )
+
+
+@pytest.mark.django_db
+def test_import_json_resume_view_attaches_url_schema_errors_to_url_field(
+    client, django_user_model, monkeypatch
+):
+    django_user_model.objects.create_user(username="test", password="test")
+    client.login(username="test", password="test")
+    monkeypatch.setattr(
+        "django_resume.views.load_document_url",
+        lambda _url: {"basics": {"name": "URL Jane"}, "work": "not an array"},
+    )
+
+    response = client.post(
+        reverse("resume:json-resume-import"),
+        {
+            "source_url": "https://example.com/resume.json",
+            "slug": "url-schema-error",
+        },
+    )
+
+    assert response.status_code == 200
+    assert not Resume.objects.filter(slug="url-schema-error").exists()
+    form = response.context["import_form"]
+    assert "work: 'not an array' is not of type 'array'" in form.errors["source_url"]
+    assert "file" not in form.errors
 
 
 @pytest.mark.django_db

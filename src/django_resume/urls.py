@@ -17,6 +17,7 @@ app_name = "django_resume"
 urlpatterns = [
     # resumes (non-page routes)
     path("", views.resume_list, name="list"),
+    path("json-resume/import/", views.import_json_resume, name="json-resume-import"),
     path("<slug:slug>/delete/", views.resume_delete, name="delete"),
     path("<slug:slug>/json-resume/", views.export_json_resume, name="json-resume"),
     path(

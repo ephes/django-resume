@@ -10,6 +10,13 @@ from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 
 from .formats.json_resume.export import export_resume
+from .formats.json_resume.importer import (
+    JsonResumeImportError,
+    MAX_INPUT_BYTES,
+    load_document_bytes,
+    load_document_url,
+    import_resume_document,
+)
 from .formats.json_resume.themes import (
     JsonResumeThemeError,
     UnknownThemeCatalogKey,
@@ -27,8 +34,24 @@ from .formats.json_resume.themes import (
     theme_catalog,
 )
 from .interchange.coordinator import PathConflictError
-from .forms import ResumeForm
+from .forms import JsonResumeImportForm, ResumeForm
 from .models import Resume
+
+
+def _resume_list_context(request: HttpRequest, **extra: Any) -> dict[str, Any]:
+    assert request.user.is_authenticated
+    context: dict[str, Any] = {
+        "is_editable": True,  # needed to include edit styles in the base
+        "resumes": Resume.objects.filter(owner=request.user),
+        "form": ResumeForm(),
+        "import_form": JsonResumeImportForm(),
+    }
+    context.update(extra)
+    return context
+
+
+def _add_import_error(form: JsonResumeImportForm, error: JsonResumeImportError) -> None:
+    form.add_error(error.field or "file", str(error))
 
 
 @login_required
@@ -40,12 +63,7 @@ def resume_list(request: HttpRequest) -> HttpResponse:
     You can add and delete your resumes from this view.
     """
     assert request.user.is_authenticated  # type guard just to make mypy happy
-    my_resumes = Resume.objects.filter(owner=request.user)
-    context: dict[str, Any] = {
-        "is_editable": True,  # needed to include edit styles in the base
-        "resumes": my_resumes,
-        "form": ResumeForm(),
-    }
+    context = _resume_list_context(request)
     if request.method == "POST":
         form = ResumeForm(request.POST)
         context["form"] = form
@@ -62,6 +80,53 @@ def resume_list(request: HttpRequest) -> HttpResponse:
         return render(
             request, "django_resume/pages/plain/resume_list.html", context=context
         )
+
+
+@login_required
+@require_http_methods(["POST"])
+def import_json_resume(request: HttpRequest) -> HttpResponse:
+    """Import an uploaded JSON Resume document as a new owned resume."""
+    assert request.user.is_authenticated
+    form = JsonResumeImportForm(request.POST, request.FILES)
+    context = _resume_list_context(request, import_form=form)
+    if form.is_valid():
+        source_error_field = (
+            "source_url" if form.cleaned_data.get("source_url") else "file"
+        )
+        try:
+            uploaded_file = form.cleaned_data.get("file")
+            if uploaded_file is not None:
+                if uploaded_file.size > MAX_INPUT_BYTES:
+                    raise JsonResumeImportError(
+                        f"Input exceeds maximum size of {MAX_INPUT_BYTES} bytes"
+                    )
+                document = load_document_bytes(
+                    uploaded_file.read(), source=uploaded_file.name
+                )
+            else:
+                document = load_document_url(form.cleaned_data["source_url"])
+            result = import_resume_document(
+                document,
+                owner=request.user,
+                slug=form.cleaned_data["slug"],
+                name=form.cleaned_data["name"] or None,
+                restore_django_resume_data=not form.cleaned_data["portable_only"],
+            )
+        except JsonResumeImportError as exc:
+            _add_import_error(form, exc)
+        else:
+            if result.report.valid:
+                context = _resume_list_context(
+                    request,
+                    imported_resume=result.resume,
+                    import_report=result.report,
+                )
+            else:
+                for error in result.report.validation_errors:
+                    form.add_error(source_error_field, error)
+    return render(
+        request, "django_resume/pages/plain/resume_list_main.html", context=context
+    )
 
 
 @login_required

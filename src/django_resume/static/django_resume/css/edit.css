@@ -69,6 +69,9 @@ input[type="checkbox"] {
   -webkit-appearance: none;
   width: var(--s0);
   height: var(--s0);
+  min-width: 0;
+  padding: 0;
+  flex: 0 0 auto;
   background-color: white;
   border: 1px solid var(--font-color);  /* this color is the border color */
   border-radius: 4px;

@@ -25,6 +25,21 @@ from ..interchange.protocols import AdapterExport, AdapterImport
 from ..formats.json_resume.dates import is_valid_resume_date
 
 
+def _work_description(summary: object, highlights: object) -> str:
+    parts = []
+    if isinstance(summary, str) and summary:
+        parts.append(summary)
+    if isinstance(highlights, list):
+        bullet_lines = [
+            "- " + highlight.replace("\n", " ")
+            for highlight in highlights
+            if isinstance(highlight, str) and highlight
+        ]
+        if bullet_lines:
+            parts.append("\n".join(bullet_lines))
+    return "\n\n".join(parts)
+
+
 class TimelineJsonResumeAdapter:
     owned_paths = ("/work",)
     multivalued_paths = ("/work",)
@@ -79,10 +94,13 @@ class TimelineJsonResumeAdapter:
                     "company_name": entry.get("name", ""),
                     "company_url": entry.get("url", ""),
                     "role": entry.get("position", ""),
-                    "description": entry.get("summary", ""),
+                    "description": _work_description(
+                        entry.get("summary", ""),
+                        entry.get("highlights", []),
+                    ),
                     "start": entry.get("startDate", ""),
                     "end": entry.get("endDate", ""),
-                    "badges": entry.get("highlights", []) or [],
+                    "badges": [],
                     "position": position,
                 }
             )

@@ -1,5 +1,6 @@
 import json
 import json as _json
+import http.client
 import sys
 import time
 from io import StringIO
@@ -12,6 +13,7 @@ from django.db import IntegrityError
 from django.urls import reverse
 
 import django_resume.formats.json_resume as json_resume_pkg
+import django_resume.formats.json_resume.importer as json_resume_importer
 from django_resume.formats.json_resume.dates import is_valid_resume_date
 from django_resume.formats.json_resume.export import export_resume
 from django_resume.formats.json_resume.export import portable_document
@@ -19,6 +21,8 @@ from django_resume.formats.json_resume.importer import (
     JsonResumeImportError,
     MAX_INPUT_BYTES,
     import_resume_document,
+    load_document_bytes,
+    load_document_url,
     load_document,
 )
 from django_resume.formats.json_resume import themes as json_resume_themes
@@ -53,6 +57,7 @@ from django_resume.plugins.skills import SkillsPlugin
 from django_resume.plugins.timelines import (
     FreelanceTimelinePlugin,
     EmployedTimelinePlugin,
+    TimelineJsonResumeAdapter,
 )
 
 
@@ -243,6 +248,35 @@ def test_both_timeline_plugins_declare_multivalued_work():
         adapter = plugin_cls().get_export_adapters()["json_resume"]
         assert adapter.owned_paths == ("/work",)
         assert adapter.multivalued_paths == ("/work",)
+
+
+def test_timeline_import_maps_work_highlights_to_description_bullets():
+    adapter = TimelineJsonResumeAdapter()
+    result = adapter.import_data(
+        {
+            "work": [
+                {
+                    "name": "Integrus AI",
+                    "position": "Appointment Setter (Part-time)",
+                    "startDate": "2025-01",
+                    "endDate": "2026-02",
+                    "highlights": [
+                        "Managed scheduling and client communication",
+                        "Demonstrated strong organization skills",
+                    ],
+                }
+            ]
+        }
+    )
+
+    [item] = result.plugin_data["items"]
+    assert item["company_name"] == "Integrus AI"
+    assert item["role"] == "Appointment Setter (Part-time)"
+    assert item["badges"] == []
+    assert item["description"] == (
+        "- Managed scheduling and client communication\n"
+        "- Demonstrated strong organization skills"
+    )
 
 
 def test_projects_adapter_maps_items(resume):
@@ -498,11 +532,12 @@ def test_import_resume_document_creates_resume_from_portable_json(user):
     assert imported.name == "Jane Doe"
     assert imported.plugin_data["identity"]["github"] == "https://github.com/jane"
     assert imported.plugin_data["about"]["text"] == "Hello"
-    assert imported.plugin_data["skills"]["badges"] == ["Python"]
+    assert imported.plugin_data["skills"]["badges"] == ["Django", "pytest"]
     assert imported.plugin_data["education"]["start"] == "2010"
-    assert (
-        imported.plugin_data["employed_timeline"]["items"][0]["company_name"] == "Acme"
-    )
+    [work_item] = imported.plugin_data["employed_timeline"]["items"]
+    assert work_item["company_name"] == "Acme"
+    assert work_item["badges"] == []
+    assert work_item["description"] == "Built things\n\n- Django"
     assert imported.plugin_data["projects"]["items"][0]["title"] == "Tool"
     assert "identity" in result.report.mapped_plugins
     notes = "\n".join(result.report.notes)
@@ -511,9 +546,59 @@ def test_import_resume_document_creates_resume_from_portable_json(user):
     assert "about.title defaulted to 'About'" in notes
     assert "education entries beyond the first were not imported" in notes
     assert "skills entry 'Python' level is not imported" in notes
-    assert "skills entry 'Python' keywords are not imported" in notes
+    assert "skills entry 'Python' category name is not imported" in notes
     assert "freelance and employed" in notes
     assert "projects.flat.title defaulted to 'Projects'" in notes
+
+
+@pytest.mark.django_db
+def test_import_resume_document_maps_json_resume_skill_keywords_as_badges(user):
+    user.save()
+    document = {
+        "basics": {"name": "Aly"},
+        "skills": [
+            {
+                "name": "Programming Languages",
+                "keywords": ["C", "C++", "Java", "Python", "Go"],
+            },
+            {
+                "name": "Web & Backend",
+                "keywords": ["Node.js", "Express", "React", "REST APIs"],
+            },
+            {"name": "Databases", "keywords": ["MySQL"]},
+        ],
+        "projects": [
+            {
+                "name": "Chess Game",
+                "description": "Fully functional chess game",
+                "keywords": ["Java", "Swing", "OOP"],
+            }
+        ],
+    }
+
+    result = import_resume_document(document, owner=user, slug="aly-skills")
+
+    assert result.resume is not None
+    imported = Resume.objects.get(slug="aly-skills")
+    assert imported.plugin_data["skills"]["badges"] == [
+        "C",
+        "C++",
+        "Java",
+        "Python",
+        "Go",
+        "Node.js",
+        "Express",
+        "React",
+        "REST APIs",
+        "MySQL",
+    ]
+    assert imported.plugin_data["projects"]["items"][0]["badges"] == [
+        "Java",
+        "Swing",
+        "OOP",
+    ]
+    notes = "\n".join(result.report.notes)
+    assert "skills entry 'Programming Languages' category name is not imported" in notes
 
 
 @pytest.mark.django_db
@@ -1829,3 +1914,139 @@ def test_load_document_rejects_invalid_json(tmp_path):
     path.write_text('{"basics": ', encoding="utf-8")
     with pytest.raises(JsonResumeImportError, match="Invalid JSON"):
         load_document(path)
+
+
+def test_load_document_bytes_rejects_duplicate_keys():
+    with pytest.raises(JsonResumeImportError, match="Duplicate JSON object key"):
+        load_document_bytes(b'{"basics": {"name": "Jane", "name": "Janet"}}')
+
+
+def test_load_document_bytes_rejects_oversize_input():
+    with pytest.raises(JsonResumeImportError, match="Input exceeds maximum size"):
+        load_document_bytes(b" " * (MAX_INPUT_BYTES + 1))
+
+
+def test_load_document_url_rejects_non_http_url():
+    with pytest.raises(JsonResumeImportError, match="must use http or https") as exc:
+        load_document_url("file:///tmp/resume.json")
+    assert exc.value.field == "source_url"
+
+
+def test_load_document_url_rejects_invalid_port():
+    with pytest.raises(JsonResumeImportError, match="Invalid JSON Resume URL port"):
+        load_document_url("https://example.com:99999/resume.json")
+
+
+def test_load_document_url_rejects_localhost():
+    with pytest.raises(JsonResumeImportError, match="must resolve to a public address"):
+        load_document_url("http://localhost/resume.json")
+
+
+def test_import_url_address_check_rejects_ipv4_mapped_private_addresses():
+    assert not json_resume_importer._is_public_address("::ffff:127.0.0.1")
+    assert not json_resume_importer._is_public_address("::ffff:169.254.169.254")
+    assert json_resume_importer._is_public_address("::ffff:8.8.8.8")
+
+
+def test_load_document_url_does_not_read_redirect_response_body(monkeypatch):
+    class FakeResponse:
+        def __init__(self, status, *, location=None, body=b""):
+            self.status = status
+            self._location = location
+            self._body = body
+            self.headers = {}
+
+        def getheader(self, name):
+            if name == "Location":
+                return self._location
+            return None
+
+        def read(self, *args):
+            if self.status in {301, 302, 303, 307, 308}:
+                raise AssertionError("redirect response body should not be read")
+            assert args == (MAX_INPUT_BYTES + 1,)
+            return self._body
+
+    class FakeConnection:
+        def __init__(self, response):
+            self.response = response
+
+        def request(self, *args, **kwargs):
+            pass
+
+        def getresponse(self):
+            return self.response
+
+        def close(self):
+            pass
+
+    def validate(url):
+        return json_resume_importer._ResolvedImportURL(
+            url=url,
+            scheme="https",
+            hostname="example.com",
+            port=443,
+            address="93.184.216.34",
+            request_target="/resume.json",
+            host_header="example.com",
+        )
+
+    connections = iter(
+        [
+            FakeConnection(
+                FakeResponse(
+                    302,
+                    location="https://example.com/redirected-resume.json",
+                )
+            ),
+            FakeConnection(
+                FakeResponse(200, body=b'{"basics": {"name": "Redirect Jane"}}')
+            ),
+        ]
+    )
+    monkeypatch.setattr(json_resume_importer, "_validate_import_url", validate)
+    monkeypatch.setattr(
+        json_resume_importer,
+        "_connection_for_url",
+        lambda _url: next(connections),
+    )
+
+    document = load_document_url("https://example.com/resume.json")
+
+    assert document["basics"]["name"] == "Redirect Jane"
+
+
+def test_load_document_url_wraps_malformed_http_response(monkeypatch):
+    class BadConnection:
+        def request(self, *args, **kwargs):
+            pass
+
+        def getresponse(self):
+            raise http.client.BadStatusLine("not http")
+
+        def close(self):
+            pass
+
+    def validate(url):
+        return json_resume_importer._ResolvedImportURL(
+            url=url,
+            scheme="https",
+            hostname="example.com",
+            port=443,
+            address="93.184.216.34",
+            request_target="/resume.json",
+            host_header="example.com",
+        )
+
+    monkeypatch.setattr(json_resume_importer, "_validate_import_url", validate)
+    monkeypatch.setattr(
+        json_resume_importer,
+        "_connection_for_url",
+        lambda _url: BadConnection(),
+    )
+
+    with pytest.raises(
+        JsonResumeImportError, match="Could not read JSON Resume URL"
+    ) as exc:
+        load_document_url("https://example.com/resume.json")
+    assert exc.value.field == "source_url"

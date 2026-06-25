@@ -1122,9 +1122,15 @@ non-page ``<slug>/json-resume/`` route, which is ordered before the page
 registry catch-all.
 
 ``import_json_resume`` creates a new resume for a caller-supplied owner and slug.
-By default, if ``meta.django_resume.plugin_data`` is present, that payload is
-restored into the new resume. Passing ``--portable-only`` ignores the envelope
-and maps standard JSON Resume sections through plugin-owned import adapters.
+Authenticated owners can run the same create-only import from the resume
+overview by uploading a JSON Resume file, or by providing a public HTTP(S) JSON
+Resume URL, plus a new slug; the browser flow always assigns ownership to the
+current user and reports the import result inline. By default, if
+``meta.django_resume.plugin_data`` is present, that
+payload is restored into the new resume. Passing ``--portable-only`` in the
+command, or selecting **Standard JSON Resume fields only** in the browser,
+ignores the envelope and maps standard JSON Resume sections through plugin-owned
+import adapters.
 The restored plugin-data envelope is validated before writing: it must be an
 object whose values are plugin payload objects. Import adapter source paths are
 checked for duplicate or overlapping claims before any adapter data is applied.
