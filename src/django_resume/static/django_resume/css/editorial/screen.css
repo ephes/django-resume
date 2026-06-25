@@ -48,8 +48,8 @@
   --date-tab-block: 1.8rem;      /* rendered height of the absolute date tab (font --s0, line-height 1.4, +0.2em padding) */
   --entry-pad-top: calc(var(--date-tab-block) + var(--s-1));   /* entry TOP padding: clears the date tab + a small gap to the headline; print shrinks just the gap. --entry-pad stays the bottom value */
   --sheet-max: 64rem;            /* content sheet max width — also the axis the side art crops against */
-  --bg-anchor: var(--sheet-max); /* axis the side art parks against; lowered in the tablet tier so the art peeks before the desktop width (decoupled from the sheet width) */
-  --cv-peek: 3rem;               /* width of side-art revealed beside the sheet in the tablet tier */
+  --bg-anchor: var(--sheet-max); /* axis the side art parks against; lowered to 22rem from the tablet tier UP (and kept lowered through desktop) so the art peeks earlier and more, decoupled from the sheet width. This default only applies below the tablet tier, where there is no art. */
+  --cv-peek: 3rem;               /* width of side-art revealed beside the sheet; 6rem from the tablet tier up */
   --aside-basis: 22rem;          /* fixed sidebar width, shared by header + body so dividers align */
   --bg-keep: 0.65;               /* fraction of the side art kept clear of the content (the other ~35% may slide under) */
   --bg-w-left: calc(100vh * 1118 / 2200);   /* art display width = aspect x viewport height */
@@ -113,8 +113,9 @@ body.editorial-page {
    NOT the @container block below: body is itself the query container, so it can't
    respond to its own @container rule (the dark would otherwise leak onto the desktop
    side-art margins, which multiply against the body backdrop). body width ≈ viewport
-   here, so 64rem lines up with the container breakpoint. */
-@media (min-width: 64rem) {
+   here, so this MUST track the two-column container breakpoint (61rem): from there
+   the desktop sheet-overlay structure is active and the body shows in the art margins. */
+@media (min-width: 61rem) {
   body.editorial-page { background-color: var(--editorial-bg); }
 }
 
@@ -1092,7 +1093,9 @@ html.js-lines .cv-header-aside::before { display: none; }
      --aside-basis wide, so the award column divider falls on the SAME vertical axis
      as the main|aside divider in the header + body above it (one continuous line). */
   .cv-awards-bar section { grid-template-columns: 0.5fr 1.2fr var(--aside-basis); gap: 0; }
-  .cv-awards-inner { padding-block: var(--s2); padding-inline: var(--sheet-pad-inline); }
+  /* match the sheet's narrowed width (it is capped by the side-art peek), so the
+     award column divider stays on the same axis as the header/body dividers */
+  .cv-awards-inner { max-inline-size: min(var(--sheet-max), calc(100cqi - 2 * var(--cv-peek))); padding-block: var(--s2); padding-inline: var(--sheet-pad-inline); }
   .cv-awards-bar h2 { text-align: start; line-height: 1.4; padding-block-end: 0; border-block-end: 0; margin-block-end: 0; }   /* no heading rule on desktop */
   .cv-awards-bar .award-box { padding-inline: var(--s1); text-align: start; }
   .cv-awards-bar .award-box + .award-box { margin-block-start: 0; }
