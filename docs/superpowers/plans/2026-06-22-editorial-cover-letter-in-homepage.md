@@ -10,18 +10,28 @@
 
 **Design spec:** `~/gitprojects/django-resume/docs/superpowers/specs/2026-06-22-editorial-cover-letter-and-handwriting-migration-design.md` (local/untracked).
 
-## Status (as of 2026-06-23 handoff)
+## Status (as of 2026-06-25)
 
 **Done & pushed:**
 - **Task 1** (homepage `1c57b2c`): django-resume pinned as a **git source** on branch `editorial-theme` in `pyproject.toml` + `commands.py` switches. `uv run` is now safe (serves the editorial theme, not PyPI 0.2.0).
 - **Task 2** (homepage `6fe3faa`): cover fields added via the homepage `CoverPlugin` subclass app `homepage/resume_cover/` (`closing`, `signature_name`, `signature_img`, `clear_signature`; `get_context` adds `signature_img_url`), registered in `INSTALLED_APPS` after `django_resume`. Tests pass.
 - **Bonus editorial-theme fixes** (django-resume `editorial-theme`, pushed to `64fa0e4`): timeline edit form date-tab fly-off + entry-padding collapse (`4b1cb7d`); all identity fields except `name` made optional (`55a6ac6`). homepage relocked to `64fa0e4` (homepage `3f3e9dc`).
 
-**Current state:** homepage on branch `editorial-resume-theme` @ `3f3e9dc`; django-resume git-sourced at `editorial-theme` @ `64fa0e4` (no editable install — `uv run` is durable). Dev server running at `:8003`. Owner login `katharina` / `Passwort`; edit mode = login + `?edit=true` same-host.
+**Tasks 3–5 done (homepage):**
+- **Task 3** (`042bcfc`): `resume_detail.html` editorial shell + shared identity header.
+- **Task 4** (`cbd666e`): cover content templates (meta-head, body, signature) + the `ImageFormMixin` signature-upload fix (`EditorialCoverFlatForm.do_clean_image_field`) + the `flat_form.html` override exposing closing/signature inputs.
+- **Task 5** (`73b314a`): `cover.css` — tile-in-bleed frame, larger non-animated handwriting signature, black footer; tuned to the reference PDF.
+- The reference letter is seeded into katharina's resume `plugin_data` (local DB), editable via the inline UI.
 
-**Next:** **Task 3** onward (resume_detail override → cover templates → cover.css → print → verify). See the handoff prompt / the per-task DONE banners below.
+**Big detour — responsive editorial CV rework (django-resume `editorial-theme`, pushed @ `c353b64`):** scope expanded beyond "CV untouched" into a full responsive rework of the CV (own spec: `docs/superpowers/specs/2026-06-24-editorial-responsive-tablet-tier-design.md`). The mobile single-column structure now runs up to a ~975px two-column breakpoint (awards interleave, header rules unchanged); the side illustration peeks as a **fixed backdrop** in the tablet single-column range; the **name size is one continuous clamp**; the **content padding is fluid**; the **single-column header was re-architected** (photo sized to firstname + 2× padding, contact rail line docked to the photo clip's bottom Spitze). Independently reviewed by a GPT/Codex pass — round 2 CLEAN (3 round-1 warnings fixed in `c353b64`). `cover.css` was adapted to the shared single-column structure (re-assert the sheet as a flex box; neutralize the CV's `-100dvh` overlay) in homepage `2a03771`, which also relocked homepage to django-resume @ `c353b64`.
 
-**Known gotchas for the next tasks:** the `ImageFormMixin` second-image bug (`images.py` hardcodes `cleaned_data["avatar_img"]` for dimension calc → signature upload crashes with no avatar — handle in `EditorialCoverFlatForm`); and the cover `flat_form.html` hardcodes its rendered fields (override it in homepage to expose the new signature/closing inputs).
+**Current state:** homepage on `editorial-resume-theme` with **5 unpushed commits** (`87d3b11`, `042bcfc`, `cbd666e`, `73b314a`, `2a03771` — owner pushes these); django-resume git-sourced at `editorial-theme` @ `c353b64` (no editable install — `uv run` is durable, serves the rework). Dev server at `:8003`. Owner login `katharina` / `Passwort`; edit mode = login + `?edit=true` same-host.
+
+**Open / next session:**
+- **⚠ Mobile + tablet: one small refinement still pending (TODO — owner to specify the exact item).** Candidates to re-check after the responsive rework: the single-column photo size in the upper band (~850–975px, it scales up with the name), and a full mobile-portrait pass.
+- **Cover-letter reduced illustration:** the letter has no illustration on mobile/tablet yet — owner will provide a strongly reduced asset to hang in as a backdrop (the CV-side backdrop mechanism already exists; re-add a `bg-layer` to the letter, scoped, coupled to the tiers).
+- **Task 6 (A4 print stylesheet)** and **Task 7 (verify + sign-off)** still pending.
+- **Downloadable output PDFs** (CV + cover letter): see the homepage backlog `docs/dev/backlog.txt`; generation mechanism still to be decided with a developer.
 
 ## Global Constraints
 
