@@ -60,7 +60,7 @@
   --photo-bleed-left: clamp(0rem, calc(100vw - 50rem), 2.38rem);
   /* sheet inline padding: ~20px on a phone → 3.7rem rail inset on desktop.
      Symmetric (both sides); the date tabs bleed past it on the right. */
-  --sheet-pad-inline: clamp(1.25rem, calc(6.3vw - 0.3rem), 3.7rem);
+  --sheet-pad-inline: clamp(1.25rem, calc(6.3vw - 1.6rem), 3.7rem);
   --script-lead: 4.6rem;         /* horizontal script labels: Work Experience + Awards (coupled) */
   --script-rail: 3rem;           /* vertical (rotated) rail labels: Contact / Let's talk about / Education */
 
@@ -181,13 +181,12 @@ a { color: inherit; }
    sits aligned and centred. Excludes the cover letter (.cover-sheet), which has
    no photo. The two-column tier overrides both back to the desktop layout. */
 .editorial-sheet:not(.cover-sheet) {
-  /* shrink the name a touch in single-column (proportional firstname:lastname) */
-  --name-scale: 0.85;
   /* photo column = firstname width (~3.82x its font) + a sheet-padding each side,
-     so the photo is the name width plus 2x the inline padding. Capped so the
-     vertical "Contact" still fits in the side gap. */
+     so the photo is the name width plus 2x the inline padding. Same clamp as
+     .cv-firstname (keep in sync). Capped so the vertical "Contact" still fits in
+     the side gap. */
   --id-col: min(
-    calc(3.82 * var(--name-scale, 1) * clamp(3rem, 14.3vw, 6.5rem) + 2 * var(--sheet-pad-inline)),
+    calc(3.82 * clamp(2.7rem, 8vw, 6.5rem) + 2 * var(--sheet-pad-inline)),
     calc(100% - 2 * var(--script-rail))
   );
 }
@@ -341,9 +340,12 @@ a { color: inherit; }
   /* fluid; the vw term only bites below the 6.5rem cap (≈ phones/tablets), so the
      desktop name (capped) is unchanged — it just lets the name grow on phones,
      ~ up to the photo's right edge */
-  /* --name-scale (default 1) lets the CV single-column shrink the name a touch
-     while keeping firstname:lastname proportion; the photo column tracks it. */
-  font-size: calc(var(--name-scale, 1) * clamp(3rem, 14.3vw, 6.5rem));
+  /* one continuous clamp from the phone size up to the 6.5rem cap, which it only
+     reaches on a wide desktop (~1300px = 8vw). So the name shrinks continuously
+     as the viewport narrows — THROUGH the two-column range (≥975px) and on into
+     single-column — instead of staying full-size until it suddenly reflows. The
+     photo column tracks the same clamp. */
+  font-size: clamp(2.7rem, 8vw, 6.5rem);
   /* optically pull the first glyph flush with the tracked surname below it;
      em-based so it scales with the (fluid) name size */
   text-indent: -0.085em;
@@ -353,7 +355,7 @@ a { color: inherit; }
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  font-size: calc(var(--name-scale, 1) * clamp(1.1rem, 5.7vw, 2.2rem));
+  font-size: clamp(1rem, 2.71vw, 2.2rem);   /* proportional to the firstname; caps with it at ~1300px */
 }
 .cv-role { margin: var(--s-1) 0 0; font-size: var(--role-size); font-weight: 350; text-align: end; }
 
@@ -986,35 +988,69 @@ html.js-lines .cv-header-aside::before { display: none; }
 }
 
 /* ===================================================== tablet tier =========
- * Container query (not media query). At this width the decorative side art is
- * brought in (peeking beside a sheet that is now narrower than the container)
- * together with the torn paper edges, while the CV stays SINGLE-column. Below
- * this the sheet is full-bleed with no art and no outer lines (phone portrait). */
+ * Container query (not media query). The SINGLE-COLUMN (mobile) structure is
+ * kept here — we do NOT switch to the desktop two-column architecture. We just
+ * narrow the creme content panel (.cv-root) and bring the side illustration in
+ * as a FIXED backdrop that peeks in the side gaps. Awards/order/header all stay
+ * exactly as on mobile (no duplication). Below this: full-bleed, no art.
+ * --bg-anchor parks the art at the container edges (decoupled from the panel
+ * width). The cover letter (its cv-root contains .cover-sheet) is excluded — it
+ * has its own width handling. */
 @container editorial (min-width: 46rem) {
-  /* --bg-anchor lowered so the art parks at the container edges (decoupled from
-     the full sheet width), making it peek well before the desktop width. */
-  /* single-column shows a generous side gap so more of the illustration reads;
-     the two-column tier tightens it back (less room with two columns). */
-  .cv-root { display: block; padding-inline: 0; padding-block-end: 0; background-color: transparent; --bg-anchor: 22rem; --cv-peek: 6rem; }
+  .cv-root { --bg-anchor: 22rem; --cv-peek: 6rem; }
+  .cv-root:not(:has(.cover-sheet)) {
+    max-inline-size: min(var(--sheet-max), calc(100cqi - 2 * var(--cv-peek)));
+    margin-inline: auto;
+    position: relative;
+    isolation: isolate;   /* own stacking context so the art backdrop stays above the dark page, not behind it */
+  }
+  /* creme panel ABOVE the art (paints after the bg-layer, same negative z), so it
+     covers the art in the middle; the art shows only in the side gaps. */
+  .cv-root:not(:has(.cover-sheet))::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background-color: var(--editorial-bg);
+    background-image: url("../../img/white-linen.png");
+    background-size: 560px;
+  }
+  /* the side art becomes a fixed backdrop in the cv-root stacking context (z:-1),
+     behind the creme panel above. It fills the viewport; the narrowed panel covers
+     the middle, leaving the art visible in the side gaps. */
+  .cv-bg-layer {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+  }
+}
+
+/* ===================================================== wide tier ============
+ * Switches to the desktop two-column architecture at ~975px. The content padding
+ * (--sheet-pad-inline) is fluid and tightens at the narrow end so the main column
+ * + the fixed 22rem sidebar fit beside each other WITH the 6rem side-art peek. */
+@container editorial (min-width: 61rem) {
+  /* NOW switch to the desktop sheet-as-overlay structure: the sticky side art +
+     the sheet pulled up over it, replacing the single-column fixed backdrop. */
+  .cv-root { display: block; padding-inline: 0; padding-block-end: 0; background-color: transparent; }
+  .cv-root:not(:has(.cover-sheet)) { max-inline-size: none; margin-inline: 0; isolation: auto; }
+  .cv-root:not(:has(.cover-sheet))::after { content: none; }   /* no single-column creme panel on desktop (the sheet is the creme) */
   .cv-stage { display: block; }
   .editorial-sheet {
-    display: flex;                 /* restore the .stack column */
+    display: flex;
     margin-block-start: -100vh;
-    margin-block-start: -100dvh;   /* pull the sheet up over the sticky side art */
-    /* narrower than the container so the side art peeks in the side gaps */
+    margin-block-start: -100dvh;
     max-inline-size: min(var(--sheet-max), calc(100cqi - 2 * var(--cv-peek)));
   }
   .editorial-sheet::before,
   .editorial-sheet::after { display: block; }   /* torn paper edges */
-  .cv-bg-layer { display: block; }
-}
-
-/* ===================================================== wide tier ============
- * Adds the two-column CV architecture on top of the tablet tier, once there is
- * enough width for two columns to read comfortably (~975px). */
-@container editorial (min-width: 61rem) {
-  .cv-root { --cv-peek: 3rem; }   /* tighter side gap once two columns appear */
-  .editorial-sheet:not(.cover-sheet) { --name-scale: 1; }   /* full-size name in two columns */
+  .cv-bg-layer { position: sticky; inset: auto; top: 0; z-index: 0; }
+  /* undo the single-column identity-column constraints (same specificity as the
+     base rules, so these actually win on desktop): full-width header, no Spitze
+     shift on the contact aside. */
+  .editorial-sheet:not(.cover-sheet) .cv-header { max-inline-size: none; margin-inline: 0; }
+  .editorial-sheet:not(.cover-sheet) .cv-header-aside { margin-inline-start: 0; }
   .cv-body { display: flex; }
   .cv-aside { display: flex; }          /* restore the .stack-large column */
   .cv-main {
