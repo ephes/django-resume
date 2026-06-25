@@ -177,6 +177,39 @@ ordering.
 
 See :doc:`application_workflows` and :doc:`page_plugins`.
 
+First Export Slice Design Notes
+-------------------------------
+
+The first implemented slice was deliberately consumer-driven: export one
+resume to a JSON Resume v1.0.0 document, and use that concrete consumer to
+shape the reusable structured-facts API. This avoided designing a broad
+structured-data abstraction in isolation while still creating the primitive
+needed by later import/export, workflow, and agent-assisted features.
+
+The slice introduced ``get_structured_data(resume) -> dict`` on content
+plugins. The method returns normalized, JSON-serializable, format-neutral facts
+with stable field names and machine-readable values. Markdown stays as source
+text, media references are resolved by the owning plugin, and dates are returned
+as stored so format adapters can decide whether to emit, normalize, or report
+them. Plugins opt out by returning an empty dictionary.
+
+Format-specific mapping stays plugin-owned through export adapters exposed by
+``get_export_adapters()``. An adapter declares the JSON Pointer paths it owns,
+exports contributions for those paths, and returns notes for dropped fields or
+lossy mappings. The coordinator discovers adapters through the plugin registry,
+rejects overlapping scalar/object ownership, concatenates array contributions
+only when every contributor declares the path multivalued, assembles the
+document, validates it, and returns a report. Raw adapterless plugin payloads
+are never dumped into the portable JSON Resume document.
+
+Schema pinning was resolved against JSON Resume v1.0.0 and the schema is
+vendored into the package. Validation is offline: django-resume must not fetch a
+schema at runtime, and ``meta.version`` must not be treated as a schema version
+selector. The pinned schema rejects new top-level keys, but the defined
+``meta`` object and section array items allow additional properties. That means
+django-resume extension data belongs under ``meta.django_resume`` or item-level
+namespaced fields when those phases need it, never at a new top-level key.
+
 External JSON Resume Render Themes
 ----------------------------------
 
