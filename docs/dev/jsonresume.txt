@@ -91,6 +91,10 @@ decisions and should not contradict them.
   ``Resume.plugin_data`` because that field is plugin-owned. Add a dedicated
   core-owned JSON field such as ``Resume.integration_data`` and store JSON Resume
   envelope state under ``integration_data["json_resume"]``.
+  The current implementation stores restorable plugin fallback payloads under
+  ``meta.django_resume.plugin_data``; older planning text that names
+  ``meta.django_resume.plugins`` describes the same fallback concept, not a
+  second implemented envelope.
 * Validation should be layered. django-resume should validate a portable JSON
   Resume projection of exported and incoming documents against a pinned copy of
   the upstream schema before export or import. When the pinned schema permits
@@ -170,12 +174,91 @@ The extension envelope should not be used to preserve layout, routing,
 permission, token, workflow, or delivery state unless a future django-resume
 import/export format explicitly opts into that application-private data.
 
-JSON Resume's own URL-based import/export endpoints live under the resume slug,
-so they are ordinary non-page routes that must be ordered ahead of the page
-registry's catch-all ``<slug:slug>/`` route; the page registry owns that
-ordering.
+Existing-resume JSON Resume routes such as export, render-theme selection, and
+rendered-theme previews live under the resume slug, so they are ordinary
+non-page routes that must be ordered ahead of the page registry's catch-all
+``<slug:slug>/`` route; the page registry owns that ordering. Create-import has
+no target resume yet and lives at a top-level non-page URL, but it still must be
+registered before slug catch-alls so ``json-resume/import/`` is never mistaken
+for a resume slug.
 
 See :doc:`application_workflows` and :doc:`page_plugins`.
+
+Relationship To The JSON Resume Registry
+----------------------------------------
+
+The public JSON Resume registry and editor suggest a workflow that overlaps
+with django-resume but starts from a different ownership model.
+
+The registry treats ``resume.json`` as the canonical source. A user can create
+a GitHub Gist named ``resume.json`` or use the editor at
+``registry.jsonresume.org`` after signing in with GitHub. The registry then
+discovers that Gist for ``registry.jsonresume.org/<github-username>``, renders
+it with a JSON Resume theme, and exposes raw formats such as
+``/<github-username>.json``, ``.yaml``, and ``.txt``. Multiple files can be
+selected with a ``gistname`` query parameter, and a JSON Resume document can set
+``meta.theme`` to choose a registry theme.
+
+django-resume currently treats the Django database and plugin data as the
+canonical source. JSON Resume is an interchange and rendering projection: users
+can import standard JSON Resume files into django-resume, export a resume to a
+schema-valid JSON Resume document, and render that projection with curated JSON
+Resume themes. django-resume also stores application-private data such as
+tokens, plugin state, integration snapshots, page themes, and future workflow
+metadata that should not automatically become public registry data.
+
+The two approaches are similar in useful ways:
+
+* both keep resume facts structured instead of locked into one HTML template;
+* both can render the same data through multiple themes;
+* both benefit from source-control workflows and machine-readable validation;
+* both can use JSON Resume as a lowest-common-denominator format for common
+  facts such as identity, work, education, skills, and projects.
+
+The differences matter for product design:
+
+* JSON Resume registry publishing is URL-first and GitHub/Gist-centered, while
+  django-resume is site-owner-controlled and database-backed.
+* Registry/editor edits change the JSON Resume source directly; django-resume
+  edits plugin-owned data and then exports or renders a JSON Resume projection.
+* The registry has no django-resume concepts for private CV tokens, page plugin
+  routing, plugin-specific forms, site-local themes, or application workflow
+  state.
+* A public Gist-backed registry resume is convenient to share, but it is a bad
+  place for django-resume's private ``meta.django_resume.plugin_data`` envelope.
+  Exports intended for public registry use should use only standard JSON Resume
+  fields or have the private envelope stripped.
+
+This leaves several possible future directions:
+
+* **Use registry URLs as import sources.** The browser import already accepts
+  public HTTP(S) JSON URLs, so a registry raw URL such as
+  ``https://registry.jsonresume.org/<github-username>.json`` can bootstrap a
+  django-resume resume.
+* **Offer a GitHub/Gist publishing workflow.** django-resume could export the
+  portable JSON Resume projection, push or open a PR against a configured Gist
+  or repository, and let the JSON Resume registry render that public artifact.
+  This should be explicit because it publishes personal data outside the Django
+  site.
+* **Mirror a GitHub source.** A deployment could periodically pull a user's
+  ``resume.json`` from GitHub and create or update a django-resume resume. This
+  needs the deferred update-mode design, previews, and conservative merge rules
+  before it should modify existing resumes.
+* **Embed a JSON Resume editor-like workflow.** django-resume could eventually
+  add a raw JSON Resume editor or side-by-side projection editor for advanced
+  users. That would be a different editing surface from plugin forms and should
+  show exactly which standard fields will map into plugin data and which fields
+  will only be preserved for re-export.
+* **Render alternate pages from JSON Resume projections.** Page plugins could
+  expose pages that intentionally render the portable JSON Resume projection,
+  similar to registry themes, while ordinary django-resume pages continue to
+  render plugin data directly.
+
+The guiding principle should be source clarity. A resume should have one
+declared editing source for each workflow: either django-resume plugin data,
+or an external JSON Resume document mirrored from GitHub, or a published
+portable projection. Mixing these without previews and provenance would make
+updates and data loss difficult to reason about.
 
 First Export Slice Design Notes
 -------------------------------
@@ -1043,22 +1126,28 @@ The expected fidelity is phase-aware:
 Remaining Work
 --------------
 
-Blocking tasks for initial implementation:
+Remaining JSON Resume import/export work:
 
-* Resolve the schema-pinning open question by selecting the upstream schema
-  version used for validation.
-* After schema pinning, compare schema fields against django-resume's existing
-  models and bundled plugins.
-* Define the minimal shared plugin facts primitives needed by JSON Resume
-  adapters so the initial adapters do not diverge from the later structured-data
-  API.
+* Keep adapter mappings aligned with real-world JSON Resume documents. Current
+  known normalizations include importing ``skills[].keywords`` as django-resume
+  skill badges, treating ``skills[].name`` as a category when keywords are
+  present, and importing ``work[].highlights`` as description bullet lines
+  rather than long timeline badges.
+* Decide whether browser import needs an explicit preview step before creating
+  the new resume. The current create-only workflow validates and imports in one
+  POST, then reports mapped, restored, omitted, and lossy data inline.
+* Design update-in-place imports with previews, per-section confirmation,
+  stable item identity, and conservative clearing semantics before allowing a
+  JSON Resume document to modify an existing resume.
 * Define the fallback declaration and validator contract for export-safe,
-  restorable, export-only, and redacted fallback payloads.
-* Identify lossy mappings in both directions.
-* Add validation tests covering ``meta.django_resume`` and schema-allowed
-  item-level namespaced fields.
-* Check whether existing JSON Resume tooling can be reused for validation or
-  conversion tests.
+  restorable, export-only, and redacted fallback payloads beyond the current
+  ``meta.django_resume.plugin_data`` restoration rules.
+* Decide whether item-level namespaced fields such as ``x-django-resume`` should
+  be consumed back into plugin storage after stable item identity exists.
+* Add more real-world fixture coverage from registry and editor-generated
+  documents where they expose mapping gaps.
+* Check whether existing JSON Resume tooling can be reused for conversion tests
+  without adding fragile runtime dependencies.
 
 Remaining JSON Resume theme-rendering work:
 
@@ -1150,7 +1239,7 @@ The current portable ``/work`` import maps all entries into
 freelance/employed timeline split.
 Portable import also reports currently unsupported standard fields such as
 additional education entries, unmapped profile networks, ``basics.url``, skill
-levels or keywords, and defaulted section titles.
+levels, and defaulted section titles.
 JSON Resume render theme support currently lets authenticated owners browse a
 curated catalog, and optionally search npm for ``jsonresume-theme-*`` and
 ``@jsonresume/jsonresume-theme-*`` packages when dynamic discovery is enabled.

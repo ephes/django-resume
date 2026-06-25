@@ -135,6 +135,13 @@ array into ``employed_timeline`` and reports that JSON Resume does not preserve
 the django-resume freelance/employed split. Plugins that need a different
 portable split should provide their own import adapter or use
 ``meta.django_resume.plugin_data`` for exact round trips.
+Portable ``work[].highlights`` entries are imported as markdown-style bullet
+lines in the timeline description, not as django-resume timeline badges, because
+JSON Resume highlights are usually accomplishment sentences.
+The bundled skills adapter imports ``skills[].keywords`` as skill badges and
+uses ``skills[].name`` as a fallback only when no keywords are present; in many
+JSON Resume documents ``name`` is a category label such as "Programming
+Languages" rather than a concrete skill.
 Import adapters should add report notes for any standard JSON Resume fields they
 deliberately ignore or normalize.
 
