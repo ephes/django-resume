@@ -48,7 +48,11 @@ The initial workflow should prefer human approval over fully automatic sending:
 
 .. code-block:: text
 
-   opportunity -> draft -> review -> queue -> send -> track
+   opportunity -> evaluate -> draft -> review -> queue -> send -> track
+
+The evaluate step is a scored fit assessment with an explicit user decision
+to proceed before any drafting happens — an earlier, cheaper human gate than
+send-time approval (see the prior-art section below).
 
 Core Concepts
 -------------
@@ -56,6 +60,14 @@ Core Concepts
 Opportunity
    A job, freelance project, client lead, grant, or other target. It may come
    from manual entry, import, email, a job board, or another integration.
+   The opportunity record should snapshot the posting or project text itself,
+   not just a URL — postings expire quickly, and later steps (outcome
+   records, calibration, interview prep) need the original text.
+
+Fit evaluation
+   A scored assessment of an opportunity against the resume data, produced
+   before drafting and presented to the user with a recommendation. The user
+   decides whether drafting proceeds.
 
 Application draft
    Generated or manually prepared material for one opportunity. A draft may
@@ -169,6 +181,83 @@ communication. The design should default to conservative behavior:
 * careful handling of tokens, credentials, attachments, and contact details
 * per-opportunity notes explaining generated choices where possible
 
+Prior Art: ai-job-search
+------------------------
+
+`ai-job-search <https://github.com/MadsLorentzen/ai-job-search>`_ (reviewed
+2026-07-13) is a popular open-source framework built on Claude Code that
+implements a close cousin of this workflow locally: portal scraping, fit
+scoring, drafter-reviewer CV and cover-letter tailoring, ATS verification,
+application tracking, and interview prep. It is a DIY tool for technical
+users, not a service, but its workflow design transfers well. Notably, the
+whole framework is prompts plus file conventions with almost no application
+code — the value is in the workflow design and the data structures, which is
+exactly the part django-resume would turn into models, plugins, and views.
+
+Lessons worth adopting:
+
+Evaluate before drafting
+   A scored fit evaluation gates the workflow before any drafting, with an
+   explicit user decision to proceed. Their rubric: five dimensions scored
+   0-100 with weights (technical skills 30%, experience 25%, behavioral fit
+   15%, career alignment 30%), hard deal-breakers such as location kept as
+   pass/fail outside the weighted score, and thresholds mapped to verdicts
+   (75+ apply, below 30 skip). Match areas and career goals are personalized
+   data — a natural content plugin here.
+
+Outcomes calibrate the evaluator
+   Tracking is not a dead end but the input to a learning loop. Their
+   outcome command records staged results (applied, interview stages, offer,
+   hired / rejected / no response) and archives the submitted materials plus
+   the posting snapshot; a separate calibration step later mines resolved
+   outcomes to adjust the fit rubric and surface interview-story material.
+   The two responsibilities stay separate: the recorder only writes data and
+   never edits the evaluation framework. This also answers the audit
+   question below: store everything that was submitted, immutably, plus the
+   posting text ("never reconstruct a posting from memory").
+
+Structured reviewer feedback
+   The reviewer agent researches the company independently, then returns
+   two-part feedback: a machine-applicable list of exact
+   ``{file, old_string, new_string, reason}`` edits, plus narrative
+   suggestions grouped by category (missed keywords, company-specific
+   angles, reframing, tone). Two rules transfer directly: the drafter must
+   re-verify the reviewer's research claims before using them, and a hard
+   anti-fabrication rule applies — every suggestion must be grounded in
+   actual profile data; a genuine gap is acknowledged and reframed, never
+   hidden. Each tailoring decision carries a one-line rationale, and the
+   final output summarizes the key decisions — which is what makes
+   review-before-send meaningful for the user.
+
+Verify the artifact, not the source
+   They mandate compiling the PDF, inspecting the layout, then extracting
+   the text layer to check what an ATS parser actually sees, including a
+   keyword-coverage table with honest statuses: covered, synonym-only,
+   missing-but-have-it (add it), missing-genuine-gap (leave it — never stuff
+   keywords). The equivalent here: render the tailored page or PDF and run
+   the same checks before the approval screen. Their language rules matter
+   for the German market: CV in English, cover letter in the posting's
+   language, keywords matched in the posting's language.
+
+Opportunity sources as narrow contracts
+   Each job portal is a self-contained skill wrapping a small tested CLI
+   with just ``search`` and ``detail`` commands, and a meta-command
+   generates new portal integrations. Opportunity sources here should
+   follow the same shape: one narrow source interface, pluggable
+   implementations — consistent with django-resume's plugin philosophy.
+
+Append-only outcome records
+   Outcome records are idempotent and append-only: dated notes are appended,
+   history is never rewritten, and the archived submitted version is
+   immutable. A concrete design for the audit and idempotency requirements
+   above.
+
+Voice as structured data
+   Behavioral profile and writing style live as separate structured
+   documents that the reviewer checks the cover letter's voice against.
+   Worth modeling as plugin types alongside cover-letter material — voice
+   matching is what keeps generated letters from reading as generated.
+
 Open Questions
 --------------
 
@@ -189,4 +278,6 @@ Implementation Sketch
 ---------------------
 
 To be filled in after the structured data API and workflow boundaries are
-designed.
+designed. The workflow mechanics in the prior-art section above (evaluate
+gate, outcome-driven calibration, structured reviewer feedback, artifact
+verification) are the starting point for this sketch.
