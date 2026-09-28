@@ -127,6 +127,7 @@ class ProjectFlatForm(forms.Form):
 class ProjectsPlugin(ListPlugin):
     name: str = "projects"
     verbose_name: str = "Projects"
+    capabilities: tuple[str, ...] = ("projects", "portfolio", "cv")
     inline: ListInline
     flat_form_class = ProjectFlatForm
     sort_by_reverse_position: bool = False

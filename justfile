@@ -5,6 +5,11 @@ help:
 serve-example:
     cd example && uv run python manage.py runserver
 
+# Build and serve the documentation locally
+docs-serve port="8001":
+    uv run sphinx-build -b html docs docs/_build/html
+    uv run python -m http.server {{port}} --directory docs/_build/html
+
 # Run lint, typecheck, and tests
 check:
     just lint

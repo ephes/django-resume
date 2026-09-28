@@ -18,6 +18,7 @@ __pycache__/
 # Databases
 tests/test_database.sqlite3
 example/db.sqlite3
+e2e_tests/e2e_test_db.sqlite3*
 
 # Javascript
 node_modules/

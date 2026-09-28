@@ -71,6 +71,7 @@ class AwardsFlatForm(forms.Form):
 class AwardsPlugin(ListPlugin):
     name: str = "awards"
     verbose_name: str = "Awards"
+    capabilities: tuple[str, ...] = ("awards", "cv")
     inline: ListInline
     flat_form_class = AwardsFlatForm
     sort_by_reverse_position: bool = False

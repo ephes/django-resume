@@ -75,6 +75,7 @@ class LanguagesFlatForm(forms.Form):
 class LanguagesPlugin(ListPlugin):
     name: str = "languages"
     verbose_name: str = "Languages"
+    capabilities: tuple[str, ...] = ("languages", "cv")
     inline: ListInline
     flat_form_class = LanguagesFlatForm
     sort_by_reverse_position: bool = False

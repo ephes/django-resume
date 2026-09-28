@@ -171,6 +171,18 @@ The documentation will be available in the `docs/_build/html` directory:
 
     $ open docs/_build/html/index.html
 
+Serve the built documentation locally with:
+
+.. code-block:: sh
+
+    $ just docs-serve
+
+Pass a custom port as the first argument when needed:
+
+.. code-block:: sh
+
+    $ just docs-serve 9000
+
 Update Javascript Dependencies
 ------------------------------
 

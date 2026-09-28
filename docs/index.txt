@@ -22,6 +22,7 @@ See it in action:
    guide/usage
    guide/example_project
    guide/creating_plugins
+   guide/creating_page_plugins
 
 .. toctree::
     :maxdepth: 1
@@ -32,6 +33,7 @@ See it in action:
     ref/simple_plugin
     ref/list_plugin
     ref/registry
+    ref/pages
     ref/views
     ref/settings
 
@@ -42,3 +44,5 @@ See it in action:
     dev/develop
     dev/backlog
     dev/jsonresume
+    dev/page_plugins
+    dev/application_workflows

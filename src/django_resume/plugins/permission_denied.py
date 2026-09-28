@@ -1,8 +1,10 @@
 from django import forms
 from django.core.files.storage import default_storage
 from django.http import HttpRequest
+from django.template import TemplateDoesNotExist
+from django.template.loader import get_template
 
-from .base import SimplePlugin, ContextDict
+from .base import SimplePlugin, SimpleThemedTemplates, ContextDict
 from ..images import ImageFormMixin
 from ..markdown import (
     markdown_to_html,
@@ -73,9 +75,24 @@ class PermissionDeniedForm(ImageFormMixin, forms.Form):
         return self.get_image_url_for_field(self.initial.get("avatar_img", ""))
 
 
+class PermissionDeniedTemplates(SimpleThemedTemplates):
+    """Retain plain fragments for themes with only a denial page frame."""
+
+    def get_template_path(self, template_name: str) -> str:
+        path = super().get_template_path(template_name)
+        if self.theme != "plain":
+            try:
+                get_template(path)
+            except TemplateDoesNotExist:
+                filename = self.template_names[template_name]
+                return f"django_resume/plugins/{self.plugin_name}/plain/{filename}"
+        return path
+
+
 class PermissionDeniedPlugin(SimplePlugin):
     name: str = "permission_denied"
     verbose_name: str = "Permission Denied"
+    template_class = PermissionDeniedTemplates
     admin_form_class = inline_form_class = PermissionDeniedForm
     prompt = """
         Create a django-resume plugin that displays an error message when a user attempts to access a
@@ -121,7 +138,7 @@ class PermissionDeniedPlugin(SimplePlugin):
         theme: str = "plain",
     ) -> ContextDict:
         context = super().get_context(
-            _request, plugin_data, resume_pk, context=context, edit=edit
+            _request, plugin_data, resume_pk, context=context, edit=edit, theme=theme
         )
         context["avatar_img_url"] = default_storage.url(
             plugin_data.get("avatar_img", "")

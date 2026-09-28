@@ -1,0 +1,323 @@
+Creating Page Plugins
+=====================
+
+Section plugins (see :doc:`creating_plugins`) own *resume facts* -- the data,
+forms, inline editing, and template fragments for one section. A **page plugin**
+owns a whole *page*: its route, which sections it shows, access control, and the
+themed template that frames them.
+
+django-resume ships three built-in pages (the cover/detail page, the CV page,
+and the owner-only permission-denied editor). An installed app can add its own
+pages through the same mechanism, without changing django-resume and without a
+database migration -- page content keeps living in the existing section plugins'
+``Resume.plugin_data``.
+
+How discovery works
+-------------------
+
+On startup ``django_resume`` calls :func:`~django_resume.pages.autodiscover_pages`,
+which imports a ``resume_pages`` module from **every installed app** (the same
+side-effect-import pattern Django's admin uses for ``admin`` modules). Each
+``resume_pages`` module registers its pages with the shared ``page_registry``.
+
+This happens *before* ``django_resume.urls`` is built, so a discovered page gets
+a real route automatically. You do not need to edit django-resume's URLconf or
+its built-in page list.
+
+Define a page
+-------------
+
+Create ``resume_pages.py`` in your app and register a
+:class:`~django_resume.pages.ResumePage` subclass:
+
+.. code-block:: python
+
+   # myapp/resume_pages.py
+   from django_resume.pages import ResumePage, page_registry
+
+
+   class PortfolioPage(ResumePage):
+       url_name = "portfolio"                 # reverse("resume:portfolio", ...)
+       path = "portfolio/"                    # served under "<slug:slug>/portfolio/"
+       template_name = "portfolio.html"       # pages/{theme}/portfolio.html
+       section_names = ["identity", "about", "skills", "projects"]
+
+
+   page_registry.register(PortfolioPage)
+
+The attributes are:
+
+``url_name``
+   The URL name used for ``reverse()``. Under the example project's include
+   (``include("django_resume.urls", namespace="resume")``) the page above is
+   ``reverse("resume:portfolio", kwargs={"slug": slug})``.
+
+``path``
+   The sub-segment appended to ``<slug:slug>/``. Use ``""`` for the default/root
+   page. The bare ``<slug:slug>/`` catch-all is always emitted last, so more
+   specific paths such as ``portfolio/`` never shadow it (and it never shadows
+   them).
+
+``template_name``
+   Resolved as ``django_resume/pages/{resume.current_theme}/{template_name}``.
+
+``section_names``
+   The section plugins whose context the page builds. It is an *inclusion
+   filter*, not an ordering -- the template decides layout by including sections
+   by name (``{% include about.templates.main %}``). Three forms are accepted:
+
+   * an explicit list of plugin names, e.g. ``["identity", "about"]``;
+   * the string ``"__all__"`` to include every registered section plugin;
+   * a capability selector, ``by_capability("portfolio")``, to include every
+     plugin tagged with that capability (see `Selecting sections by
+     capability`_ below).
+
+Selecting sections by capability
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Listing plugins by name couples a page to a fixed set of sections. Instead, a
+page can select sections by *capability*: each section plugin advertises a
+``capabilities`` tuple, and ``by_capability(...)`` includes every plugin that
+matches. The built-in content plugins are tagged so that, for example,
+``identity``, ``about``, ``skills``, and ``projects`` all carry ``"portfolio"``:
+
+.. code-block:: python
+
+   from django_resume.pages import ResumePage, by_capability, page_registry
+
+
+   class PortfolioPage(ResumePage):
+       url_name = "portfolio"
+       path = "portfolio/"
+       template_name = "portfolio.html"
+       section_names = by_capability("portfolio")
+       nav_title = "Portfolio"
+
+``by_capability("portfolio")`` matches a plugin that carries *any* of the given
+tags; pass ``match="all"`` to require *all* of them, and several tags to widen
+the match:
+
+.. code-block:: python
+
+   section_names = by_capability("cv", "experience")             # any of these
+   section_names = by_capability("portfolio", "cv", match="all")  # all of these
+
+Tag your own section plugin by setting its ``capabilities`` so a capability-based
+page can pick it up automatically::
+
+   class TestimonialsPlugin(SimplePlugin):
+       name = "testimonials"
+       capabilities = ("portfolio",)
+
+Selection is deterministic (registry order) and the access/UI-control plugins
+(``token``, ``theme``) carry no capabilities, so they are never selected as
+content. Explicit lists and ``"__all__"`` keep working unchanged.
+
+Add a template
+--------------
+
+Place the template in your app's template directory so it is found via
+``APP_DIRS``:
+
+.. code-block:: text
+
+   myapp/templates/django_resume/pages/plain/portfolio.html
+
+Extend the theme base and include the sections you listed in ``section_names``.
+A minimal ``plain`` template:
+
+.. code-block:: html+django
+
+   {% extends "./base.html" %}
+   {% load static %}
+   {% block body %}
+     <body class="center"{% if show_edit_button %} hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'{% endif %}>
+     {% if is_editable %}{% include "./edit_panel.html" %}{% endif %}
+     <main>
+       {% include identity.templates.main %}
+       {% include about.templates.main %}
+       {% include skills.templates.main %}
+       {% include projects.templates.main with projects=projects %}
+     </main>
+     {% if show_edit_button %}
+       <script src="{% static "django_resume/js/edit.js" %}"></script>
+     {% endif %}
+     </body>
+   {% endblock body %}
+
+If your project supports more than one theme, add a template per theme (for
+example ``pages/headwind/portfolio.html``). When a resume's active theme does
+*not* ship a matching page template, django-resume falls back to the ``plain``
+theme rather than raising ``TemplateDoesNotExist`` -- and it renders the section
+fragments through ``plain`` too, so the page stays coherent instead of mixing
+themes. Shipping at least a ``plain`` template is therefore enough to keep a page
+working under every theme; add per-theme templates only where you want a themed
+look. (The bundled example ships both ``plain`` and ``headwind`` portfolio
+templates.)
+
+Editing and access control
+--------------------------
+
+Because the page reuses the standard section-plugin context, inline editing
+works for free: open the page with ``?edit=true`` as the resume owner and each
+section renders its existing edit controls. Saving goes through the section
+plugin's normal inline URLs and persists to ``Resume.plugin_data``. Edit
+controls only appear when the authenticated user owns the resume; anonymous and
+non-owner visitors see the read-only page.
+
+Pages are public by default. To gate a page, override ``check_access`` to return
+a response (to take over) or ``None`` (to proceed), and use ``finalize_response``
+for response-level concerns such as headers:
+
+.. code-block:: python
+
+   from django.http import HttpResponse
+
+
+   class PortfolioPage(ResumePage):
+       url_name = "portfolio"
+       path = "portfolio/"
+       template_name = "portfolio.html"
+       section_names = ["identity", "about", "skills", "projects"]
+
+       def check_access(self, request, resume):
+           if not request.user.is_authenticated:
+               return HttpResponse(status=403)
+           return None
+
+Showing the page in navigation
+------------------------------
+
+Set ``nav_title`` to make the page advertise itself in navigation. The resume
+overview ("My Resumes") renders one link per registered page for each resume,
+built from the registry, so a page with a ``nav_title`` shows up there
+automatically next to the built-in Cover/CV links -- no template editing
+required:
+
+.. code-block:: python
+
+   class PortfolioPage(ResumePage):
+       url_name = "portfolio"
+       path = "portfolio/"
+       template_name = "portfolio.html"
+       section_names = ["identity", "about", "skills", "projects"]
+       nav_title = "Portfolio"
+
+A page with an empty ``nav_title`` (the default) is reachable by URL but not
+advertised. Override ``is_visible(resume)`` to hide the link in some states --
+the built-in 403 editor does this, only appearing when the resume requires an
+access token:
+
+.. code-block:: python
+
+   def is_visible(self, resume) -> bool:
+       return resume.token_is_required
+
+The links come from the ``page_nav`` template tag, so you can render the same
+registry-driven list anywhere (for example to link to the portfolio from the
+cover letter page):
+
+.. code-block:: html+django
+
+   {% load page_nav %}
+   {% page_nav_links resume as nav_links %}
+   {% for link in nav_links %}
+     <a href="{{ link.url }}">{{ link.title }}</a>{% if not forloop.last %} | {% endif %}
+   {% endfor %}
+
+Ordering and grouping
+^^^^^^^^^^^^^^^^^^^^^^
+
+Navigation order is **explicit**, not registration order. Set ``nav_order`` (an
+integer, lower sorts first) to place a page wherever you want it among the
+built-ins and other third-party pages:
+
+.. code-block:: python
+
+   class PortfolioPage(ResumePage):
+       url_name = "portfolio"
+       path = "portfolio/"
+       template_name = "portfolio.html"
+       section_names = ["identity", "about", "skills", "projects"]
+       nav_title = "Portfolio"
+       nav_order = 15        # between the built-in Cover (10) and CV (20)
+       nav_group = "Resume"  # rendered under the "Resume" group heading
+
+The built-in pages use ``nav_order`` 10 (Cover), 20 (CV), and 30 (the 403
+editor), leaving gaps so a third-party page can slot in between. The sort is
+**stable**: pages that share a ``nav_order`` keep their registration order
+(built-ins first, then autodiscovered/entry-point pages), so navigation is
+deterministic regardless of import timing.
+
+Set ``nav_group`` to bucket links under a group label. ``page_nav_links``
+returns one flat ordered list (each entry now also carries its ``group``);
+``page_nav_groups`` returns the same links grouped:
+
+.. code-block:: html+django
+
+   {% load page_nav %}
+   {% page_nav_groups resume as nav_groups %}
+   {% for group in nav_groups %}
+     {% if group.title %}<strong>{{ group.title }}:</strong>{% endif %}
+     {% for link in group.links %}
+       <a href="{{ link.url }}">{{ link.title }}</a>{% if not forloop.last %} | {% endif %}
+     {% endfor %}
+   {% endfor %}
+
+Groups appear in the order their first link does (the lowest ``nav_order`` in
+the group, since the links arrive pre-sorted), and a group stays a single
+contiguous section even if its members interleave with other groups by order.
+The resume overview ("My Resumes") renders ``page_nav_groups`` for each resume,
+so a grouped, ordered link list appears there automatically.
+
+The bundled :doc:`example_project` ships exactly this ``PortfolioPage`` in its
+``core`` app (``example/core/resume_pages.py`` plus ``plain`` and ``headwind``
+templates), so you can see the whole flow end to end -- including the Portfolio
+link appearing in the resume overview.
+
+Shipping a page as its own package
+----------------------------------
+
+A ``resume_pages`` module is discovered only for **installed apps** (entries in
+``INSTALLED_APPS``). To ship a page as a standalone distribution that any
+django-resume project can ``pip install`` -- without that project adding your
+package to ``INSTALLED_APPS`` -- register it through an ``importlib.metadata``
+entry point in the ``django_resume.pages`` group:
+
+.. code-block:: toml
+
+   # pyproject.toml of your distribution
+   [project.entry-points."django_resume.pages"]
+   contact = "mypkg.pages:ContactPage"
+
+On startup django-resume loads each entry point's target: a
+:class:`~django_resume.pages.ResumePage` subclass is registered directly, and a
+zero-argument callable is invoked so it can register several pages itself. This
+runs before the URLconf is built, so the page gets a real route just like an
+autodiscovered one, and the bare ``<slug:slug>/`` catch-all still sorts last.
+
+Because such a package is **not** in ``INSTALLED_APPS``, ``APP_DIRS`` will not
+find templates inside it. Either add your template directory to the project's
+``TEMPLATES`` ``DIRS``, or override ``serve`` to render without a theme template:
+
+.. code-block:: python
+
+   from django.http import HttpResponse
+   from django.template import Context, Template
+
+   from django_resume.pages import ResumePage
+
+   _TEMPLATE = Template("<h1>Contact {{ resume.name }}</h1>")
+
+
+   class ContactPage(ResumePage):
+       url_name = "contact"
+       path = "contact/"
+       section_names = []
+
+       def serve(self, request, resume, base_context):
+           return HttpResponse(_TEMPLATE.render(Context(base_context)))
+
+The bundled ``example/resume_entrypoint_demo`` distribution is exactly this: it
+is installed but not a Django app, and its ``ContactPage`` is reachable at
+``<slug>/contact/`` purely through the entry point.

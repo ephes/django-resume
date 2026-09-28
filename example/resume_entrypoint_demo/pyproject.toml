@@ -1,0 +1,18 @@
+[project]
+name = "resume-entrypoint-demo"
+version = "0.1.0"
+description = "Demo: register a django-resume page via an importlib.metadata entry point (not an installed Django app)."
+requires-python = ">=3.10"
+
+# This is the whole point of the package: a django-resume page contributed
+# through an entry point, so django_resume discovers it without the package
+# being listed in INSTALLED_APPS.
+[project.entry-points."django_resume.pages"]
+contact = "resume_entrypoint_demo.pages:ContactPage"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["resume_entrypoint_demo"]

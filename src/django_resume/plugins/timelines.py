@@ -189,8 +189,10 @@ class TimelineMixin:
 class FreelanceTimelinePlugin(TimelineMixin, ListPlugin):
     name = "freelance_timeline"
     verbose_name = "Freelance Timeline"
+    capabilities: tuple[str, ...] = ("experience", "cv")
 
 
 class EmployedTimelinePlugin(TimelineMixin, ListPlugin):
     name = "employed_timeline"
     verbose_name = "Employed Timeline"
+    capabilities: tuple[str, ...] = ("experience", "cv")

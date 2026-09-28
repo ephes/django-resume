@@ -1,0 +1,37 @@
+{% extends "./base.html" %}
+{% load static %}
+
+{% block title %}{{ identity.name }} - Portfolio{% endblock title %}
+
+{% block meta %}
+  {{ block.super }}
+  <meta name="author" content="{{ identity.name }}">
+  <meta name="description" content="{{ about.text_plain }}">
+{% endblock meta %}
+
+{% block content %}
+  {% if is_editable %}
+    {% include "django_resume/pages/headwind/edit_panel.html" %}
+  {% endif %}
+
+  <div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 print:bg-white">
+    <div class="max-w-5xl mx-auto px-6 py-8 print:px-0 print:py-4">
+      <h1 class="sr-only">Portfolio</h1>
+
+      {% include identity.templates.main %}
+
+      <div class="mt-8">
+        {% include about.templates.main %}
+      </div>
+
+      <div class="mt-8 space-y-8">
+        {% if skills %}
+          <div>{% include skills.templates.main %}</div>
+        {% endif %}
+        {% if projects %}
+          <div>{% include projects.templates.main with projects=projects %}</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+{% endblock content %}

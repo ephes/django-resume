@@ -9,6 +9,73 @@ Features
 ^^^^^^^^
 * Animate the editorial CV hairlines as they enter the viewport while preserving
   static lines for reduced-motion and failed-script fallbacks
+* Integrate the editorial theme with the 0.3.0 page registry and discovery
+  API, preserving cover-letter recipient, place/date, subject and salutation,
+  education degrees, language notes and ordered education/language/award lists.
+  These core list plugins carry the ``cv`` capability for page selection.
+* The editorial overview fragment now delegates to the plain overview's
+  registered navigation groups. The built-in resume overview route continues
+  to render the plain theme; applications that explicitly include the editorial
+  fragment receive the same registered links.
+* Identify this unreleased editorial integration as ``0.3.0+editorial`` in
+  package metadata, keeping it distinguishable from the published 0.3.0 release.
+* Preserve the selected theme for the permission-denied section on a
+  token-protected CV and its owner-only editor. When a theme supplies only the
+  denial page frame, missing permission-denied content and inline form
+  fragments fall back to plain, preserving compatibility with partial themes.
+
+0.3.0 - 2026-06-21
+------------------
+
+Behavior Changes
+^^^^^^^^^^^^^^^^
+* The CV page (``/<slug>/cv/``) is now ``GET``-only and returns HTTP 405 for
+  non-``GET`` requests; previously it had no method restriction
+
+Features
+^^^^^^^^
+* Add a ``just docs-serve`` shortcut with a configurable port for building and serving the Sphinx documentation locally
+* Let installed apps register their own resume pages: ``django_resume`` now
+  autodiscovers a ``resume_pages`` module from every installed app on startup,
+  so a third-party app can add an editable, themed page (with its own route and
+  URL name) without modifying ``django_resume`` or adding a migration. The
+  bundled example project demonstrates this with an editable ``PortfolioPage``
+  at ``/<slug>/portfolio/``. See :doc:`guide/creating_page_plugins`.
+* Generate the per-resume page links on the resume overview from the page
+  registry instead of hard-coding them, so every registered page (including
+  third-party pages such as the example Portfolio page) appears in navigation
+  automatically. Pages set ``nav_title`` to be listed and can override
+  ``is_visible`` for state-dependent links; the ``page_nav`` template tag
+  renders the list anywhere.
+* Give page navigation explicit, deterministic ordering and grouping: pages set
+  ``nav_order`` (lower sorts first; a stable sort keeps registration order for
+  ties) and ``nav_group`` (a group label). The new ``{% page_nav_groups %}``
+  template tag renders links bucketed by group, and the resume overview uses it,
+  so a third-party page can place itself between the built-ins without editing a
+  template. See :doc:`guide/creating_page_plugins`.
+* Let a page select its sections by *capability* in addition to by name or
+  ``"__all__"``: section plugins advertise a ``capabilities`` tuple and a page
+  sets ``section_names = by_capability("portfolio")`` to include every matching
+  plugin (``match="any"`` by default, or ``match="all"``). The built-in content
+  plugins are tagged, and the example Portfolio page now selects its sections by
+  capability. See :doc:`guide/creating_page_plugins`.
+* Fall back to the ``plain`` theme when a resume's active theme does not ship a
+  page template, instead of raising ``TemplateDoesNotExist``. The fallback is
+  coherent -- the page frame and its section fragments both render through
+  ``plain`` -- and it is per template, so a theme that provides only some page
+  templates falls back only for the missing ones.
+* Discover resume pages from separately distributed packages via
+  ``importlib.metadata`` entry points (the ``django_resume.pages`` group), in
+  addition to installed apps' ``resume_pages`` modules. A package that is not in
+  ``INSTALLED_APPS`` can ship a page (a ``ResumePage`` subclass or a registering
+  callable) that gets a route on startup, before the URLconf freezes. See
+  :doc:`guide/creating_page_plugins`.
+
+Refactor
+^^^^^^^^
+* Serve the cover/detail, CV, and permission-denied pages through a registered
+  ``ResumePage`` page registry instead of hard-coded views; URLs, URL names, and
+  behavior are otherwise unchanged
 
 0.2.0 - 2026-05-12
 ------------------

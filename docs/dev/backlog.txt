@@ -9,26 +9,46 @@ Completed user-visible work belongs in the :doc:`../changelog`. Backlog items
 should be removed from this page when they are released, or rewritten if the
 next useful step changes.
 
-Research Needed
----------------
+Backlog Items
+-------------
 
 * Add support for `JSON Resume <https://jsonresume.org/>`_.
 
-  Support importing from and/or exporting to the JSON Resume schema. This needs
-  research and design work before implementation, especially around field
-  mapping, plugin compatibility, validation, and whether django-resume should
-  treat JSON Resume as an interchange format or a first-class data model.
+  Support importing from and exporting to the JSON Resume schema. Directional
+  design decisions are recorded in the JSON Resume plan; remaining design and
+  implementation work includes choosing the exact schema revision to pin,
+  implementing field mappings and plugin compatibility, validation tests, and
+  round-trip fidelity checks. A later trusted same-installation round-trip phase
+  should cover provenance signing, canonicalization, replay protection, and
+  signing-key rotation. Schema pinning gates the conditional extension and
+  complete-document validation decisions in the plan; stable item identity is
+  separate future work for item-level restoration and merge updates.
 
   See :doc:`jsonresume`.
 
-* Re-evaluate LLM-assisted plugin generation.
+* Design application workflows and agentic job/project outreach.
 
-  django-resume still has prompt-based plugin generation helpers, but the old
-  MCP server proposal was written for the removed database-backed plugin system.
-  Before implementing anything, research what workflow would be useful for the
-  current filesystem-based plugin model: a better context generator, an MCP
-  server, management commands, documentation improvements, or some combination
-  of those.
+  Explore how django-resume can use structured resume data to draft, queue,
+  review, send, and track job or project applications. The first design should
+  keep sending behind explicit user approval, define the relationship to
+  content plugins, page plugins, JSON Resume import/export, and optional
+  pipy-based agent execution.
+
+  See :doc:`application_workflows`.
+
+* Document agent-assisted plugin authoring.
+
+  Coding agents are now a better fit for plugin generation than a productized
+  LLM workflow inside django-resume. Instead of maintaining provider
+  integrations, prompt orchestration, or an MCP server as runtime or package
+  functionality, document how an agent should create a filesystem plugin using
+  the current plugin APIs.
+
+  The useful output should be durable documentation or a small agent skill:
+  describe the expected plugin files, base classes, forms, templates, URL and
+  admin integration points, tests, and constraints to preserve. Keep this as
+  authoring guidance for humans and coding agents, not as generated runtime
+  behavior.
 
   Related old issue: `#7 <https://github.com/ephes/django-resume/issues/7>`_.
 

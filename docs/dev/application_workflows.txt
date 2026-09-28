@@ -1,0 +1,192 @@
+============================================
+Application Workflows And Agentic Outreach
+============================================
+
+Goal
+----
+
+Explore how django-resume can use its structured resume data to help draft,
+queue, review, send, and track applications for jobs and projects.
+
+This is a planning document. It should define the product boundaries before
+implementation starts, especially around automation, approvals, privacy, and
+the optional relationship to pipy.
+
+Motivation
+----------
+
+django-resume already stores much of the information needed to apply for jobs
+or projects:
+
+* identity and contact details
+* work history
+* education
+* skills
+* projects
+* cover-letter material
+* CV access policy
+
+The next step is not only displaying that data, but using it in a controlled
+workflow: match an opportunity, tailor the material, prepare an application,
+ask for review, send it, and track the result.
+
+Target Direction
+----------------
+
+Keep the automation layer separate from ordinary content and page plugins.
+
+Useful layers:
+
+* Content plugins store trusted resume facts.
+* Page plugins compose those facts into public or private pages.
+* Application workflows use those facts to create, approve, deliver, and track
+  applications.
+* Optional agent integrations, such as pipy, help reason over structured data
+  and draft material.
+
+The initial workflow should prefer human approval over fully automatic sending:
+
+.. code-block:: text
+
+   opportunity -> draft -> review -> queue -> send -> track
+
+Core Concepts
+-------------
+
+Opportunity
+   A job, freelance project, client lead, grant, or other target. It may come
+   from manual entry, import, email, a job board, or another integration.
+
+Application draft
+   Generated or manually prepared material for one opportunity. A draft may
+   include a tailored cover letter, selected CV sections, answers to form
+   questions, attachments, and notes explaining why the material was chosen.
+
+Application
+   A reviewed item that is ready to send or has already been sent. It should
+   keep status, timestamps, target contact details, delivery channel, and
+   enough audit data to explain what was sent.
+
+Delivery channel
+   The mechanism used to send or submit the application, such as email, a
+   website form, an API integration, or a manual "sent outside django-resume"
+   marker.
+
+Approval
+   An explicit user decision that allows a draft to leave the system. The first
+   design should require approval before sending.
+
+Structured Resume Data
+----------------------
+
+Application workflows and JSON Resume support both need structured,
+renderer-neutral resume data. ``get_context()`` is template-oriented and should
+not become the main data-export API.
+
+A future content plugin API may need a method such as:
+
+.. code-block:: python
+
+   def get_structured_data(self, resume) -> dict:
+       ...
+
+
+The structured data should preserve:
+
+* stable field names
+* plugin provenance
+* human-readable labels
+* machine-readable values
+* sensitivity or visibility hints
+* whether a value is suitable for external sharing
+
+This API should be designed before the application workflow relies on plugin
+data.
+
+Relationship To JSON Resume
+---------------------------
+
+JSON Resume is a useful interchange format for common resume facts, but it
+should not be assumed to cover the whole django-resume domain.
+
+Likely fit:
+
+* JSON Resume import/export maps common fields from structured plugin data.
+* Unsupported plugin data needs a documented extension strategy.
+* Application-specific state should not be forced into JSON Resume.
+* Page layout, routing, approvals, delivery history, and agent session data
+  should remain django-resume concepts.
+
+See :doc:`jsonresume`.
+
+Relationship To Page Plugins
+----------------------------
+
+Page plugins define how resume material is presented. Application workflows may
+use pages to render tailored CVs, project pitches, or cover letters, but they
+should not store workflow state inside page definitions.
+
+See :doc:`page_plugins`.
+
+Relationship To pipy
+--------------------
+
+pipy should be treated as an optional agent runtime, not as a required
+dependency of django-resume core.
+
+Possible package boundary:
+
+.. code-block:: text
+
+   django-resume
+     owns resume data, page APIs, application records, approvals, and delivery
+     boundaries
+
+   django-resume-pipy
+     owns prompts, pipy SDK/RPC calls, provider/model selection, and agent
+     workflow glue
+
+   pipy
+     owns the agent runtime, providers, tool loop, session tree, automation
+     transports, and archive behavior
+
+
+The in-process pipy SDK is currently narrow and one-shot. More advanced
+multi-turn or RPC integrations should be designed against pipy's stable
+surfaces when they are available.
+
+Privacy And Safety
+------------------
+
+Application workflows handle sensitive personal data and outbound
+communication. The design should default to conservative behavior:
+
+* no sending without explicit user approval
+* no hidden bulk sending
+* clear status for draft, approved, queued, sent, failed, and withdrawn states
+* idempotency keys or similar protection against duplicate sends
+* audit records that identify what was sent, when, and through which channel
+* careful handling of tokens, credentials, attachments, and contact details
+* per-opportunity notes explaining generated choices where possible
+
+Open Questions
+--------------
+
+* What is the smallest useful application workflow model?
+* Should opportunities live in django-resume core or an optional app?
+* Which delivery channel should be implemented first?
+* How much of a sent application should be stored for audit purposes?
+* How should users compare generated drafts before approval?
+* How should per-opportunity tailored CV pages be addressed and protected?
+* Should there be a global "never contact" or suppression list?
+* How should failed sends and retries be represented?
+* Which parts of the workflow need admin integration, inline editing, or a new
+  owner-facing dashboard?
+* Which parts should be exposed to agents as tools, and which should remain
+  human-only actions?
+
+Implementation Sketch
+---------------------
+
+To be filled in after the structured data API and workflow boundaries are
+designed.

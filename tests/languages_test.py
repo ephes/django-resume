@@ -16,7 +16,13 @@ def test_languages_item_form_carries_note(resume):
     from django_resume.plugins.languages import LanguagesItemForm
 
     form = LanguagesItemForm(
-        data={"id": "l1", "name": "Deutsch", "level": 100, "note": "Muttersprache", "position": 0},
+        data={
+            "id": "l1",
+            "name": "Deutsch",
+            "level": 100,
+            "note": "Muttersprache",
+            "position": 0,
+        },
         resume=resume,
         existing_items=[],
     )

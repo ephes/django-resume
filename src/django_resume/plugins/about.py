@@ -36,6 +36,7 @@ class AboutForm(forms.Form):
 class AboutPlugin(SimplePlugin):
     name: str = "about"
     verbose_name: str = "About"
+    capabilities: tuple[str, ...] = ("summary", "portfolio", "cv")
     admin_form_class = inline_form_class = AboutForm
     prompt = """
         Create a django-resume plugin to display a brief “About” section on a webpage. The plugin

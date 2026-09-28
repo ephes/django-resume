@@ -83,6 +83,7 @@ class EducationFlatForm(forms.Form):
 class EducationPlugin(ListPlugin):
     name: str = "education"
     verbose_name: str = "Education"
+    capabilities: tuple[str, ...] = ("education", "cv")
     inline: ListInline
     flat_form_class = EducationFlatForm
     sort_by_reverse_position: bool = False

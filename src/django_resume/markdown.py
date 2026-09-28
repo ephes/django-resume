@@ -6,7 +6,20 @@ from typing import Callable
 import nh3
 
 
-ALLOWED_TAGS = {"a", "br", "em", "h1", "h2", "h3", "h4", "h5", "h6", "li", "strong", "ul"}
+ALLOWED_TAGS = {
+    "a",
+    "br",
+    "em",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "li",
+    "strong",
+    "ul",
+}
 LIST_ITEM_RE = re.compile(r"^\s*[-*•]\s+(.*)$")
 ALLOWED_ATTRIBUTES = {"a": {"class", "href", "target"}}
 ALLOWED_URL_SCHEMES = {"http", "https", "mailto"}

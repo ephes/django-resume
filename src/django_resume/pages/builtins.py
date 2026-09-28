@@ -1,0 +1,111 @@
+from __future__ import annotations
+
+from django.contrib.auth.views import redirect_to_login
+from django.core.exceptions import PermissionDenied
+from django.http import HttpRequest, HttpResponse
+from django.shortcuts import render
+
+from ..models import Resume
+from ..plugins import plugin_registry
+from ..plugins.tokens import TokenPlugin
+from .base import (
+    ResumePage,
+    build_base_context,
+    build_section_context,
+    page_template_name,
+    resolve_page_theme,
+)
+from .registry import page_registry
+
+
+def render_cv_403(request: HttpRequest, resume: Resume, *, status: int) -> HttpResponse:
+    """Single renderer for cv_403.html, shared by the CV denial path and the
+    standalone permission-denied editor, so the two cannot drift."""
+    # Resolve the theme once (with fallback to plain) and use it for both the
+    # section context and the template, matching ResumePage.serve.
+    theme = resolve_page_theme(resume, "cv_403.html")
+    base_context = build_base_context(request, resume)
+    context = build_section_context(
+        request, resume, base_context, ["permission_denied"], theme=theme
+    )
+    if "permission_denied" not in context:
+        return HttpResponse(status=404)
+    return render(
+        request,
+        page_template_name(theme, "cv_403.html"),
+        context,
+        status=status,
+    )
+
+
+class CoverLetterPage(ResumePage):
+    url_name = "detail"
+    path = ""
+    template_name = "resume_detail.html"
+    section_names = ["about", "identity", "cover", "theme"]
+    nav_title = "Cover"
+    nav_order = 10
+    nav_group = "Resume"
+
+
+class CvPage(ResumePage):
+    url_name = "cv"
+    path = "cv/"
+    template_name = "resume_cv.html"
+    section_names = "__all__"
+    nav_title = "CV"
+    nav_order = 20
+    nav_group = "Resume"
+
+    def check_access(self, request: HttpRequest, resume: Resume) -> HttpResponse | None:
+        token_plugin = plugin_registry.get_plugin(TokenPlugin.name)
+        if token_plugin is None:
+            return None
+        try:
+            TokenPlugin.check_permissions(
+                request, resume.plugin_data.get(TokenPlugin.name, {})
+            )
+        except PermissionDenied:
+            return render_cv_403(request, resume, status=403)
+        return None
+
+    def finalize_response(
+        self, response: HttpResponse, request: HttpRequest, resume: Resume
+    ) -> HttpResponse:
+        if resume.token_is_required:
+            response["Referrer-Policy"] = "no-referrer"
+        return response
+
+
+class PermissionDeniedPage(ResumePage):
+    url_name = "403"
+    path = "403/"
+    template_name = "cv_403.html"
+    nav_title = "403"
+    nav_order = 30
+    nav_group = "Owner tools"
+    # No section_names: serve() renders via render_cv_403 and bypasses get_context.
+
+    def is_visible(self, resume: Resume) -> bool:
+        # The 403 editor is only meaningful when the resume gates its CV behind
+        # an access token; otherwise no one can ever see the 403 page.
+        return resume.token_is_required
+
+    def check_access(self, request: HttpRequest, resume: Resume) -> HttpResponse | None:
+        if not request.user.is_authenticated:
+            return redirect_to_login(request.get_full_path())
+        if resume.owner != request.user:
+            return HttpResponse(status=403)
+        return None
+
+    def serve(
+        self, request: HttpRequest, resume: Resume, base_context: dict
+    ) -> HttpResponse:
+        # Render through the shared cv_403 renderer (status 200 for the editor)
+        # so the standalone 403 page cannot drift from the CV denial path and
+        # keeps render_cv_403's missing-permission_denied 404 behavior.
+        return render_cv_403(request, resume, status=200)
+
+
+def register_builtin_pages() -> None:
+    page_registry.register_page_list([CoverLetterPage, CvPage, PermissionDeniedPage])
