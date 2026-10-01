@@ -111,6 +111,13 @@ Fixes
 * Fall back to the plain permission-denied fragments when a page theme only
   ships its own ``cv_403.html`` frame, so the denial page and its inline
   editor keep working for partial themes such as headwind.
+* Render inline editing fragments in the page theme of the edited resume.
+  Plugins kept one shared, mutable template object per plugin, so list
+  plugin forms and saved items came back in the theme of whichever resume
+  was rendered last, and concurrent requests could mix themes. Plugin
+  contexts now get their own copy of the templates for the requested theme
+  (``ThemedTemplates.for_theme``), the inline views resolve the theme from
+  the resume, and a fragment the theme does not ship falls back to ``plain``.
 * Preselect the current theme in the plain page theme form; saving it
   without touching the selection no longer switches the resume to ``plain``.
 * Run every browser test against pytest-django's live server: the admin and

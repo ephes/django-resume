@@ -32,8 +32,10 @@ def test_simple_plugin_get_context(resume):
     # And the inline edit url should be set
     assert context["edit_url"] == plugin.inline.get_edit_url(resume.pk)
 
-    # And the templates should be set
-    assert context["templates"] == plugin.templates
+    # And the templates should be set for the requested theme without changing
+    # the theme of the plugin's shared templates
+    assert context["templates"].main == plugin.templates.main
+    assert context["templates"] is not plugin.templates
 
 
 def test_simple_plugin_get_context_defaults_from_form(resume):

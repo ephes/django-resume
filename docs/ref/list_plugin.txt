@@ -191,6 +191,9 @@ Contains the inline editing logic for the website. For instance:
 - ``get_item_view`` returns a form to add or edit a single item.
 - ``post_item_view`` processes that form data, creating or updating items in the plugin’s list.
 
+Each view renders its fragment in the page theme of the edited resume (with a
+fallback to ``plain`` when the theme does not ship that fragment).
+
 ``ListThemedTemplates``
 -----------------------
 A subclass of :class:`ThemedTemplates` that provides default template names

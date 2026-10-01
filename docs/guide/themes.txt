@@ -13,7 +13,10 @@ plugin; the choice is stored per resume. django-resume ships three page themes:
 
 A theme renders a page from ``django_resume/pages/<theme>/<template>`` and each
 plugin from ``django_resume/plugins/<plugin>/<theme>/``. When a theme does not
-ship a page template, the page falls back to ``plain``.
+ship a page template, the page falls back to ``plain``. The fragments that
+inline editing loads and saves (forms, list items, flat data) use the theme of
+the edited resume and fall back to ``plain`` when the theme does not ship that
+fragment.
 
 The editorial theme
 ===================

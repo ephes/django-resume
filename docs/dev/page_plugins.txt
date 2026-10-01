@@ -374,6 +374,14 @@ Resolution is per template, so a theme that ships some page templates but not
 others falls back only for the missing ones. The ``plain`` theme short-circuits
 (it is the fallback target), so the common case costs no extra loader lookup.
 
+Inline editing fragments resolve their theme the same way, per fragment:
+``resolve_fragment_templates(templates, resume, template_name)`` in
+``django_resume/plugins/base.py`` uses ``resume.current_theme`` when that theme
+ships the fragment and otherwise ``plain``. Plugins are registered once and
+shared by all requests, so neither page rendering nor the inline views change
+the theme of a plugin's ``templates`` object; they work on a copy from
+``ThemedTemplates.for_theme(theme)``.
+
 Open Questions
 --------------
 

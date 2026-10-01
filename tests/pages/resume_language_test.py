@@ -116,11 +116,6 @@ def test_inline_fragments_use_resume_language(client, german_resume):
     plugin = plugin_registry.get_plugin("employed_timeline")
 
     with translation.override("en"):
-        # as in the real edit flow, the page renders (and selects the theme
-        # templates) before a fragment is posted
-        client.get(
-            reverse("resume:cv", kwargs={"slug": german_resume.slug}), {"edit": "true"}
-        )
         response = client.post(
             plugin.inline.get_post_item_url(german_resume.pk),
             {

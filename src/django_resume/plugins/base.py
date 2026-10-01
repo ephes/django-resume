@@ -1,3 +1,4 @@
+import copy
 from uuid import uuid4
 
 from typing import (
@@ -8,12 +9,15 @@ from typing import (
     Any,
     cast,
     TYPE_CHECKING,
+    TypeVar,
 )
 
 from django import forms
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, HttpRequest
 from django.shortcuts import get_object_or_404, render
+from django.template import TemplateDoesNotExist
+from django.template.loader import get_template
 from django.urls import reverse, path, URLPattern
 from django.utils.html import format_html
 from django.core.exceptions import PermissionDenied
@@ -258,6 +262,9 @@ class SimpleAdmin(LockedResumeMutationMixin):
         return urls
 
 
+ThemedTemplatesT = TypeVar("ThemedTemplatesT", bound="ThemedTemplates")
+
+
 class ThemedTemplates:
     """
     Manages template paths for a plugin with theme-based customization.
@@ -305,9 +312,22 @@ class ThemedTemplates:
         for attr_name in self.template_names.keys():
             setattr(self, attr_name, self.get_template_path(attr_name))
 
+    def for_theme(self: ThemedTemplatesT, theme: str) -> ThemedTemplatesT:
+        """
+        Return a copy of these templates that resolves paths for ``theme``.
+
+        Plugins are registered once and shared by all requests, so rendering must
+        never change the theme of the plugin's own ``templates`` object.
+        """
+        templates = copy.copy(self)
+        templates.set_plugin_name_and_theme(self.plugin_name, theme)
+        return templates
+
     def __getattr__(self, item: str) -> str:
         """This is mainly to make mypy happy"""
-        if item in self.template_names:
+        # look up template_names via __dict__ to avoid recursing on instances
+        # that are not fully initialized yet (e.g. while being copied)
+        if item in self.__dict__.get("template_names", {}):
             return self.get_template_path(item)
         raise AttributeError(
             f"'{self.__class__.__name__}' object has no attribute '{item}'"
@@ -349,6 +369,34 @@ class SimpleThemedTemplates(ThemedTemplates):
 
 def get_current_theme(resume: Resume) -> str:
     return resume.plugin_data.get("theme", {}).get("name", "plain")
+
+
+def _template_exists(name: str) -> bool:
+    try:
+        get_template(name)
+    except TemplateDoesNotExist:
+        return False
+    return True
+
+
+def resolve_fragment_templates(
+    templates: ThemedTemplatesT, resume: Resume, template_name: str
+) -> ThemedTemplatesT:
+    """
+    Templates for rendering the ``template_name`` fragment of ``resume``.
+
+    Uses the resume's current theme when that theme ships the fragment, and
+    otherwise falls back to ``plain`` -- the fragment-level counterpart of
+    :func:`django_resume.pages.base.resolve_page_theme`. The returned object is a
+    fresh copy, so concurrent requests for resumes with different themes never
+    see each other's theme.
+    """
+    theme = resume.current_theme
+    if theme != "plain":
+        themed = templates.for_theme(theme)
+        if _template_exists(themed.get_template_path(template_name)):
+            return themed
+    return templates.for_theme("plain")
 
 
 class SimpleInline(LockedResumeMutationMixin):
@@ -393,14 +441,12 @@ class SimpleInline(LockedResumeMutationMixin):
     def get_edit_view(self, request: HttpRequest, resume_id: int) -> HttpResponse:
         """Return the inline edit form for the plugin."""
         resume = self.get_resume_or_error(request, resume_id)
-        self.templates.set_plugin_name_and_theme(
-            self.plugin_name, get_current_theme(resume)
-        )
+        templates = resolve_fragment_templates(self.templates, resume, "form")
         plugin_data = self.data.get_data(resume)
         form = self.form_class(initial=plugin_data)
         setattr(form, "post_url", self.get_post_url(resume.pk))  # make mypy happy
         context = {"form": form}
-        return self.templates.render(request, SimpleTemplateName("form"), context)
+        return templates.render(request, SimpleTemplateName("form"), context)
 
     def post_view(self, request: HttpRequest, resume_id: int) -> HttpResponse:
         """
@@ -409,8 +455,6 @@ class SimpleInline(LockedResumeMutationMixin):
         """
         with transaction.atomic():
             resume = self.get_locked_resume_or_error(request, resume_id)
-            current_theme = get_current_theme(resume)
-            self.templates.set_plugin_name_and_theme(self.plugin_name, current_theme)
             plugin_data = self.data.get_data(resume)
             form_class = self.form_class
             form = form_class(request.POST, request.FILES, initial=plugin_data)
@@ -422,21 +466,21 @@ class SimpleInline(LockedResumeMutationMixin):
                 self.save_plugin_data(resume)
                 # update the context with the new plugin data from plugin
                 updated_plugin_data = self.data.get_data(resume)
+                templates = resolve_fragment_templates(self.templates, resume, "main")
                 context[self.plugin_name] = self.get_context(
-                    # passing current_theme is really important!
+                    # passing the theme is really important!
                     request,
                     updated_plugin_data,
                     resume.pk,
                     context=context,
-                    theme=current_theme,
+                    theme=templates.theme,
                 )
                 context["show_edit_button"] = True
                 context[self.plugin_name]["edit_url"] = self.get_edit_url(resume.pk)
-                return self.templates.render(
-                    request, SimpleTemplateName("main"), context
-                )
+                return templates.render(request, SimpleTemplateName("main"), context)
             # render the form again with errors
-            return self.templates.render(request, SimpleTemplateName("form"), context)
+            templates = resolve_fragment_templates(self.templates, resume, "form")
+            return templates.render(request, SimpleTemplateName("form"), context)
 
     def get_urls(self) -> URLPatterns:
         """
@@ -484,7 +528,6 @@ class SimplePlugin:
             plugin_name=self.name,
             template_names={"main": "content.html", "form": "form.html"},
         )
-        self.templates.set_plugin_name_and_theme(self.name, "plain")
         self.admin = SimpleAdmin(
             plugin_name=self.name,
             plugin_verbose_name=self.verbose_name,
@@ -541,11 +584,10 @@ class SimplePlugin:
             }
             plugin_data = initial_values
 
-        self.templates.set_plugin_name_and_theme(self.name, theme)
         context.update(plugin_data)
         context["edit_url"] = self.inline.get_edit_url(resume_pk)
         context["show_edit_button"] = edit
-        context["templates"] = self.templates
+        context["templates"] = self.templates.for_theme(theme)
         return context
 
     def get_admin_form_class(self) -> type[forms.Form]:
@@ -1017,6 +1059,11 @@ class ListInline(LockedResumeMutationMixin):
             kwargs={"resume_id": resume_id, "item_id": item_id},
         )
 
+    def template_path(self, resume: Resume, template_name: str) -> str:
+        """The path of the ``template_name`` fragment in the theme of ``resume``."""
+        templates = resolve_fragment_templates(self.templates, resume, template_name)
+        return templates.get_template_path(template_name)
+
     # crud views
 
     @staticmethod
@@ -1041,7 +1088,7 @@ class ListInline(LockedResumeMutationMixin):
             "form": flat_form,
             "edit_flat_post_url": self.get_edit_flat_post_url(resume.pk),
         }
-        return render(request, self.templates.flat_form, context=context)
+        return render(request, self.template_path(resume, "flat_form"), context=context)
 
     def post_edit_flat_view(self, request: HttpRequest, resume_id: int) -> HttpResponse:
         """Handle post requests to update flat data."""
@@ -1060,12 +1107,11 @@ class ListInline(LockedResumeMutationMixin):
                 context["edit_flat_url"] = self.get_edit_flat_url(resume.pk)
                 context = flat_form.set_context(plugin_data["flat"], context)
                 context["show_edit_button"] = True
-                return render(request, self.templates.flat, context=context)
+                return render(request, self.template_path(resume, "flat"), context)
             else:
                 context["form"] = flat_form
                 context["edit_flat_post_url"] = self.get_edit_flat_post_url(resume.pk)
-                response = render(request, self.templates.flat_form, context=context)
-                return response
+                return render(request, self.template_path(resume, "flat_form"), context)
 
     def get_item_view(
         self, request: HttpRequest, resume_id: int, item_id=None
@@ -1084,7 +1130,7 @@ class ListInline(LockedResumeMutationMixin):
         form = form_class(initial=initial, resume=resume, existing_items=existing_items)
         form.post_url = self.get_post_item_url(resume.pk)
         context = {"form": form, "plugin_name": self.plugin_name}
-        return render(request, self.templates.item_form, context=context)
+        return render(request, self.template_path(resume, "item_form"), context=context)
 
     def post_item_view(self, request: HttpRequest, resume_id: int) -> HttpResponse:
         """Handle post requests to create or update a single item."""
@@ -1134,10 +1180,10 @@ class ListInline(LockedResumeMutationMixin):
                 form.set_context(item, context)
                 context["show_edit_button"] = True
                 context["plugin_name"] = self.plugin_name  # for javascript
-                return render(request, self.templates.item, context)
+                return render(request, self.template_path(resume, "item"), context)
             else:
                 # form is invalid
-                return render(request, self.templates.item_form, context)
+                return render(request, self.template_path(resume, "item_form"), context)
 
     def delete_item_view(
         self, request: HttpRequest, resume_id: int, item_id: str
@@ -1263,7 +1309,6 @@ class ListPlugin:
                 for field_name, field in form.fields.items()
             }
             plugin_data["flat"] = initial_values
-        self.templates.set_plugin_name_and_theme(self.name, theme)
         # add flat data to context
         context.update(plugin_data["flat"])
 
@@ -1283,7 +1328,7 @@ class ListPlugin:
         context.update(
             {
                 "plugin_name": self.name,
-                "templates": self.templates,
+                "templates": self.templates.for_theme(theme),
                 "ordered_entries": ordered_entries,
                 "add_item_url": self.inline.get_edit_item_url(resume_pk),
                 "edit_flat_url": self.inline.get_edit_flat_url(resume_pk),
