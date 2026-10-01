@@ -29,6 +29,8 @@ class ResumeConfig(AppConfig):
                 plugins.PermissionDeniedPlugin,
                 plugins.ProjectsPlugin,
                 plugins.AboutPlugin,
+                plugins.AwardsPlugin,
+                plugins.LanguagesPlugin,
                 plugins.SkillsPlugin,
                 plugins.ThemePlugin,
                 plugins.TokenPlugin,

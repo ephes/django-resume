@@ -50,8 +50,10 @@ from django_resume.interchange.coordinator import (
 from django_resume.models import Resume
 from django_resume.plugins import SimplePlugin, ListPlugin
 from django_resume.plugins.about import AboutPlugin
+from django_resume.plugins.awards import AwardsPlugin
 from django_resume.plugins.education import EducationPlugin
 from django_resume.plugins.identity import IdentityPlugin
+from django_resume.plugins.languages import LanguagesPlugin
 from django_resume.plugins.projects import ProjectsPlugin
 from django_resume.plugins.skills import SkillsPlugin
 from django_resume.plugins.timelines import (
@@ -507,11 +509,33 @@ def test_full_resume_exports_and_validates(user):
             ]
         },
     )
+    AwardsPlugin().data.set_data(
+        resume,
+        {"items": [{"id": "a1", "title": "Bronze", "year": "2024", "position": 0}]},
+    )
+    LanguagesPlugin().data.set_data(
+        resume,
+        {
+            "items": [
+                {
+                    "id": "l1",
+                    "name": "English",
+                    "level": 100,
+                    "note": "Native",
+                    "position": 0,
+                }
+            ]
+        },
+    )
     resume.save()
 
     result = export_resume(resume)
 
     assert result.report.valid, result.report.validation_errors
+    assert result.document["awards"] == [{"title": "Bronze", "date": "2024"}]
+    assert result.document["languages"] == [
+        {"language": "English", "fluency": "Native"}
+    ]
     # Both timeline plugins contributed to a single concatenated work array.
     assert {entry["name"] for entry in result.document["work"]} == {"Acme", "BigCo"}
     assert result.document["education"][0]["institution"] == "Uni"

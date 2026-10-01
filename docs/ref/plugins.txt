@@ -145,6 +145,9 @@ Languages" rather than a concrete skill.
 The bundled education adapter exports every education entry in position order
 and maps the degree to ``studyType``. On import, ``area`` is appended to the
 degree because django-resume stores a single degree field.
+The awards adapter maps the project to ``summary`` and the year to ``date``.
+The languages adapter maps the note to ``fluency``; the numeric level has no
+JSON Resume field, so it is not exported and defaults to 80 on import.
 Import adapters should add report notes for any standard JSON Resume fields they
 deliberately ignore or normalize.
 

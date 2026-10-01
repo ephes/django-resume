@@ -61,6 +61,11 @@ Features
   older JSON exports is read as a one-entry list. The JSON Resume adapter
   now exports and imports all ``/education`` entries and maps the degree to
   ``studyType``.
+* Add **Awards** and **Languages** list plugins with ``cv`` capability and
+  plain templates. Awards store a title, project and year; languages store a
+  name, a 0-100 level and an optional note. Both map to the JSON Resume
+  ``/awards`` and ``/languages`` sections. The plain and headwind CV pages
+  do not include them yet.
 
 Fixes
 ^^^^^

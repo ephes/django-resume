@@ -15,11 +15,13 @@ Plugins
 This is the list of built-in plugins that come with django-resume:
 
 - **About**: A simple `about` section.
+- **Awards**: A list of awards with project and year.
 - **Cover**: A cover page with some textual information and profile picture.
 - **Education**: A list of schools with an optional degree and the time you
   attended.
 - **Identity**: Your name, email, phone number, profile picture, social media
   links and an optional website or portfolio URL. Only the name is required.
+- **Languages**: A list of languages with a 0-100 level and an optional note.
 - **Permission Denied**: The page that is shown when you try to access a part of the resume you need a token for.
 - **Projects**: A list of projects you have worked on.
 - **Skills**: A list of skills you have.
