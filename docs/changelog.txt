@@ -96,6 +96,9 @@ Fixes
 * Keep stored images when list plugin flat data is saved in the Django
   admin without a new upload; the admin form now starts from the stored
   flat data like the inline editor.
+* Fall back to the plain permission-denied fragments when a page theme only
+  ships its own ``cv_403.html`` frame, so the denial page and its inline
+  editor keep working for partial themes such as headwind.
 
 0.3.0 - 2026-06-21
 ------------------
