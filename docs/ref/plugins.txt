@@ -142,6 +142,9 @@ The bundled skills adapter imports ``skills[].keywords`` as skill badges and
 uses ``skills[].name`` as a fallback only when no keywords are present; in many
 JSON Resume documents ``name`` is a category label such as "Programming
 Languages" rather than a concrete skill.
+The bundled education adapter exports every education entry in position order
+and maps the degree to ``studyType``. On import, ``area`` is appended to the
+degree because django-resume stores a single degree field.
 Import adapters should add report notes for any standard JSON Resume fields they
 deliberately ignore or normalize.
 

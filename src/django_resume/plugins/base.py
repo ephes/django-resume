@@ -1198,11 +1198,12 @@ class ListPlugin:
     verbose_name = "List Plugin"
     capabilities: tuple[str, ...] = ()
     template_class: type[ThemedTemplates] = ListThemedTemplates
+    data_class: type[ListData] = ListData
     sort_by_reverse_position: bool = True
 
     def __init__(self):
         super().__init__()
-        self.data = data = ListData(plugin_name=self.name)
+        self.data = data = self.data_class(plugin_name=self.name)
         self.templates = self.template_class(
             plugin_name=self.name,
             template_names={

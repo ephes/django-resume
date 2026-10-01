@@ -1,0 +1,35 @@
+<div id="{{ plugin_name }}-item-{{ entry.id }}" class="stack-small">
+  <div class="cluster timeline-header-cluster">
+    <div class="timeline-header-title">
+      <h3>
+        {% if entry.school_url %}
+          <a class="underlined" href="{{ entry.school_url }}">{{ entry.school_name }}</a>
+        {% else %}
+          {{ entry.school_name }}
+        {% endif %}
+      </h3>
+    </div>
+    {% if entry.start or entry.end %}
+      <ul class="cluster cluster-list year-span">
+        {% if entry.start %}<li>{{ entry.start }}</li>{% endif %}
+        {% if entry.start and entry.end %}<li>-</li>{% endif %}
+        {% if entry.end %}<li>{{ entry.end }}</li>{% endif %}
+      </ul>
+    {% endif %}
+    {% if show_edit_button %}
+      <svg class="edit-icon-small" hx-get="{{ entry.edit_url }}" hx-target="#{{ plugin_name }}-item-{{ entry.id }}" hx-swap="outerHTML">
+        <use href="#edit"></use>
+      </svg>
+      <svg
+        class="edit-icon-small"
+        style="color: red !important;"
+        hx-delete="{{ entry.delete_url }}"
+        hx-target="#{{ plugin_name }}-item-{{ entry.id }}"
+        hx-swap="delete"
+      >
+        <use href="#delete"></use>
+      </svg>
+    {% endif %}
+  </div>
+  {% if entry.degree %}<p>{{ entry.degree }}</p>{% endif %}
+</div>

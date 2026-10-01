@@ -1,33 +1,28 @@
 <section id="education" class="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
-  <div class="flex items-center justify-between group mb-6">
-    <h2 class="text-xl font-semibold text-slate-800">Education</h2>
+  {% include education.templates.flat %}
+
+  <div class="space-y-4 mt-6">
     {% if show_edit_button %}
-      <button
-        class="opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-2 rounded-lg hover:bg-slate-50 text-slate-500 hover:text-slate-700"
-        hx-get="{{ education.edit_url }}"
-        hx-target="#education"
-        hx-swap="outerHTML"
-        title="Edit education"
-      >
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M16 3l5 5L9 20H4v-5L16 3z"></path>
-        </svg>
-      </button>
+      <div id="add-education-container" class="space-y-4">
+        <div class="flex justify-center">
+          <button
+            id="add-education-icon"
+            class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg shadow-md hover:shadow-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+            hx-get="{{ education.add_item_url }}"
+            hx-target="#add-education-container"
+            hx-swap="beforeend"
+          >
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path>
+            </svg>
+            Add Entry
+          </button>
+        </div>
+      </div>
     {% endif %}
-  </div>
-  
-  <div class="bg-slate-50 rounded-lg p-4 border border-slate-200">
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-      <div>
-        <h3 class="text-lg font-semibold text-slate-800">
-          <a href="{{ education.school_url }}" class="text-blue-600 hover:text-blue-800 underline decoration-blue-300 hover:decoration-blue-500 transition-colors">
-            {{ education.school_name }}
-          </a>
-        </h3>
-      </div>
-      <div class="text-sm text-slate-500 font-medium whitespace-nowrap">
-        {{ education.start }} - {{ education.end }}
-      </div>
-    </div>
+
+    {% for entry in education.ordered_entries %}
+      {% include education.templates.item with plugin_name=education.plugin_name %}
+    {% endfor %}
   </div>
 </section>

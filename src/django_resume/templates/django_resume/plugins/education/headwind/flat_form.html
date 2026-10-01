@@ -1,0 +1,27 @@
+<form 
+  hx-post="{{ edit_flat_post_url }}" 
+  hx-target="this" 
+  hx-swap="outerHTML"
+  class="bg-slate-50 rounded-lg p-4 border-2 border-blue-200"
+>
+  <div class="flex items-center gap-3">
+    <input 
+      class="flex-1 text-xl font-semibold text-slate-800 bg-white rounded-lg px-4 py-2 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" 
+      type="text" 
+      name="title" 
+      value="{{ form.title.value }}"
+      placeholder="Section title"
+    >
+    <button 
+      type="submit"
+      class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+    >
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path>
+      </svg>
+    </button>
+  </div>
+  {% for error in form.title.errors %}
+    <p class="mt-2 text-sm text-red-600 bg-red-50 p-2 rounded-lg">{{ error|escape }}</p>
+  {% endfor %}
+</form>

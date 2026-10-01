@@ -167,15 +167,30 @@ def test_skills_facts_and_adapter_map_to_skill_objects(resume):
     ]
 
 
-def test_education_adapter_maps_valid_entry(resume):
+def test_education_adapter_maps_entries_in_position_order(resume):
     plugin = EducationPlugin()
     plugin.data.set_data(
         resume,
         {
-            "school_name": "State University",
-            "school_url": "https://uni.example",
-            "start": "2010",
-            "end": "2014",
+            "flat": {"title": "Education"},
+            "items": [
+                {
+                    "id": "second",
+                    "school_name": "Graduate School",
+                    "degree": "MSc",
+                    "end": "2016",
+                    "position": 1,
+                },
+                {
+                    "id": "first",
+                    "school_name": "State University",
+                    "school_url": "https://uni.example",
+                    "degree": "BSc",
+                    "start": "2010",
+                    "end": "2014",
+                    "position": 0,
+                },
+            ],
         },
     )
     facts = plugin.get_structured_data(resume)
@@ -188,9 +203,15 @@ def test_education_adapter_maps_valid_entry(resume):
                 {
                     "institution": "State University",
                     "url": "https://uni.example",
+                    "studyType": "BSc",
                     "startDate": "2010",
                     "endDate": "2014",
-                }
+                },
+                {
+                    "institution": "Graduate School",
+                    "studyType": "MSc",
+                    "endDate": "2016",
+                },
             ],
         )
     ]
@@ -199,12 +220,55 @@ def test_education_adapter_maps_valid_entry(resume):
 
 def test_education_adapter_omits_and_reports_invalid_date(resume):
     plugin = EducationPlugin()
-    plugin.data.set_data(resume, {"school_name": "Uni", "start": "start", "end": ""})
+    plugin.data.set_data(
+        resume,
+        {"items": [{"id": "1", "school_name": "Uni", "start": "start", "end": ""}]},
+    )
     facts = plugin.get_structured_data(resume)
     result = plugin.get_export_adapters()["json_resume"].export(facts)
     entry = dict(result.contributions)["/education"][0]
     assert entry == {"institution": "Uni"}
     assert any("start" in note for note in result.notes)
+
+
+def test_education_adapter_exports_legacy_single_entry_data(resume):
+    # Given education data stored before education became a list plugin
+    plugin = EducationPlugin()
+    resume.plugin_data = {
+        "education": {"school_name": "Uni", "start": "2010", "end": "2014"}
+    }
+
+    # When it is exported
+    facts = plugin.get_structured_data(resume)
+    result = plugin.get_export_adapters()["json_resume"].export(facts)
+
+    # Then the single legacy entry is exported as one education entry
+    assert dict(result.contributions)["/education"] == [
+        {"institution": "Uni", "startDate": "2010", "endDate": "2014"}
+    ]
+
+
+def test_education_adapter_imports_all_entries():
+    adapter = EducationPlugin().get_import_adapters()["json_resume"]
+    result = adapter.import_data(
+        {
+            "education": [
+                {
+                    "institution": "Uni",
+                    "studyType": "Bachelor",
+                    "area": "Computer Science",
+                    "startDate": "2010",
+                },
+                {"institution": "Second Uni", "studyType": "Master"},
+            ]
+        }
+    )
+    items = result.plugin_data["items"]
+    assert [item["school_name"] for item in items] == ["Uni", "Second Uni"]
+    assert items[0]["degree"] == "Bachelor, Computer Science"
+    assert items[1]["degree"] == "Master"
+    assert [item["position"] for item in items] == [0, 1]
+    assert any("area was merged into the degree" in note for note in result.notes)
 
 
 def test_timeline_adapter_maps_items_to_work_and_omits_bad_dates(resume):
@@ -380,10 +444,16 @@ def test_full_resume_exports_and_validates(user):
     EducationPlugin().data.set_data(
         resume,
         {
-            "school_name": "Uni",
-            "school_url": "https://uni.example",
-            "start": "2010",
-            "end": "2014",
+            "items": [
+                {
+                    "id": "uni",
+                    "school_name": "Uni",
+                    "school_url": "https://uni.example",
+                    "start": "2010",
+                    "end": "2014",
+                    "position": 0,
+                }
+            ]
         },
     )
     FreelanceTimelinePlugin().data.set_data(
@@ -533,7 +603,9 @@ def test_import_resume_document_creates_resume_from_portable_json(user):
     assert imported.plugin_data["identity"]["github"] == "https://github.com/jane"
     assert imported.plugin_data["about"]["text"] == "Hello"
     assert imported.plugin_data["skills"]["badges"] == ["Django", "pytest"]
-    assert imported.plugin_data["education"]["start"] == "2010"
+    education_items = imported.plugin_data["education"]["items"]
+    assert [item["school_name"] for item in education_items] == ["Uni", "Second Uni"]
+    assert education_items[0]["start"] == "2010"
     [work_item] = imported.plugin_data["employed_timeline"]["items"]
     assert work_item["company_name"] == "Acme"
     assert work_item["badges"] == []
@@ -545,7 +617,6 @@ def test_import_resume_document_creates_resume_from_portable_json(user):
     assert "basics.url" not in notes
     assert "basics.profiles entry 'Bluesky' is not imported" in notes
     assert "about.title defaulted to 'About'" in notes
-    assert "education entries beyond the first were not imported" in notes
     assert "skills entry 'Python' level is not imported" in notes
     assert "skills entry 'Python' category name is not imported" in notes
     assert "freelance and employed" in notes
@@ -663,10 +734,18 @@ def test_import_resume_document_restores_django_resume_plugin_data_for_round_tri
         },
         "about": {"title": "About", "text": "Rule well."},
         "education": {
-            "school_name": "Alexandria",
-            "school_url": "https://alexandria.example",
-            "start": "Ancient Times",
-            "end": "Cleopatra VII",
+            "flat": {"title": "Education"},
+            "items": [
+                {
+                    "id": "alexandria",
+                    "school_name": "Alexandria",
+                    "school_url": "https://alexandria.example",
+                    "degree": "",
+                    "start": "Ancient Times",
+                    "end": "Cleopatra VII",
+                    "position": 0,
+                }
+            ],
         },
         "pyramid": {"height": 230},
     }

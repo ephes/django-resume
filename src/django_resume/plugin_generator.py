@@ -25,7 +25,6 @@ def get_simple_plugins(registry: PluginRegistry) -> list[SimplePlugin]:
     """Return a list of SimplePlugins from the registry with allowed names."""
 
     allowed_plugin_names = {
-        "education",
         "permission_denied",
         "about",
         "skills",

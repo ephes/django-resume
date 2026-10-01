@@ -55,6 +55,12 @@ Features
 * Add an optional website or portfolio URL to **Identity**. The plain and
   headwind identity sections link to it, and it maps to JSON Resume
   ``basics.url`` on export and import.
+* Turn **Education** into a list plugin with ordered entries and an
+  optional degree per entry. Migration ``0003_education_list_items``
+  converts existing single-entry education data; legacy data restored from
+  older JSON exports is read as a one-entry list. The JSON Resume adapter
+  now exports and imports all ``/education`` entries and maps the degree to
+  ``studyType``.
 
 Fixes
 ^^^^^

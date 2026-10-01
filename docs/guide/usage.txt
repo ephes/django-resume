@@ -16,7 +16,8 @@ This is the list of built-in plugins that come with django-resume:
 
 - **About**: A simple `about` section.
 - **Cover**: A cover page with some textual information and profile picture.
-- **Education**: Just the name of the school and the time you attended.
+- **Education**: A list of schools with an optional degree and the time you
+  attended.
 - **Identity**: Your name, email, phone number, profile picture, social media
   links and an optional website or portfolio URL. Only the name is required.
 - **Permission Denied**: The page that is shown when you try to access a part of the resume you need a token for.

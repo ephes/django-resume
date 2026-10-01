@@ -47,7 +47,9 @@ Construction and Initialization
 
 Initializes the plugin:
 
-1. Instantiates :class:`ListData` for storing and retrieving plugin data.
+1. Instantiates :attr:`data_class` (:class:`ListData` by default) for storing
+   and retrieving plugin data. Override it to normalize stored data on read,
+   for example to accept an older data shape.
 2. Creates :attr:`templates` by calling :attr:`template_class` with the plugin
    name and a dictionary of default template names (``"flat_form"``, ``"item_form"``,
    etc.).
