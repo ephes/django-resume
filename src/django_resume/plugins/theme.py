@@ -2,6 +2,7 @@ from django import forms
 from django.http import HttpRequest
 
 from .base import SimplePlugin, ContextDict
+from ..i18n import language_choices, normalize_language
 
 
 class ThemeForm(forms.Form):
@@ -9,6 +10,12 @@ class ThemeForm(forms.Form):
         label="Theme Name",
         max_length=100,
         initial="plain",
+    )
+    language = forms.ChoiceField(
+        label="Resume language",
+        choices=language_choices,
+        required=False,
+        initial="",
     )
 
 
@@ -46,4 +53,6 @@ class ThemePlugin(SimplePlugin):
         )
         if context.get("name") is None:
             context["name"] = "plain"
+        context["language"] = normalize_language(context.get("language"))
+        context["language_choices"] = language_choices()
         return context

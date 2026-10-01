@@ -1,6 +1,7 @@
-{% load static %}
+{% load static i18n %}
 <!DOCTYPE html>
-<html lang="en" class="scroll-smooth">
+{% get_current_language as LANGUAGE_CODE %}
+<html lang="{{ LANGUAGE_CODE|default:"en" }}" class="scroll-smooth">
 <head>
   <meta charset="UTF-8">
   <title>{% block title %}Django Resume{% endblock title %}</title>

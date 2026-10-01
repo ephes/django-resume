@@ -8,6 +8,7 @@ from django.template import TemplateDoesNotExist
 from django.template.loader import get_template
 from django.urls import reverse
 
+from ..i18n import render_in_language, resume_language
 from ..models import Resume
 from ..plugins import plugin_registry
 
@@ -212,9 +213,14 @@ class ResumePage:
 
 def dispatch_page(request: HttpRequest, slug: str, page: ResumePage) -> HttpResponse:
     resume = get_object_or_404(Resume.objects.select_related("owner"), slug=slug)
-    denied = page.check_access(request, resume)
-    if denied is not None:
-        return page.finalize_response(denied, request, resume)
-    base_context = build_base_context(request, resume)
-    response = page.serve(request, resume, base_context)
-    return page.finalize_response(response, request, resume)
+    with resume_language(resume.language):
+        denied = page.check_access(request, resume)
+        if denied is not None:
+            return page.finalize_response(
+                render_in_language(denied, resume.language), request, resume
+            )
+        base_context = build_base_context(request, resume)
+        response = render_in_language(
+            page.serve(request, resume, base_context), resume.language
+        )
+        return page.finalize_response(response, request, resume)

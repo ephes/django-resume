@@ -152,7 +152,7 @@ def test_handwriting_label_inserted_by_htmx_is_visible(
     resume.plugin_data["token"]["flat"]["token_required"] = True
     resume.plugin_data["permission_denied"] = {
         "title": "Request my CV",
-        "sub_title": "",
+        "sub_title": "By invitation",
         "email": "access@example.com",
         "text": "Please ask.",
     }
@@ -204,3 +204,17 @@ def test_resources_rail_hidden_without_website_and_javascript(
 
     expect(page.locator(".cv-rail--resources")).to_be_hidden()
     context.close()
+
+
+def test_owner_switches_resume_language(page: Page, live_server, editorial_resume):
+    _login(page, live_server)
+    page.goto(f"{live_server.url}/resume/jane/?edit=true")
+
+    page.locator("#theme svg.edit-icon-small").first.click()
+    page.select_option("#theme select#language", "de")
+    with page.expect_navigation():
+        page.click("#submit-theme")
+
+    expect(page.locator("html")).to_have_attribute("lang", "de")
+    page.goto(f"{live_server.url}/resume/jane/cv/")
+    expect(page.locator(".hw-text", has_text="Kontakt")).to_have_count(1)

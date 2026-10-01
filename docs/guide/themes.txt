@@ -104,10 +104,23 @@ change that.
 Languages
 ---------
 
-The theme's fixed texts (rail labels, the print button, page titles) are
-English and translatable with Django's i18n framework; django-resume ships a
-German translation. With ``LocaleMiddleware`` or ``translation.activate("de")``
-the rail labels are written in German, for example "Sprechen wir über".
+The theme's fixed texts (rail labels, the print button, page titles, the
+"Clients:" label) are English and translatable with Django's i18n framework;
+django-resume ships a German translation.
+
+Each resume can choose its own language, independent of the site language. In
+edit mode, the **Page Theme** section offers a "Resume language" selection
+with the entries of ``settings.LANGUAGES``; it is stored as ``language`` in
+the theme plugin data (``resume.plugin_data["theme"]["language"]``) and
+available as ``resume.language``. A resume with a language renders all its
+pages (cover letter, CV, the token denial page and other registered pages) and
+the fragments swapped in while editing in that language, and sets
+``<html lang>`` accordingly. A German resume on an English site therefore shows
+"Sprechen wir über" and "Kunden:". Leaving the selection on "Site default"
+keeps the previous behavior: the active language, usually ``LANGUAGE_CODE`` or
+the one chosen by ``LocaleMiddleware``. Codes that are not in
+``settings.LANGUAGES`` are ignored. The JSON Resume render themes are not
+affected.
 
 Content Security Policy
 -----------------------

@@ -49,6 +49,22 @@ class Resume(models.Model):
             return theme_plugin.get_data(self).get("name", "plain")
         return "plain"
 
+    @staticmethod
+    def language_from_plugin_data(plugin_data: dict) -> str:
+        """The resume language stored with the page theme, if it is configured."""
+        from .i18n import normalize_language
+
+        theme_data = plugin_data.get("theme") or {}
+        if not isinstance(theme_data, dict):
+            return ""
+        return normalize_language(theme_data.get("language"))
+
+    @property
+    def language(self) -> str:
+        """The language the resume's pages render in; empty means the active
+        site language."""
+        return self.language_from_plugin_data(self.plugin_data or {})
+
     def save(self, *args, **kwargs) -> None:
         if self.plugin_data is None:
             self.plugin_data = {}

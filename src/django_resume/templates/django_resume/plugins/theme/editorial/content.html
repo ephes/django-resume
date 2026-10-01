@@ -7,10 +7,10 @@
         <use href="#edit"></use>
       </svg>
     </div>
-    <p>{{ theme.name }}</p>
+    <p>{{ theme.name }}{% if theme.language %} · {{ theme.language }}{% endif %}</p>
   {% else %}
     <h2>Page Theme</h2>
-    <p>{{ theme.name }}</p>
+    <p>{{ theme.name }}{% if theme.language %} · {{ theme.language }}{% endif %}</p>
   {% endif %}
   <script>
       document.addEventListener("htmx:afterSwap", function (evt) {

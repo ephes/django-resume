@@ -77,6 +77,11 @@ Features
   fixed texts are translatable and django-resume ships a German translation.
   Fonts, illustrations and the handwriting glyph data ship with their license
   notes. See :doc:`guide/themes`.
+* Add an optional language per resume, chosen next to the page theme and
+  stored in the theme plugin data. A resume with a language renders its pages
+  and inline editing fragments in that language, independent of the site
+  language, and sets ``<html lang>``. Resumes without a language keep the
+  active site language. See :doc:`guide/themes`.
 
 Fixes
 ^^^^^
@@ -106,6 +111,8 @@ Fixes
 * Fall back to the plain permission-denied fragments when a page theme only
   ships its own ``cv_403.html`` frame, so the denial page and its inline
   editor keep working for partial themes such as headwind.
+* Preselect the current theme in the plain page theme form; saving it
+  without touching the selection no longer switches the resume to ``plain``.
 
 0.3.0 - 2026-06-21
 ------------------

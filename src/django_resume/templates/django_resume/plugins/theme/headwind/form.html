@@ -47,6 +47,20 @@
         </label>
       </div>
     </div>
+
+    <div>
+      <label for="language" class="block text-sm font-medium text-slate-700 mb-3">
+        Resume language
+      </label>
+      <select id="language" name="language" class="w-full bg-white rounded-lg px-4 py-2 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+        {% for code, label in form.fields.language.choices %}
+          <option value="{{ code }}"{% if form.language.value == code %} selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      {% for error in form.language.errors %}
+        <p class="mt-2 text-sm text-red-600">{{ error|escape }}</p>
+      {% endfor %}
+    </div>
     
     {% for error in form.name.errors %}
       <p class="text-sm text-red-600 bg-red-50 p-3 rounded-lg">{{ error|escape }}</p>

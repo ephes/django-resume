@@ -4,7 +4,7 @@
     <div class="flex items-center justify-between group">
       <div>
         <h2 class="text-xl font-semibold text-slate-800 mb-2">Page Theme Settings</h2>
-        <p class="text-slate-600">Current page theme: <span class="font-medium text-blue-600">{{ theme.name|title }}</span></p>
+        <p class="text-slate-600">Current page theme: <span class="font-medium text-blue-600">{{ theme.name|title }}</span>{% if theme.language %} · Language: <span class="font-medium text-blue-600">{{ theme.language }}</span>{% endif %}</p>
       </div>
       <button
         class="opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-2 rounded-lg hover:bg-slate-50 text-slate-500 hover:text-slate-700"
@@ -21,7 +21,7 @@
   {% else %}
     <div>
       <h2 class="text-xl font-semibold text-slate-800 mb-2">Page Theme Settings</h2>
-      <p class="text-slate-600">Current page theme: <span class="font-medium text-blue-600">{{ theme.name|title }}</span></p>
+      <p class="text-slate-600">Current page theme: <span class="font-medium text-blue-600">{{ theme.name|title }}</span>{% if theme.language %} · Language: <span class="font-medium text-blue-600">{{ theme.language }}</span>{% endif %}</p>
     </div>
   {% endif %}
 

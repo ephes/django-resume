@@ -9,11 +9,20 @@
     <h2>Page Theme</h2>
     <label for="name">Choose a page theme</label>
     <select id="name" name="name">
-      <option value="plain">Plain</option>
-      <option value="headwind">Tailwind</option>
-      <option value="editorial">Editorial</option>
+      <option value="plain"{% if form.name.value == "plain" %} selected{% endif %}>Plain</option>
+      <option value="headwind"{% if form.name.value == "headwind" %} selected{% endif %}>Tailwind</option>
+      <option value="editorial"{% if form.name.value == "editorial" %} selected{% endif %}>Editorial</option>
     </select>
     {% for error in form.theme.errors %}
+      <p class="error">{{ error|escape }}</p>
+    {% endfor %}
+    <label for="language">Resume language</label>
+    <select id="language" name="language">
+      {% for code, label in form.fields.language.choices %}
+        <option value="{{ code }}"{% if form.language.value == code %} selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    {% for error in form.language.errors %}
       <p class="error">{{ error|escape }}</p>
     {% endfor %}
     <div> {# prevent button from taking full width with this div #}

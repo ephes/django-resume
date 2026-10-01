@@ -38,7 +38,12 @@ class PluginRegistry:
         self.plugins[plugin.name] = plugin
         from ..urls import urlpatterns
 
+        from ..i18n import with_resume_language
+
         inline_urls = plugin.get_inline_urls()
+        for pattern in inline_urls:
+            # Fragments swapped into a page must use the resume's language too.
+            pattern.callback = with_resume_language(pattern.callback)
         urlpatterns.extend(inline_urls)
         self.inline_urls[plugin.name] = inline_urls
 
