@@ -47,6 +47,8 @@ Features
 * Clarify theme terminology in the UI and documentation: django-resume template
   styling is a page theme, while npm-backed JSON Resume packages are JSON Resume
   render themes.
+* Render consecutive markdown lines starting with ``-``, ``*`` or ``•``
+  as a bulleted list in sanitized markdown fields.
 
 Fixes
 ^^^^^

@@ -39,6 +39,7 @@ The supported formatting is intentionally limited to:
 - bold
 - italic
 - links
+- bulleted lists (lines starting with ``-``, ``*`` or ``•``)
 - line breaks
 
 Rendered HTML is sanitized before it is marked safe, so raw HTML is not preserved
