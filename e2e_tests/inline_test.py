@@ -14,20 +14,13 @@ def test_resume_list_page(logged_in_page: Page, resume_list_url: str):
     assert page.locator("h1:has-text('My Resumes')").count() > 0
 
 
-def remove_resume(page: Page, slug: str) -> None:
-    """Remove the resume with the given slug."""
-    delete_button = page.locator(f"#resume-{slug} .resume-delete-button")
-    delete_button.click()
-    page.wait_for_selector("#resume-john-doe", state="detached")
-
-
 def remove_uploads() -> None:
-    """Remove all uploaded files."""
+    """Remove the files uploaded by a test (MEDIA_ROOT of e2e_tests.settings)."""
     import shutil
-    import os
 
-    shutil.rmtree("e2e_tests/media", ignore_errors=True)
-    os.makedirs("e2e_tests/media", exist_ok=True)
+    from django.conf import settings
+
+    shutil.rmtree(settings.MEDIA_ROOT, ignore_errors=True)
 
 
 def test_create_resume_via_list_page(logged_in_page: Page, resume_list_url: str):
@@ -53,9 +46,6 @@ def test_create_resume_via_list_page(logged_in_page: Page, resume_list_url: str)
     cv_link = resume_item.locator("a.underlined[href='/resume/john-doe/cv/']")
     assert cv_link.is_visible(), "CV link not found"
 
-    # Remove the resume so the test can be run again
-    remove_resume(page, "john-doe")
-
 
 def create_resume(page: Page, name: str, slug: str) -> None:
     """Create a resume with the given name and slug."""
@@ -70,8 +60,7 @@ def page_with_resume(logged_in_page: Page, resume_list_url: str) -> Page:
     page.goto(resume_list_url)
     create_resume(page, "John Doe", "john-doe")
     yield page
-    page.goto(resume_list_url)
-    remove_resume(page, "john-doe")
+    # transactional_db (via logged_in_page) removes the resume after the test
     remove_uploads()
 
 
@@ -103,11 +92,10 @@ def test_create_resume_cover_letter_inline(
         "New profile photo description"
     )
     page.locator("#submit-cover").click()
-    page.wait_for_selector("#cover-flat", state="attached")
 
     # Then I should see the new cover letter title, avatar, and avatar alt text
-    assert page.locator("h1:has-text('New Cover Title')").is_visible()
-    assert page.locator("img[alt='New profile photo description']").is_visible()
+    expect(page.locator("h1:has-text('New Cover Title')")).to_be_visible()
+    expect(page.locator("img[alt='New profile photo description']")).to_be_visible()
 
     # When I click on the "Add Item" button
     page.locator(".edit-icon-small[hx-target='#cover-items'] use[href='#add']").click()
@@ -124,8 +112,10 @@ def test_create_resume_cover_letter_inline(
     page.locator('[id^="cover-submit-item-"]').click()
 
     # Then I should see the new cover item
-    assert page.locator("h3:has-text('Cover item title')").is_visible()
-    assert page.locator("p:has-text('Cover paragraph content...')").is_visible()
+    expect(page.locator("#cover-items")).to_contain_text("New Cover Item Title")
+    expect(page.locator("#cover-items")).to_contain_text(
+        "New cover paragraph content..."
+    )
 
 
 def test_create_resume_cv_inline(

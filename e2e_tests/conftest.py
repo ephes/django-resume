@@ -8,7 +8,7 @@ os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "1")
 
 import pytest  # noqa: E402
 from django.urls import reverse  # noqa: E402
-from playwright.sync_api import Browser, Page  # noqa: E402
+from playwright.sync_api import Browser  # noqa: E402
 
 
 TEST_USER = {
@@ -16,6 +16,13 @@ TEST_USER = {
     "password": "password",
     "email": "playwright@example.com",
 }
+
+
+@pytest.fixture(scope="session")
+def base_url(live_server) -> str:
+    """Point the browser tests at pytest-django's live server instead of an
+    externally started development server (pytest-base-url's ``base_url``)."""
+    return live_server.url
 
 
 @pytest.fixture
@@ -30,27 +37,21 @@ def resume_list_url(base_url: str) -> str:
     return base_url + list_path
 
 
-@pytest.fixture(scope="session")
-def save_auth_state(base_url: str, browser: Browser):
-    page = browser.new_page()
-    admin_login_path = reverse("admin:login")
-    login_url = base_url + admin_login_path
-    admin_index_path = reverse("admin:index")
-    admin_index_url = base_url + admin_index_path
-    page.goto(login_url)
+@pytest.fixture
+def test_user(transactional_db, django_user_model):
+    """The superuser the browser logs in as; committed so the live server sees it."""
+    return django_user_model.objects.create_superuser(**TEST_USER)
+
+
+@pytest.fixture
+def logged_in_page(browser: Browser, test_user, base_url: str, admin_index_url: str):
+    context = browser.new_context()
+    page = context.new_page()
+    page.goto(base_url + reverse("admin:login"))
     page.fill("#id_username", TEST_USER["username"])
     page.fill("#id_password", TEST_USER["password"])
     page.click('input[type="submit"][value="Log in"]')
     page.wait_for_url(admin_index_url)  # Wait until login is confirmed
-    page.context.storage_state(path="auth.json")  # Save the authenticated state
-    page.close()
-
-
-@pytest.fixture
-def logged_in_page(browser: Browser, save_auth_state, admin_index_url: str) -> Page:
-    context = browser.new_context(storage_state="auth.json")  # Load the saved state
-    page = context.new_page()
-    page.goto(admin_index_url)
     yield page
     page.close()
     context.close()

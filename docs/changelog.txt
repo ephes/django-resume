@@ -113,6 +113,9 @@ Fixes
   editor keep working for partial themes such as headwind.
 * Preselect the current theme in the plain page theme form; saving it
   without touching the selection no longer switches the resume to ``plain``.
+* Run every browser test against pytest-django's live server: the admin and
+  inline e2e tests no longer need a development server on ``localhost:8000``
+  or a prepared user, and uploads go to ``e2e_tests/media/``.
 
 0.3.0 - 2026-06-21
 ------------------

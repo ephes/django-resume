@@ -12,17 +12,6 @@ def test_admin_index_page(logged_in_page: Page, admin_index_url: str):
     assert page.locator("th#django_resume-resume").count() > 0
 
 
-def remove_resume(page: Page, name: str) -> None:
-    """Remove the resume with the given name."""
-    page.click("th#django_resume-resume a")
-    page.click(
-        f'input.action-select[aria-label="Select this object for an action - {name}"]'
-    )
-    page.select_option('select[name="action"]', "delete_selected")
-    page.click('button.button[title="Run the selected action"]')
-    page.click('input[type="submit"][value="Yes, I’m sure"]')
-
-
 def test_create_resume_via_admin(logged_in_page: Page, admin_index_url: str):
     page = logged_in_page
     page.goto(admin_index_url)
@@ -47,9 +36,6 @@ def test_create_resume_via_admin(logged_in_page: Page, admin_index_url: str):
     # And I should see the new resume in the list
     assert page.locator('th.field-__str__ a:has-text("John doe")').count() > 0
 
-    # Remove the resume so the test can be run again
-    remove_resume(page, "John Doe")
-
 
 def create_resume(page: Page, name: str, slug: str, owner: str) -> None:
     """Create a resume with the given name, slug, and owner."""
@@ -63,13 +49,12 @@ def create_resume(page: Page, name: str, slug: str, owner: str) -> None:
 
 @pytest.fixture
 def page_with_resume(logged_in_page: Page, admin_index_url: str) -> Page:
+    # transactional_db (via logged_in_page) removes the resume after the test
     page = logged_in_page
     page.goto(admin_index_url)
     create_resume(page, "John Doe", "john-doe", "playwright")
     page.click('th.field-__str__ a:has-text("John Doe")')
-    yield page
-    page.goto(admin_index_url)
-    remove_resume(page, "John Doe")
+    return page
 
 
 def test_create_resume_cover_letter(
@@ -85,7 +70,8 @@ def test_create_resume_cover_letter(
     page.fill('input[name="title"]', "Some Cover Letter Title")
 
     # And I click on the "Update" button
-    page.click('button:has-text("Update")')
+    with page.expect_response(lambda response: response.request.method == "POST"):
+        page.click('button:has-text("Update")')
 
     # And add a new item
     page.click('button:has-text("Add Item")')
@@ -94,7 +80,8 @@ def test_create_resume_cover_letter(
     page.locator("#id_title").nth(1).fill("Added Cover Section Title")
     page.fill("#id_text", "Your cover letter content here")
 
-    page.click('button.update_item:has-text("Update")')
+    with page.expect_response(lambda response: response.request.method == "POST"):
+        page.click('button.update_item:has-text("Update")')
 
     # Then if I go to the resume detail page
     resume_path = reverse("django_resume:detail", args=["john-doe"])
@@ -108,7 +95,8 @@ def test_create_resume_cover_letter(
     assert page.locator("h2:has-text('Added Cover Section Title')").count() > 0
 
     # And I should see the cover letter content
-    assert page.locator("p:has-text('Your cover letter content here')").count() > 0
+    # (markdown text is rendered without <p> wrappers)
+    expect(page.get_by_text("Your cover letter content here")).to_be_visible()
 
 
 def test_edit_freelance_timeline_title(
@@ -122,7 +110,8 @@ def test_edit_freelance_timeline_title(
 
     # And I fill out the flat form and click update
     page.fill("input#id_title", "The Freelance Timeline")
-    page.click('button[type="submit"]:has-text("Update")')
+    with page.expect_response(lambda response: response.request.method == "POST"):
+        page.click('button[type="submit"]:has-text("Update")')
 
     # Then if I go to the resume cv page
     resume_cv_path = reverse("django_resume:cv", args=["john-doe"])
@@ -154,7 +143,8 @@ def test_add_freelance_timeline_item(
     page.fill("input#id_end", "2023")
 
     # And click on the "Update" button
-    page.click('button.update_item:has-text("Update")')
+    with page.expect_response(lambda response: response.request.method == "POST"):
+        page.click('button.update_item:has-text("Update")')
 
     # Then if I go to the resume cv page
     resume_cv_path = reverse("django_resume:cv", args=["john-doe"])

@@ -25,3 +25,7 @@ DATABASES = {
         "TEST": {"NAME": _E2E_DB},
     }
 }
+
+# Uploads made by the browser tests go to a throwaway directory, not to the
+# example project's media files.
+MEDIA_ROOT = str(E2E_DIR / "media")
