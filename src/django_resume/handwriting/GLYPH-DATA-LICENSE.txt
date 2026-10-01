@@ -1,0 +1,9 @@
+glyph_data.json
+===============
+
+glyph_data.json holds the glyph outlines, hand-traced writing strokes, advances
+and ligatures used to render the editorial theme's self-writing labels. The
+outlines are derived from the Astagina Signature font by Green Adventure STD
+and are covered by the same terms as the font, not by the django-resume
+license. See
+django_resume/static/django_resume/fonts/script/ASTAGINA-LICENSE.txt.

@@ -1,0 +1,75 @@
+/* Self-writing handwriting labels of the editorial theme. */
+/* The label keeps real text for a11y/print; the SVG is the visual. */
+.hw-label { display: inline-block; }
+.hw-text {                      /* visually hidden, available to screen readers */
+  position: absolute !important; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0);
+  white-space: nowrap; border: 0;
+}
+/* The SVG height is emitted inline in `em`, so it matches the label font-size.  */
+.hw-svg { display: inline-block; overflow: visible; color: inherit; vertical-align: baseline; }
+/* Horizontal labels (section headings): the SVG carries its natural size as
+   `inline-size` (em) with auto block-size, so `max-inline-size:100%` shrinks the
+   whole glyph proportionally when the heading would otherwise overflow a narrow
+   column (no horizontal scroll on small phones). The wrapper is capped too so the
+   percentage resolves against the heading's definite width, not the shrink-to-fit
+   inline-block. Rail (vertical) labels keep their rotated em footprint untouched. */
+.hw-label:not(.hw-label--rail) { max-inline-size: 100%; }
+.hw-label:not(.hw-label--rail) .hw-svg { max-inline-size: 100%; block-size: auto; }
+.hw-ink { fill: currentColor; }                 /* ink = exact font outline */
+/* .hw-ink-edge is a same-colour stroke (inline attrs) — stem-darkening.        */
+
+/* DEFAULT (no JS): ink visible, strokes fully revealed -> always readable.      */
+/* linecap MUST be `butt`, not `round`: the reveal animates stroke-dashoffset L->0,
+   and a round cap renders a full dot (diameter = stroke-width) at a stroke's
+   origin the instant it starts, which the mask exposes as a black dot floating
+   ahead of the writing (very visible on mobile). `butt` draws nothing until the
+   stroke has real length. linejoin stays `round` (smooths interior bends; the
+   fully-written coverage stays pixel-identical to the font — verified).         */
+.hw-pen { fill: none; stroke: #fff; stroke-linecap: butt; stroke-linejoin: round;
+          stroke-dasharray: var(--L); stroke-dashoffset: 0; }
+
+/* JS ready (html.js-hw is set only after successful runtime setup): hide the
+   ink, then reveal+write each label on its turn. Until then, or if enhancement
+   fails, the default fully written state remains available.                    */
+/* Only labels the script measured at setup (.hw-armed) are hidden; labels
+   inserted later (htmx swaps in edit mode) stay fully written. */
+html.js-hw .hw-svg.hw-armed .hw-ink-group { visibility: hidden; }
+html.js-hw .hw-svg.hw-go .hw-ink-group { visibility: visible; }
+html.js-hw .hw-svg.hw-go .hw-pen {
+  animation-name: hw-write; animation-timing-function: cubic-bezier(.7, 0, .3, 1);
+  /* `both`: during a pen's animation-delay the `from` value (hidden) applies, so
+     not-yet-started strokes are NOT shown as already written; `forwards` alone
+     would leave them at the base offset:0 (written) until their delay elapses. */
+  animation-fill-mode: both;
+}
+/* Explicit from/to so the start value (hidden) is robust across browsers.       */
+@keyframes hw-write {
+  from { stroke-dashoffset: var(--L); }
+  to   { stroke-dashoffset: 0; }
+}
+
+/* Respect reduced motion: always show the final state, never hide/animate.      */
+@media (prefers-reduced-motion: reduce) {
+  html.js-hw .hw-ink-group { visibility: visible !important; }
+  .hw-pen { stroke-dashoffset: 0 !important; animation: none !important; }
+}
+
+/* --- rotated rail labels --------------------------------------------------- */
+/* The composer wraps the SVG in `.hw-rot`, rotated -90deg and sized to its
+   rotated footprint (em). The rail <h2> uses writing-mode + rotate(180deg) for
+   vertical TEXT; reset that here so it does not also rotate our SVG.            */
+/* translateX re-centers the rotated SVG between the rail's two rules (its tight
+   footprint otherwise sits a few px right of the original font box).            */
+.cv-rail-label.hw-rail { writing-mode: horizontal-tb; transform: translateX(-5px); }
+/* The last rail (Resources) is pinned to the top of its tall track and nudged
+   down between the two pill buttons; replicate that without the rotation.       */
+.cv-aside > .cv-rail--resources .cv-rail-label.hw-rail {
+  align-self: start;
+  transform: translateX(-5px) translateY(40px);
+}
+/* The header "Contact" rail carries even-higher-specificity text rules
+   (.editorial-sheet … .cv-header-aside .cv-rail-label → rotate(180deg), in
+   screen.css desktop + print.css); reset those too so the SVG's own -90deg gives
+   the same bottom-to-top reading as the sidebar rails (German convention). */
+.editorial-sheet .cv-header-aside .cv-rail-label.hw-rail { transform: translateX(-5px); }
