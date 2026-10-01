@@ -18,6 +18,7 @@
     <input type="hidden" data-field="github" name="github" value="{{ form.github.value }}">
     <input type="hidden" data-field="linkedin" name="linkedin" value="{{ form.linkedin.value }}">
     <input type="hidden" data-field="mastodon" name="mastodon" value="{{ form.mastodon.value }}">
+    <input type="hidden" data-field="website" name="website" value="{{ form.website.value|default_if_none:"" }}">
   </form>
   <div id="former-identity-section-with-sidebar" class="with-sidebar">
     <div class="stack"><!-- The person's name, pronouns, tagline, location, and social links - not sidebar -->
@@ -90,6 +91,15 @@
             <span contenteditable="true" data-field="mastodon">{{ form.mastodon.value }}</span>
           </span>
           {% for error in form.mastodon.errors %}
+            <p class="error">{{ error|escape }}</p>
+          {% endfor %}
+        </li>
+        <li>
+          <span class="with-icon">
+            <svg class="icon"><use href="#link"></use></svg>
+            <span contenteditable="true" data-field="website">{{ form.website.value|default_if_none:"" }}</span>
+          </span>
+          {% for error in form.website.errors %}
             <p class="error">{{ error|escape }}</p>
           {% endfor %}
         </li>

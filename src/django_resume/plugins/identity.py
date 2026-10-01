@@ -4,26 +4,40 @@ from django.http import HttpRequest
 
 from .base import SimplePlugin, ContextDict
 from ..images import ImageFormMixin
+from ..markdown import safe_link_url
 from ..interchange.pointer import get_pointer
 from ..interchange.protocols import AdapterExport, AdapterImport
+
+
+LINK_FIELDS = ("location_url", "github", "linkedin", "mastodon", "website")
 
 
 class IdentityForm(ImageFormMixin, forms.Form):
     name = forms.CharField(label="Your name", max_length=100, initial="Your name")
     pronouns = forms.CharField(
-        label="Pronouns", max_length=100, initial="your/pronouns"
+        label="Pronouns",
+        max_length=100,
+        initial="your/pronouns",
+        required=False,
     )
     tagline = forms.CharField(
-        label="Tagline", max_length=512, initial="Some tagline text."
+        label="Tagline",
+        max_length=512,
+        initial="Some tagline text.",
+        required=False,
     )
     location_name = forms.CharField(
-        label="Location", max_length=100, initial="City, Country, Timezone"
+        label="Location",
+        max_length=100,
+        initial="City, Country, Timezone",
+        required=False,
     )
     location_url = forms.URLField(
         label="Location url",
         max_length=100,
         initial="https://maps.app.goo.gl/TkuHEzeGpr7u2aCD7",
         assume_scheme="https",
+        required=False,
     )
     avatar_img = forms.FileField(
         label="Profile Image",
@@ -43,29 +57,40 @@ class IdentityForm(ImageFormMixin, forms.Form):
         label="Email address",
         max_length=100,
         initial="foobar@example.com",
+        required=False,
     )
     phone = forms.CharField(
         label="Phone number",
         max_length=100,
         initial="+1 555 555 5555",
+        required=False,
     )
     github = forms.URLField(
         label="GitHub url",
         max_length=100,
         initial="https://github.com/foobar/",
         assume_scheme="https",
+        required=False,
     )
     linkedin = forms.URLField(
         label="LinkedIn profile url",
         max_length=100,
         initial="https://linkedin.com/foobar/",
         assume_scheme="https",
+        required=False,
     )
     mastodon = forms.URLField(
         label="Mastodon url",
         max_length=100,
         initial="https://fosstodon.org/@foobar",
         assume_scheme="https",
+        required=False,
+    )
+    website = forms.URLField(
+        label="Website or portfolio url",
+        max_length=200,
+        assume_scheme="https",
+        required=False,
     )
     image_fields = [("avatar_img", "clear_avatar")]
 
@@ -81,6 +106,7 @@ class IdentityJsonResumeAdapter:
         "/basics/email",
         "/basics/phone",
         "/basics/image",
+        "/basics/url",
         "/basics/location",
         "/basics/profiles",
     )
@@ -95,6 +121,7 @@ class IdentityJsonResumeAdapter:
             ("/basics/email", "email"),
             ("/basics/phone", "phone"),
             ("/basics/image", "avatar_url"),
+            ("/basics/url", "website"),
         ):
             value = facts.get(key, "")
             if value:
@@ -141,6 +168,7 @@ class IdentityJsonResumeAdapter:
             "github": "",
             "linkedin": "",
             "mastodon": "",
+            "website": basics.get("url", ""),
             "pronouns": "",
             "location_name": "",
             "location_url": "",
@@ -162,8 +190,6 @@ class IdentityJsonResumeAdapter:
             else:
                 label = profile.get("network") or profile.get("url") or "(unknown)"
                 notes.append(f"basics.profiles entry {label!r} is not imported")
-        if basics.get("url"):
-            notes.append("basics.url is not imported by the identity plugin")
         if basics.get("image"):
             notes.append("basics.image cannot be imported into local avatar storage")
         if basics.get("location"):
@@ -212,6 +238,11 @@ class IdentityPlugin(SimplePlugin):
         context["avatar_img_url"] = default_storage.url(
             plugin_data.get("avatar_img", "")
         )
+        # Plugin data can come from JSON Resume imports, which bypass the form's
+        # URL validation; never render a dangerous scheme as a link.
+        for field_name in LINK_FIELDS:
+            if field_name in context:
+                context[field_name] = safe_link_url(str(context[field_name] or ""))
         return context
 
     def get_structured_data(self, resume) -> dict:
@@ -226,6 +257,7 @@ class IdentityPlugin(SimplePlugin):
             "github": data.get("github", ""),
             "linkedin": data.get("linkedin", ""),
             "mastodon": data.get("mastodon", ""),
+            "website": data.get("website", ""),
             "pronouns": data.get("pronouns", ""),
             "location_name": data.get("location_name", ""),
             "location_url": data.get("location_url", ""),

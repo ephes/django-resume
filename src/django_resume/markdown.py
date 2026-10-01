@@ -47,6 +47,14 @@ def _get_normalized_url_scheme(value: str) -> str | None:
     return match.group(1).lower()
 
 
+def safe_link_url(value: str) -> str:
+    """Return ``value`` if it is safe as a link target, otherwise an empty string."""
+    scheme = _get_normalized_url_scheme(value)
+    if scheme is not None and scheme not in ALLOWED_URL_SCHEMES:
+        return ""
+    return value
+
+
 def _attribute_filter(tag: str, attribute: str, value: str) -> str | None:
     if tag == "a" and attribute == "href":
         scheme = _get_normalized_url_scheme(value)

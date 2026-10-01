@@ -49,6 +49,12 @@ Features
   render themes.
 * Render consecutive markdown lines starting with ``-``, ``*`` or ``•``
   as a bulleted list in sanitized markdown fields.
+* Make every identity field except the name optional. The plain identity
+  section hides empty pronouns, tagline and location instead of rendering
+  empty markup.
+* Add an optional website or portfolio URL to **Identity**. The plain and
+  headwind identity sections link to it, and it maps to JSON Resume
+  ``basics.url`` on export and import.
 
 Fixes
 ^^^^^
@@ -64,6 +70,11 @@ Fixes
 * Document how to export a JSON Resume file and render static HTML outside
   django-resume with ``resumed`` and a locally installed JSON Resume theme.
 * Clarify the website-owner JSON Resume theme link.
+* Render identity location, profile and website links only with ``http``,
+  ``https`` or ``mailto`` URLs. Imported JSON Resume data bypasses the
+  form validation and could otherwise produce ``javascript:`` links.
+* Show the Mastodon link in the plain identity section only when a Mastodon
+  URL is set; it previously depended on the LinkedIn URL.
 
 0.3.0 - 2026-06-21
 ------------------

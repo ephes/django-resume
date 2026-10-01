@@ -19,6 +19,7 @@
     <input type="hidden" data-field="github" name="github" value="{{ form.github.value }}">
     <input type="hidden" data-field="linkedin" name="linkedin" value="{{ form.linkedin.value }}">
     <input type="hidden" data-field="mastodon" name="mastodon" value="{{ form.mastodon.value }}">
+    <input type="hidden" data-field="website" name="website" value="{{ form.website.value|default_if_none:"" }}">
 
     <div class="flex items-center justify-between mb-6">
       <div class="flex items-center space-x-2">
@@ -156,6 +157,18 @@
                 placeholder="https://mastodon.social/@username"
               >{{ form.mastodon.value }}</div>
               {% for error in form.mastodon.errors %}
+                <p class="mt-1 text-sm text-red-600">{{ error|escape }}</p>
+              {% endfor %}
+            </div>
+            <div class="md:col-span-2">
+              <label class="block text-xs text-slate-500 mb-1">Website or portfolio</label>
+              <div
+                class="bg-white rounded-lg px-4 py-3 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                contenteditable="true"
+                data-field="website"
+                placeholder="https://portfolio.example"
+              >{{ form.website.value|default_if_none:"" }}</div>
+              {% for error in form.website.errors %}
                 <p class="mt-1 text-sm text-red-600">{{ error|escape }}</p>
               {% endfor %}
             </div>

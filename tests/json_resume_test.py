@@ -541,7 +541,8 @@ def test_import_resume_document_creates_resume_from_portable_json(user):
     assert imported.plugin_data["projects"]["items"][0]["title"] == "Tool"
     assert "identity" in result.report.mapped_plugins
     notes = "\n".join(result.report.notes)
-    assert "basics.url is not imported" in notes
+    assert imported.plugin_data["identity"]["website"] == "https://jane.example"
+    assert "basics.url" not in notes
     assert "basics.profiles entry 'Bluesky' is not imported" in notes
     assert "about.title defaulted to 'About'" in notes
     assert "education entries beyond the first were not imported" in notes

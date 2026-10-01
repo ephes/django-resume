@@ -3,9 +3,11 @@
   <div class="stack"><!-- The person's name, pronouns, tagline, location, and social links - not sidebar -->
     <div class="cluster">
       <h2>{{ identity.name }}</h2>
-      <ul class="cluster cluster-list pronoun-badges-list">
-        <li>{{ identity.pronouns }}</li>
-      </ul>
+      {% if identity.pronouns %}
+        <ul class="cluster cluster-list pronoun-badges-list">
+          <li>{{ identity.pronouns }}</li>
+        </ul>
+      {% endif %}
       {% if show_edit_button %}
         <svg
           class="edit-icon-small"
@@ -17,11 +19,19 @@
         </svg>
       {% endif %}
     </div>
-    <p>{{ identity.tagline }}</p>
-    <span class="with-icon">
-      <svg class="icon"><use href="#location"></use></svg>
-      <a class="underlined" href="{{ identity.location_url }}">{{ identity.location_name }}</a>
-    </span>
+    {% if identity.tagline %}
+      <p>{{ identity.tagline }}</p>
+    {% endif %}
+    {% if identity.location_name %}
+      <span class="with-icon">
+        <svg class="icon"><use href="#location"></use></svg>
+        {% if identity.location_url %}
+          <a class="underlined" href="{{ identity.location_url }}">{{ identity.location_name }}</a>
+        {% else %}
+          {{ identity.location_name }}
+        {% endif %}
+      </span>
+    {% endif %}
     <ul class="cluster cluster-list icons-list">
       {% if identity.email %}
         <li>
@@ -51,7 +61,14 @@
           </a>
         </li>
       {% endif %}
-      {% if identity.linkedin %}
+      {% if identity.website %}
+        <li>
+          <a class="social-link" href="{{ identity.website }}" aria-label="Website">
+            <svg class="icon"><use href="#link"></use></svg>
+          </a>
+        </li>
+      {% endif %}
+      {% if identity.mastodon %}
         <li>
           <a class="social-link" href="{{ identity.mastodon }}" aria-label="Mastodon">
             <svg class="icon"><use href="#mastodon"></use></svg>
