@@ -1,0 +1,447 @@
+/* Editorial cover-letter styles. All rules scoped under .cover-sheet (the letter
+ * page's sheet), .cover-card / .cover-head / .cover-letter (the letter content),
+ * or .cover-footer-bar, so it cannot collide with CV rules. Reuses the
+ * editorial :root tokens (--s*, --editorial-rule, --editorial-line,
+ * --editorial-bg) from screen.css. */
+
+/* ----------------------------------------------------- sheet mechanics ----- */
+/* The editorial base sets .editorial-sheet { display: contents } on mobile (for the
+ * CV's single-column dissolve, where .cv-root becomes the creme panel). The cover
+ * letter is always a REAL centred sheet box, so re-assert it — the base box props
+ * (creme bg, linen, padding, position:relative, z-index:2, max-inline-size:sheet-max,
+ * margin-inline:auto) then apply, giving a full-bleed sheet on phones (sheet-max >
+ * viewport) and a centred sheet once the tablet tier narrows it (below). */
+.cover-sheet {
+  display: flex;
+  flex-direction: column;
+  /* the CV's desktop tier pulls EVERY .editorial-sheet up by -100dvh to overlay it on
+     the sticky side art. The letter uses the tablet-style FIXED art at all wide tiers
+     (below), never that overlay, so cancel the pull and stay in normal flow. */
+  margin-block-start: 0 !important;
+}
+
+.cover-sheet {
+  /* right gutter that holds the vertical hairline, mirroring the reference */
+  --cover-gutter: clamp(1rem, calc(8vw - 1rem), 5.5rem);
+  /* breathing room before the black footer bar */
+  padding-block-end: var(--s3);
+}
+
+/* Drop .cv-root's inline gutters for the cover at EVERY width. The mobile base puts
+   20px reading padding on .cv-root (creme, NO linen) because on the CV the sheet is
+   display:contents and .cv-root is the content surface. The cover-sheet is a real box
+   that carries the creme + linen texture AND its own reading padding, so the .cv-root
+   gutters only leave bare untextured creme strips left/right — the sheet must sit edge
+   to edge so the texture is flush. (The tablet tier below also adds transparency +
+   isolation once the side art appears.) */
+.cv-root:has(.cover-sheet) {
+  padding-inline: 0;
+  /* the dark footer bar is the cover's last element and must sit flush at the page
+     bottom. The mobile base adds --s3 bottom padding to .cv-root (air below the CV's
+     last section); on the cover that only opens a strip BELOW the footer showing the
+     page background — dark on phones/tablets, but creme on desktop (body turns creme
+     at 61rem via a viewport @media while this container @container flips ~a scrollbar
+     later, so the strip briefly paints creme). Drop it so there is never a gap. */
+  padding-block-end: 0;
+}
+
+/* ----------------------------------------------- tablet tier & side art ----
+ * From the tablet breakpoint up (≥46rem) the letter behaves like the CV's tablet
+ * tier: the content narrows (keeping the SAME --cv-peek/--bg-anchor as the CV, set
+ * on .cv-root by the shared tablet rule) and the side illustration peeks in the
+ * gaps. The letter never switches to the CV's desktop two-column architecture, so
+ * this single-column + side-art treatment simply persists across every wider tier
+ * (it shrinks first, then the header wraps, before going full-bleed below 46rem).
+ *
+ * Unlike the CV (whose .editorial-sheet is display:contents, so .cv-root is the
+ * narrowed panel), the cover-sheet is a real positioned box — so IT is the narrowed
+ * creme panel: drop the mobile creme backdrop + gutters off .cv-root so the fixed
+ * side art shows through the gaps, and the torn paper edges + the bg art attach to
+ * the sheet directly. */
+@container editorial (min-width: 46rem) {
+  .cv-root:has(.cover-sheet) {
+    position: relative;
+    isolation: isolate;          /* contain the fixed side-art above the dark page */
+    background-color: transparent;   /* let the fixed side art show in the gaps */
+  }
+  .cover-sheet {
+    max-inline-size: min(var(--sheet-max), calc(100cqi - 2 * var(--cv-peek)));
+    margin-inline: auto;
+  }
+  /* side art: a fixed backdrop filling the viewport behind the opaque sheet, shown in
+     the side gaps. Same images + sizing as the CV — the illustration peeks OUTSIDE
+     the sheet's torn paper edges, exactly like the CV. */
+  .cv-root:has(.cover-sheet) .cv-bg-layer {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+  }
+  /* torn paper edges hugging the narrowed sheet (the base hides them for the
+     full-bleed phone layout where they'd poke past the viewport). Shown statically
+     here — the robust no-JS default — rather than drawn in. */
+  .cover-sheet::before,
+  .cover-sheet::after { display: block; }
+  html.js-lines .cover-sheet::before,
+  html.js-lines .cover-sheet::after { clip-path: none; transition: none; }
+}
+
+/* Keep the sheet's torn vertical "paper edge" lines (the broken left/right rules
+ * the design wants). Remove only the header's horizontal rule — the cover-card's
+ * top+right "tile in bleed" outline below replaces it. */
+.cover-sheet .cv-header::after {
+  content: none;
+}
+
+/* On mobile screen.css reorders .cv-header to order:2 (in the CV it sits below
+ * the photo/intro there). The letter has no such reflow, so reset the shared
+ * header to the natural order — DOM order then keeps it first. */
+.cover-sheet > #identity {
+  order: 0;
+}
+
+/* Contact rail (name + "Contact" + icons) — SINGLE-COLUMN tier only (< 61rem).
+ * The letter reuses the CV's identity header but has NO photo, so there is nothing
+ * to centre the column against — owner's call: LEFT-align the whole single-column
+ * header instead (don't centre it). The rail sits flush at the sheet's left reading
+ * edge: the rotated "Contact" label fills the --script-rail strip, the vertical line
+ * lands at that strip's right edge (--script-rail in), and the name / role / icons
+ * all share ONE left edge a --name-line-gap further in. No photo-Spitze math.
+ *
+ * Confined to (max-width: 52.999rem): at ≥53rem the cover switches to its OWN
+ * two-column header (below) — the contact rail swings out beside the name with a
+ * slimmer 20rem column, so it can hold the two-column look down to a narrower width
+ * than the CV's 61rem. These single-column overrides must NOT bleed into that tier. */
+@container editorial (max-width: 52.999rem) {
+  .cover-sheet .cv-header {
+    margin-inline: 0;            /* left-aligned, not centred */
+    max-inline-size: none;
+  }
+  .cover-sheet .cv-header-aside {
+    margin-inline-start: 0;      /* rail flush left → line lands at --script-rail */
+    /* the rail line rises to the firstname's TOP edge (owner's request) — empirical
+       vw curve tuned to the letter's name+role stack height. */
+    --contact-line-rise: clamp(130px, calc(4.7vw + 118px), 200px);
+  }
+  /* icons indent --name-line-gap from the line (shared rule already does this); the
+     name + role share that exact left edge so the column reads as one left margin. */
+  .cover-sheet {
+    --name-line-gap: var(--s1);
+  }
+  /* one indent for the whole name block (firstname + surname + role all live inside
+     .cv-header-name), so the role inherits it — don't re-indent the role. */
+  .cover-sheet .cv-header-name {
+    align-self: flex-start;
+    margin-inline-start: calc(var(--script-rail) + var(--name-line-gap));
+    transform: none;             /* no centred-name slide */
+  }
+}
+
+/* Galaxy-Fold cover (≤320px): shrink the rail-label strip (same curve the shared
+   rule uses on the aside) AND tighten the line→content gap so the long email row
+   still fits. Set --script-rail on the HEADER so the name's indent and the aside's
+   line shrink together (the shared rule only shrinks the aside's). */
+@container editorial (max-width: 20rem) {
+  .cover-sheet .cv-header { --script-rail: clamp(32px, calc(40cqi - 80px), 48px); }
+  .cover-sheet { --name-line-gap: 8px; }
+}
+
+/* TWO-COLUMN header (≥53rem) — the cover's OWN, mirroring the CV's two-column header
+ * but switching ~8rem earlier. The CV holds its two-column header to 61rem because its
+ * BODY is a two-column grid sharing a 22rem (--aside-basis) sidebar; the cover's body
+ * is a single-column letter with no such sidebar, so its contact column can be slimmer
+ * (20rem — a typical email address + the script-rail/icon offsets still
+ * fit with slack). A narrower column means the name keeps a comfortable gutter beside
+ * it down to a narrower sheet, so the recognisable two-column look survives longer
+ * before collapsing to the single-column rail above. These rules are copied from the
+ * CV's screen.css ≥61rem header tier (now scoped :not(.cover-sheet) there) and re-scoped
+ * to .cover-sheet here — the cover-card body never gets the CV's two-column body. */
+@container editorial (min-width: 53rem) {
+  .cover-sheet { --aside-basis: 20rem; }
+  .cover-sheet .cv-header {
+    flex-direction: row;
+    padding-block-end: var(--s1);
+    max-inline-size: none;
+    margin-inline: 0;
+  }
+  .cover-sheet .cv-header-name {
+    align-self: flex-end;
+    margin-inline-start: 0;
+    transform: none;             /* no single-column name slide */
+  }
+  .cover-sheet .cv-firstname { text-indent: -0.085em; }
+  .cover-sheet .cv-role { text-align: end; font-size: var(--role-size); }
+  .cover-sheet .cv-header-aside {
+    border-inline-start: var(--editorial-rule) solid var(--editorial-line);
+    padding-inline-start: var(--s-1);
+    flex: 0 0 var(--aside-basis);
+    margin-block-start: 0;
+    margin-inline-start: 0;      /* no single-column Spitze shift in two columns */
+  }
+  html.js-lines .cover-sheet .cv-header-aside::before { display: block; }   /* divider beside the name */
+  /* contact line + label back to content-height / centred (the single-column rise is off) */
+  .cover-sheet .cv-header-aside .cv-rail-body { padding-inline-start: var(--s1); }
+  .cover-sheet .cv-header-aside .cv-rail-body::before { inset-block-start: 0; inset-block-end: 0; }
+  .cover-sheet .cv-header-aside .cv-rail-label { transform: rotate(180deg); }
+}
+
+/* ----------------------------------------------------- the letter card ----- */
+/* Right vertical hairline + rounded top-right corner: the right border curves
+ * inward at the top via the logical top-right radius, echoing the reference
+ * where the header rule turns down into the right edge. */
+.cover-card {
+  --stack-space: var(--s1);
+  position: relative;
+  /* butt the tile's top line right against the header bottom (where the removed
+     header rule sat): cancel the sheet's flex stack gap (--s-1) so there is no
+     gap between the header and the frame. */
+  margin-block-start: calc(-1 * var(--s-1));
+  /* bleed the top rule off to the left creme edge ("Kachel im Anschnitt");
+     padding restores the content position */
+  margin-inline-start: calc(-1 * var(--sheet-pad-inline));
+  padding-block: var(--s1) var(--s4);
+  padding-inline: var(--sheet-pad-inline) var(--cover-gutter);
+  /* tile outline: horizontal top + vertical right, joined by a rounded corner */
+  border-block-start: var(--editorial-rule) solid var(--editorial-line);
+  border-inline-end: var(--editorial-rule) solid var(--editorial-line);
+  border-start-end-radius: var(--s3);
+}
+
+/* ----------------------------------------------------- meta head ----------- */
+/* SINGLE-COLUMN default: date, recipient address and subject simply STACK as blocks
+ * (no grid column, no float) — the date holds the top-RIGHT on its own line, the
+ * address sits a line below spanning the full width, the subject below that. The
+ * address always has the whole width, so it only breaks when a line is genuinely too
+ * long (the earlier float/2-col versions wrapped it awkwardly beside the date). The
+ * TWO-COLUMN tier (≥61rem) overrides this to align the date with the contact column
+ * — see below. */
+.cover-head {
+  position: relative;
+}
+
+.cover-place-date {
+  text-align: end;          /* date holds the top-right, on its own line */
+  font-size: var(--s0);
+  white-space: nowrap;      /* keep "Ort, den …" on one line */
+}
+
+.cover-recipient {
+  display: block;
+  font-style: normal;
+  line-height: 1.5;
+  /* the address sits a line below the date, full width */
+  margin-block-start: var(--s1);
+}
+/* The reference bolds only the addressee's first line. ::first-line is pure CSS
+ * and tracks the first rendered line (recipient is rendered with <br>). */
+.cover-recipient::first-line {
+  font-weight: 700;
+}
+
+.cover-subject {
+  font-weight: 700;
+  margin-block-start: var(--s2);
+}
+
+.cover-head-edit {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: calc(-1 * var(--s1));
+}
+
+/* TWO-COLUMN tier (≥53rem, matching the header switch above): the header carries the
+ * contact rail out into a fixed --aside-basis column on the right. Mirror that here so
+ * the date's LEFT edge lines up exactly with the contact icons (phone/address) above it
+ * (owner's request). The cover-card has extra right padding (--cover-gutter) the header
+ * doesn't, so the date's column is (--aside-basis − --cover-gutter) wide — its left edge
+ * then lands on the aside's left edge — and the date is indented by the aside's own
+ * internal offset to the icon (border + label strip + rail-body padding): s-1 + rule +
+ * script-rail + s1. --aside-basis here resolves to the cover's slimmer 20rem (set above),
+ * so the date column tracks the narrower contact rail. Recipient left, subject spans. */
+@container editorial (min-width: 53rem) {
+  .cover-head {
+    display: grid;
+    grid-template-columns: 1fr calc(var(--aside-basis) - var(--cover-gutter));
+    grid-template-areas:
+      "recipient date"
+      "subject   subject";
+    column-gap: var(--s1);
+    align-items: start;
+  }
+  .cover-recipient {
+    grid-area: recipient;
+    /* the date/place line holds the top; the recipient address drops ~1.5 lines
+       below it (letter convention — the address sitting level with or above the
+       date reads wrong). The grid keeps them in their own columns, this just
+       staggers them vertically so the date clearly sits highest. */
+    margin-block-start: var(--s2);
+  }
+  .cover-place-date {
+    grid-area: date;
+    text-align: start;
+    /* land on the contact TEXT (phone digits / address), not the icon: the aside's
+       internal offset to the icon (border + label strip + rail-body padding) PLUS the
+       contact-item's icon width (.icon 1.1em) + its gap (0.5em). The date font is
+       --s0, the same em base as the contact rows, so 1.6em matches exactly. */
+    padding-inline-start: calc(
+      var(--s-1) + var(--editorial-rule) + var(--script-rail) + var(--s1) + 1.6em
+    );
+  }
+  .cover-subject {
+    grid-area: subject;
+  }
+}
+
+/* ----------------------------------------------------- body ---------------- */
+.cover-letter {
+  --stack-space: var(--s1);
+}
+
+/* short hairline divider, left-aligned (between subject and salutation) */
+.cover-rule {
+  inline-size: var(--s4);
+  margin-block: var(--s1);
+  margin-inline: 0 auto;
+  border: 0;
+  border-block-start: var(--editorial-rule) solid var(--editorial-line);
+}
+
+.cover-salutation {
+  font-weight: 700;
+}
+
+.cover-body {
+  --stack-space: var(--s1);
+  line-height: 1.6;
+  max-inline-size: 68ch;
+}
+
+.cover-para {
+  line-height: inherit;
+}
+
+/* ----------------------------------------------------- signature ----------- */
+.cover-sign {
+  --stack-space: var(--s0);
+  margin-block-start: var(--s2);
+}
+
+.cover-closing {
+  line-height: 1.6;
+}
+
+.cover-signature-img {
+  display: block;
+  max-block-size: 3.6rem;
+  inline-size: auto;
+}
+
+/* the handwriting fallback signs the name in script, signature-sized */
+.cover-signature-hw {
+  font-size: var(--s3);
+  line-height: 1;
+}
+/* The signature shows its final written state and never self-writes (the rest of
+ * the page still animates). Mirrors the reduced-motion path; !important beats the
+ * JS-set inline animation styles. */
+.cover-signature-hw .hw-ink-group {
+  visibility: visible !important;
+}
+.cover-signature-hw .hw-pen {
+  stroke-dashoffset: 0 !important;
+  animation: none !important;
+}
+
+/* ----------------------------------------------------------- print button --- */
+.cover-download { margin-block-start: var(--s2); font-size: var(--s0); }
+
+/* ----------------------------------------------------- black footer bar ---- */
+/* Full-bleed dark footer echoing the CV's dark footer, ~4x the thin dark strip
+ * at the very top edge of the page. */
+.cover-footer-bar {
+  background-color: var(--editorial-line);
+  block-size: 6.25rem;
+}
+
+/* ----------------------------------------------------- print / PDF --------- */
+/* A4 print width is below the cover's 53rem two-column breakpoints, so re-assert
+ * the two-column header + the date/recipient grid here. The shared print.css
+ * already hides the footer bar, torn edges and illustrations and freezes the
+ * handwriting; this block only restores the two-column header geometry on paper. */
+@media print {
+  /* The shared print.css sets :root { font-size: 10px } for the dense CV. The cover
+     letter only barely overflowed, so 10px over-shrinks its body text and leaves a
+     large empty band. cover.css loads AFTER print.css, so this :root rule wins for the
+     cover page only — restore a comfortably readable letter base while staying 1 page. */
+  :root { font-size: 12px; }
+  /* The footer bar is hidden on paper, so a letter shorter than the page would end
+     in the dark mobile page background; keep the rest of the page creme instead. */
+  html,
+  body.editorial-page { background-color: var(--editorial-bg); }
+
+  .cover-sheet { --aside-basis: 20rem; }
+  .cover-sheet .cv-header { flex-direction: row; padding-block-end: var(--s1); max-inline-size: none; margin-inline: 0; }
+  .cover-sheet .cv-header-name { align-self: flex-end; margin-inline-start: 0; transform: none; }
+  .cover-sheet .cv-firstname { text-indent: -0.085em; }
+  .cover-sheet .cv-role { text-align: end; font-size: var(--role-size); }
+  .cover-sheet .cv-header-aside {
+    border-inline-start: var(--editorial-rule) solid var(--editorial-line);
+    padding-inline-start: var(--s-1);
+    flex: 0 0 var(--aside-basis);
+    margin-block-start: 0;
+    margin-inline-start: 0;
+  }
+  html.js-lines .cover-sheet .cv-header-aside::before { display: block; }
+  .cover-sheet .cv-header-aside .cv-rail-body { padding-inline-start: var(--s1); }
+  .cover-sheet .cv-header-aside .cv-rail-body::before { inset-block-start: 0; inset-block-end: 0; }
+  .cover-sheet .cv-header-aside .cv-rail-label { transform: rotate(180deg); }
+
+  /* date/recipient meta-head grid (mirrors the >=53rem screen rules) */
+  .cover-head {
+    display: grid;
+    grid-template-columns: 1fr calc(var(--aside-basis) - var(--cover-gutter));
+    grid-template-areas: "recipient date" "subject subject";
+    column-gap: var(--s1);
+    align-items: start;
+  }
+  .cover-recipient { grid-area: recipient; margin-block-start: var(--s2); }
+  .cover-place-date {
+    grid-area: date; text-align: start;
+    padding-inline-start: calc(var(--s-1) + var(--editorial-rule) + var(--script-rail) + var(--s1) + 1.6em);
+  }
+  .cover-subject { grid-area: subject; }
+
+  /* signature shows its final written state (mirrors the screen rule with !important) */
+  .cover-signature-hw .hw-ink-group { visibility: visible !important; }
+  .cover-signature-hw .hw-pen { stroke-dashoffset: 0 !important; animation: none !important; }
+
+  /* never split the letter card across a page break for the current one-pager */
+  .cover-card { break-inside: avoid; }
+
+  /* full-bleed creme like the reference: the tablet rule
+     (@container editorial (min-width:46rem)) narrows the sheet to a peek width at
+     A4 (min(--sheet-max, 100cqi - 2*--cv-peek)) and centers it, exposing the dark
+     page bg in the side gaps. Fill the page width and paint the backdrop creme so no
+     dark shows (also covers any area below a short letter). */
+  .cover-sheet { max-inline-size: none; margin-inline: 0; }
+  .cv-root:has(.cover-sheet) { background-color: var(--editorial-bg); }
+
+  /* hide the screen-only download link from the PDF */
+  .cover-download { display: none !important; }
+}
+
+/* --------------------------------------------------------- denial page ---- */
+/* The CV denial page (cv_403.html) reuses the cover sheet and card; its title is
+ * a horizontal handwriting label at the size of the CV's lead labels. */
+.editorial-403-title {
+  margin: 0;
+  font-family: "Editorial Script", cursive;
+  font-weight: 400;
+  font-size: var(--script-lead);
+  line-height: 1.1;
+}
+/* The denial page is short: let its sheet fill the viewport between the top strip
+ * and the footer bar, so the fixed side art never shows below the footer. */
+.editorial-403-sheet {
+  min-block-size: calc(100dvh - 6.25rem - clamp(10px, calc(3.72vw - 12.5px), 1.6rem));
+}

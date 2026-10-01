@@ -1,0 +1,39 @@
+{% extends "./base.html" %}
+{% load static i18n %}
+
+{% block title %}{{ permission_denied.title|default:_("Access denied") }}{% endblock title %}
+
+{% block styles %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static "django_resume/css/editorial/cover.css" %}">
+{% endblock styles %}
+
+{% block body %}
+  {% if show_edit_button %}
+    <body class="editorial-page" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+  {% else %}
+    <body class="editorial-page">
+  {% endif %}
+{# The denial page reuses the cover letter's single-column sheet and card. #}
+<div class="cv-root">
+<div class="cv-stage">
+{% include "./side_art.html" %}
+<div class="editorial-sheet cover-sheet editorial-403-sheet stack">
+  {% if is_editable %}{% include "./edit_panel.html" %}{% endif %}
+  <div class="cover-card stack">
+    {% include permission_denied.templates.main %}
+    {% if permission_denied.email %}
+      <ul class="cv-resources cluster-list">
+        <li><a href="mailto:{{ permission_denied.email }}?subject={{ _("Access token request")|urlencode }}">{% translate "Request an access token" %}</a></li>
+      </ul>
+    {% endif %}
+  </div>
+</div>
+</div>{# /cv-stage #}
+<footer class="cover-footer-bar" aria-hidden="true"></footer>
+</div>{# /cv-root #}
+{% if show_edit_button %}
+  <script src="{% static "django_resume/js/edit.js" %}"></script>
+{% endif %}
+</body>
+{% endblock body %}

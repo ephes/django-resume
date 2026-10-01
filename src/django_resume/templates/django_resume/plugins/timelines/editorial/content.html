@@ -1,0 +1,17 @@
+{% if page_break_before %}
+<section id="{{ timeline.plugin_name }}" class="stack page-break-before">
+{% else %}
+<section id="{{ timeline.plugin_name }}" class="stack">
+{% endif %}
+  {% include timeline.templates.flat %}
+  <div class="stack-large">
+    {% if show_edit_button %}
+      <svg id="add-{{ timeline.plugin_name }}-icon" class="edit-icon-small" hx-get="{{ timeline.add_item_url }}" hx-target="this" hx-swap="afterend">
+        <use href="#add"></use>
+      </svg>
+    {% endif %}
+    {% for entry in timeline.ordered_entries %}
+      {% include timeline.templates.item with plugin_name=timeline.plugin_name %}
+    {% endfor %}
+  </div>
+</section>

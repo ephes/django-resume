@@ -1,0 +1,16 @@
+{% comment %} Editorial cover-letter meta-head: place/date (top-right), recipient
+(left), subject. This is the #cover-flat htmx swap target; the edit pencil opens
+flat_form.html (which edits ALL flat fields, incl. salutation/closing/signature
+shown in content.html). No title/avatar -- the identity header already carries
+the name, and the letter has no photo. {% endcomment %}
+<section id="cover-flat" class="cover-head">
+  {% if show_edit_button %}
+    <svg class="edit-icon-small cover-head-edit" hx-get="{{ cover.edit_flat_url }}"
+         hx-target="#cover-flat" hx-swap="outerHTML">
+      <use href="#edit"></use>
+    </svg>
+  {% endif %}
+  {% if cover.place_date %}<p class="cover-place-date">{{ cover.place_date }}</p>{% endif %}
+  {% if cover.recipient %}<address class="cover-recipient">{{ cover.recipient|linebreaksbr }}</address>{% endif %}
+  {% if cover.subject %}<p class="cover-subject">{{ cover.subject }}</p>{% endif %}
+</section>

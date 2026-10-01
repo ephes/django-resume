@@ -1,0 +1,133 @@
+===========
+Page Themes
+===========
+
+A page theme decides how the built-in pages, the editing UI and the plugin
+templates look. The resume owner picks it in edit mode with the **Page Theme**
+plugin; the choice is stored per resume. django-resume ships three page themes:
+
+- ``plain``: a classic, print-friendly design.
+- ``headwind``: a modern design built with Tailwind CSS.
+- ``editorial``: a magazine-style CV and cover letter with self-writing
+  handwritten labels.
+
+A theme renders a page from ``django_resume/pages/<theme>/<template>`` and each
+plugin from ``django_resume/plugins/<plugin>/<theme>/``. When a theme does not
+ship a page template, the page falls back to ``plain``.
+
+The editorial theme
+===================
+
+The editorial theme renders the CV (``/<slug>/cv/``), the cover letter
+(``/<slug>/``) and the token-protected CV's denial page. It is self-contained:
+fonts, illustrations, styles, scripts and the handwriting renderer ship with
+django-resume.
+
+What it shows
+-------------
+
+The **CV** has a full-width header (name, tagline and a "Contact" rail with
+location, phone and email), the employed timeline as the main column, and a
+sidebar with the photo and three rails:
+
+- "Let's talk about": skills and languages,
+- "Education": the education entries,
+- "Resources": a print button and, when the identity has a website or
+  portfolio URL, a "Portfolio" link to it.
+
+Awards are shown in a dark footer bar. The freelance timeline and the projects
+section are not part of the editorial CV.
+
+The **cover letter** reuses the CV header and shows the cover plugin's letter
+details: place and date, recipient, subject, salutation, the letter paragraphs,
+the closing and a signature. The signature is the uploaded signature image or,
+without one, the signature name (default: the identity name) as a handwritten
+label.
+
+The first word of the identity name is set apart from the rest of the name. The
+photo column is sized for a first name of about nine letters; set the CSS
+custom property ``--name-width-factor`` (default ``3.82``, the first name's
+width as a multiple of its font size) on ``.editorial-sheet`` in your own
+stylesheet to tune it for a shorter or longer name.
+
+In edit mode, saving the identity or the cover letter details reloads the
+page: their values appear in several places (the photo and portfolio link in
+the sidebar, the salutation, closing and signature in the letter body).
+
+Printing and PDFs
+-----------------
+
+The theme does not ship pre-rendered PDFs. The CV and the cover letter have a
+"Print / save as PDF" button that opens the browser's print dialog, and a print
+stylesheet lays both pages out on A4 without the side illustrations and with
+the handwritten labels in their final, written state. The button only appears
+when JavaScript runs; without JavaScript, use the browser's print command.
+
+Handwritten labels
+------------------
+
+Section labels are rendered as inline SVG that writes itself when it scrolls
+into view. Use the ``handwriting_label`` tag in your own editorial templates:
+
+.. code-block:: django
+
+    {% load editorial_handwriting %}
+    <h2>{% handwriting_label "Education" %}</h2>
+    <h2 class="cv-rail-label hw-rail">{% handwriting_label label orientation="vertical" %}</h2>
+
+The renderer reads ``django_resume/handwriting/glyph_data.json`` (glyph
+outlines, hand-traced writing strokes, advances and the font's default
+ligatures); no font file is read at request time. The glyph data is generated
+outside django-resume from the font and hand-traced strokes; django-resume
+ships only the result. The rules the renderer follows:
+
+- The ink is one combined outline path with ``fill-rule="nonzero"``, which
+  reproduces the font exactly: counters stay open and cursive overlaps stay
+  solid.
+- A mask of one stroke per traced skeleton stroke reveals the ink stroke by
+  stroke. The mask pens use ``stroke-linecap: butt`` so a stroke that has just
+  started does not reveal a dot ahead of the writing.
+- The SVG is sized in ``em``, so a label matches the size of the font at the
+  label's ``font-size``.
+- The label text stays in the page, visually hidden, for screen readers,
+  selection and search. The SVG is ``aria-hidden``.
+- Text with characters the glyph data does not cover, and empty text, render
+  as plain text.
+
+Without JavaScript, or with ``prefers-reduced-motion: reduce``, the labels are
+shown fully written. If the script fails to load or fails while running, the
+labels are restored to their written state. Visible labels may write again when
+the visitor returns to the top of the page or to the tab, at most every 30
+seconds; set ``data-hw-replay-cooldown="<milliseconds>"`` on ``<html>`` to
+change that.
+
+Languages
+---------
+
+The theme's fixed texts (rail labels, the print button, page titles) are
+English and translatable with Django's i18n framework; django-resume ships a
+German translation. With ``LocaleMiddleware`` or ``translation.activate("de")``
+the rail labels are written in German, for example "Sprechen wir über".
+
+Content Security Policy
+-----------------------
+
+The theme's base template contains a small inline script that marks the page
+for the line-drawing animation and an ``onerror`` handler that removes the mark
+again when ``editorial-lines.js`` fails to load. For owners in edit mode it
+loads htmx from ``unpkg.com``, like the other themes. Deployments with a strict
+Content Security Policy need to allow these or override ``base.html``.
+
+Assets and licenses
+-------------------
+
+- Saira (``static/django_resume/fonts/saira/``) is licensed under the SIL Open
+  Font License 1.1, see ``OFL.txt`` next to the fonts.
+- Astagina Signature (``static/django_resume/fonts/script/``) by Green
+  Adventure STD is distributed as freeware, "free 100% for personal use and
+  commercial use"; see ``ASTAGINA-LICENSE.txt``. The handwriting glyph data is
+  derived from this font's outlines and covered by the same terms, see
+  ``django_resume/handwriting/GLYPH-DATA-LICENSE.txt``. Neither is covered by
+  the django-resume license.
+- The side illustrations (``static/django_resume/img/editorial/``) are
+  credited in ``CREDITS.txt`` next to them.

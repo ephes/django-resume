@@ -1,0 +1,30 @@
+<editable-form id="skills" class="stack">
+  {#  This is a hidden form that will be submitted by the button below.#}
+  <form
+    id="form-skills"
+    class="stack-small"
+    hx-post="{{ form.post_url }}"
+    hx-target="#skills"
+    hx-swap="outerHTML"
+  >
+    <input id="form-skills-badges" type="hidden" data-field="badges" name="badges" value="{{ form.badges_as_json}}">
+  </form>
+  <h2>Skills</h2>
+  <badge-editor
+    input-field-id="form-skills-badges"
+    white="true"
+    ul-class="skills-list"
+    li-class="skill-badge"
+    span-class="skill-badge-name"
+  ></badge-editor>
+  {% for error in form.badges.errors %}
+    <p class="error">{{ error|escape }}</p>
+  {% endfor %}
+  <div> {# prevent button from taking full width with this div #}
+    <button id="submit-skills" type="submit">
+      <svg class="edit-icon-small">
+        <use href="#ok"></use>
+      </svg>
+    </button>
+  </div>
+</editable-form>

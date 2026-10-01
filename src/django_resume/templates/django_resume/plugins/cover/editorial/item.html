@@ -1,0 +1,18 @@
+{% comment %} One cover-letter paragraph. item.text is already markdown-rendered
+HTML. No title heading -- the reference letter has plain body paragraphs. {% endcomment %}
+<div id="cover-item-{{ item.id }}" class="cover-para">
+  {{ item.text|safe }}
+  {% if show_edit_button %}
+    <div class="edit-icons">
+      <svg class="edit-icon-small" hx-get="{{ item.edit_url }}"
+           hx-target="#cover-item-{{ item.id }}" hx-swap="outerHTML">
+        <use href="#edit"></use>
+      </svg>
+      <svg class="edit-icon-small" style="color: red !important;"
+           hx-delete="{{ item.delete_url }}"
+           hx-target="#cover-item-{{ item.id }}" hx-swap="delete">
+        <use href="#delete"></use>
+      </svg>
+    </div>
+  {% endif %}
+</div>

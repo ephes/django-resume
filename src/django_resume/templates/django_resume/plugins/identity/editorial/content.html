@@ -1,0 +1,56 @@
+{% load static i18n editorial_handwriting %}
+<header id="identity" class="cv-header">
+  <div class="cv-header-name">
+    <h1 class="cv-name">
+      <span class="cv-firstname">{{ identity.first_name }}</span>
+      <span class="cv-lastname">{{ identity.last_name }}</span>
+    </h1>
+    {% if identity.tagline %}<p class="cv-role">{{ identity.tagline }}</p>{% endif %}
+    {% if show_edit_button %}
+      <svg
+        class="edit-icon-small"
+        hx-get="{{ identity.edit_url }}"
+        hx-target="#identity"
+        hx-swap="outerHTML swap:0.1s"
+      >
+        <use href="#edit"></use>
+      </svg>
+    {% endif %}
+  </div>
+
+  <aside class="cv-header-aside">
+    <section class="cv-rail">
+      {% translate "Contact" as contact_label %}
+      <h2 class="cv-rail-label hw-rail">{% handwriting_label contact_label orientation="vertical" %}</h2>
+      <div class="cv-rail-body">
+        <address class="cv-contact">
+      {% if identity.location_name %}
+        <span class="cv-contact-item">
+          <svg class="icon" viewBox="0 0 11.34 17.01" fill="currentColor" fill-rule="evenodd" aria-hidden="true">
+            <path d="M8.5,5.22c0,1.57-1.27,2.83-2.83,2.83s-2.83-1.27-2.83-2.83,1.27-2.84,2.83-2.84,2.83,1.27,2.83,2.84M11.34,5.2c0-2.87-2.54-5.2-5.67-5.2S0,2.33,0,5.2c0,5.27,5.03,11.54,5.18,11.62.07.04.13.07.17.1.02.01.04.02.05.03h.02c.15.09.34.09.5,0h.02s.03-.02.05-.04c.04-.02.1-.05.18-.1.15-.08,5.18-6.35,5.18-11.62"/>
+          </svg>
+          <span class="cv-contact-address">{{ identity.location_name }}</span>
+        </span>
+      {% endif %}
+      {% if identity.phone %}
+        <a class="cv-contact-item" href="tel:{{ identity.phone }}">
+          <svg class="icon" viewBox="0 0 11.34 10.4" fill="currentColor" aria-hidden="true">
+            <path d="M0,1.48C0,.66.73,0,1.62,0h.74C2.83,0,3.23.29,3.34.7l.6,2.19c.1.36-.05.74-.38.97l-.7.48c-.07.05-.09.12-.07.17.61,1.53,1.94,2.75,3.62,3.32.05.02.14,0,.19-.06l.52-.64c.25-.3.66-.43,1.06-.34l2.39.55c.45.1.77.47.77.9v.68c0,.82-.73,1.48-1.62,1.48h-1.22C3.81,10.39,0,6.9,0,2.6v-1.11Z"/>
+          </svg>
+          <span>{{ identity.phone }}</span>
+        </a>
+      {% endif %}
+      {% if identity.email %}
+        <a class="cv-contact-item" href="mailto:{{ identity.email }}">
+          <svg class="icon" viewBox="0 0 11.34 8.17" fill="currentColor" aria-hidden="true">
+            <path d="M0,2.44v4.25c0,.82.73,1.48,1.62,1.48h8.1c.89,0,1.62-.66,1.62-1.48V2.44l-4.82,2.72c-.52.29-1.18.29-1.7,0L0,2.44Z"/>
+            <path d="M11.34,1.56v-.08C11.34.67,10.61,0,9.72,0H1.62C.73,0,0,.67,0,1.49v.08l5.24,2.96c.26.15.59.15.85,0l5.24-2.96Z"/>
+          </svg>
+          <span>{{ identity.email }}</span>
+        </a>
+      {% endif %}
+        </address>
+      </div>
+    </section>
+  </aside>
+</header>

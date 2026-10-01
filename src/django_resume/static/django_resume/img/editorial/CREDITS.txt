@@ -1,0 +1,7 @@
+Editorial theme illustrations
+=============================
+
+The side illustrations (bg-cv-left.*, bg-cv-right.*) and the torn paper edges
+(paper-edge-left.svg, paper-edge-right.svg) were created by Katharina Wersdörfer
+for the editorial theme. They are distributed under the django-resume license
+(see LICENSE at the root of the repository).

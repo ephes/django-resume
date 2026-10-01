@@ -1,0 +1,15 @@
+{% load editorial_handwriting %}
+<section id="permission_denied" class="cover-letter stack">
+  <header class="cluster">
+    <h1 class="editorial-403-title">{% handwriting_label permission_denied.title %}</h1>
+    {% if show_edit_button %}
+      <svg class="edit-icon-small" hx-get="{{ permission_denied.edit_url }}" hx-target="#permission_denied" hx-swap="outerHTML">
+        <use href="#edit"></use>
+      </svg>
+    {% endif %}
+  </header>
+  {% if permission_denied.sub_title %}<p class="cover-subject">{{ permission_denied.sub_title }}</p>{% endif %}
+  <div class="cover-para">
+    {{ permission_denied.text|safe }}
+  </div>
+</section>

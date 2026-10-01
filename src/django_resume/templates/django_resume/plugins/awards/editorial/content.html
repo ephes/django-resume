@@ -1,0 +1,13 @@
+<section class="stack page-break-before">
+  {% include awards.templates.flat %}
+  {% if show_edit_button %}
+    <svg class="edit-icon-small" hx-get="{{ awards.add_item_url }}" hx-target="#awards-grid" hx-swap="afterbegin">
+      <use href="#add"></use>
+    </svg>
+  {% endif %}
+  <div id="awards-grid" class="grid">
+    {% for award in awards.ordered_entries %}
+      {% include awards.templates.item %}
+    {% endfor %}
+  </div>
+</section>

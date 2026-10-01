@@ -1,0 +1,40 @@
+{% load static i18n %}
+<!DOCTYPE html>
+{% get_current_language as LANGUAGE_CODE %}
+<html lang="{{ LANGUAGE_CODE|default:"en" }}">
+<head>
+  <meta charset="UTF-8">
+  <title>{% block title %}Django Resume{% endblock title %}</title>
+  {% block meta %}
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="index">
+    {# dark mobile browser chrome to match the dark page top edge #}
+    <meta name="theme-color" content="#171410">
+  {% endblock meta %}
+  {% block styles %}
+    <script>
+      document.documentElement.classList.add('js-lines');
+      window.cvLinesFail = function () { document.documentElement.classList.remove('js-lines'); };
+    </script>
+    <link rel="stylesheet" type="text/css" href="{% static "django_resume/css/editorial/screen.css" %}">
+    <link media="print" rel="stylesheet" href="{% static "django_resume/css/editorial/print.css" %}"/>
+    <link rel="stylesheet" type="text/css" href="{% static "django_resume/css/editorial/handwriting.css" %}">
+    <script src="{% static "django_resume/js/editorial-lines.js" %}" defer onerror="window.cvLinesFail && window.cvLinesFail()"></script>
+    <script src="{% static "django_resume/js/editorial/handwriting.js" %}" defer></script>
+    <script src="{% static "django_resume/js/editorial/print.js" %}" defer></script>
+    {% if is_editable %}
+      <script src="https://unpkg.com/htmx.org@2.0.3"
+              integrity="sha384-0895/pl2MU10Hqc6jd4RvrthNlDiE9U1tWmX7WRESftEDRosgxNsQG/Ze9YMRzHq"
+              crossorigin="anonymous"></script>
+      <link rel="stylesheet" type="text/css" href="{% static "django_resume/css/edit.css" %}">
+    {% endif %}
+  {% endblock styles %}
+  {% block fonts %}
+    <link href="{% static "django_resume/fonts/saira/Saira-VariableFont.woff2" %}" rel="preload" as="font" type="font/woff2" crossorigin="anonymous">
+  {% endblock fonts %}
+  {% include "./icons.svg" %}
+</head>
+{% block body %}
+  This is the body.
+{% endblock body %}
+</html>

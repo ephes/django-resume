@@ -1,0 +1,84 @@
+# German translations for django-resume.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: django-resume\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-01 05:21-0500\n"
+"PO-Revision-Date: 2026-10-01 12:00+0200\n"
+"Language: de\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: templates/django_resume/admin/base_change_form.html
+msgid "Home"
+msgstr ""
+
+#: templates/django_resume/admin/base_change_form.html
+#, python-format
+msgid "Add %(name)s"
+msgstr ""
+
+#: templates/django_resume/pages/editorial/cv_403.html
+msgid "Access denied"
+msgstr "Zugriff verweigert"
+
+#: templates/django_resume/pages/editorial/cv_403.html
+msgid "Access token request"
+msgstr "Anfrage nach einem Zugangstoken"
+
+#: templates/django_resume/pages/editorial/cv_403.html
+msgid "Request an access token"
+msgstr "Zugangstoken anfordern"
+
+#: templates/django_resume/pages/editorial/print_button.html
+msgid "Print / save as PDF"
+msgstr "Drucken / als PDF speichern"
+
+#: templates/django_resume/pages/editorial/resume_cv.html
+#, python-format
+msgid "Curriculum Vitae of %(name)s"
+msgstr "Lebenslauf von %(name)s"
+
+#: templates/django_resume/pages/editorial/resume_cv.html
+msgid "Photo"
+msgstr "Foto"
+
+#: templates/django_resume/pages/editorial/resume_cv.html
+msgid "Let's talk about"
+msgstr "Sprechen wir über"
+
+#: templates/django_resume/pages/editorial/resume_cv.html
+msgid "Education"
+msgstr "Ausbildung"
+
+#: templates/django_resume/pages/editorial/resume_cv.html
+msgid "Resources"
+msgstr "Ressourcen"
+
+#: templates/django_resume/pages/editorial/resume_cv.html
+msgid "Portfolio"
+msgstr "Portfolio"
+
+#: templates/django_resume/pages/editorial/resume_detail.html
+#, python-format
+msgid "Cover letter — %(name)s"
+msgstr "Anschreiben — %(name)s"
+
+#: templates/django_resume/plugins/cover/editorial/flat_form.html
+msgid "Signature preview"
+msgstr "Vorschau der Unterschrift"
+
+#: templates/django_resume/plugins/cover/editorial/flat_form.html
+msgid "Remove signature image"
+msgstr "Unterschriftsbild entfernen"
+
+#: templates/django_resume/plugins/identity/editorial/content.html
+msgid "Contact"
+msgstr "Kontakt"
+
+#: templates/django_resume/plugins/timelines/editorial/item.html
+msgid "Clients:"
+msgstr "Kunden:"

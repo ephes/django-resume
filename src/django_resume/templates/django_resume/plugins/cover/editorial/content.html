@@ -1,0 +1,37 @@
+{% load editorial_handwriting %}
+{% comment %} Editorial cover-letter body: divider rule, salutation, paragraphs,
+closing, signature. Flat fields (salutation/closing/signature_*) are read straight
+from the cover context (base.py dumps plugin_data["flat"] into it); they are
+edited via the meta-head pencil (flat.html -> flat_form.html). {% endcomment %}
+<article class="cover-letter stack">
+  <hr class="cover-rule" aria-hidden="true">
+
+  {% if cover.salutation %}<p class="cover-salutation">{{ cover.salutation }}</p>{% endif %}
+
+  <div id="cover-items" class="cover-body stack">
+    {% for item in cover.ordered_entries %}
+      {% include cover.templates.item %}
+    {% endfor %}
+  </div>
+
+  {% if show_edit_button %}
+    <div>
+      <svg class="edit-icon-small" hx-get="{{ cover.add_item_url }}"
+           hx-target="#cover-items" hx-swap="beforeend">
+        <use href="#add"></use>
+      </svg>
+    </div>
+  {% endif %}
+
+  <footer class="cover-sign stack-small">
+    {% if cover.closing %}<p class="cover-closing">{{ cover.closing }}</p>{% endif %}
+    {% if cover.signature_img_url %}
+      <img class="cover-signature-img" src="{{ cover.signature_img_url }}"
+           alt="{{ identity.name }}">
+    {% else %}
+      <div class="cover-signature-hw">
+        {% handwriting_label cover.signature_name|default:identity.name %}
+      </div>
+    {% endif %}
+  </footer>
+</article>

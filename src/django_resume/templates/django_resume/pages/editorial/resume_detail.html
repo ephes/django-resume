@@ -1,0 +1,54 @@
+{% extends "./base.html" %}
+{% load static i18n %}
+
+{% block title %}{% blocktranslate with name=identity.name %}Cover letter — {{ name }}{% endblocktranslate %}{% endblock title %}
+
+{% block meta %}
+  {{ block.super }}
+  <meta name="author" content="{{ identity.name }}">
+{% endblock meta %}
+
+{% block styles %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static "django_resume/css/editorial/cover.css" %}">
+{% endblock styles %}
+
+{% block body %}
+  {% if show_edit_button %}
+    <body class="editorial-page" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+  {% else %}
+    <body class="editorial-page">
+  {% endif %}
+{# .cv-root is the layout container; the cover letter is single-column (no aside). #}
+<div class="cv-root">
+<div class="cv-stage">
+{# the same side illustrations as the CV, peeking in the side gaps from the tablet tier up #}
+{% include "./side_art.html" %}
+<div class="editorial-sheet cover-sheet stack">
+  {% if is_editable %}{% include "./edit_panel.html" %}{% endif %}
+
+  {# Recognizable header identical to the CV: name, role, "Contact" rail, icons (no photo). #}
+  {% include identity.templates.main %}
+
+  {% if show_edit_button %}
+    {% include theme.templates.main %}
+  {% endif %}
+
+  {% comment %} Cover-letter card: meta-head (place/date, recipient, subject) — the
+  #cover-flat htmx swap target — then the body (salutation, paragraphs, closing,
+  signature). The card carries the right vertical rule + rounded top-right corner. {% endcomment %}
+  <div class="cover-card stack">
+    {% include cover.templates.flat %}
+    {% include cover.templates.main %}
+    <p class="cover-download" hidden data-editorial-print-container>{% include "./print_button.html" %}</p>
+  </div>
+</div>
+</div>{# /cv-stage #}
+{# Full-bleed black footer bar, echoing the CV's dark footer. #}
+<footer class="cover-footer-bar" aria-hidden="true"></footer>
+</div>{# /cv-root #}
+{% if show_edit_button %}
+  <script src="{% static "django_resume/js/edit.js" %}"></script>
+{% endif %}
+</body>
+{% endblock body %}

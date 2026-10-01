@@ -27,7 +27,8 @@ This is the list of built-in plugins that come with django-resume:
 - **Projects**: A list of projects you have worked on.
 - **Skills**: A list of skills you have.
 - **Page Theme**: The django-resume theme used for built-in pages, editing UI,
-  cover letters, and plugin templates (for example ``plain`` or ``headwind``).
+  cover letters, and plugin templates (``plain``, ``headwind`` or
+  ``editorial``, see :doc:`themes`).
 - **Timeline**: A timeline of your work experience.
 - **Tokens**: A token that you can use to access parts of the resume that are protected.
 

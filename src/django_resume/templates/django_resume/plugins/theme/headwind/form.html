@@ -35,6 +35,16 @@
             </div>
           </div>
         </label>
+
+        <label class="relative cursor-pointer">
+          <input type="radio" name="name" value="editorial" class="sr-only peer" {% if form.name.value == 'editorial' %}checked{% endif %}>
+          <div class="p-4 border-2 border-slate-200 rounded-xl peer-checked:border-blue-500 peer-checked:bg-blue-50 hover:bg-slate-50 transition-all duration-200">
+            <div>
+              <div class="font-semibold text-slate-800">Editorial</div>
+              <div class="text-sm text-slate-600">Magazine-style CV and cover letter with handwritten labels</div>
+            </div>
+          </div>
+        </label>
       </div>
     </div>
     

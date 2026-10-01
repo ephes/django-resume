@@ -1,0 +1,186 @@
+/* Editorial theme — print / "Save as PDF" (linked via <link media="print"> in
+ * base.html). Produces a faithful A4 of the CONTENT AREA only: no side
+ * illustrations, no outer torn-edge lines, internal structural lines +
+ * handwriting kept frozen in final drawn state. The CV two-column layout is
+ * forced here; cover-letter print rules live in cover.css. */
+
+@page {
+  size: A4;
+  /* full-bleed creme + dark bars to the page edges, like the reference; the sheet's
+     own padding provides the text inset (no white @page frame). */
+  margin: 0;
+}
+
+body.editorial-page {
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;       /* keep creme bg, filled tags, dark bars on paper */
+}
+
+/* --- remove: illustrations + the outer lines that border them + page chrome --- */
+.cv-bg-layer { display: none !important; }                 /* peeking side illustrations */
+.editorial-sheet::before,
+.editorial-sheet::after { display: none !important; }      /* outer torn-paper edges */
+.editorial-sheet { background-image: none; }               /* drop the linen texture — flat creme on paper */
+/* thin black top strip — kept in the PDF (matches the reference template's top bar);
+   fixed slim height so it does not eat into the one-page budget. */
+body.editorial-page::before { display: block !important; block-size: 1rem; }
+.cover-footer-bar { display: none !important; }            /* cover's decorative dark footer */
+
+/* web-only chrome that must not appear inside the PDF */
+.cv-rail:has(.cv-resources) { display: none !important; }  /* "Resources" rail: print button + portfolio link */
+.editorial-print { display: none !important; }               /* print buttons */
+.cover-head-edit,
+.no-print,
+.edit-panel,
+.edit-icons,
+.edit-icon-small,
+.with-edit-icon-big,
+.edit-icon-big,
+.edit-icon-h1 { display: none !important; }               /* inline edit affordances + authenticated-user chrome */
+
+/* --- keep, frozen: handwriting labels + signature in final drawn state --- */
+/* mirrors the existing prefers-reduced-motion rule in handwriting.css */
+html.js-hw .hw-ink-group { visibility: visible !important; }
+.hw-pen { stroke-dashoffset: 0 !important; animation: none !important; }
+
+/* The structural lines draw in as they scroll into view (editorial-lines.js).
+   Printing before scrolling through the page must still show every line, so
+   force their final state, including the divider inside a rail (skills ->
+   languages). The divider between two rails is handled just below. */
+html.js-lines .cv-rail-body > section + section::before,
+html.js-lines .cv-header::after,
+html.js-lines .cv-header-aside::before,
+html.js-lines .cv-aside::before,
+html.js-lines .cv-rail-body::before,
+html.js-lines .timeline-entry::before {
+  transform: none !important;
+  transition: none !important;
+}
+
+/* The between-rail divider (languages → education) is drawn by an animated ::before
+   pseudo that does not paint in the static PDF, so the line goes missing. Restore
+   the real border directly for print (the in-rail dividers keep their pseudo). */
+html.js-lines .cv-aside > .cv-rail + .cv-rail .cv-rail-body > :first-child {
+  border-block-start: var(--editorial-rule) solid var(--editorial-line) !important;
+}
+
+/* ---------------------------------------------------------------------------
+ * CV: force the desktop two-column architecture at A4 (the container is narrower
+ * than the 61rem screen breakpoint on paper). These mirror the screen.css
+ * @container (min-width: 61rem) block, but WITHOUT the side-art overlay: the
+ * sheet is not pulled up (-100dvh) and not narrowed for a peek — it fills the page.
+ * ------------------------------------------------------------------------- */
+@media print {
+  /* Scale the whole rem-based layout to fit on one A4. Drives body text, labels
+     AND --aside-basis (sidebar width) — bigger root = roomier sidebar + bigger
+     text, closer to the reference PDF. The name is vw-based, so it is unaffected.
+     Tune ±0.5px until both PDFs are 1 page. */
+  :root { font-size: 11px; }
+  /* skill chips / languages / "Kunden:" — a notch bigger than the rem scaling, to
+     match the reference's larger sidebar tags */
+  :root { --tag-size: 0.92rem; }
+  /* alle Trennlinien einen Hauch dünner (minimal) als der 1px-Bildschirm-Hairline */
+  :root { --editorial-rule: 0.75px; }
+  /* "Work Experience" + "Awards" (gekoppelt) etwas größer — sie wachsen in den
+     vorhandenen Raum ihrer Line-Box (die Zeilenhöhen unten straffen das mit). */
+  :root { --script-lead: 5.2rem; }
+
+  .cv-root { display: block; padding: 0; background-color: transparent; max-inline-size: none; margin-inline: 0; }
+  .cv-root:not(:has(.cover-sheet)) { max-inline-size: none; margin-inline: 0; }  /* undo tablet-tier 602px cap */
+  .cv-root::after { content: none; }              /* no single-column creme panel */
+  .cv-stage { display: block; }
+
+  .editorial-sheet:not(.cover-sheet) {
+    display: flex;
+    margin-block-start: 0;                          /* no desktop -100dvh overlay pull */
+    max-inline-size: none;                          /* fill the page (no side-art peek) */
+    margin-inline: 0;
+  }
+
+  /* header back to the full-width two-column row; a touch more height for the
+     enlarged name (the light header band reads bigger, closer to the reference) */
+  /* symmetric block padding => the Contact rail's lines sit centered between the
+     black top bar and the header's bottom divider rule (equal air above/below) */
+  .editorial-sheet:not(.cover-sheet) .cv-header { flex-direction: row; padding-block: 1.6rem; max-inline-size: none; margin-inline: 0; }
+  /* Kontakt-Infos an der x-Höhe (Oberkante Kleinbuchstaben) des Namens ausrichten */
+  .editorial-sheet:not(.cover-sheet) .cv-header-aside .cv-contact { margin-block-start: 2rem; }
+  /* Name größer als die vw-basierte Bildschirmgröße (im PDF ist die Seitenbreite
+     fix, daher fester rem-Wert); Nachname proportional mit. */
+  .editorial-sheet:not(.cover-sheet) { --name-font: 7.6rem; }
+  .editorial-sheet:not(.cover-sheet) .cv-lastname { font-size: 2.6rem; }
+  .editorial-sheet:not(.cover-sheet) .cv-header-name { align-self: flex-end; margin-inline-start: 0; transform: none; }
+  .editorial-sheet:not(.cover-sheet) .cv-firstname { text-indent: -0.085em; }
+  .editorial-sheet:not(.cover-sheet) .cv-role { text-align: end; font-size: var(--role-size); }
+  .editorial-sheet:not(.cover-sheet) .cv-header-aside {
+    border-inline-start: var(--editorial-rule) solid var(--editorial-line);
+    padding-inline-start: var(--s-1);
+    flex: 0 0 var(--aside-basis);
+    margin-block-start: 0;
+    margin-inline-start: 0;
+  }
+  html.js-lines .editorial-sheet:not(.cover-sheet) .cv-header-aside::before { display: block; }
+  .editorial-sheet:not(.cover-sheet) .cv-header-aside .cv-rail-body { padding-inline-start: var(--s1); }
+  .editorial-sheet:not(.cover-sheet) .cv-header-aside .cv-rail-body::before { inset-block-start: 0; inset-block-end: 0; }
+  .editorial-sheet:not(.cover-sheet) .cv-header-aside .cv-rail-label { transform: rotate(180deg); }
+
+  /* two-column body */
+  .cv-body { display: flex; }
+  .cv-aside { display: flex; }
+  .cv-main {
+    display: flex;
+    flex: 0 1 auto; flex-basis: 0; flex-grow: 999;
+    min-inline-size: 50%;
+    padding-inline-end: var(--s2);
+    padding-block-end: 0;                           /* drop the huge screen bottom gap */
+  }
+  .cv-main h2 { text-align: start; }
+  .cv-photo {
+    inline-size: min(calc(100% + var(--photo-bleed-left)), 60vw);
+    margin-block-start: calc(-1 * (var(--s-1) + var(--editorial-rule)));
+    margin-inline-start: calc(-1 * var(--photo-bleed-left));
+    margin-inline-end: 0;
+    transform: none;
+  }
+
+  /* smaller gap under the photo to the sidebar labels: the aside is a gap-based
+     stack, so a NEGATIVE margin on the first rail pulls it up (offsetting the flex
+     gap) — the whole side column shifts up, gaining looser room below Education. */
+  .cv-aside > .cv-photo + .cv-rail { margin-block-start: calc(-1 * var(--s0)); }
+
+  /* breathing room between the last work entry and the dark awards bar — as
+     padding INSIDE the creme sheet so the gap carries the creme background (a
+     margin on the bar would expose the transparent .cv-root behind it). */
+  /* no top padding: the header (with its own symmetric padding) sits directly under
+     the black top bar, so the Contact rail's lines get equal air above and below. */
+  .editorial-sheet:not(.cover-sheet) { padding-block: 0 var(--s-1); }
+  /* awards: full-bleed dark bar at the bottom edge, 3-column like desktop. */
+  .cv-awards-bar { margin-inline: 0; margin-block-start: 0; margin-block-end: 0; }
+  .cv-awards-bar section { grid-template-columns: 0.5fr 1.2fr var(--aside-basis); gap: 0; }
+  .cv-awards-inner { max-inline-size: none; padding-block: var(--s-2); padding-inline: var(--sheet-pad-inline); }
+  /* "Awards" script sits high in its tall line box; nudge it down so the word is
+     vertically centred in the dark bar (measured offset ≈ 1.6rem at this size). */
+  .cv-awards-bar h2 { text-align: start; line-height: 0.97; padding-block-end: 0; border-block-end: 0; margin-block-end: 0; transform: translateY(0.8rem); }
+  /* ADC award titles + Education degrees share one, slightly larger size; the award
+     project lines match the "Kunden:" size under the work entries. */
+  .cv-awards-bar .award-box h3 { font-size: 1.1rem; }
+  .education-degree { font-size: 1.1rem; }
+  .cv-awards-bar .award-project { font-size: var(--tag-size); }
+
+  /* density: condense the screen's generous per-entry breathing room to reference
+     density so today's content fills exactly one A4. --entry-pad is the space below
+     each entry's "Kunden:" line — one scale step up from the stauch for a touch more air. */
+  :root { --entry-pad: 0.8rem; --entry-pad-top: 0.8rem; }
+  .cv-main { padding-block-end: 0; }
+  /* tighter body leading to win back vertical room for the larger type */
+  .timeline-entry > div:not(.timeline-head),
+  .cv-main ul:not(.cluster-list) li { line-height: 1.15; }
+  /* tighten the gap below the "Work Experience" script label: its line box leaves
+     empty space under the glyphs, so pull the first entry up a touch. */
+  .cv-main > section > h2 { margin-block-start: calc(-1 * var(--s0)); margin-block-end: calc(-1 * var(--s-1)); line-height: 0.8; }
+
+  /* restore document order (mobile rules set order:1–5 for card stacking) */
+  .cv-photo, .cv-header, .cv-main, .cv-awards-bar, .cv-rail { order: 0; }
+
+  /* multi-page: never split an entry/award/education item across a page break */
+  .timeline-entry, .cv-awards-bar .award-box, .cv-rail-body li { break-inside: avoid; }
+}

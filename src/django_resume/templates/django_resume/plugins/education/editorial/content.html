@@ -1,0 +1,12 @@
+<section id="education" class="stack">
+  {% if show_edit_button %}
+    <svg class="edit-icon-small" hx-get="{{ education.add_item_url }}" hx-target="#education-grid" hx-swap="afterbegin">
+      <use href="#add"></use>
+    </svg>
+  {% endif %}
+  <div id="education-grid" class="stack">
+    {% for entry in education.ordered_entries %}
+      {% include education.templates.item %}
+    {% endfor %}
+  </div>
+</section>

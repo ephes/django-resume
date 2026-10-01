@@ -70,6 +70,13 @@ Features
   subject, salutation, closing (default "Kind regards"), signature name and
   an optional signature image. The plain and headwind cover editors keep
   these fields when the cover header is saved.
+* Add the ``editorial`` page theme: a magazine-style CV and cover letter with
+  self-writing handwritten section labels, a print button with an A4 print
+  stylesheet instead of pre-rendered PDFs, and an optional portfolio link from
+  the identity website. The theme is selectable in all page theme forms, its
+  fixed texts are translatable and django-resume ships a German translation.
+  Fonts, illustrations and the handwriting glyph data ship with their license
+  notes. See :doc:`guide/themes`.
 
 Fixes
 ^^^^^

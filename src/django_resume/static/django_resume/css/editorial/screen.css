@@ -1,0 +1,1269 @@
+/* Editorial theme — screen styles.
+ *
+ * First-pass CV layout: Saira webfont, creme sheet, full-width header and a
+ * two-column body (work experience + sidebar) built from Every-Layout
+ * primitives (Stack, Cluster, Sidebar).
+ */
+
+/* ---------------------------------------------------------------- fonts -- */
+@font-face {
+  font-family: "Saira";
+  font-style: normal;
+  font-weight: 100 900;          /* variable weight axis */
+  font-stretch: 75% 125%;        /* variable width axis  */
+  font-display: swap;
+  src: url("../../fonts/saira/Saira-VariableFont.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Saira";
+  font-style: italic;
+  font-weight: 100 900;
+  font-stretch: 75% 125%;
+  font-display: swap;
+  src: url("../../fonts/saira/Saira-Italic-VariableFont.woff2") format("woff2");
+}
+/* Decorative script for section labels: Astagina Signature (free for commercial
+ * use). Falls back to a cursive system font. */
+@font-face {
+  font-family: "Editorial Script";
+  font-display: swap;
+  src: url("../../fonts/script/AstaginaSignature.woff2") format("woff2");
+}
+
+/* ----------------------------------------------------- axioms & scale --- */
+:root {
+  --ratio: 1.5;
+  --s-3: calc(var(--s-2) / var(--ratio));
+  --s-2: calc(var(--s-1) / var(--ratio));
+  --s-1: calc(var(--s0) / var(--ratio));
+  --s0: 1rem;
+  --s1: calc(var(--s0) * var(--ratio));
+  --s2: calc(var(--s1) * var(--ratio));
+  --s3: calc(var(--s2) * var(--ratio));
+  --s4: calc(var(--s3) * var(--ratio));
+  --measure: 66ch;
+  --tag-size: 0.82rem;           /* skill chips + "Kunden:" — a touch below body text */
+  --role-size: 1.1rem;           /* job role — header tagline + each work-entry sub-line, kept in sync */
+  --entry-pad: var(--s1);        /* vertical breathing room per work entry (print condenses this) */
+  --date-tab-block: 1.8rem;      /* rendered height of the absolute date tab (font --s0, line-height 1.4, +0.2em padding) */
+  --entry-pad-top: calc(var(--date-tab-block) + var(--s-1));   /* entry TOP padding: clears the date tab + a small gap to the headline; print shrinks just the gap. --entry-pad stays the bottom value */
+  --sheet-max: 64rem;            /* content sheet max width — also the axis the side art crops against */
+  --bg-anchor: var(--sheet-max); /* axis the side art parks against; lowered to 22rem from the tablet tier UP (and kept lowered through desktop) so the art peeks earlier and more, decoupled from the sheet width. This default only applies below the tablet tier, where there is no art. */
+  --cv-peek: 3rem;               /* width of side-art revealed beside the sheet; 6rem from the tablet tier up */
+  --aside-basis: 22rem;          /* fixed sidebar width, shared by header + body so dividers align */
+  --bg-keep: 0.65;               /* fraction of the side art kept clear of the content (the other ~35% may slide under) */
+  --bg-w-left: calc(100vh * 1118 / 2200);   /* art display width = aspect x viewport height */
+  --bg-w-right: calc(100vh * 1321 / 2200);
+  /* how far the photo bleeds left past the divider; fluid so it collapses to 0
+     once the layout is single-column (phones), where there is no divider to bleed
+     across — keeps the photo from overflowing the viewport. */
+  --photo-bleed-left: clamp(0rem, calc(100vw - 50rem), 2.38rem);
+  /* sheet inline padding: ~20px on a phone → 3.7rem rail inset on desktop.
+     Symmetric (both sides); the date tabs bleed past it on the right. */
+  --sheet-pad-inline: clamp(1.25rem, calc(6.3vw - 1.6rem), 3.7rem);
+  --script-lead: 4.6rem;         /* horizontal script labels: Work Experience + Awards (coupled) */
+  --script-rail: 3rem;           /* vertical (rotated) rail labels: Contact / Let's talk about / Education */
+  --photo-min: 220px;            /* single-column photo floor: keeps the photo (and the
+                                    contact block sharing its width) from getting too small
+                                    on narrow phones. Floors --id-col; tune to taste. */
+
+  --editorial-bg: #F0ECE2;       /* creme */
+  --editorial-fg: #171410;       /* warm near-black */
+  --editorial-line: #171410;
+  --editorial-rule: 1px;         /* single hairline weight for every divider in the layout */
+}
+
+* { box-sizing: border-box; }
+
+/* Overscroll handling. This <html> near-black paints the rubber-band gutter on
+   desktop / non-iOS engines, like the header bar + footer.
+   NOTE (verified on iOS Safari, do not re-litigate): on iOS the bounce is painted
+   by the *body* solid background-color (creme), NOT by <html> and NOT by a
+   gradient/background-image (those stay inside the body box; only the solid colour
+   extends into the infinite canvas). iOS also ignores <meta theme-color> here and
+   tints the notch from the declared body background-COLOR — not from rendered
+   pixels (a full-width black ::before bar at the very top does NOT darken it), so
+   no top sliver/gradient can move it. The single body colour therefore drives the
+   notch + top bounce + bottom bounce together: asymmetric "black top / creme
+   bottom" is not achievable via the page background. theme-color is kept anyway
+   for Android/Chrome, which do honour it.
+   The side art is position:sticky (see .cv-bg-layer), not a z-index:-1 fixed
+   layer, so it no longer depends on background propagation — that is what lets
+   <html> carry a background here without hiding the art, and it bounces along
+   with the content instead of being left behind. */
+html {
+  background-color: var(--editorial-fg);
+}
+
+body.editorial-page {
+  margin: 0;
+  font-family: "Saira", system-ui, sans-serif;
+  font-weight: 300;
+  /* Mobile: dark body so iOS tints the notch + rubber-band bounce dark (it samples
+     the body background-color — see the overscroll note above). The creme page sits
+     on .cv-root, which covers everything except the intended dark top bar (::before)
+     and the bounce. Reset to creme on desktop in the @container block. */
+  background-color: var(--editorial-fg);
+  color: var(--editorial-fg);
+  line-height: 1.4;
+  /* query container for the layout switch below — the whole editorial layout is
+     mobile-first by default and the desktop architecture is layered on via
+     @container (min-width: …) further down, never the other way around */
+  container: editorial / inline-size;
+}
+
+/* Desktop resets the dark mobile body back to creme. This MUST be a media query,
+   NOT the @container block below: body is itself the query container, so it can't
+   respond to its own @container rule (the dark would otherwise leak onto the desktop
+   side-art margins, which multiply against the body backdrop). body width ≈ viewport
+   here, so this MUST track the two-column container breakpoint (61rem): from there
+   the desktop sheet-overlay structure is active and the body shows in the art margins. */
+@media (min-width: 61rem) {
+  body.editorial-page { background-color: var(--editorial-bg); }
+}
+
+/* full-bleed black bar across the very top edge (like the template) */
+body.editorial-page::before {
+  content: "";
+  display: block;
+  /* fluid: a thin 10px strip on phones (a slim black header edge, like the print
+     template), growing to the full 1.6rem by the desktop breakpoint (preferred hits
+     1.6rem at ~1024px, then the max caps it — so desktop stays exactly 1.6rem). The
+     10px floor holds below ~605px; tablet/desktop are above it and unchanged. */
+  block-size: clamp(10px, calc(3.72vw - 12.5px), 1.6rem);
+  background: var(--editorial-fg);
+  /* keep the bar above the sticky side art during the scroll transition */
+  position: relative;
+  z-index: 2;
+}
+
+a { color: inherit; }
+/* Several layout rules set an explicit display (e.g. .cv-rail is a grid), which
+   would override the hidden attribute; print.js relies on hidden to keep the
+   print button and its containers out of the page until it reveals them. */
+[hidden] { display: none !important; }
+.underlined { text-decoration: underline; text-underline-offset: 2px; }
+
+/* ------------------------------------------------------- primitives ----- */
+/* Every-Layout Stack — gap-based, so vertical rhythm is tuned per level via
+ * one gap token. --stack-space can be overridden on any stack instance. */
+.stack, .stack-small, .stack-large {
+  display: flex;
+  flex-direction: column;
+  gap: var(--stack-space, var(--s1));
+}
+.stack       { --stack-space: var(--s1); }
+.stack-small { --stack-space: var(--s-1); }
+.stack-large { --stack-space: var(--s2); }
+
+.cluster { display: flex; flex-wrap: wrap; gap: var(--s-1); align-items: center; }
+.cluster-list { list-style: none; margin: 0; padding: 0; }
+
+/* ------------------------------------------------------- the sheet ------ */
+.editorial-sheet {
+  max-inline-size: var(--sheet-max);
+  margin-inline: auto;
+  /* inline padding ≈ the rail strip width (rotated label band) so the content
+     sits the same distance from the paper edge as the rails do from the divider.
+     No bottom padding: the columns carry their own bottom air (see .cv-main) so
+     the vertical rules keep running all the way down to the footer. */
+  /* inline padding scales fluidly (no media query): ~20px left / 0 right on a
+     phone, growing to the 3.7rem rail inset on the desktop sheet. Right reaches
+     0 first so the date tab can sit flush to the edge on mobile. */
+  padding-block: var(--s2) 0;
+  padding-inline: var(--sheet-pad-inline);
+  position: relative;
+  /* above the sticky side art (z-index:0) so the art slides UNDER it */
+  z-index: 2;
+  /* opaque page so the side art can slide UNDER it (same creme + linen as body) */
+  background-color: var(--editorial-bg);
+  background-image: url("../../img/white-linen.png");
+  background-size: 560px;
+}
+.editorial-sheet.stack { --stack-space: var(--s-1); }
+/* nicer line breaks for body copy (avoids orphans / ragged last lines), so the
+   content reads well even when columns stay narrow. Inherited by all text. */
+.editorial-sheet { text-wrap: pretty; }
+/* single source of truth for the firstname size — consumed by .cv-firstname AND by
+   --name-w / --id-col below. Defined on every sheet (incl. the cover, which also
+   renders a .cv-firstname) so .cv-firstname can read it everywhere. */
+.editorial-sheet { --name-font: clamp(min(3.2rem, 14.2vw), 8vw, 6.5rem); }
+
+/* CV single-column identity column: the photo and the name+contact block share
+   one centred column (~firstname width + padding L/R), so the whole header block
+   sits aligned and centred. Excludes the cover letter (.cover-sheet), which has
+   no photo. The two-column tier overrides both back to the desktop layout. */
+.editorial-sheet:not(.cover-sheet) {
+  /* photo column = firstname width (~3.82x its font) + a sheet-padding each side,
+     so the photo is the name width plus 2x the inline padding. Same name clamp as
+     .cv-firstname (keep in sync). max(--photo-min, …) floors it so the photo (and
+     the contact block sharing this width) stays usable on the narrowest phones; the
+     name is its own clamp, so it just centres inside. The inner min() caps it to the
+     available width so the vertical "Contact" still fits its side gap. NB: only used
+     in width/margin contexts — never font-size (a `%` there would resolve wrong). */
+  /* the first name's rendered width as a multiple of its font-size. The default
+     fits a nine-letter first name; set --name-width-factor on .editorial-sheet to
+     tune the photo column for a shorter or longer name. (--name-font is defined
+     on .editorial-sheet.) */
+  --name-w: calc(var(--name-width-factor, 3.82) * var(--name-font));
+  --id-col: max(
+    var(--photo-min),
+    min(
+      calc(var(--name-w) + 2 * var(--sheet-pad-inline)),
+      calc(100% - 2 * var(--script-rail))
+    )
+  );
+  /* A faithful copy of --id-col that resolves correctly in margin / padding /
+     transform contexts. --id-col's `calc(100% - …)` cap CANNOT be reused there: a
+     `%` re-resolves against the using element's own box, collapsing id-col to its
+     220px floor (the trap that bit the photo transform). The cap DOES bind in a band
+     (~340–410px, where the available width is narrower than the name term), so it
+     must be kept — but expressed with `100cqw` (the editorial container = viewport),
+     which is identical everywhere regardless of the using element. */
+  --id-col-safe: max(
+    var(--photo-min),
+    min(
+      calc(var(--name-w) + 2 * var(--sheet-pad-inline)),
+      calc(100cqw - 2 * var(--sheet-pad-inline) - 2 * var(--script-rail))
+    )
+  );
+  /* The firstname is centred on the identity column; its left edge sits this far to
+     the RIGHT of the photo's bottom-left Spitze (= the contact line). The contact
+     text left-aligns to the name (icons sit under it) by using this as its inset
+     from the line. On the narrowest devices --name-line-gap shrinks below this so
+     the cluster slides toward the line and the long email still fits (see below). */
+  --gap-centered: calc(0.465123 * var(--id-col-safe) - 0.5 * var(--name-w));
+  /* never let the text/name crowd the line: keep at least 5px of breathing room. */
+  --name-line-gap: max(5px, var(--gap-centered));
+}
+.editorial-sheet:not(.cover-sheet) .cv-header {
+  inline-size: 100%;
+  max-inline-size: var(--id-col);
+  margin-inline: auto;
+}
+/* shift the whole contact section left so the rail line (right of "Contact")
+   lands on the photo's bottom-left Spitze. The Spitze sits at 0.0349·--id-col right
+   of the centred header edge (the clip insets the straight left edge 6.98% and the
+   photo is nudged left half that), so the shift = that minus the rail label column.
+   The trailing +0.25px is a small bias against the line's own ::before -1px inset
+   (a full +1px would over-cancel); the net ~-0.75px leaves the 1px stroke poking a
+   hair INTO the rounded Spitze, which reads as flush (was +6px = ~5px too far right).
+   MUST use --id-col-safe, NOT --id-col: this aside lives inside .cv-header (width
+   = id-col), so --id-col's `100%` term re-resolves against the header and the
+   `avail` cap collapses it (~273 instead of 369 at 975px) — placing the line a few
+   px left of the Spitze through the 638–975px band. --id-col-safe (100cqw-based)
+   matches the photo's actual id-col everywhere, so the line stays flush. */
+.editorial-sheet:not(.cover-sheet) .cv-header-aside {
+  margin-inline-start: calc(0.0349 * var(--id-col-safe) - var(--script-rail) + 0.25px);
+  /* the rail line rises to the photo's bottom Spitze (above the whole name).
+     Empirical fluid curve that plateaus once the name font caps (~727px). It
+     depends only on the photo/name geometry above — NOT on the number of contact
+     rows below (those grow the line's anchored bottom) — so it stays docked if a
+     contact row is added. The +90 (was +84) lets the stroke poke a few px INTO the
+     photo's rounded bottom-left Spitze so it always visibly connects (no creme gap);
+     the 214px ceiling is unchanged so tablet (≥736px) stays exactly as before. */
+  --contact-line-rise: clamp(124px, calc(17.8vw + 90px), 214px);
+}
+/* irregular broken "paper edge" down the sheet's outer edges — different on each
+   side, suggesting a torn sheet at the transition into the sketch decorations.
+   Desktop-only (toggled on with the side art below): without the art there is
+   nothing to tear into, and at -2px they'd poke past a full-width phone sheet
+   and add a 2px horizontal scroll. */
+.editorial-sheet::before,
+.editorial-sheet::after {
+  content: "";
+  display: none;
+  position: absolute;
+  inset-block: 0;
+  inline-size: 4px;
+  background-repeat: repeat-y;
+  pointer-events: none;
+}
+.editorial-sheet::before { inset-inline-start: -2px; background-image: url("../../img/editorial/paper-edge-left.svg"); }
+.editorial-sheet::after  { inset-inline-end: -2px;  background-image: url("../../img/editorial/paper-edge-right.svg"); }
+
+/* decorative side illustrations beside the sheet on wide screens: white art
+ * multiplied onto the creme, sliding under the (opaque) content as the viewport
+ * narrows. Purely ornamental; hidden entirely once the sheet fills the width. */
+/* The art layer is position:sticky inside .cv-stage (which ends at the footer),
+ * not fixed: it behaves like a fixed full-height backdrop while you scroll, but
+ * .cv-stage ends at the footer, so the footer is the end of the sticky range and
+ * pushes the layer up off the top instead of cropping its bottom. The layer keeps
+ * its full 100vh in the flow (NO negative margin on it — that uses the margin box
+ * for the sticky constraint and would defeat the push); instead .editorial-sheet
+ * is pulled up over it with a negative margin-top (see the wide-screen rule
+ * below). z-index:0 keeps it above the page background — so it no longer needs
+ * the z-index:-1 + background-propagation trick that conflicted with an <html>
+ * background — but below the content, header bar and footer (z-index:2). */
+.cv-bg-layer {
+  /* wide-screen only (turned on in the min-width rule below); below the sheet
+     width the art is under the content anyway, so it costs nothing on phones/tablets */
+  display: none;
+  position: sticky;
+  top: 0;
+  /* clip the bleed: the strips are absolutely positioned past the viewport edges,
+     and (unlike the old position:fixed) that now adds to the page's scroll width.
+     Clip here on the layer — NOT overflow-x on body/html, which would make them a
+     scroll container and break the sticky. */
+  overflow: hidden;
+  /* dvh tracks the dynamic viewport (iOS/Safari toolbar) so no light gap opens
+     at the bottom edge; vh is the fallback for browsers without dvh */
+  block-size: 100vh;
+  block-size: 100dvh;
+  z-index: 0;
+  pointer-events: none;
+}
+.cv-bg {
+  position: absolute;
+  inset-block: 0;
+  overflow: hidden;
+  /* creme backdrop so the white-flattened art can multiply against it */
+  background-color: var(--editorial-bg);
+}
+/* The art is full height with a fixed (aspect-derived) width and parks its outer
+ * edge on the canvas edge. min() clamps the position: the inner edge may slide
+ * under the content by at most (1 - --bg-keep) of the width; past that the outer
+ * edge is cropped by the canvas instead, so the strip's middle stays visible and
+ * it never floats detached from the edge. */
+.cv-bg--left {
+  inline-size: var(--bg-w-left);
+  left: min(0px, calc(50vw - var(--bg-anchor) / 2 - var(--bg-keep) * var(--bg-w-left)));
+}
+.cv-bg--right {
+  inline-size: var(--bg-w-right);
+  right: min(0px, calc(50vw - var(--bg-anchor) / 2 - var(--bg-keep) * var(--bg-w-right)));
+}
+.cv-bg picture { display: block; block-size: 100%; }
+.cv-bg img {
+  block-size: 100%;
+  inline-size: 100%;
+  object-fit: cover;
+  opacity: 0.95;
+  mix-blend-mode: multiply;
+}
+/* lay the page's linen texture back ON TOP of the art (the body texture sits
+   below these fixed layers); attachment:fixed keeps it aligned with the body */
+.cv-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("../../img/white-linen.png");
+  background-size: 560px;
+  background-attachment: fixed;
+  pointer-events: none;
+}
+/* The whole two-column layout (this + .cv-body / .cv-aside / .cv-photo bleed /
+   header sidebar / sticky side art) is the DESKTOP architecture. It is switched
+   on mobile-first via @container at the very bottom of this file — the base is
+   the single-column phone layout, desktop is layered on top. */
+/* ------------------------------------------------------- header --------- */
+.cv-header {
+  /* Every Layout Sidebar: fluid name (main) + fixed-width contact (aside). The
+     aside shares --aside-basis with .cv-body, so the contact divider lands on
+     the main|aside divider below, at every width — no grid, no media query. */
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: stretch;
+  padding-block-end: var(--s1);
+  position: relative;
+}
+/* header rule spans the full width of the left (main) area, ending on the
+   divider; the photo bleeds up + left over this end, so its corner sits free
+   on top of the line rather than the line running across the whole photo. */
+.cv-header::after {
+  content: "";
+  position: absolute;
+  inset-block-end: 0;
+  inset-inline-start: 0;
+  inset-inline-end: var(--aside-basis);
+  border-block-end: var(--editorial-rule) solid var(--editorial-line);
+}
+/* name block stays at its content width (first name is the widest line) so the
+   right-aligned role lines up with the first name's right edge, not the column */
+.cv-header-name { align-self: flex-end; inline-size: fit-content; }
+.cv-name {
+  margin: 0;
+  line-height: 0.85;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);   /* breathing room between the two name lines, from the modular scale */
+}
+.cv-firstname {
+  display: block;
+  font-weight: 200;
+  font-stretch: 85%;
+  /* fluid; the vw term only bites below the 6.5rem cap (≈ phones/tablets), so the
+     desktop name (capped) is unchanged — it just lets the name grow on phones,
+     ~ up to the photo's right edge */
+  /* --name-font (on .editorial-sheet) is one continuous clamp from the phone size up
+     to the 6.5rem cap, reached only on a wide desktop (~1300px = 8vw). The name
+     shrinks continuously as the viewport narrows — THROUGH the two-column range
+     (≥975px) into single-column — instead of staying full-size until it reflows. The
+     photo column (--id-col) tracks the SAME token, so they can't drift. The 3.2rem
+     floor keeps the phone photo at ~60vw; it meets 8vw continuously at ~640px. */
+  font-size: var(--name-font);
+  /* optically pull the first glyph flush with the tracked surname below it;
+     em-based so it scales with the (fluid) name size */
+  text-indent: -0.085em;
+}
+.cv-lastname {
+  display: block;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: clamp(1rem, 2.71vw, 2.2rem);   /* proportional to the firstname; caps with it at ~1300px */
+}
+.cv-role { margin: var(--s-1) 0 0; font-size: var(--role-size); font-weight: 350; text-align: end; }
+
+/* contact reuses the body aside's rail construction (see .cv-rail below): the
+ * header aside provides the divider, the rail provides rotated label + line +
+ * body — so the two header lines align with the aside divider + rail line. */
+/* stretch the rail to the full header height so its vertical line runs the full
+ * height, like the outer divider (the body rails stay content-height) */
+.cv-header-aside { display: flex; }
+.cv-header-aside > .cv-rail { flex: 1; }
+.cv-contact {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--s0);
+  font-style: normal;
+  font-size: var(--s0);
+}
+.cv-contact-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  text-decoration: none;
+}
+.cv-contact-item:hover { text-decoration: underline; }
+/* all three glyphs share one width (their viewBoxes are all 11.34 wide), so they
+ * line up centred under one another; height follows each aspect ratio, which
+ * makes phone/mail shorter and leaves the location pin tallest */
+.cv-contact .icon {
+  flex: none;
+  inline-size: 1.1em;
+  block-size: auto;
+  fill: currentColor;
+  stroke: none;
+}
+.cv-contact-address { white-space: pre-line; }
+
+/* ------------------------------------------------------- two columns ---- */
+/* Every Layout Sidebar: fluid main (work experience) + fixed-width aside. The
+ * fixed aside width is shared via --aside-basis with the header, keeping both
+ * dividers on the same axis; it wraps to one column intrinsically below the
+ * main's min-inline-size — no grid, no media query. */
+.cv-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+}
+.cv-main {
+  flex-basis: 0;
+  flex-grow: 999;
+  min-inline-size: 50%;
+  padding-inline-end: var(--s2);
+  /* bottom air before the footer; lives on the column (not the sheet) so the
+     aside divider + rail rules stretch with it and still reach the footer */
+  padding-block-end: calc(var(--s3) * 2);
+}
+.cv-aside,
+.cv-header-aside {
+  flex: 0 0 var(--aside-basis);
+  padding-inline-start: var(--s-1);
+  border-inline-start: var(--editorial-rule) solid var(--editorial-line);
+}
+
+/* section labels — decorative script, like the InDesign original.
+ * Two tiers: the lead labels (Work Experience + Awards) are big and stand out;
+ * the rail labels (Contact / Let's talk about / Education) are a step smaller. */
+.cv-main h2, .cv-aside h2, .cv-header-aside h2 {
+  margin: 0;
+  font-family: "Editorial Script", cursive;
+  font-weight: 400;
+  font-size: var(--script-rail);   /* vertical rail labels */
+  letter-spacing: 0;
+  text-transform: none;
+  line-height: 1;
+}
+.cv-main h2 { font-size: var(--script-lead); }   /* Work Experience — horizontal lead */
+.cv-main section, .cv-aside section { margin: 0; }
+/* "Work Experience" label: just the label and the space down to the first
+ * entry's rule (each entry owns its rule — see the entry block below) */
+.cv-main > section > h2 { padding-block-start: var(--s-1); }
+
+/* sidebar: rotated script labels in a narrow left rail */
+/* sidebar rails — single pattern: rotated script label | vertical rule | content.
+ * Skills + languages share one "Let's talk about" rail; education has its own. */
+.cv-aside { --stack-space: var(--s1); }
+.cv-rail {
+  display: grid;
+  grid-template-columns: var(--script-rail) 1fr;
+  align-items: stretch;
+}
+.cv-rail-label {
+  margin: 0;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  justify-self: center;
+  align-self: center;
+}
+/* The last rail stretches to the footer (so its rule reaches the bottom), but the
+   Resources label must stay up beside the buttons, not centre in that tall track.
+   Pin it to the top and nudge it down so its optical centre sits in the gap
+   between the two pill buttons. The nudge is physical bottom padding, which the
+   rotate(180) turns into space above the label; unlike a translate it takes part
+   in layout, so the rail grows and the label is never cut off by the footer. */
+.cv-aside > .cv-rail--resources .cv-rail-label {
+  align-self: start;
+  padding-bottom: 40px;
+}
+.cv-rail-body {
+  position: relative;
+  min-inline-size: 0;        /* let content shrink inside the grid track */
+  padding-inline-start: var(--s1);
+}
+/* bigger gap above the in-rail divider (skills -> languages) */
+.cv-rail-body.stack { --stack-space: var(--s2); }
+/* vertical rail line as a pseudo-element so its top can clear a rail divider */
+.cv-rail-body::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  border-inline-start: var(--editorial-rule) solid var(--editorial-line);
+}
+#skills, #education, #languages { margin: 0; }
+/* room under each rail (except the last) so the gap ABOVE the next rail's divider
+ * matches the gap below it — applies to every rail boundary, any content */
+.cv-aside > .cv-rail:not(:last-child) .cv-rail-body { padding-block-end: var(--s-1); }
+/* thin rule between blocks inside a rail (e.g. skills | languages); the rail
+ * body's own left padding keeps it clear of the vertical rail line */
+.cv-rail-body > section + section {
+  border-block-start: var(--editorial-rule) solid var(--editorial-line);
+  padding-block-start: var(--s2);
+}
+/* between rails (e.g. languages → education): the divider sits on the next rail's
+ * content, and that rail's vertical line starts one step lower — so the divider
+ * has equal space above (the aside gap) and below. Uniform for every rail boundary. */
+.cv-aside > .cv-rail + .cv-rail .cv-rail-body > :first-child {
+  border-block-start: var(--editorial-rule) solid var(--editorial-line);
+  padding-block-start: var(--s2);
+}
+.cv-aside > .cv-rail + .cv-rail .cv-rail-body::before { inset-block-start: var(--s2); }
+
+/* The last aside rail grows to fill the remaining height, so its vertical line
+ * and the aside divider run all the way down to the footer (which now butts
+ * directly against the content — no gap). */
+.cv-aside > .cv-rail:last-child { flex: 1; }
+
+/* ------------------------------------------------------- work experience */
+.timeline-header-cluster {
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--s-1);
+}
+.timeline-header-title { display: flex; flex-direction: column; gap: 0.1em; }
+/* company headline + role grouped in their own tight stack, slightly larger */
+.timeline-head { --stack-space: var(--s-3); }
+.timeline-header-title h3 { margin: 0; font-weight: 700; font-size: 1.7rem; line-height: 1.05; }
+.timeline-entry > div:not(.timeline-head) {
+  font-size: var(--s0);
+  line-height: 1.2;
+}
+/* headline now sits below the date tab (see .timeline-entry top padding), so it
+   no longer needs to reserve space for it — full content width, like the body text */
+.timeline-header-title { padding-inline-end: 0; }
+.year-span {
+  position: absolute;
+  /* the entry box already reaches the divider (negative margin-inline-end),
+     so the tab sits flush on the divider at offset 0 */
+  inset-inline-end: 0;
+  inset-block-start: 0;
+  display: inline-flex;
+  gap: 0.1em;
+  white-space: nowrap;
+  font-style: italic;
+  font-size: var(--s0);
+  background: var(--editorial-fg);
+  color: var(--editorial-bg);
+  padding: 0.2em var(--s0);
+  border-radius: 0 0 0 0.85rem;
+}
+.sub-line { font-style: italic; font-size: var(--role-size); }
+
+/* Work Experience — single source of truth for entry rhythm.
+ * Each entry owns a top rule + symmetric vertical padding, so every headline
+ * sits the same distance below the line above it (first entry included) and the
+ * date tab (absolute, top:0) stays flush to that line. No per-entry special cases. */
+.cv-main > section.stack,
+.cv-main .stack-large { --stack-space: 0; }
+.timeline-entry {
+  position: relative;
+  border-block-start: var(--editorial-rule) solid var(--editorial-line);
+  /* top padding clears the absolute date tab so the headline sits BELOW it and can
+     use the full content width; the bottom keeps the entry rhythm */
+  padding-block: var(--entry-pad-top) var(--entry-pad);
+  /* stretch the box past the main column's right padding so the top rule runs
+     flush to the divider; the inner content keeps the same right inset, and the
+     date tab (inset-inline-end:0) lands on the divider automatically */
+  margin-inline-end: calc(var(--s2) * -1);
+  padding-inline-end: var(--s2);
+}
+
+/* real markdown lists: Stack between items, Cluster (marker + text) per item —
+ * both gap-based from the modular scale (no @media, no magic numbers) */
+.cv-main ul:not(.cluster-list) {
+  margin: var(--s-3) 0 0;
+  padding-inline-start: 0;
+  max-inline-size: var(--measure);
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);   /* space between bullets */
+}
+.cv-main ul:not(.cluster-list) li {
+  line-height: 1.2;
+  display: flex;
+  gap: var(--s-1);   /* bullet marker -> text start */
+  align-items: baseline;
+}
+.cv-main ul:not(.cluster-list) li::before {
+  content: "•";
+  flex: none;
+}
+
+/* clients line ("Clients: ...") rendered from the timeline badges; the
+   translated label comes from the template's data-label attribute */
+.job-badges-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3em;
+  margin-block-start: 0.3em;
+  font-size: var(--tag-size);
+}
+.job-badges-list::before { content: attr(data-label); font-weight: 700; }
+.job-badges-list li:not(:last-child)::after { content: " |"; }
+
+/* ------------------------------------------------------- sidebar photo -- */
+/* bleed the photo up to the header rule (no gap) and left across the divider,
+ * so the photo's long straight left edge lands on the divider and the Spitzen
+ * reach into the main column. --photo-bleed-left is tuned to hit the divider. */
+.cv-photo {
+  margin-block-start: calc(-1 * (var(--s-1) + var(--editorial-rule)));
+  margin-inline-start: calc(-1 * var(--photo-bleed-left));
+  /* fills the sidebar (+ bleed) on desktop, but never more than 60% of the screen
+     — so on phones it shrinks fluidly to 60vw; min() keeps it one rule, no query */
+  inline-size: min(calc(100% + var(--photo-bleed-left)), 60vw);
+}
+/* SVG clip (objectBoundingBox, scales with the box): Spitze top-left +
+ * bottom-left, convex top-right, square right side + bottom-right. */
+.cv-photo-img,
+.cv-photo-placeholder {
+  inline-size: 100%;
+  aspect-ratio: 43 / 53;   /* matches Mask_photo.svg (430x530) so its corner radii stay circular */
+  clip-path: url(#cv-photo-shape);
+}
+.cv-photo-img { object-fit: cover; filter: grayscale(1) contrast(1.05); }
+.cv-photo-placeholder {
+  display: grid;
+  place-items: center;
+  background: var(--editorial-fg);
+  color: color-mix(in srgb, var(--editorial-bg) 70%, transparent);
+  font-size: var(--s1);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* ------------------------------------------------------- skills tags ---- */
+.skills-list {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: var(--s-3);
+  row-gap: var(--s-1);   /* more air between rows */
+}
+.skills-list li {
+  padding: 0.08em var(--s-2);
+  border: 1px solid var(--editorial-line);
+  border-radius: 0.25rem;
+  font-size: var(--tag-size);
+  line-height: 1.15;
+}
+/* two-tone tags: specific filled tags matching the InDesign original
+ * (positions follow the fixed skills order; see CV data) */
+.skills-list li.is-filled,
+.skills-list li:nth-child(3),   /* Brand & Design Systems */
+.skills-list li:nth-child(5),   /* Creative Consulting */
+.skills-list li:nth-child(10),  /* Illustration */
+.skills-list li:nth-child(11),  /* Prompt Design */
+.skills-list li:nth-child(15) { /* Campaigning */
+  background: var(--editorial-fg);
+  color: var(--editorial-bg);
+}
+
+/* ------------------------------------------------------- languages ------ */
+/* shared name column via subgrid keeps both bars the same length; the
+ * proficiency note sits under the bar so the bars stay full width */
+#languages-grid {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  row-gap: var(--s-1);
+}
+.language-box {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-template-areas:
+    "name bar"
+    ".    note";
+  column-gap: var(--s0);
+  row-gap: 0.05em;
+  align-items: center;
+}
+.language-name { grid-area: name; font-weight: 600; font-size: var(--tag-size); }
+.language-note { grid-area: note; font-size: var(--tag-size); text-align: end; }
+.bar {
+  grid-area: bar;
+  display: block;
+  block-size: 0.5em;
+  border: 1.5px solid var(--editorial-line);
+  border-radius: 1em;
+  position: relative;
+  overflow: hidden;
+}
+.bar::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  inline-size: var(--level, 0%);
+  background: var(--editorial-fg);
+}
+
+/* ------------------------------------------------------- resources ------ */
+/* outline pill buttons stacked, content-width, left-aligned: the print button
+   (also used on the cover letter) and the optional portfolio link */
+.cv-resources {
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+  gap: var(--s-1);
+  font-size: var(--s0);
+}
+.editorial-print {
+  font: inherit;
+  color: inherit;
+  background: none;
+  cursor: pointer;
+}
+.cv-resources a,
+.editorial-print {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7em;
+  padding: 0.45em 1.1em;
+  border: 1.5px solid var(--editorial-line);
+  border-radius: 999px;
+  text-decoration: none;
+  line-height: 1.1;
+  transition: background-color 0.15s, color 0.15s;
+}
+.cv-resources a::after { content: "\2192"; font-size: 1.35em; }   /* → arrow on the right */
+.cv-resources a:hover,
+.cv-resources a:focus-visible,
+.editorial-print:hover,
+.editorial-print:focus-visible {
+  background: var(--editorial-fg);
+  color: var(--editorial-bg);
+}
+
+/* ------------------------------------------------------- line drawing ---- */
+@media (prefers-reduced-motion: no-preference) {
+  html.js-lines {
+    --line-draw-curve: cubic-bezier(0.2, 1.16, 0.34, 1);
+    --line-draw-vertical: 1500ms;
+    --line-draw-horizontal: 1180ms;
+  }
+
+  html.js-lines .editorial-sheet::before,
+  html.js-lines .editorial-sheet::after {
+    clip-path: inset(0 0 100% 0);
+    transition: clip-path var(--line-draw-vertical-local, var(--line-draw-vertical)) var(--line-draw-curve);
+  }
+  html.js-lines .editorial-sheet.cv-line-drawn::before,
+  html.js-lines .editorial-sheet.cv-line-drawn::after {
+    clip-path: inset(0);
+  }
+
+  html.js-lines .cv-header::after {
+    transform: scaleX(0);
+    transform-origin: right center;
+    transition: transform var(--line-draw-horizontal) var(--line-draw-curve);
+  }
+  html.js-lines .cv-header.cv-line-drawn::after { transform: scaleX(1); }
+
+  html.js-lines .cv-header-aside,
+  html.js-lines .cv-aside {
+    position: relative;
+    border-inline-start-color: transparent;
+  }
+  html.js-lines .cv-header-aside::before,
+  html.js-lines .cv-aside::before {
+    content: "";
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: calc(-1 * var(--editorial-rule));
+    border-inline-start: var(--editorial-rule) solid var(--editorial-line);
+    transform: scaleY(0);
+    transform-origin: top center;
+    transition: transform var(--line-draw-vertical-local, var(--line-draw-vertical)) var(--line-draw-curve);
+    pointer-events: none;
+  }
+  html.js-lines .cv-header-aside.cv-line-drawn::before,
+  html.js-lines .cv-aside.cv-line-drawn::before {
+    transform: scaleY(1);
+  }
+
+  html.js-lines .cv-rail-body::before {
+    transform: scaleY(0);
+    transform-origin: top center;
+    transition: transform var(--line-draw-vertical-local, var(--line-draw-vertical)) var(--line-draw-curve);
+  }
+  html.js-lines .cv-rail-body.cv-line-drawn::before { transform: scaleY(1); }
+
+  html.js-lines .timeline-entry {
+    border-block-start-color: transparent;
+  }
+  html.js-lines .timeline-entry::before {
+    content: "";
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline: 0;
+    border-block-start: var(--editorial-rule) solid var(--editorial-line);
+    transform: scaleX(0);
+    transform-origin: right center;
+    transition: transform var(--line-draw-horizontal) var(--line-draw-curve);
+    pointer-events: none;
+  }
+  html.js-lines .timeline-entry.cv-line-drawn::before { transform: scaleX(1); }
+
+  html.js-lines .cv-rail-body > section + section,
+  html.js-lines .cv-aside > .cv-rail + .cv-rail .cv-rail-body > :first-child {
+    position: relative;
+    border-block-start-color: transparent;
+  }
+  html.js-lines .cv-rail-body > section + section::before,
+  html.js-lines .cv-aside > .cv-rail + .cv-rail .cv-rail-body > :first-child::before {
+    content: "";
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline: 0;
+    border-block-start: var(--editorial-rule) solid var(--editorial-line);
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform var(--line-draw-horizontal) var(--line-draw-curve);
+    pointer-events: none;
+  }
+  html.js-lines .cv-line-drawn.cv-rail-divider::before {
+    transform: scaleX(1);
+  }
+}
+
+/* ------------------------------------------------------- education ------ */
+.education-box { display: grid; gap: 0.1em; }
+.education-year { font-weight: 600; font-size: var(--s0); }
+.education-degree { margin: 0; font-weight: 700; font-size: 1.1rem; line-height: 1.05; }
+.education-school { font-size: var(--s0); }
+
+/* ------------------------------------------------------- awards --------- */
+.award-box { display: grid; gap: 0.1em; }
+.award-box h3 { margin: 0; font-weight: 700; font-size: var(--s-1); }
+.award-project { font-size: var(--s-2); font-style: italic; }
+.award-year { font-size: var(--s-2); }
+
+/* awards as a full-bleed black footer bar: script label + two columns */
+.cv-awards-bar {
+  margin-block-start: 0;
+  background: var(--editorial-fg);
+  color: var(--editorial-bg);
+  /* above the sticky side art: the art's sticky range ends here, so the footer
+     pushes it up rather than being overlapped by it */
+  position: relative;
+  z-index: 2;
+}
+.cv-awards-inner {
+  max-inline-size: var(--sheet-max);
+  margin-inline: auto;
+  padding: var(--s2) var(--s2);
+}
+.cv-awards-bar .award-year { display: none; }
+/* Footer columns: 0.7fr | 1fr | 1fr. The two award columns (1fr each) are equal,
+ * and their divider lands at (0.7+1)/2.7 = 1.7/2.7 — the same axis as the main
+ * column divider above (cv-body is 1.7fr | 1fr). Gap 0 keeps that axis exact. */
+.cv-awards-bar section {
+  display: grid;
+  grid-template-columns: 0.5fr 1.2fr 1fr;
+  align-items: center;
+  gap: 0;
+}
+.cv-awards-bar h2 {
+  margin: 0;
+  font-family: "Editorial Script", cursive;
+  font-weight: 400;
+  font-size: var(--script-lead);   /* horizontal lead label — same size as Work Experience */
+  color: var(--editorial-bg);
+}
+.cv-awards-bar #awards-grid {           /* grid wrapper collapses; items flow into section grid */
+  display: contents;
+}
+.cv-awards-bar .award-box { padding-inline: var(--s1); }
+.cv-awards-bar .award-box h3 { font-size: var(--s0); line-height: 1.15; }
+.cv-awards-bar .award-project { font-size: var(--s-1); }
+.cv-awards-bar .award-box:nth-child(1) {   /* divider between the two awards, on the main axis */
+  border-inline-end: var(--editorial-rule) solid var(--editorial-bg);
+}
+
+/* ------------------------------------------------------- edit affordances */
+.edit-icon-small { inline-size: 1.1em; block-size: 1.1em; cursor: pointer; fill: currentColor; }
+.icon { inline-size: 1em; block-size: 1em; fill: currentColor; }
+.edit-icons { display: inline-flex; gap: 0.3em; }
+
+/* ===================================================== mobile-first base ===
+ * The DEFAULT (no query) is the single-column phone layout — a vertical
+ * "business card": photo, name, contact, work experience, awards bar, then the
+ * topics/education/resources. The desktop two-column architecture is layered on
+ * via @container below. The wrappers (.cv-stage/.editorial-sheet/.cv-body/
+ * .cv-aside) collapse with display:contents so every section becomes a direct
+ * child of the body flex column and falls into card order via `order`; the body
+ * carries the creme background + side gutters that the sheet provides on desktop.
+ * These rules sit LAST so they override the (desktop-oriented) base declarations
+ * above; @container then re-asserts the desktop values on wide screens. */
+.cv-root {
+  display: flex;
+  flex-direction: column;
+  padding-inline: var(--sheet-pad-inline);
+  padding-block-end: var(--s3);   /* air below the last section (Resources) before the page edge */
+  /* the creme page surface (incl. the side gutters via the inline padding) over the
+     dark body; the dark body then shows only in the notch + bounce. Reset on desktop. */
+  background-color: var(--editorial-bg);
+}
+.cv-stage,
+.editorial-sheet,
+.cv-body,
+.cv-aside { display: contents; }
+.cv-bg-layer { display: none; }
+
+/* work stays one orderable block; reset its desktop column metrics */
+.cv-main {
+  display: block;
+  flex: 0 0 auto;
+  min-inline-size: 0;
+  /* air below the last entry before the full-bleed Awards bar — half the desktop
+     column's bottom breathing room, which is too tall on a phone (print.css resets to 0) */
+  padding: 0 0 var(--s3);
+  order: 3;
+}
+.cv-main h2 { text-align: center; }   /* centre the "Work Experience" lead label on mobile */
+/* card order; photo a touch bigger than 60vw, and shifted so the clip's long
+   straight left edge (≈6.98% in from the box edge, per the SVG mask) lands on the
+   contact rail line (= gutter + rotated-label column) */
+.cv-photo {
+  order: 1;
+  /* Dock flush directly under the dark top strip. In this single-column tier the
+     .editorial-sheet is display:contents (see below), so its padding-block top is
+     NOT rendered — there is no sheet padding to cancel here. The photo already
+     flows right beneath the body::before bar, so margin-block-start:0 lands its top
+     edge on the bar's bottom (no creme gap), keeping the top rounded corner visible.
+     A negative margin here would yank the photo up behind the bar and clip it. */
+  margin-block-start: 0;
+  /* Photo shares the identity column (~firstname width + padding), centred. */
+  inline-size: var(--id-col);
+  margin-inline: auto;
+  /* The clip insets the straight left edge by ~6.98% (Spitze top-left + bottom-
+     left, square right), so a plain-centred box leaves a wider white strip on the
+     left. Shift left by HALF that inset so the white strips L/R are equal.
+     MUST be a plain `%` (of the photo's own width), NOT calc(-0.0349*var(--id-col)):
+     --id-col contains `calc(100% - …)`, and in a `transform` a `%` resolves against
+     the ELEMENT'S OWN width — so that inner 100% would re-resolve to the photo's
+     width and collapse id-col to its 220px floor, shifting the photo too little and
+     pulling the bottom-left Spitze right of the contact line (the line's margin
+     resolves id-col's 100% against the container, so the two drifted apart). The
+     photo's own width already IS id-col, so -3.49% == -0.0349·id-col exactly. */
+  transform: translateX(-3.49%);
+}
+.cv-header { order: 2; flex-direction: column; padding-block-end: var(--s2); }  /* a touch more air to Work Experience on mobile */
+.cv-awards-bar { order: 4; margin-block-end: var(--s3); margin-inline: calc(-1 * var(--sheet-pad-inline)); }  /* full-bleed + air below */
+.cv-rail   { order: 5; }
+/* Awards on mobile: the three areas (script label, award 1, award 2) become a
+   vertical Stack instead of the desktop 3-column row (conceptually a Switcher,
+   realised here as a Stack since the 64rem container query drives the split). The
+   dark bar stays full-bleed, but its content honours the usual page gutter. */
+.cv-awards-bar section { grid-template-columns: 1fr; gap: 0; }   /* spacing handled per-row below */
+/* less air at the top of the section, more below the last award */
+.cv-awards-inner { padding-block: var(--s1) var(--s3); padding-inline: var(--sheet-pad-inline); }
+/* full-width rule under the "Awards" heading; tight spacing down to the first award */
+.cv-awards-bar h2 {
+  text-align: center;          /* centre the label like Work Experience */
+  line-height: 0.8;             /* tighten the 1.4 script line box so the rule sits close under the word */
+  padding-block-end: 0;
+  border-block-end: var(--editorial-rule) solid var(--editorial-bg);
+  margin-block-end: var(--s0);  /* a bit more space from the rule down to the first award */
+}
+.cv-awards-bar .award-box { padding-inline: 0; text-align: center; }   /* centred, like the label */
+.cv-awards-bar .award-box + .award-box { margin-block-start: var(--s1); }  /* gap between the two awards */
+.cv-awards-bar .award-box:nth-child(1) { border-inline-end: 0; } /* drop the column divider when stacked */
+
+/* header stacks name over contact; drop the desktop rule + far-left contact divider */
+.cv-header-name {
+  /* centre the name block under the (centred) photo, so its left/right insets are
+     equal automatically, at any size */
+  align-self: center;
+  /* Below 320px --name-line-gap drops below the centred gap, so slide the name left
+     by the same amount to keep it pinned over the contact icons (which use the same
+     gap). Zero at ≥320px (the two are equal there), so the name stays centred. */
+  transform: translateX(calc(var(--name-line-gap) - var(--gap-centered)));
+}
+.cv-role { text-align: start; font-size: clamp(1.1rem, 4.7vw, 1.4rem); }
+/* drop the optical first-glyph pull on phones: it shifts the visible name text
+   left of its box, which makes the right inset under the photo look larger */
+.cv-firstname { text-indent: 0; }
+.cv-header::after { display: none; }
+.cv-header-aside {
+  border-inline-start: 0;
+  padding-inline-start: 0;
+  /* in the header's flex column the 22rem basis becomes HEIGHT — reset so the
+     contact block is only as tall as its content (down to the email) */
+  flex: 0 0 auto;
+  margin-block-start: var(--s2);   /* clear gap below the name */
+  /* NB: --contact-line-rise (how far the divider line rises above the rail body to
+     meet the photo's Spitze) is set on the higher-specificity
+     `.editorial-sheet:not(.cover-sheet) .cv-header-aside` rule above — that value
+     wins, so tune it there, not here. */
+}
+/* contact text left-aligns with the firstname above it: its inset from the line is
+   the firstname's own gap to the line (--name-line-gap), so the icons sit directly
+   under the name. Overrides the rail's default var(--s1). The name is centred on the
+   column, so above ~320px this just tracks the name; below that the gap shrinks (the
+   @container block further down moves BOTH name and icons toward the line to fit). */
+.cv-header-aside .cv-rail-body { padding-inline-start: var(--name-line-gap); }
+/* extend the contact rail line up so its top sits on the firstname's underline;
+   trim the bottom so it ends flush with the last contact row (mail icon line) */
+.cv-header-aside .cv-rail-body::before {
+  inset-block-start: calc(-1 * var(--contact-line-rise));
+  inset-block-end: 5px;
+}
+/* re-centre the rotated "Contact" label on the now-taller visible line
+   (rotate(180deg) flips Y, so a positive translateY nudges it up the line) */
+.cv-header-aside .cv-rail-label {
+  transform: rotate(180deg) translateY(calc(var(--contact-line-rise) / 2));
+}
+/* single-column: drop the divider line LEFT of the (vertical) "Contact" label —
+   there is no name column beside it here, so it just reads as a stray short line.
+   (The contact rail line on its RIGHT stays.) The two-column tier restores it. */
+html.js-lines .cv-header-aside::before { display: none; }
+
+/* Smallest devices (≤320px, e.g. the original Galaxy Fold cover at 280px): the
+   contact line is pinned to the photo's bottom Spitze, so the space is tight on
+   BOTH sides — the rotated "Contact" label clips off the left edge and the long
+   email clips off the right. Below 320px compact the cluster so it seats cleanly.
+   At ≥320px the clamps cap at their normal values, so nothing changes (continuous).
+   • --script-rail shrinks the label's column AND its font (the label is
+     font-size:var(--script-rail)), pulling "Contact" in from the left edge. The
+     line stays EXACTLY on the Spitze because margin-inline-start subtracts
+     --script-rail, so it cancels out — the line's x is independent of this value.
+   • --name-line-gap (the shared name↔line / icon↔line inset) shrinks, sliding the
+     whole identity text — name AND the icons under it — toward the line so the long
+     email still fits. The name follows via its translate (see .cv-header-name), so
+     the icons stay left-aligned under it. min() keeps it = the normal centred gap
+     right at 320 (continuous), then it drops to a few px at 280. */
+@container editorial (max-width: 20rem) {
+  .cv-header-aside { --script-rail: clamp(32px, calc(40cqi - 80px), 48px); }
+  .editorial-sheet:not(.cover-sheet) {
+    --name-line-gap: max(5px, min(var(--gap-centered), clamp(5px, calc(35cqi - 96px), 24px)));
+  }
+}
+
+/* resources rail no longer fills height; work entries don't reach a divider;
+ * date tabs bleed to the right edge */
+.cv-aside > .cv-rail:last-child { flex: 0 1 auto; }
+/* bleed the entry's top rule to the sheet edge so the separator line meets the
+   date tab (which already bleeds there); inner content keeps its right inset */
+.timeline-entry {
+  margin-inline-end: calc(-1 * var(--sheet-pad-inline));
+  padding-inline-end: var(--sheet-pad-inline);
+}
+.year-span {
+  inset-inline-end: 0;        /* entry now reaches the edge, so the tab sits at 0 */
+  inset-block-start: -1px;    /* pull up 1px so the tab's top is flush with the rule (mobile rounds it off otherwise) */
+}
+/* The JS-drawn timeline rule (.timeline-entry::before) is positioned at
+   inset-block-start:0 = the entry's PADDING box, which is 1px below the border-box
+   top (the 1px border). The mobile date tab sits at -1px (border-box top), so with
+   JS the drawn line lands 1px BELOW the tab. Pull the drawn line up 1px in the
+   single-column range so it is flush with the tab — and with the static no-JS
+   border, which already sits at the border-box top. Desktop tab is at 0 (padding
+   box), where the drawn line already aligns, so desktop is left untouched. */
+@container editorial (max-width: 60.999rem) {
+  html.js-lines .timeline-entry::before { inset-block-start: -1px; }
+}
+
+/* ===================================================== tablet tier =========
+ * Container query (not media query). The SINGLE-COLUMN (mobile) structure is
+ * kept here — we do NOT switch to the desktop two-column architecture. We just
+ * narrow the creme content panel (.cv-root) and bring the side illustration in
+ * as a FIXED backdrop that peeks in the side gaps. Awards/order/header all stay
+ * exactly as on mobile (no duplication). Below this: full-bleed, no art.
+ * --bg-anchor parks the art at the container edges (decoupled from the panel
+ * width). The cover letter (its cv-root contains .cover-sheet) is excluded — it
+ * has its own width handling. */
+@container editorial (min-width: 46rem) {
+  .cv-root { --bg-anchor: 22rem; --cv-peek: 6rem; }
+  .cv-root:not(:has(.cover-sheet)) {
+    max-inline-size: min(var(--sheet-max), calc(100cqi - 2 * var(--cv-peek)));
+    margin-inline: auto;
+    position: relative;
+    isolation: isolate;   /* own stacking context so the art backdrop stays above the dark page, not behind it */
+  }
+  /* creme panel ABOVE the art (paints after the bg-layer, same negative z), so it
+     covers the art in the middle; the art shows only in the side gaps. */
+  .cv-root:not(:has(.cover-sheet))::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background-color: var(--editorial-bg);
+    background-image: url("../../img/white-linen.png");
+    background-size: 560px;
+  }
+  /* the side art becomes a fixed backdrop in the cv-root stacking context (z:-1),
+     behind the creme panel above. It fills the viewport; the narrowed panel covers
+     the middle, leaving the art visible in the side gaps. */
+  .cv-bg-layer {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+  }
+}
+
+/* ----------------------------------------------- tablet-tier paper edges ----
+ * Bring the torn paper edges back beside the narrowed creme panel — but ONLY in
+ * the tablet band (46rem ≤ width < 61rem). The base display:none was written for
+ * the OLD full-bleed phone layout (no side margins; the -2px strips would poke
+ * past the viewport and add a horizontal scrollbar). Here the panel is narrowed
+ * with side art in the gaps, so the edges frame the content again, symmetric L/R,
+ * like desktop. .editorial-sheet is display:contents in this tier, so its
+ * ::before/::after resolve their absolute position against .cv-root (the
+ * positioned creme panel) and land on the panel's outer edges.
+ *
+ * Shown STATICALLY here (no draw-in): the line-draw JS observes the
+ * .editorial-sheet BOX to drive the per-element draw, but a display:contents
+ * element has no box, so its IntersectionObserver never fires cv-line-drawn — the
+ * edges would otherwise stay hidden (clip-path inset 100%) forever once JS is on.
+ * clip-path:none keeps them cleanly visible WITH JS, identical to the clean no-JS
+ * default (the whole point: a robust default that does not depend on JS). The
+ * desktop tier (≥61rem) is a separate block below and still draws in. */
+@container editorial (min-width: 46rem) and (max-width: 60.999rem) {
+  /* CV only: the cover letter (.cover-sheet) stays full-bleed in this tier with its
+     own tile-in-bleed frame — paper edges hugging the viewport would not belong. */
+  .editorial-sheet:not(.cover-sheet)::before,
+  .editorial-sheet:not(.cover-sheet)::after { display: block; }
+  html.js-lines .editorial-sheet:not(.cover-sheet)::before,
+  html.js-lines .editorial-sheet:not(.cover-sheet)::after { clip-path: none; transition: none; }
+}
+
+/* ===================================================== wide tier ============
+ * Switches to the desktop two-column architecture at ~975px. The content padding
+ * (--sheet-pad-inline) is fluid and tightens at the narrow end so the main column
+ * + the fixed 22rem sidebar fit beside each other WITH the 6rem side-art peek. */
+@container editorial (min-width: 61rem) {
+  /* NOW switch to the desktop sheet-as-overlay structure: the sticky side art +
+     the sheet pulled up over it, replacing the single-column fixed backdrop. */
+  .cv-root { display: block; padding-inline: 0; padding-block-end: 0; background-color: transparent; }
+  .cv-root:not(:has(.cover-sheet)) { max-inline-size: none; margin-inline: 0; isolation: auto; }
+  .cv-root:not(:has(.cover-sheet))::after { content: none; }   /* no single-column creme panel on desktop (the sheet is the creme) */
+  .cv-stage { display: block; }
+  .editorial-sheet {
+    display: flex;
+    margin-block-start: -100vh;
+    margin-block-start: -100dvh;
+    max-inline-size: min(var(--sheet-max), calc(100cqi - 2 * var(--cv-peek)));
+  }
+  .editorial-sheet::before,
+  .editorial-sheet::after { display: block; }   /* torn paper edges */
+  .cv-bg-layer { position: sticky; inset: auto; top: 0; z-index: 0; }
+  /* undo the single-column identity-column constraints (same specificity as the
+     base rules, so these actually win on desktop): full-width header, no Spitze
+     shift on the contact aside. */
+  .editorial-sheet:not(.cover-sheet) .cv-header { max-inline-size: none; margin-inline: 0; }
+  .editorial-sheet:not(.cover-sheet) .cv-header-aside { margin-inline-start: 0; }
+  .cv-body { display: flex; }
+  .cv-aside { display: flex; }          /* restore the .stack-large column */
+  .cv-main {
+    display: flex;                       /* restore the .stack-large column */
+    flex: 0 1 auto;
+    flex-basis: 0;
+    flex-grow: 999;
+    min-inline-size: 50%;
+    padding-inline-end: var(--s2);
+    padding-block-end: calc(var(--s3) * 2);
+  }
+  .cv-photo {
+    inline-size: min(calc(100% + var(--photo-bleed-left)), 60vw);
+    margin-block-start: calc(-1 * (var(--s-1) + var(--editorial-rule)));
+    margin-inline-start: calc(-1 * var(--photo-bleed-left));
+    margin-inline-end: 0;
+    transform: none;   /* the single-column optical nudge does not apply in two columns */
+  }
+  /* the two-column header here is CV-only — the cover letter owns its own two-column
+     header in cover.css (it switches at a LOWER breakpoint, with a slimmer contact
+     column, because its body is a single-column letter with no 22rem sidebar to
+     match). Excluded via :not(.cover-sheet) so the cover's cover.css rules govern. */
+  .editorial-sheet:not(.cover-sheet) .cv-header { flex-direction: row; padding-block-end: var(--s1); max-inline-size: none; margin-inline: 0; }
+  .cv-main h2 { text-align: start; }   /* lead label stays left on desktop */
+  .editorial-sheet:not(.cover-sheet) .cv-header-name { align-self: flex-end; margin-inline-start: 0; transform: none; }   /* no single-column name slide */
+  .editorial-sheet:not(.cover-sheet) .cv-firstname { text-indent: -0.085em; }
+  .editorial-sheet:not(.cover-sheet) .cv-role { text-align: end; font-size: var(--role-size); }
+  .editorial-sheet:not(.cover-sheet) .cv-header::after { display: block; }
+  .editorial-sheet:not(.cover-sheet) .cv-header-aside {
+    border-inline-start: var(--editorial-rule) solid var(--editorial-line);
+    padding-inline-start: var(--s-1);
+    flex: 0 0 var(--aside-basis);
+    margin-block-start: 0;
+    margin-inline-start: 0;   /* no single-column Spitze shift in two columns */
+  }
+  html.js-lines .editorial-sheet:not(.cover-sheet) .cv-header-aside::before { display: block; }   /* divider returns beside the two-column name */
+  /* contact line + label back to content-height / centred (the mobile rise is off) */
+  .editorial-sheet:not(.cover-sheet) .cv-header-aside .cv-rail-body { padding-inline-start: var(--s1); }   /* drop the single-column name-alignment inset */
+  .editorial-sheet:not(.cover-sheet) .cv-header-aside .cv-rail-body::before { inset-block-start: 0; inset-block-end: 0; }
+  .editorial-sheet:not(.cover-sheet) .cv-header-aside .cv-rail-label { transform: rotate(180deg); }
+  .cv-awards-bar { margin-inline: 0; margin-block-end: 0; }
+  /* restore the desktop 3-column awards row + its insets/divider. The inner uses
+     the same inline padding as the sheet body, and the last column is exactly
+     --aside-basis wide, so the award column divider falls on the SAME vertical axis
+     as the main|aside divider in the header + body above it (one continuous line). */
+  .cv-awards-bar section { grid-template-columns: 0.5fr 1.2fr var(--aside-basis); gap: 0; }
+  /* match the sheet's narrowed width (it is capped by the side-art peek), so the
+     award column divider stays on the same axis as the header/body dividers */
+  .cv-awards-inner { max-inline-size: min(var(--sheet-max), calc(100cqi - 2 * var(--cv-peek))); padding-block: var(--s2); padding-inline: var(--sheet-pad-inline); }
+  .cv-awards-bar h2 { text-align: start; line-height: 1.4; padding-block-end: 0; border-block-end: 0; margin-block-end: 0; }   /* no heading rule on desktop */
+  .cv-awards-bar .award-box { padding-inline: var(--s1); text-align: start; }
+  .cv-awards-bar .award-box + .award-box { margin-block-start: 0; }
+  .cv-awards-bar .award-box:nth-child(1) { border-inline-end: var(--editorial-rule) solid var(--editorial-bg); }
+  .cv-aside > .cv-rail:last-child { flex: 1; }
+  .timeline-entry { margin-inline-end: calc(var(--s2) * -1); padding-inline-end: var(--s2); }
+  .year-span { inset-inline-end: 0; inset-block-start: 0; }   /* desktop tab already flush; drop the mobile 1px nudge */
+  .cv-bg-layer { display: block; }
+  /* back to source order */
+  .cv-photo, .cv-header, .cv-main, .cv-awards-bar, .cv-rail { order: 0; }
+}
+
+/* ===================================================== roomy tier ===========
+ * From ~1080px let the sheet grow a little wider so the OUTER margin (the empty
+ * band around the sheet) tightens and the content uses more of the width.
+ * Shared by CV + cover letter. */
+@container editorial (min-width: 67.5rem) {
+  .cv-root { --sheet-max: 70rem; }
+}
