@@ -183,7 +183,7 @@ class ImageFormMixin:
             # Add image dimensions to cleaned data
             try:
                 width, height = get_image_dimensions_from_storage(
-                    cleaned_data["avatar_img"]
+                    cleaned_data[image_field]
                 )
             except UnknownImageFormat:
                 width, height = None, None

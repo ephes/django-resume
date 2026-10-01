@@ -1,3 +1,6 @@
+import struct
+import zlib
+
 import pytest
 
 from django_resume.models import Resume
@@ -24,4 +27,33 @@ def timeline_item_data():
         "end": "2022",
         "badges": '["remote", "full-time"]',
         "position": 1,
+    }
+
+
+def png_bytes(width: int, height: int) -> bytes:
+    def chunk(kind: bytes, data: bytes) -> bytes:
+        return (
+            struct.pack(">I", len(data))
+            + kind
+            + data
+            + struct.pack(">I", zlib.crc32(kind + data))
+        )
+
+    header = struct.pack(">IIBBBBB", width, height, 8, 0, 0, 0, 0)
+    raw_rows = b"".join(b"\x00" + b"\x00" * width for _ in range(height))
+    return (
+        b"\x89PNG\r\n\x1a\n"
+        + chunk(b"IHDR", header)
+        + chunk(b"IDAT", zlib.compress(raw_rows))
+        + chunk(b"IEND", b"")
+    )
+
+
+@pytest.fixture
+def in_memory_storage(settings):
+    settings.STORAGES = {
+        "default": {"BACKEND": "django.core.files.storage.InMemoryStorage"},
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"
+        },
     }

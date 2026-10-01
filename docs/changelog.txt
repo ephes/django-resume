@@ -75,6 +75,9 @@ Fixes
   form validation and could otherwise produce ``javascript:`` links.
 * Show the Mastodon link in the plain identity section only when a Mastodon
   URL is set; it previously depended on the LinkedIn URL.
+* Read the image dimensions of each uploaded image field from that field.
+  Forms with a second image field no longer fail when it is saved without an
+  avatar image.
 
 0.3.0 - 2026-06-21
 ------------------
