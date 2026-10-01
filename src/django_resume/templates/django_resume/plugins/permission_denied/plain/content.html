@@ -17,9 +17,9 @@
     {% if permission_denied.avatar_img %}
       <img
         class="cover-avatar-image"
-        {% if cover.avatar_img_width %}
-          width="{{ cover.avatar_img_width }}"
-          height="{{ cover.avatar_img_height }}"
+        {% if permission_denied.avatar_img_width %}
+          width="{{ permission_denied.avatar_img_width }}"
+          height="{{ permission_denied.avatar_img_height }}"
         {%  endif %}
         src="{{ permission_denied.avatar_img_url }}"
         alt="{{ permission_denied.avatar_alt }}"

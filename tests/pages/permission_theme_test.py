@@ -109,3 +109,23 @@ def test_partial_third_party_theme_falls_back_for_denial_fragments(
     assert "django_resume/plugins/permission_denied/plain/content.html" in {
         t.name for t in updated.templates
     }
+
+
+@pytest.mark.django_db
+def test_plain_denial_avatar_uses_its_own_dimensions(client, protected_resume):
+    resume = protected_resume
+    resume.plugin_data["theme"]["name"] = "plain"
+    resume.plugin_data["permission_denied"].update(
+        {"avatar_img": "denied.png", "avatar_img_width": 120, "avatar_img_height": 80}
+    )
+    # a cover avatar with other dimensions must not leak into the denial page
+    resume.plugin_data["cover"] = {"avatar_img_width": 999, "avatar_img_height": 999}
+    resume.save()
+
+    html = client.get(
+        reverse("resume:cv", kwargs={"slug": resume.slug})
+    ).content.decode()
+
+    assert 'width="120"' in html
+    assert 'height="80"' in html
+    assert 'width="999"' not in html

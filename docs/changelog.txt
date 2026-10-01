@@ -118,6 +118,8 @@ Fixes
   contexts now get their own copy of the templates for the requested theme
   (``ThemedTemplates.for_theme``), the inline views resolve the theme from
   the resume, and a fragment the theme does not ship falls back to ``plain``.
+* Size the avatar on the plain permission-denied page by its own image
+  dimensions instead of the cover letter avatar's.
 * Preselect the current theme in the plain page theme form; saving it
   without touching the selection no longer switches the resume to ``plain``.
 * Run every browser test against pytest-django's live server: the admin and
