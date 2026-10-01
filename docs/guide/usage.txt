@@ -16,7 +16,8 @@ This is the list of built-in plugins that come with django-resume:
 
 - **About**: A simple `about` section.
 - **Awards**: A list of awards with project and year.
-- **Cover**: A cover page with some textual information and profile picture.
+- **Cover**: A cover letter with a profile picture, letter details (recipient,
+  place and date, subject, salutation, closing) and an optional signature.
 - **Education**: A list of schools with an optional degree and the time you
   attended.
 - **Identity**: Your name, email, phone number, profile picture, social media

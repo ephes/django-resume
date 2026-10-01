@@ -899,7 +899,10 @@ class ListAdmin(LockedResumeMutationMixin):
         with transaction.atomic():
             resume = self.get_locked_resume_or_error(request, resume_id)
             form_class = self.form_classes["flat"]
-            form = form_class(request.POST, request.FILES)
+            plugin_data = self.data.get_data(resume)
+            form = form_class(
+                request.POST, request.FILES, initial=plugin_data.get("flat", {})
+            )
             form.post_url = self.get_change_flat_post_url(resume.pk)
             context = {"form": form}
             if form.is_valid():

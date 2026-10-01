@@ -81,20 +81,78 @@ class CoverFlatForm(ImageFormMixin, forms.Form):
         initial="Profile photo",
         required=False,
     )
-    image_fields = [("avatar_img", "clear_avatar")]
+    recipient = forms.CharField(
+        label="Recipient", widget=forms.Textarea(), required=False, max_length=500
+    )
+    place_date = forms.CharField(
+        label="Place and date",
+        widget=forms.TextInput(),
+        required=False,
+        max_length=100,
+    )
+    subject = forms.CharField(
+        label="Subject", widget=forms.TextInput(), required=False, max_length=200
+    )
+    salutation = forms.CharField(
+        label="Salutation", widget=forms.TextInput(), required=False, max_length=200
+    )
+    closing = forms.CharField(
+        label="Closing",
+        widget=forms.TextInput(),
+        required=False,
+        max_length=200,
+        initial="Kind regards",
+    )
+    signature_name = forms.CharField(
+        label="Signature name (defaults to the resume name)",
+        widget=forms.TextInput(),
+        required=False,
+        max_length=100,
+    )
+    signature_img = forms.FileField(
+        label="Signature image",
+        max_length=100,
+        required=False,
+    )
+    clear_signature = forms.BooleanField(
+        widget=forms.CheckboxInput, initial=False, required=False
+    )
+    image_fields = [
+        ("avatar_img", "clear_avatar"),
+        ("signature_img", "clear_signature"),
+    ]
 
     @property
     def avatar_img_url(self) -> str:
         return self.get_image_url_for_field(self.initial.get("avatar_img", ""))
 
+    @property
+    def signature_img_url(self) -> str:
+        signature_img = self.initial.get("signature_img", "")
+        return self.get_image_url_for_field(signature_img) if signature_img else ""
+
     @staticmethod
     def set_context(item: dict, context: ContextDict) -> ContextDict:
         image_url = ImageFormMixin.get_image_url_for_field(item.get("avatar_img", ""))
+        signature_img = item.get("signature_img") or ""
+        signature_url = (
+            ImageFormMixin.get_image_url_for_field(signature_img)
+            if signature_img
+            else ""
+        )
         context["cover"] = {
             "title": item.get("title", ""),
             "avatar_alt": item.get("avatar_alt", ""),
             "avatar_img": image_url,
             "avatar_img_url": image_url,
+            "recipient": item.get("recipient", ""),
+            "place_date": item.get("place_date", ""),
+            "subject": item.get("subject", ""),
+            "salutation": item.get("salutation", ""),
+            "closing": item.get("closing", ""),
+            "signature_name": item.get("signature_name", ""),
+            "signature_img": signature_img,
+            "signature_img_url": signature_url,
             "edit_flat_url": context["edit_flat_url"],
         }
         return context
@@ -131,8 +189,11 @@ class CoverPlugin(ListPlugin):
             )
         # first item is special because it should float around the avatar image
         context["first_item"] = items[0] if items else None
-        # add avatar image url
-        context["avatar_img_url"] = default_storage.url(
-            plugin_data.get("flat", {}).get("avatar_img", "")
+        # add avatar and signature image urls
+        flat = plugin_data.get("flat", {})
+        context["avatar_img_url"] = default_storage.url(flat.get("avatar_img", ""))
+        signature_img = flat.get("signature_img") or ""
+        context["signature_img_url"] = (
+            default_storage.url(signature_img) if signature_img else ""
         )
         return context

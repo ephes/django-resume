@@ -10,6 +10,39 @@
     <input type="hidden" data-field="title" name="title" value="{{ form.title.value }}">
     <input type="file" id="avatar-img" style="display:none;" name="avatar_img" accept="image/*"/>
     <input type="hidden" data-field="avatar_alt" name="avatar_alt" value="{{ form.avatar_alt.value }}">
+    <fieldset class="space-y-3 bg-white/70 rounded-lg p-4 border border-slate-200">
+      <legend class="block text-sm font-medium text-slate-700">Letter details</legend>
+      <label class="block text-sm font-medium text-slate-700">
+        {{ form.place_date.label }}
+        <input class="mt-1 w-full bg-white rounded-lg px-3 py-2 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500" type="text" name="place_date" value="{{ form.place_date.value|default_if_none:"" }}">
+      </label>
+      {% for error in form.place_date.errors %}<p class="error">{{ error|escape }}</p>{% endfor %}
+      <label class="block text-sm font-medium text-slate-700">
+        {{ form.recipient.label }}
+        <textarea class="mt-1 w-full bg-white rounded-lg px-3 py-2 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500" name="recipient" rows="4">{{ form.recipient.value|default_if_none:"" }}</textarea>
+      </label>
+      {% for error in form.recipient.errors %}<p class="error">{{ error|escape }}</p>{% endfor %}
+      <label class="block text-sm font-medium text-slate-700">
+        {{ form.subject.label }}
+        <input class="mt-1 w-full bg-white rounded-lg px-3 py-2 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500" type="text" name="subject" value="{{ form.subject.value|default_if_none:"" }}">
+      </label>
+      {% for error in form.subject.errors %}<p class="error">{{ error|escape }}</p>{% endfor %}
+      <label class="block text-sm font-medium text-slate-700">
+        {{ form.salutation.label }}
+        <input class="mt-1 w-full bg-white rounded-lg px-3 py-2 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500" type="text" name="salutation" value="{{ form.salutation.value|default_if_none:"" }}">
+      </label>
+      {% for error in form.salutation.errors %}<p class="error">{{ error|escape }}</p>{% endfor %}
+      <label class="block text-sm font-medium text-slate-700">
+        {{ form.closing.label }}
+        <input class="mt-1 w-full bg-white rounded-lg px-3 py-2 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500" type="text" name="closing" value="{{ form.closing.value|default_if_none:"" }}">
+      </label>
+      {% for error in form.closing.errors %}<p class="error">{{ error|escape }}</p>{% endfor %}
+      <label class="block text-sm font-medium text-slate-700">
+        {{ form.signature_name.label }}
+        <input class="mt-1 w-full bg-white rounded-lg px-3 py-2 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500" type="text" name="signature_name" value="{{ form.signature_name.value|default_if_none:"" }}">
+      </label>
+      {% for error in form.signature_name.errors %}<p class="error">{{ error|escape }}</p>{% endfor %}
+    </fieldset>
   </form>
 
   <header class="mb-8">

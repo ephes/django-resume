@@ -66,6 +66,10 @@ Features
   name, a 0-100 level and an optional note. Both map to the JSON Resume
   ``/awards`` and ``/languages`` sections. The plain and headwind CV pages
   do not include them yet.
+* Add letter fields to the **Cover** plugin: recipient, place and date,
+  subject, salutation, closing (default "Kind regards"), signature name and
+  an optional signature image. The plain and headwind cover editors keep
+  these fields when the cover header is saved.
 
 Fixes
 ^^^^^
@@ -89,6 +93,9 @@ Fixes
 * Read the image dimensions of each uploaded image field from that field.
   Forms with a second image field no longer fail when it is saved without an
   avatar image.
+* Keep stored images when list plugin flat data is saved in the Django
+  admin without a new upload; the admin form now starts from the stored
+  flat data like the inline editor.
 
 0.3.0 - 2026-06-21
 ------------------
