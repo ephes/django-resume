@@ -11,7 +11,7 @@
     <input data-field="position" type="hidden" name="position" value="{{ form.position.value }}">
     <input type="hidden" data-field="name" name="name" value="{{ form.name.value }}">
     <input type="hidden" data-field="level" name="level" value="{{ form.level.value }}">
-    <input type="hidden" data-field="note" name="note" value="{{ form.note.value }}">
+    <input type="hidden" data-field="note" name="note" value="{{ form.note.value|default_if_none:"" }}">
   </form>
   <div>
     <h3 contenteditable="true" data-field="name">{{ form.name.value }}</h3>
@@ -22,7 +22,7 @@
   </label>
   <label class="cluster">
     <span>Note</span>
-    <span contenteditable="true" data-field="note">{{ form.note.value }}</span>
+    <span contenteditable="true" data-field="note">{{ form.note.value|default_if_none:"" }}</span>
   </label>
   <div>
     {% for error in form.name.errors %}

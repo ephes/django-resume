@@ -1,0 +1,28 @@
+<section id="awards" class="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
+  {% include awards.templates.flat %}
+
+  <div class="space-y-4 mt-6">
+    {% if show_edit_button %}
+      <div id="add-awards-container" class="space-y-4">
+        <div class="flex justify-center">
+          <button
+            id="add-awards-icon"
+            class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg shadow-md hover:shadow-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+            hx-get="{{ awards.add_item_url }}"
+            hx-target="#add-awards-container"
+            hx-swap="beforeend"
+          >
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path>
+            </svg>
+            Add Award
+          </button>
+        </div>
+      </div>
+    {% endif %}
+
+    {% for award in awards.ordered_entries %}
+      {% include awards.templates.item with plugin_name=awards.plugin_name %}
+    {% endfor %}
+  </div>
+</section>

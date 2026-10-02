@@ -33,7 +33,9 @@
   {% include education.templates.main %}
   {% if certifications %}{% include certifications.templates.main %}{% endif %}
   {% include skills.templates.main %}
+  {% if show_edit_button or languages.ordered_entries %}{% include languages.templates.main %}{% endif %}
   {% include projects.templates.main with projects=projects %}
+  {% if show_edit_button or awards.ordered_entries %}{% include awards.templates.main %}{% endif %}
 </main>
 <footer class="no-print">
 {#  <p>This is a footer!</p>#}

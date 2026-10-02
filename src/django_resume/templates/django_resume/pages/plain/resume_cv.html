@@ -26,7 +26,9 @@
   {% include employed_timeline.templates.main with timeline=employed_timeline page_break_before=True %}
   {% include education.templates.main %}
   {% include skills.templates.main %}
+  {% if show_edit_button or languages.ordered_entries %}{% include languages.templates.main %}{% endif %}
   {% include projects.templates.main with projects=projects %}
+  {% if show_edit_button or awards.ordered_entries %}{% include awards.templates.main %}{% endif %}
 </main>
 <footer class="no-print">
 {#  <p>This is a footer!</p>#}

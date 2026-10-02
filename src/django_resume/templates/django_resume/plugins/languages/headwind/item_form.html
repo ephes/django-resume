@@ -1,0 +1,71 @@
+<editable-form id="{{ plugin_name }}-item-{{ form.item_id }}" class="block">
+  <form
+    id="{{ plugin_name }}-form-{{ form.item_id }}"
+    hx-post="{{ form.post_url }}"
+    hx-target="#{{ plugin_name }}-item-{{ form.item_id }}"
+    hx-swap="outerHTML"
+    class="bg-white rounded-lg p-6 border border-slate-300 shadow-sm space-y-6"
+  >
+    <input data-field="id" type="hidden" name="id" value="{{ form.item_id }}">
+    <input data-field="position" type="hidden" name="position" value="{{ form.position.value }}">
+    <input type="hidden" data-field="name" name="name" value="{{ form.name.value }}">
+    <input type="hidden" data-field="level" name="level" value="{{ form.level.value }}">
+    <input type="hidden" data-field="note" name="note" value="{{ form.note.value|default_if_none:"" }}">
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-2">Language</label>
+          <h3
+            class="text-lg font-semibold text-slate-800 bg-white rounded-lg px-4 py-3 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+            contenteditable="true"
+            data-field="name"
+            placeholder="Language"
+          >{{ form.name.value }}</h3>
+          {% for error in form.name.errors %}
+            <p class="mt-1 text-sm text-red-600">{{ error|escape }}</p>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-2">Level (0–100)</label>
+          <div
+            class="bg-white rounded-lg px-4 py-3 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+            contenteditable="true"
+            data-field="level"
+            placeholder="80"
+          >{{ form.level.value }}</div>
+          {% for error in form.level.errors %}
+            <p class="mt-1 text-sm text-red-600">{{ error|escape }}</p>
+          {% endfor %}
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-2">Note</label>
+          <div
+            class="bg-white rounded-lg px-4 py-3 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+            contenteditable="true"
+            data-field="note"
+            placeholder="e.g. native, fluent"
+          >{{ form.note.value|default_if_none:"" }}</div>
+          {% for error in form.note.errors %}
+            <p class="mt-1 text-sm text-red-600">{{ error|escape }}</p>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <div class="flex items-center justify-end pt-6 border-t border-slate-200">
+      <button
+        id="{{ plugin_name }}-submit-item-{{ form.item_id }}"
+        type="submit"
+        class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+      >
+        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path>
+        </svg>
+        Save Language
+      </button>
+    </div>
+  </form>
+</editable-form>

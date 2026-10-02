@@ -51,10 +51,22 @@
             {% include skills.templates.main %}
           </div>
         {% endif %}
+
+        {% if show_edit_button or languages.ordered_entries %}
+          <div>
+            {% include languages.templates.main %}
+          </div>
+        {% endif %}
         
         {% if projects %}
           <div>
             {% include projects.templates.main with projects=projects %}
+          </div>
+        {% endif %}
+
+        {% if show_edit_button or awards.ordered_entries %}
+          <div>
+            {% include awards.templates.main %}
           </div>
         {% endif %}
       </div>

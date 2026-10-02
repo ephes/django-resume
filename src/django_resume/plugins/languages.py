@@ -26,7 +26,7 @@ class LanguagesItemForm(ListItemFormMixin, forms.Form):
 
     @staticmethod
     def get_initial() -> ContextDict:
-        return {"name": "Language", "level": DEFAULT_LEVEL}
+        return {"name": "Language", "level": DEFAULT_LEVEL, "note": ""}
 
     def set_context(self, item: dict, context: ContextDict) -> ContextDict:
         context["language"] = {

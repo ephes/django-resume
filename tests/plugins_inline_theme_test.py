@@ -106,13 +106,16 @@ def test_page_render_does_not_change_shared_plugin_templates(client, themed_resu
 
 @pytest.mark.django_db
 def test_fragment_falls_back_to_plain_when_theme_lacks_it(client, themed_resumes):
-    _, headwind = themed_resumes
+    resume, _ = themed_resumes
+    # a theme without any plugin templates, e.g. one that only ships page frames
+    resume.plugin_data["theme"]["name"] = "partial"
+    resume.save()
     client.force_login(User.objects.get())
-    plugin = plugin_registry.get_plugin("awards")
+    plugin = plugin_registry.get_plugin("employed_timeline")
 
-    response = client.get(plugin.inline.get_edit_item_url(headwind.pk))
+    response = client.get(plugin.inline.get_edit_item_url(resume.pk, "w1"))
 
     assert response.status_code == 200
-    assert "django_resume/plugins/awards/plain/item_form.html" in used_templates(
+    assert "django_resume/plugins/timelines/plain/item_form.html" in used_templates(
         response
     )

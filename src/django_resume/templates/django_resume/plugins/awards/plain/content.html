@@ -1,4 +1,4 @@
-<section class="stack page-break-before">
+<section id="awards" class="stack">
   {% include awards.templates.flat %}
   {% if show_edit_button %}
     <svg class="edit-icon-small" hx-get="{{ awards.add_item_url }}" hx-target="#awards-grid" hx-swap="afterbegin">

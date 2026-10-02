@@ -62,10 +62,11 @@ Features
   now exports and imports all ``/education`` entries and maps the degree to
   ``studyType``.
 * Add **Awards** and **Languages** list plugins with ``cv`` capability and
-  plain templates. Awards store a title, project and year; languages store a
-  name, a 0-100 level and an optional note. Both map to the JSON Resume
-  ``/awards`` and ``/languages`` sections. The plain and headwind CV pages
-  do not include them yet.
+  plain and headwind templates. Awards store a title, project and year;
+  languages store a name, a 0-100 level and an optional note. Both map to the
+  JSON Resume ``/awards`` and ``/languages`` sections. The plain and headwind
+  CV pages show languages after the skills and awards at the end, but only
+  when there are entries or in edit mode, so existing CVs look unchanged.
 * Add letter fields to the **Cover** plugin: recipient, place and date,
   subject, salutation, closing (default "Kind regards"), signature name and
   an optional signature image. The plain and headwind cover editors keep

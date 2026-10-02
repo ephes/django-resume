@@ -40,6 +40,12 @@ h1 {
     page-break-before: always;
 }
 
+/* print the filled part of the language bars even without background printing */
+.bar::before {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+
 body {
     background: none;
 }
