@@ -86,6 +86,8 @@ Features
 
 Fixes
 ^^^^^
+* Display theme-name validation errors in the plain and editorial page-theme
+  forms, including blank and overlong submitted names.
 * Keep invalid resume-language submissions open in the page-theme form with
   their validation errors instead of reloading the page. Successful theme and
   resume-language saves still reload in the plain, headwind and editorial themes.

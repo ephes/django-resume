@@ -13,7 +13,7 @@
       <option value="headwind"{% if form.name.value == "headwind" %} selected{% endif %}>Tailwind</option>
       <option value="editorial"{% if form.name.value == "editorial" %} selected{% endif %}>Editorial</option>
     </select>
-    {% for error in form.theme.errors %}
+    {% for error in form.name.errors %}
       <p class="error">{{ error|escape }}</p>
     {% endfor %}
     <label for="language">Resume language</label>

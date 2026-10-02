@@ -22,8 +22,10 @@ Saving page-theme settings
 ==========================
 
 A successful page-theme or resume-language save reloads the page to apply the
-new settings. If a submitted resume language fails validation, the editing form
-stays open with its error message and the saved settings remain unchanged.
+new settings. A blank or overlong theme name, or an invalid resume-language
+choice, keeps the editing form open with its error message. The saved settings
+remain unchanged. A rejected theme-name submission retains the selected resume
+language for correction.
 
 The editorial theme
 ===================
