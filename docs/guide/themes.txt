@@ -18,6 +18,13 @@ inline editing loads and saves (forms, list items, flat data) use the theme of
 the edited resume and fall back to ``plain`` when the theme does not ship that
 fragment.
 
+Saving page-theme settings
+==========================
+
+A successful page-theme or resume-language save reloads the page to apply the
+new settings. If a submitted resume language fails validation, the editing form
+stays open with its error message and the saved settings remain unchanged.
+
 The editorial theme
 ===================
 

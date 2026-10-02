@@ -86,6 +86,9 @@ Features
 
 Fixes
 ^^^^^
+* Keep invalid resume-language submissions open in the page-theme form with
+  their validation errors instead of reloading the page. Successful theme and
+  resume-language saves still reload in the plain, headwind and editorial themes.
 * Keep the editable resume overview compact after adding JSON Resume theme
   actions by shortening the theme link and preserving inline link separators.
 * Show immediate pending feedback while a JSON Resume catalog theme install or

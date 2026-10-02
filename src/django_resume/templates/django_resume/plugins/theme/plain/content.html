@@ -14,7 +14,9 @@
   {% endif %}
   <script>
       document.addEventListener("htmx:afterSwap", function (evt) {
-          if (evt.detail.target.id === "theme" && evt.detail.requestConfig.verb === "post") {
+          if (evt.detail.target.id === "theme" &&
+              evt.detail.requestConfig.verb === "post" &&
+              !document.querySelector("#theme #form-theme")) {
               window.location.reload();
           }
       });
