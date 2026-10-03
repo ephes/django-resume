@@ -1,6 +1,7 @@
 import errno
 import http.client
 import json
+import math
 import ipaddress
 import socket
 import ssl
@@ -73,9 +74,21 @@ def _coerce_document(document: object) -> dict:
     return document
 
 
+def _finite_json_number(token: str) -> float:
+    value = float(token)
+    if not math.isfinite(value):
+        raise JsonResumeImportError("Non-finite JSON number is not supported")
+    return value
+
+
 def _loads_document(text: str) -> dict:
     try:
-        document = json.loads(text, object_pairs_hook=_reject_duplicate_keys)
+        document = json.loads(
+            text,
+            object_pairs_hook=_reject_duplicate_keys,
+            parse_constant=_finite_json_number,
+            parse_float=_finite_json_number,
+        )
     except json.JSONDecodeError as exc:
         raise JsonResumeImportError(f"Invalid JSON: {exc}") from exc
     return _coerce_document(document)

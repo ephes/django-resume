@@ -1250,3 +1250,82 @@ page. Rendering derives a portable projection with
 ``meta.django_resume`` stripped before passing data to the Node renderer.
 Update-in-place imports, signatures, freshness checks, trusted destructive
 defaults, and PDF rendering remain deferred.
+
+Bounded Interchange Audit: 2026-10-03
+-------------------------------------
+
+Baseline: ``308930c5dc6740da1049c1607adea00e8e55d489`` in the isolated
+``audit/json-resume-interchange-20261003`` worktree. Only synthetic JSON and
+local test databases were used; no real CVs, network requests, credentials or
+external services were accessed. One defect was selected for repair.
+
+Observed defect and regression-first evidence
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Python's default JSON decoder accepted nonstandard ``NaN``/``Infinity``
+constants and converted floating-point overflow to infinity. The pinned schema
+permits arbitrary metadata under ``meta``, so a synthetic document with
+``meta.vendor.score: NaN`` passed schema validation. The command then reached
+SQLite's ``JSON_VALID(integration_data)`` constraint and misleadingly reported
+that the unused slug already existed. This is an input-validation defect;
+no existing resume was overwritten in the reproduction.
+
+Before the repair, ten file/byte parser regression cases failed because no
+``JsonResumeImportError`` was raised. A command regression independently failed
+with the duplicate-slug message above. The initial top-level ``vendor`` probe
+was rejected by the schema; the meaningful reproduction uses its permitted
+``meta.vendor`` extension location.
+
+The shared serialized-input parser now rejects non-finite constants and float
+overflow before schema validation or storage. Files and uploaded bytes use it;
+URL responses also call ``load_document_bytes``, so the same restriction applies
+without a separate network parsing path. No network was used to verify that
+code path. Finite fractions/exponents and quoted ``"NaN"``/``"Infinity"`` text
+remain accepted. The direct Python-dictionary import API and arbitrary existing
+plugin data are outside this serialized-input repair.
+
+Contract observations and scope limits
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* Import is create-only. Existing slugs are rejected, and creation runs inside
+  a database transaction. Existing duplicate-slug coverage and new upload tests
+  verify rejection without overwriting a synthetic existing resume.
+* The owner download intentionally contains private round-trip plugin data.
+  This is a backup/interchange contract, not a data-leak finding.
+  ``portable_document`` strips ``meta.django_resume`` for external themes.
+  Owner-only export, restored envelopes, portable-only import and envelope
+  stripping tests all executed in the full suite.
+* The schema is structural validation; URI/email format enforcement is not its
+  contract. Native render contexts sanitize dangerous identity link schemes,
+  and Markdown content is sanitized. Executed coverage includes
+  ``test_identity_does_not_render_dangerous_link_schemes`` and the existing
+  about/permission-denied malicious-Markdown view tests.
+* Third-party npm render themes are trusted operator-installed code, not
+  untrusted-template sandboxing. No npm theme was installed or executed here.
+  Existing mocked renderer tests do not prove third-party theme escaping.
+* These are bounded contract checks, not an exhaustive security assessment,
+  resource-exhaustion audit, fuzzing campaign or proof for every database backend.
+
+Checks and accounting
+~~~~~~~~~~~~~~~~~~~~~
+
+The repaired targeted JSON Resume suite passed 100 tests in 0.82 seconds.
+Final ``just check`` passed Ruff lint/format, mypy for 59 source files and all
+404 tests in 6.19 seconds; overall coverage was 82 percent. The check includes
+four new real upload cases and a command no-creation assertion. Git diff
+whitespace checks passed. Hooks were preserved; no commit or reviewer was
+launched by the implementation agent.
+
+The dependency/regression/check segment was measured from worktree-local
+virtualenv creation at 00:47:28 UTC to the recorded check inspection at
+00:49:47 UTC: 2 minutes 19 seconds. Earlier read-only audit time and later
+write-up time were not separately measured, so this is not total engineering
+elapsed. Model billing/token usage was unavailable. Recommendation: land this
+small parser repair after independent review; no broader framework changes
+are supported by this audit. Implementation used GPT-6.1 Sol LOW. Independent review through the installed
+``codex-review-loop`` used GPT-6.1 Sol HIGH and returned CLEAN with zero
+findings in 98.689 seconds. Observed model and effort were verified; no files
+were skipped, truncated or redacted. No implementation repair or re-review
+cycles were needed. Sphinx HTML generation with ``-W`` passed after the sole
+mechanical heading-underline correction. Raw review artifacts remain local
+and ignored under ``specs/interchange-review/round1``.

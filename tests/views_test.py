@@ -682,3 +682,32 @@ def test_cv_editable_only_for_authenticated_users(client, resume):
 
     # And the local edit buttons should be shown
     assert r.context["show_edit_button"]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("number", ["NaN", "Infinity", "-Infinity", "1e400"])
+def test_import_json_resume_upload_rejects_nonfinite_metadata(
+    client, django_user_model, number
+):
+    user = django_user_model.objects.create_user(username="synthetic", password="test")
+    existing = Resume.objects.create(
+        name="Existing",
+        slug="keep-existing",
+        owner=user,
+        plugin_data={"identity": {"name": "Keep"}},
+    )
+    client.force_login(user)
+    upload = SimpleUploadedFile(
+        "synthetic.json",
+        ('{"meta":{"vendor":{"score":' + number + "}}}").encode(),
+        content_type="application/json",
+    )
+    response = client.post(
+        reverse("resume:json-resume-import"),
+        {"file": upload, "slug": "nonfinite-upload"},
+    )
+    assert response.status_code == 200
+    assert "Non-finite JSON number" in response.content.decode()
+    assert Resume.objects.count() == 1
+    existing.refresh_from_db()
+    assert existing.plugin_data == {"identity": {"name": "Keep"}}

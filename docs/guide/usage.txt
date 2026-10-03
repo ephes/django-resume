@@ -184,6 +184,10 @@ Importing from JSON Resume
 --------------------------
 
 Authenticated owners can import a JSON Resume file from the resume overview.
+Numeric values must be representable as finite Python numbers: nonstandard
+``NaN``/``Infinity`` tokens and floating-point overflow (such as ``1e400``)
+are rejected before import, including inside extension metadata. Quoted strings
+such as ``"NaN"`` remain ordinary text.
 The import form creates a new resume owned by the current user from either an
 uploaded ``resume.json`` file or an HTTP(S) JSON Resume URL, plus a
 caller-supplied slug. Provide exactly one source. URL imports are limited to

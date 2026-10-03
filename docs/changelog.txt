@@ -5,6 +5,13 @@ Changelog
 Unreleased
 ----------
 
+Fixes
+^^^^^
+* Reject non-finite numbers in JSON Resume file, upload and URL inputs before
+  schema validation or storage. Invalid ``NaN``/``Infinity`` constants and
+  overflowing floating-point values previously reached database JSON checks
+  and could incorrectly report a duplicate resume slug.
+
 Features
 ^^^^^^^^
 * Add a ``export_json_resume`` management command that exports a resume to a

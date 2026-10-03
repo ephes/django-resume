@@ -2154,3 +2154,44 @@ def test_load_document_url_wraps_malformed_http_response(monkeypatch):
     ) as exc:
         load_document_url("https://example.com/resume.json")
     assert exc.value.field == "source_url"
+
+
+@pytest.mark.parametrize("number", ["NaN", "Infinity", "-Infinity", "1e400", "-1e400"])
+@pytest.mark.parametrize("source", ["file", "bytes"])
+def test_json_resume_loader_rejects_nonfinite_numbers(tmp_path, number, source):
+    payload = (
+        '{"basics":{"name":"Synthetic"},"meta":{"vendor":{"score":' + number + "}}}"
+    ).encode()
+    with pytest.raises(JsonResumeImportError, match="Non-finite JSON number"):
+        if source == "bytes":
+            load_document_bytes(payload)
+        else:
+            path = tmp_path / "synthetic.json"
+            path.write_bytes(payload)
+            load_document(path)
+
+
+@pytest.mark.django_db
+def test_import_command_rejects_nonfinite_json_before_creating_resume(tmp_path, user):
+    user.save()
+    path = tmp_path / "synthetic.json"
+    path.write_text('{"basics":{"name":"Synthetic"},"meta":{"vendor":{"score":NaN}}}')
+    before = Resume.objects.count()
+    with pytest.raises(CommandError, match="Non-finite JSON number"):
+        call_command(
+            "import_json_resume", str(path), owner=user.username, slug="nonfinite-input"
+        )
+    assert Resume.objects.count() == before
+
+
+def test_json_resume_loader_preserves_finite_numbers_and_literal_strings():
+    document = load_document_bytes(
+        b'{"meta":{"zero":0,"fraction":1.25,"exponent":1e100,"label":"NaN","infinity":"Infinity"}}'
+    )
+    assert document["meta"] == {
+        "zero": 0,
+        "fraction": 1.25,
+        "exponent": 1e100,
+        "label": "NaN",
+        "infinity": "Infinity",
+    }
