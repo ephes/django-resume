@@ -44,3 +44,60 @@ Backlog Items
   generation stays an external concern handled by the agent of the moment.
 
   Related old issue: `#7 <https://github.com/ephes/django-resume/issues/7>`_.
+
+Import-preview prototype shutdown checkpoint (2026-10-04)
+--------------------------------------------------------
+
+The owner stopped the campaign before validation. This docs-only checkpoint
+records unfinished work; it does not release an import-preview feature.
+Production create-only import remains unchanged.
+
+* Base: ``c06e192712cc208f38ad71f47285eba94c7aae2b``.
+* Local uncommitted producer: ``ws-resume-import-preview/django-resume``, branch
+  ``experiment/resume-import-preview-20261004``; seven staged files, index tree
+  ``b70cf1b5120f66b43db55443131ed228916e6ed7``. Sol6.1 LOW authored a fixed synthetic
+  preview generator, fixtures and tests plus narrow documentation notes.
+* Intended prototype: show existing parser/schema/plugin-adapter mapping,
+  restoration versus portable-only mode, validation and loss notes before create.
+  No production view/API/writer was changed. The prototype claims no authenticated
+  ownership or slug availability and disables creation. Guarded dummy database,
+  network/URL/subprocess/create seams are source assertions, not executed proof.
+* No generator, focused tests, browser checks, full ``just check`` or documentation
+  build ran. No phone HTML exists. Source is not commit-ready.
+* Installed OpenAI ``codex-review-loop`` with gpt-6.1-sol HIGH was supervised and
+  stopped through its harness on owner shutdown. Result: CRASHED/interrupted,
+  24.245 seconds, no verdict/baseline/convergence. This is not CLEAN. Evidence:
+  ``/tmp/resume-import-preview-codex-high-20261004-1/result.json``.
+* Implementer was already completed; interruption confirmed it idle. All other
+  owned campaign children were completed and explicitly stopped; no new turns.
+* Local preservation: ``ws-resume-import-preview/preservation/shutdown-20261004``
+  contains exact staged/unstaged patches, seven file copies and hash manifest.
+  Producer files/index remain intact; no reset, stash or clean operation.
+* Design packet: ``reviews/resume-import-preview-next.md`` in coordinator review
+  output. Its later production proposal is unreviewed: file-first owner preview,
+  shared pure preparation plus sole creator; URL confirmation needs separately
+  specified private exact-byte staging. No tokens/sessions/update identity,
+  URL protocol, remote publishing or real resume data are commissioned here.
+
+Exact restart, only after renewed coordinator authorization:
+
+1. Open the local producer above; compare HEAD, index tree and seven file hashes
+   to the preserved manifest. Retain existing staged source, do not reimplement.
+2. Start one new supervised HIGH static review in a fresh run directory, keeping
+   the interrupted result. No repair baseline exists; review current full diff.
+   Reuse the saved context and design packet, but correct their shutdown status.
+3. After an explicit validation slot, use ``uv sync --dev``; run
+   ``uv run pytest experiments/2026-10-04-import-preview/test_preview.py`` and
+   ``uv run python experiments/2026-10-04-import-preview/generate.py --output
+   /private/tmp/resume-preview-restart`` with a fresh destination.
+4. Inspect owned 375px/desktop synthetic HTML, selectors/keyboard, escaped output,
+   validation/mode/loss accuracy, disabled creation and no external requests.
+   Native owner apps, actual databases and source URL fetches stay excluded.
+5. Resolve real failures with bounded review; finish required ``just check`` and
+   documentation build/changed-file hooks in the granted slot. Update notes from
+   pending to measured results. Commit only after gates; coordinator alone owns
+   private preview publication. No default merge, deployment or live data implied.
+
+No broad new checks were started during shutdown. Original main remained clean
+and at its captured base. The separate non-default shutdown branch contains only
+this durable documentation; incomplete prototype code is intentionally local.
