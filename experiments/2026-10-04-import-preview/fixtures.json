@@ -1,0 +1,86 @@
+{
+  "lossy": {
+    "basics": {
+      "name": "Alex Example <synthetic>",
+      "label": "Fictional engineer",
+      "email": "not-an-email-format-check",
+      "image": "fictional-avatar.png",
+      "location": {
+        "city": "Example City"
+      },
+      "profiles": [
+        {
+          "network": "Example Network",
+          "url": "fictional-profile"
+        }
+      ]
+    },
+    "skills": [
+      {
+        "name": "Engineering category",
+        "level": "Expert",
+        "keywords": [
+          "Testing",
+          "Documentation"
+        ]
+      }
+    ],
+    "interests": [
+      {
+        "name": "Fictional astronomy"
+      }
+    ]
+  },
+  "envelope": {
+    "basics": {
+      "name": "Portable Alex",
+      "label": "Portable description"
+    },
+    "skills": [
+      {
+        "name": "Portable skill",
+        "level": "Expert"
+      }
+    ],
+    "meta": {
+      "django_resume": {
+        "plugin_data": {
+          "identity": {
+            "name": "Restored Alex",
+            "pronouns": "they/them"
+          },
+          "skills": {
+            "badges": [
+              "Restored fictional skill"
+            ]
+          }
+        },
+        "preserved_extensions": [
+          {
+            "note": "invented extension payload"
+          }
+        ]
+      }
+    }
+  },
+  "invalid": {
+    "basics": {
+      "name": 42
+    },
+    "skills": "not-an-array"
+  },
+  "invalid-envelope": {
+    "basics": {
+      "name": "Envelope Example"
+    },
+    "meta": {
+      "django_resume": {
+        "plugin_data": {
+          "skills": {
+            "items": "not-a-list"
+          }
+        }
+      }
+    }
+  }
+}

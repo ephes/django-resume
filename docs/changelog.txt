@@ -139,6 +139,16 @@ Fixes
   inline e2e tests no longer need a development server on ``localhost:8000``
   or a prepared user, and uploads go to ``e2e_tests/media/``.
 
+Development
+^^^^^^^^^^^
+* Add a standalone synthetic import-preview prototype in
+  ``experiments/2026-10-04-import-preview``. It generates a static,
+  phone-friendly page showing what a create-only JSON Resume import would map,
+  restore, omit and warn about for fixed invented fixtures, using the current
+  importer's parser, pinned schema and plugin adapters. It is not shipped in the
+  package and adds no view, endpoint or creation path; the browser import still
+  creates the resume in one POST. See :doc:`dev/jsonresume`.
+
 0.3.0 - 2026-06-21
 ------------------
 
@@ -394,3 +404,4 @@ Initial Release
 ---------------
 
 The CV is kind of working. Editing via Django-Admin or inline via contenteditable="true" is possible.
+

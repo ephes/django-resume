@@ -1136,6 +1136,8 @@ Remaining JSON Resume import/export work:
 * Decide whether browser import needs an explicit preview step before creating
   the new resume. The current create-only workflow validates and imports in one
   POST, then reports mapped, restored, omitted, and lossy data inline.
+  ``Synthetic Import Preview Prototype`` below records a static design
+  prototype for that step; it is not a production preview.
 * Design update-in-place imports with previews, per-section confirmation,
   stable item identity, and conservative clearing semantics before allowing a
   JSON Resume document to modify an existing resume.
@@ -1329,3 +1331,51 @@ were skipped, truncated or redacted. No implementation repair or re-review
 cycles were needed. Sphinx HTML generation with ``-W`` passed after the sole
 mechanical heading-underline correction. Raw review artifacts remain local
 and ignored under ``specs/interchange-review/round1``.
+
+Synthetic Import Preview Prototype (2026-10-05)
+-----------------------------------------------
+
+``experiments/2026-10-04-import-preview`` is a standalone design prototype for
+the preview step listed under ``Remaining Work``. It is not part of the
+package, and production views, forms, URLs and the importer are unchanged.
+
+``generate.py`` runs in a fresh interpreter with throwaway dummy-database
+settings and writes ``preview.html`` plus ``reports.json`` into a new output
+directory. It follows the order of ``import_resume_document`` but stops before
+the slug-existence query and ``Resume.objects.create``: it calls the real
+``load_document_bytes``, pinned ``validate_document``, envelope validation,
+``_collect_adapter_plugin_data``, ``_report_restored_plugin_data``,
+``_validate_resume_metadata`` and the unsaved ``_build_source_adapter_document``
+projection. Database connection/cursor, ORM reads and writes, transactions,
+the create/file/URL importer entry points, sockets, DNS, HTTP, ``urlopen`` and
+subprocess launches raise if called. Four invented fixtures cover a lossy
+portable document, a private envelope in restore versus portable-only mode, a
+structurally invalid document and a malformed envelope. Invalid input yields
+no proposed creation payload.
+
+The page separates loss from plugin mapping (adapter notes, unmapped source
+sections) from source preservation for exact unchanged re-export. It shows
+that portable-only mode drops that retention only when the document carries a
+``meta.django_resume.plugin_data`` envelope that the mode ignores; a portable
+document keeps its source in both modes. Owner and slug are simulated,
+slug availability is unknown, the create button is disabled, and the inline
+script only toggles precomputed panels; without JavaScript all panels are
+shown. Structural schema validation is not email/URI format validation, and a
+restored envelope is unsigned, not verified provenance.
+
+Verification on 2026-10-05: ``uv run pytest
+experiments/2026-10-04-import-preview/test_preview.py`` (8 tests) checks the
+fixture reports, mode differences, invalid-input behavior, HTML escaping and
+absence of forms/file inputs/external URLs, no-overwrite output, the forbidden
+seams, and that every report and planned plugin data set equals what the real
+create importer reports against pytest-django's throwaway test database. The
+page was checked in headless Chromium at 375px and 1280px (light and dark):
+no horizontal overflow, keyboard focus reaches both selectors, switching shows
+exactly one panel, no requests besides the local file, no console errors.
+These tests are outside the default ``tests/`` path, so ``just check`` does not
+run them.
+
+Not implemented here: the production preview/confirm view, confirmation
+tokens or sessions, staged URL bytes, update-in-place identity, any writer,
+remote publishing, or real resume data. Generated HTML is not committed;
+regenerate it with the commands in the experiment README.
