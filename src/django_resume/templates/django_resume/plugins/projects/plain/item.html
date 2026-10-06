@@ -20,6 +20,7 @@
         hx-delete="{{ project.delete_url }}"
         hx-target="#projects-item-{{ project.id }}"
         hx-swap="delete"
+        hx-confirm="Delete this item?"
       >
         <use href="#delete"></use>
       </svg>

@@ -13,6 +13,7 @@
         hx-delete="{{ item.delete_url }}"
         hx-target="#cover-item-{{ item.id }}"
         hx-swap="delete"
+        hx-confirm="Delete this item?"
       >
         <use href="#delete"></use>
       </svg>

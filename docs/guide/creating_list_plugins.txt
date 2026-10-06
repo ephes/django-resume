@@ -292,7 +292,7 @@ Create the template directory structure:
                <svg class="edit-icon-small" hx-get="{{ cert.edit_url }}" hx-target="closest .certification-item" hx-swap="outerHTML">
                    <use href="#edit"></use>
                </svg>
-               <svg class="edit-icon-small" style="color: red !important;" hx-delete="{{ cert.delete_url }}" hx-target="closest .certification-item" hx-swap="delete">
+               <svg class="edit-icon-small" style="color: red !important;" hx-delete="{{ cert.delete_url }}" hx-target="closest .certification-item" hx-swap="delete" hx-confirm="Delete this certification?">
                    <use href="#delete"></use>
                </svg>
            </div>
@@ -478,6 +478,8 @@ Common Pitfalls and Important Notes
 
 **HTMX and Styling**
    - Delete buttons use ``style="color: red !important;"``
+   - Delete buttons send ``hx-delete`` (the delete URL refuses ``GET``) and ask
+     for confirmation with ``hx-confirm``
    - Submit buttons use just checkmark: ``<svg><use href="#ok"></use></svg>``
    - Proper HTMX targeting prevents duplicate items
 

@@ -1,6 +1,8 @@
 import pytest
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.template.loader import render_to_string
 
+from django_resume.plugins import plugin_registry
 from django_resume.plugins.identity import IdentityForm
 
 
@@ -94,3 +96,30 @@ def test_identity_does_not_render_dangerous_link_schemes(resume, theme):
     assert "javascript" not in html.lower()
     assert 'href="https://linkedin.example/jane"' in html
     assert data["website"] == "javascript:alert(document.domain)"
+
+
+@pytest.mark.django_db
+def test_identity_rejects_html_avatar_and_shows_error(
+    client, resume, in_memory_storage
+):
+    # Given the owner editing the identity section
+    resume.owner.save()
+    resume.save()
+    client.force_login(resume.owner)
+    plugin = plugin_registry.get_plugin("identity")
+
+    # When an HTML file renamed to .png is uploaded as avatar
+    upload = SimpleUploadedFile(
+        "avatar.png",
+        b"<html><script>alert(1)</script></html>",
+        content_type="image/png",
+    )
+    response = client.post(
+        plugin.inline.get_post_url(resume.pk), {"name": "Jane", "avatar_img": upload}
+    )
+
+    # Then the inline form shows the error and nothing is stored
+    assert response.status_code == 200
+    assert "Upload a valid image" in response.content.decode()
+    resume.refresh_from_db()
+    assert "identity" not in resume.plugin_data

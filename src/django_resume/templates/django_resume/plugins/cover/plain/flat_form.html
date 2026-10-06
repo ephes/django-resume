@@ -7,7 +7,7 @@
     enctype="multipart/form-data"
   >
     <input type="hidden" data-field="title" name="title" value="{{ form.title.value }}">
-    <input type="file" id="avatar-img" style="display:none;" name="avatar_img" accept="image/*"/>
+    <input type="file" id="avatar-img" style="display:none;" name="avatar_img" accept="image/jpeg,image/png,image/gif,image/webp"/>
     <input type="hidden" data-field="avatar_alt" name="avatar_alt" value="{{ form.avatar_alt.value }}">
     <fieldset class="stack cover-letter-details">
       <legend class="stack-small">Letter details</legend>
@@ -66,15 +66,15 @@
           <svg class="avatar editable-avatar" data-field="avatar_img">
             <use href="#avatar"></use>
           </svg>
-          {% for error in form.avatar_img.errors %}
-            <p class="error">{{ error|escape }}</p>
-          {% endfor %}
           <p contenteditable="true" data-field="avatar_alt">{{ form.avatar_alt.value }}</p>
           {% for error in form.avatar_alt.errors %}
             <p class="error">{{ error|escape }}</p>
           {% endfor %}
         </div>
       {% endif %}
+      {% for error in form.avatar_img.errors %}
+        <p class="error">{{ error|escape }}</p>
+      {% endfor %}
     </div>
     <div>
       <button id="submit-cover" type="submit">

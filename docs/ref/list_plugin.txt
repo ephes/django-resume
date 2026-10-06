@@ -126,6 +126,13 @@ management, e.g.:
 
 Internally delegates to :attr:`admin` (an instance of :class:`ListAdmin`).
 
+Views that save data (``.../post/``) only accept ``POST``, form views only
+accept ``GET``, and the item delete view
+(``<resume_id>/plugin/list_plugin/delete/<item_id>/``) only accepts ``DELETE``
+or ``POST``. Other methods return ``405 Method Not Allowed``. Because ``GET`` is
+never accepted for changes, Django's CSRF check applies to all of them; htmx
+requests must send the ``X-CSRFToken`` header.
+
 **get_admin_link(resume_id)**
 
 Returns an HTML string linking to the admin view for a given resume ID. Renders
@@ -135,6 +142,7 @@ an empty string if ``resume_id`` is ``None``.
 
 Returns the URL patterns for inline editing. Internally delegates to :attr:`inline`
 (an instance of :class:`ListInline`).
+The same HTTP method rules as for the admin URLs apply.
 
 Example Subclass
 ================

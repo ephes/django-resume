@@ -11,7 +11,7 @@
     <input type="hidden" data-field="tagline" name="tagline" value="{{ form.tagline.value }}">
     <input type="hidden" data-field="location_name" name="location_name" value="{{ form.location_name.value }}">
     <input type="hidden" data-field="location_url" name="location_url" value="{{ form.location_url.value }}">
-    <input type="file" id="avatar-img" style="display:none;" name="avatar_img" accept="image/*"/>
+    <input type="file" id="avatar-img" style="display:none;" name="avatar_img" accept="image/jpeg,image/png,image/gif,image/webp"/>
     <input type="hidden" data-field="avatar_alt" name="avatar_alt" value="{{ form.avatar_alt.value }}">
     <input type="hidden" data-field="email" name="email" value="{{ form.email.value }}">
     <input type="hidden" data-field="phone" name="phone" value="{{ form.phone.value }}">
@@ -131,6 +131,9 @@
           {% endfor %}
         </div>
       {% endif %}
+      {% for error in form.avatar_img.errors %}
+        <p class="error">{{ error|escape }}</p>
+      {% endfor %}
     </div>
     <div> {# prevent button from taking full width with this div #}
       <button id="submit-identity" type="submit">

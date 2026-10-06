@@ -1,3 +1,4 @@
+import re
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 
@@ -83,7 +84,7 @@ def test_cover_signature_upload_without_avatar_is_kept_on_next_save(
     assert response.status_code == 200
     resume.refresh_from_db()
     flat = resume.plugin_data["cover"]["flat"]
-    assert flat["signature_img"].startswith("uploads/signature")
+    assert re.fullmatch(r"uploads/[0-9a-f]{32}\.png", flat["signature_img"])
     assert (flat["signature_img_width"], flat["signature_img_height"]) == (12, 4)
     assert flat["closing"] == "Best regards"
 
@@ -92,7 +93,7 @@ def test_cover_signature_upload_without_avatar_is_kept_on_next_save(
     resume.refresh_from_db()
     flat = resume.plugin_data["cover"]["flat"]
     assert flat["subject"] == "Updated subject"
-    assert flat["signature_img"].startswith("uploads/signature")
+    assert re.fullmatch(r"uploads/[0-9a-f]{32}\.png", flat["signature_img"])
 
 
 @pytest.mark.django_db
@@ -127,3 +128,61 @@ def test_cover_admin_flat_save_keeps_signature(client, resume, in_memory_storage
     assert flat["signature_name"] == "J. Doe"
     assert flat["signature_img"] == "uploads/signature.png"
     assert flat["avatar_img"] == "uploads/avatar.png"
+
+
+@pytest.mark.django_db
+def test_cover_rejects_svg_signature_upload(client, resume, in_memory_storage):
+    # Given the owner editing a cover letter
+    resume.owner.save()
+    resume.save()
+    client.force_login(resume.owner)
+    plugin = plugin_registry.get_plugin("cover")
+    url = plugin.inline.get_edit_flat_post_url(resume.pk)
+
+    # When an SVG with a script is uploaded under an image name
+    svg = b'<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'
+    response = client.post(
+        url,
+        {
+            **LETTER_DETAILS,
+            "signature_img": SimpleUploadedFile(
+                "signature.png", svg, content_type="image/png"
+            ),
+        },
+    )
+
+    # Then the form is shown again with an error and nothing is stored
+    assert response.status_code == 200
+    assert "Upload a valid image" in response.context["form"].errors["signature_img"][0]
+    resume.refresh_from_db()
+    assert "signature_img" not in resume.plugin_data.get("cover", {}).get("flat", {})
+
+
+@pytest.mark.django_db
+def test_cover_shows_error_when_replacing_avatar_with_svg(
+    client, resume, in_memory_storage
+):
+    # Given a cover letter with a stored avatar
+    resume.plugin_data = {
+        "cover": {"flat": {**LETTER_DETAILS, "avatar_img": "uploads/avatar.png"}}
+    }
+    resume.owner.save()
+    resume.save()
+    client.force_login(resume.owner)
+    plugin = plugin_registry.get_plugin("cover")
+
+    # When the avatar is replaced with an SVG
+    response = client.post(
+        plugin.inline.get_edit_flat_post_url(resume.pk),
+        {
+            **LETTER_DETAILS,
+            "avatar_img": SimpleUploadedFile(
+                "avatar.svg", b"<svg></svg>", content_type="image/svg+xml"
+            ),
+        },
+    )
+
+    # Then the rendered form shows the validation error and the avatar is kept
+    assert "Upload a valid image" in response.content.decode()
+    resume.refresh_from_db()
+    assert resume.plugin_data["cover"]["flat"]["avatar_img"] == "uploads/avatar.png"
