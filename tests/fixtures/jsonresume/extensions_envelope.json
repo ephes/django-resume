@@ -1,0 +1,75 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jsonresume/resume-schema/v1.0.0/schema.json",
+  "basics": {
+    "name": "Quinn Fixture",
+    "x-pronunciation": "kwin",
+    "summary": "Envelope fixture."
+  },
+  "work": [
+    {
+      "name": "Extension Corp",
+      "position": "Plugin Author",
+      "startDate": "2020",
+      "x-team-size": 4,
+      "x-django-resume": {
+        "plugin": "employed_timeline",
+        "item_id": "ext-1"
+      }
+    }
+  ],
+  "skills": [
+    {
+      "name": "Plugins",
+      "x-years": 6
+    }
+  ],
+  "meta": {
+    "canonical": "https://example.org/quinn.json",
+    "version": "v1.0.0",
+    "lastModified": "2026-01-02T03:04:05",
+    "theme": "even",
+    "x-editor": {
+      "name": "Invented Editor",
+      "build": 42
+    },
+    "django_resume": {
+      "version": 1,
+      "plugin_data": {
+        "identity": {
+          "name": "Quinn Fixture",
+          "tagline": "Envelope tester",
+          "pronouns": "they/them"
+        },
+        "about": {
+          "title": "Über mich",
+          "text": "Restored from the envelope, not from basics.summary."
+        },
+        "skills": {
+          "badges": [
+            "Envelope",
+            "Round trip"
+          ]
+        },
+        "custom_widget": {
+          "flat": {
+            "title": "Widget"
+          },
+          "items": [
+            {
+              "id": "w1",
+              "label": "ünïcode",
+              "position": 0
+            }
+          ]
+        }
+      },
+      "preserved_extensions": [
+        {
+          "source_path": "/basics/x-pronunciation",
+          "payload": "kwin",
+          "origin": "third-party"
+        }
+      ]
+    }
+  }
+}

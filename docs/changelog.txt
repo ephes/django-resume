@@ -7,6 +7,17 @@ Unreleased
 
 Fixes
 ^^^^^
+* Import JSON Resume ``basics.location`` into the identity location name.
+  ``address`` is used when present, which makes django-resume's own export
+  round-trip; otherwise ``city``, ``region`` and ``countryCode`` are joined by
+  commas. Location fields that are not used are reported. Previously the whole
+  location was dropped with a note.
+* Skip JSON Resume ``languages`` entries without a language name on import and
+  report them, instead of creating nameless language items that the next
+  export silently dropped.
+* Add invented JSON Resume fixtures shaped like editor and registry documents
+  with round-trip tests through import, export and the browser upload preview.
+  Remaining mapping gaps they exposed are listed in :doc:`dev/jsonresume`.
 * Reject non-finite numbers in JSON Resume file, upload and URL inputs before
   schema validation or storage. Invalid ``NaN``/``Infinity`` constants and
   overflowing floating-point values previously reached database JSON checks

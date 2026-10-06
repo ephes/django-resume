@@ -192,9 +192,53 @@ class IdentityJsonResumeAdapter:
                 notes.append(f"basics.profiles entry {label!r} is not imported")
         if basics.get("image"):
             notes.append("basics.image cannot be imported into local avatar storage")
-        if basics.get("location"):
-            notes.append("basics.location is not imported by the identity plugin")
+        location_name, location_notes = _import_location(basics.get("location"))
+        plugin_data["location_name"] = location_name
+        notes.extend(location_notes)
         return AdapterImport(plugin_data=plugin_data, notes=notes)
+
+
+_LOCATION_NAME_PARTS = ("city", "region", "countryCode")
+
+
+def _import_location(location: object) -> tuple[str, list[str]]:
+    """Map ``basics.location`` to ``identity.location_name``.
+
+    Export writes ``location_name`` to ``basics.location.address``, so an
+    address round-trips unchanged. Editors often fill only city, region and
+    country code; those are joined into one display name instead.
+    """
+    if not location:
+        return "", []
+    if not isinstance(location, dict):
+        return "", ["basics.location is not an object; not imported"]
+
+    def filled(key: str) -> bool:
+        value = location.get(key)
+        return isinstance(value, str) and bool(value.strip())
+
+    notes = []
+    if filled("address"):
+        used = ["address"]
+        location_name = location["address"]
+    else:
+        used = [key for key in _LOCATION_NAME_PARTS if filled(key)]
+        location_name = ", ".join(location[key] for key in used)
+        if used:
+            notes.append(
+                f"basics.location {', '.join(used)} combined into "
+                "identity.location_name"
+            )
+    ignored = sorted(
+        key
+        for key, value in location.items()
+        if key not in used and (filled(key) or (value and not isinstance(value, str)))
+    )
+    if ignored:
+        notes.append(
+            f"basics.location {', '.join(ignored)} not imported by the identity plugin"
+        )
+    return location_name, notes
 
 
 class IdentityPlugin(SimplePlugin):

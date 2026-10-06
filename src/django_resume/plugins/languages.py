@@ -106,23 +106,32 @@ class LanguagesJsonResumeAdapter:
     def import_data(self, document: dict) -> AdapterImport:
         languages = get_pointer(document, "/languages", []) or []
         items = []
-        for position, entry in enumerate(
-            item for item in languages if isinstance(item, dict)
-        ):
+        notes = []
+        entries = [item for item in languages if isinstance(item, dict)]
+        named_entries = []
+        for entry in entries:
+            name = entry.get("language", "")
+            if isinstance(name, str) and name.strip():
+                named_entries.append(entry)
+            else:
+                # The item form requires a name and export skips nameless items.
+                notes.append("languages entry without a language name is not imported")
+        for position, entry in enumerate(named_entries):
             items.append(
                 {
                     "id": f"json-resume-language-{position + 1}",
-                    "name": entry.get("language", ""),
+                    "name": entry["language"],
                     "level": DEFAULT_LEVEL,
                     "note": entry.get("fluency", ""),
                     "position": position,
                 }
             )
         if not items:
-            return AdapterImport(plugin_data={})
+            return AdapterImport(plugin_data={}, notes=notes)
+        notes.append(f"languages levels defaulted to {DEFAULT_LEVEL}")
         return AdapterImport(
             plugin_data={"flat": {"title": "Languages"}, "items": items},
-            notes=[f"languages levels defaulted to {DEFAULT_LEVEL}"],
+            notes=notes,
         )
 
 

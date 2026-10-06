@@ -1,0 +1,27 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jsonresume/resume-schema/v1.0.0/schema.json",
+  "basics": {
+    "name": "Pat Placeholder",
+    "label": "",
+    "email": "",
+    "summary": "",
+    "location": {},
+    "profiles": []
+  },
+  "work": [
+    {
+      "name": "Nowhere Widgets",
+      "startDate": "2021"
+    }
+  ],
+  "volunteer": [],
+  "education": [],
+  "awards": [],
+  "certificates": [],
+  "publications": [],
+  "skills": [],
+  "languages": [],
+  "interests": [],
+  "references": [],
+  "projects": []
+}

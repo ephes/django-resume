@@ -1,0 +1,78 @@
+{
+  "basics": {
+    "name": "Zoë Ångström-Øyelaran 李小龍",
+    "label": "Ingeniérie · Δεδομένα · データ",
+    "email": "zoe@example.org",
+    "phone": "+49 30 0000000",
+    "summary": "Mehrsprachig: Grüße aus Köln — שלום — مرحبا — 你好 — 🎉 Emoji and é combining marks.",
+    "location": {
+      "city": "Zürich",
+      "countryCode": "CH",
+      "region": "ZH"
+    },
+    "profiles": [
+      {
+        "network": "github",
+        "url": "https://github.example/zoe"
+      },
+      {
+        "network": "LINKEDIN",
+        "url": "https://linkedin.example/in/zoe"
+      },
+      {
+        "network": "Mastodon",
+        "url": "https://social.example/@zoe"
+      },
+      {
+        "network": "Xing",
+        "username": "zoe_a"
+      }
+    ]
+  },
+  "work": [
+    {
+      "name": "Société Générale d’Exemple",
+      "position": "Développeuse",
+      "startDate": "2019-09",
+      "summary": "Travail sur «données» et 数据.",
+      "highlights": [
+        "Réduit les coûts de 15 %"
+      ]
+    }
+  ],
+  "education": [
+    {
+      "institution": "Universität Beispielstadt",
+      "area": "Informatik",
+      "studyType": "M.Sc.",
+      "startDate": "2014",
+      "endDate": "2016",
+      "score": "1,3",
+      "courses": [
+        "Algorithmen"
+      ]
+    },
+    {
+      "institution": "東京例大学",
+      "area": "数学"
+    }
+  ],
+  "awards": [
+    {
+      "title": "Preis für Ökologie",
+      "date": "2017-11",
+      "awarder": "Stiftung Beispiel",
+      "summary": "Für «grüne» Software"
+    }
+  ],
+  "languages": [
+    {
+      "language": "Deutsch",
+      "fluency": "Muttersprache"
+    },
+    {
+      "language": "日本語",
+      "fluency": "N2"
+    }
+  ]
+}

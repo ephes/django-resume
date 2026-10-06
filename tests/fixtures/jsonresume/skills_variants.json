@@ -1,0 +1,62 @@
+{
+  "basics": {
+    "name": "Kim Sample"
+  },
+  "skills": [
+    {
+      "name": "Backend",
+      "level": "Advanced",
+      "keywords": [
+        "Python",
+        "Django",
+        "",
+        "PostgreSQL"
+      ]
+    },
+    {
+      "name": "Frontend",
+      "keywords": []
+    },
+    {
+      "name": "Testing",
+      "level": "Intermediate"
+    },
+    {
+      "keywords": [
+        "Docker",
+        "Kubernetes"
+      ]
+    },
+    {
+      "name": "Cloud",
+      "keywords": [
+        "Docker",
+        "Terraform"
+      ]
+    },
+    {
+      "level": "Beginner"
+    }
+  ],
+  "languages": [
+    {
+      "language": "English",
+      "fluency": "Native speaker"
+    },
+    {
+      "language": "Esperanto"
+    },
+    {
+      "fluency": "Some"
+    }
+  ],
+  "interests": [
+    {
+      "name": "Board games",
+      "keywords": [
+        "Go",
+        "Chess"
+      ]
+    }
+  ]
+}
