@@ -29,6 +29,7 @@
           hx-delete="{{ entry.delete_url }}"
           hx-target="#{{ plugin_name }}-item-{{ entry.id }}"
           hx-swap="delete"
+          hx-confirm="Delete this item?"
         >
           <use href="#delete"></use>
         </svg>

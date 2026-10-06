@@ -10,7 +10,8 @@ HTML. No title heading -- the reference letter has plain body paragraphs. {% end
       </svg>
       <svg class="edit-icon-small" style="color: red !important;"
            hx-delete="{{ item.delete_url }}"
-           hx-target="#cover-item-{{ item.id }}" hx-swap="delete">
+           hx-target="#cover-item-{{ item.id }}" hx-swap="delete"
+           hx-confirm="Delete this item?">
         <use href="#delete"></use>
       </svg>
     </div>

@@ -1,23 +1,82 @@
 import io
 import struct
+import uuid
 
 from collections.abc import Iterable
-from typing import Any, cast
+from typing import IO, Any, cast
 
 from django import forms
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
-from django.core.files.uploadedfile import InMemoryUploadedFile
+from django.core.files.uploadedfile import UploadedFile
 
 
 class UnknownImageFormat(Exception):
     pass
 
 
-def get_image_metadata_from_bytesio(
-    input: InMemoryUploadedFile, size: int
-) -> tuple[int, int]:
-    data = input.read(30)  # Increased read size for WebP format detection
+MAX_IMAGE_UPLOAD_SIZE = 2 * 1024 * 1024
+
+# Raster formats accepted for uploads, mapped to the file extension used when
+# storing them. SVG, HTML and anything else that is not one of these is rejected.
+ALLOWED_IMAGE_FORMATS: dict[str, str] = {
+    "jpeg": "jpg",
+    "png": "png",
+    "gif": "gif",
+    "webp": "webp",
+}
+
+IMAGE_UPLOAD_ACCEPT = "image/jpeg,image/png,image/gif,image/webp"
+
+
+def detect_image_format(data: bytes) -> str | None:
+    """Return the allowed image format of ``data`` by its magic bytes, or None."""
+    if data[:6] in (b"GIF87a", b"GIF89a"):
+        return "gif"
+    if data.startswith(b"\211PNG\r\n\032\n") and data[12:16] == b"IHDR":
+        return "png"
+    if data.startswith(b"\377\330\377"):
+        return "jpeg"
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "webp"
+    return None
+
+
+def validate_image_upload(upload: UploadedFile) -> tuple[bytes, str, int, int]:
+    """
+    Check that an uploaded file really is an allowed raster image.
+
+    The client's filename and content type are ignored: the format is detected
+    from the file content. Returns the file content, the extension to store it
+    under, and the image width and height. Raises ``forms.ValidationError``
+    for files that are too large, not an allowed image format, or unreadable.
+    """
+    if upload.size is None or upload.size > MAX_IMAGE_UPLOAD_SIZE:
+        raise forms.ValidationError("Image file too large ( > 2mb )")
+    upload.seek(0)
+    data = b"".join(upload.chunks())
+    if len(data) > MAX_IMAGE_UPLOAD_SIZE:
+        raise forms.ValidationError("Image file too large ( > 2mb )")
+    image_format = detect_image_format(data)
+    if image_format is None:
+        raise forms.ValidationError(
+            "Upload a valid image. Supported formats are JPEG, PNG, GIF and WebP."
+        )
+    try:
+        width, height = get_image_metadata_from_bytesio(io.BytesIO(data), len(data))
+    except (UnknownImageFormat, struct.error, ValueError, IndexError):
+        raise forms.ValidationError(
+            "Upload a valid image. The file could not be read as an image."
+        )
+    if width <= 0 or height <= 0:
+        raise forms.ValidationError(
+            "Upload a valid image. The file could not be read as an image."
+        )
+    return data, ALLOWED_IMAGE_FORMATS[image_format], width, height
+
+
+def get_image_metadata_from_bytesio(input: IO[bytes], size: int) -> tuple[int, int]:
+    data = input.read(32)  # Increased read size for WebP format detection
     msg = " raised while trying to decode as JPEG."
 
     # Check for GIF format
@@ -90,10 +149,12 @@ def get_image_metadata_from_bytesio(
             width = (w & 0x3FFF) + 1
             height = (h & 0x3FFF) + 1
         elif data[12:16] == b"VP8X":
-            # WebP extended format with VP8X chunk
-            w, h = struct.unpack("<LL", data[24:32])
-            width = (w & 0xFFFFFF) + 1
-            height = (h & 0xFFFFFF) + 1
+            # WebP extended format with VP8X chunk: 24-bit canvas width and
+            # height minus one, little endian, at offsets 24 and 27
+            if len(data) < 30:
+                raise UnknownImageFormat("Truncated WebP VP8X header")
+            width = int.from_bytes(data[24:27], "little") + 1
+            height = int.from_bytes(data[27:30], "little") + 1
         else:
             raise UnknownImageFormat("Unknown WebP format")
 
@@ -147,6 +208,9 @@ class ImageFormMixin:
         super().__init__(*args, **kwargs)
         initial = cast(dict[str, Any], self.initial)  # type: ignore
         for field_name, _clear in self.image_fields:
+            self.fields[field_name].widget.attrs.setdefault(
+                "accept", IMAGE_UPLOAD_ACCEPT
+            )
             if initial is None:
                 continue
             initial_filename = initial.get(field_name)
@@ -165,28 +229,26 @@ class ImageFormMixin:
         clear_image = cleaned_data.get(clear_field)
 
         image_handled = False
-        just_clear_the_image = clear_image and not hasattr(image, "temporary_file_path")
+        is_upload = isinstance(image, UploadedFile)
+        just_clear_the_image = clear_image and not is_upload
         if just_clear_the_image:
             cleaned_data[image_field] = None
             image_handled = True
 
-        set_new_image = isinstance(image, InMemoryUploadedFile) and not image_handled
+        set_new_image = is_upload and not image_handled
         if set_new_image:
-            assert image is not None
-            if image.size > 2 * 1024 * 1024:
-                raise forms.ValidationError("Image file too large ( > 2mb )")
+            assert isinstance(image, UploadedFile)
+            try:
+                data, extension, width, height = validate_image_upload(image)
+            except forms.ValidationError as error:
+                # attach the error to the upload field
+                raise forms.ValidationError({image_field: error.messages})
+            # never trust the client's filename: store under a generated name
+            # with the extension of the detected format
             cleaned_data[image_field] = default_storage.save(
-                f"uploads/{image.name}", ContentFile(image.read())
+                f"uploads/{uuid.uuid4().hex}.{extension}", ContentFile(data)
             )
             image_handled = True
-
-            # Add image dimensions to cleaned data
-            try:
-                width, height = get_image_dimensions_from_storage(
-                    cleaned_data[image_field]
-                )
-            except UnknownImageFormat:
-                width, height = None, None
             cleaned_data[f"{image_field}_width"] = width
             cleaned_data[f"{image_field}_height"] = height
 
@@ -201,6 +263,20 @@ class ImageFormMixin:
 
     def clean(self) -> dict[str, Any]:
         cleaned_data = super().clean()  # type: ignore
+        # Validate every upload before storing any of them, so a rejected file
+        # never leaves another upload of the same form behind in storage.
+        has_invalid_upload = False
+        for image_field, _clear_field in self.image_fields:
+            image = cleaned_data.get(image_field)
+            if isinstance(image, UploadedFile):
+                try:
+                    validate_image_upload(image)
+                except forms.ValidationError as error:
+                    self.add_error(image_field, error)  # type: ignore[attr-defined]
+                    has_invalid_upload = True
+        if has_invalid_upload or self.errors:  # type: ignore[attr-defined]
+            # do not store uploads for a form that will be rejected anyway
+            return cleaned_data
         for image_field, clear_field in self.image_fields:
             cleaned_data = self.do_clean_image_field(
                 cleaned_data, image_field, clear_field

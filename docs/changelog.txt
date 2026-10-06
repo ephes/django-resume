@@ -7,6 +7,25 @@ Unreleased
 
 Fixes
 ^^^^^
+* Item delete URLs of list plugins (inline and Django admin) now only accept
+  ``DELETE`` (sent by the htmx delete buttons) or ``POST``. A plain ``GET``, which
+  skips Django's CSRF check, previously deleted the item, so a cross-site link
+  opened by the logged-in owner could remove resume content. Plugin views that
+  save data now require ``POST`` and form views require ``GET``; other methods
+  get ``405 Method Not Allowed``. All delete buttons now ask for confirmation.
+  Custom templates must keep sending the CSRF token with delete requests (the
+  bundled pages set an ``X-CSRFToken`` htmx header).
+* Validate uploaded images by their content. Avatar and signature uploads must
+  be JPEG, PNG, GIF or WebP, detected from the file's magic bytes and readable
+  dimensions; the client's filename and content type are ignored. SVG, HTML,
+  BMP and other files are rejected with a form error, so an uploaded file can
+  no longer be served from ``MEDIA_URL`` as an HTML or SVG page (stored XSS).
+  Uploads are stored as ``uploads/<random hex>.<jpg|png|gif|webp>`` instead of
+  under the client's filename. Uploads larger than Django's in-memory threshold
+  are now validated and saved too (they were silently dropped), and a form with
+  any invalid upload stores none of its files. The 2 MB limit is unchanged.
+  Images uploaded before this change keep their stored path. See
+  :doc:`guide/installation`.
 * Reject non-finite numbers in JSON Resume file, upload and URL inputs before
   schema validation or storage. Invalid ``NaN``/``Infinity`` constants and
   overflowing floating-point values previously reached database JSON checks

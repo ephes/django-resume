@@ -16,6 +16,7 @@
         hx-delete="{{ award.delete_url }}"
         hx-target="#awards-item-{{ award.id }}"
         hx-swap="delete"
+        hx-confirm="Delete this item?"
       >
         <use href="#delete"></use>
       </svg>

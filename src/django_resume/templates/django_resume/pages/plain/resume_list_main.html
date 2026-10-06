@@ -22,6 +22,7 @@
           hx-delete="{% url 'django_resume:delete' resume.slug %}"
           hx-target="#resume-{{ resume.slug }}"
           hx-swap="delete"
+          hx-confirm="Delete this resume?"
         >
           <svg class="edit-icon-small">
             <use href="#delete"></use>

@@ -30,3 +30,24 @@ Installation
 django-resume's editable templates load HTMX where needed. You do not need to
 install or configure django-htmx to use the built-in editing views.
 
+
+Uploaded images and media
+-------------------------
+
+Avatar and signature images are stored with Django's default storage under
+``uploads/``. django-resume only accepts JPEG, PNG, GIF and WebP files, detects
+the format from the file content rather than the client's filename or content
+type, and stores each upload under a random name with the extension of the
+detected format (for example ``uploads/3f2a…c9.png``). SVG, HTML and other
+files are rejected, and uploads are limited to 2 MB.
+
+Serve ``MEDIA_URL`` so that the content type follows the stored file extension,
+and keep ``X-Content-Type-Options: nosniff`` enabled (Django's
+``SecurityMiddleware`` sends it by default for responses it handles; configure
+your web server to send it for media files). Serving media from a separate
+domain is a further defense in depth.
+
+The editing views require ``POST`` for saves and ``DELETE`` or ``POST`` for
+item deletes, so Django's CSRF protection applies to every change. If you
+override the editable templates, keep the ``X-CSRFToken`` header that the
+bundled pages set for htmx requests.

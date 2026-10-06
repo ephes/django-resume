@@ -20,10 +20,16 @@ from django.template import TemplateDoesNotExist
 from django.template.loader import get_template
 from django.urls import reverse, path, URLPattern
 from django.utils.html import format_html
+from django.views.decorators.http import require_GET, require_http_methods, require_POST
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 
 from ..models import Resume
+
+# Deleting an item changes data, so it must never be reachable via GET (Django
+# skips the CSRF check for safe methods). htmx sends DELETE; POST is accepted for
+# plain forms. Both methods go through the CSRF middleware.
+require_delete_methods = require_http_methods(["POST", "DELETE"])
 
 if TYPE_CHECKING:
     from ..interchange.protocols import ExportAdapter, ImportAdapter
@@ -250,12 +256,12 @@ class SimpleAdmin(LockedResumeMutationMixin):
         urls = [
             path(
                 f"<int:resume_id>/plugin/{plugin_name}/change/",
-                login_required(admin_view(self.get_change_view)),
+                login_required(admin_view(require_GET(self.get_change_view))),
                 name=f"{plugin_name}-admin-change",
             ),
             path(
                 f"<int:resume_id>/plugin/{plugin_name}/post/",
-                login_required(admin_view(self.post_view)),
+                login_required(admin_view(require_POST(self.post_view))),
                 name=f"{plugin_name}-admin-post",
             ),
         ]
@@ -491,12 +497,12 @@ class SimpleInline(LockedResumeMutationMixin):
             # flat
             path(
                 f"<int:resume_id>/plugin/{plugin_name}/edit/",
-                login_required(self.get_edit_view),
+                login_required(require_GET(self.get_edit_view)),
                 name=f"{plugin_name}-edit",
             ),
             path(
                 f"<int:resume_id>/plugin/{plugin_name}/edit/post/",
-                login_required(self.post_view),
+                login_required(require_POST(self.post_view)),
                 name=f"{plugin_name}-post",
             ),
         ]
@@ -973,27 +979,27 @@ class ListAdmin(LockedResumeMutationMixin):
         urls = [
             path(
                 f"<int:resume_id>/plugin/{plugin_name}/change/",
-                admin_view(self.get_change_view),
+                admin_view(require_GET(self.get_change_view)),
                 name=f"{plugin_name}-admin-change",
             ),
             path(
                 f"<int:resume_id>/plugin/{plugin_name}/item/post/",
-                admin_view(self.post_item_view),
+                admin_view(require_POST(self.post_item_view)),
                 name=f"{plugin_name}-admin-item-post",
             ),
             path(
                 f"<int:resume_id>/plugin/{plugin_name}/add/",
-                admin_view(self.get_add_item_form_view),
+                admin_view(require_GET(self.get_add_item_form_view)),
                 name=f"{plugin_name}-admin-item-add",
             ),
             path(
                 f"<int:resume_id>/plugin/{plugin_name}/delete/<str:item_id>/",
-                admin_view(self.delete_item_view),
+                admin_view(require_delete_methods(self.delete_item_view)),
                 name=f"{plugin_name}-admin-item-delete",
             ),
             path(
                 f"<int:resume_id>/plugin/{plugin_name}/flat/post/",
-                admin_view(self.post_flat_view),
+                admin_view(require_POST(self.post_flat_view)),
                 name=f"{plugin_name}-admin-flat-post",
             ),
         ]
@@ -1202,33 +1208,33 @@ class ListInline(LockedResumeMutationMixin):
             # flat
             path(
                 f"<int:resume_id>/plugin/{plugin_name}/edit/flat/",
-                self.get_edit_flat_view,
+                require_GET(self.get_edit_flat_view),
                 name=f"{plugin_name}-edit-flat",
             ),
             path(
                 f"<int:resume_id>/plugin/{plugin_name}/edit/flat/post/",
-                self.post_edit_flat_view,
+                require_POST(self.post_edit_flat_view),
                 name=f"{plugin_name}-edit-flat-post",
             ),
             # item
             path(
                 f"<int:resume_id>/plugin/{plugin_name}/edit/item/<str:item_id>",
-                self.get_item_view,
+                require_GET(self.get_item_view),
                 name=f"{plugin_name}-edit-item",
             ),
             path(
                 f"<int:resume_id>/plugin/{plugin_name}/edit/item/",
-                self.get_item_view,
+                require_GET(self.get_item_view),
                 name=f"{plugin_name}-add-item",
             ),
             path(
                 f"<int:resume_id>/plugin/{plugin_name}/edit/item/post/",
-                self.post_item_view,
+                require_POST(self.post_item_view),
                 name=f"{plugin_name}-item-post",
             ),
             path(
                 f"<int:resume_id>/plugin/{plugin_name}/delete/<str:item_id>/",
-                self.delete_item_view,
+                require_delete_methods(self.delete_item_view),
                 name=f"{plugin_name}-delete-item",
             ),
         ]

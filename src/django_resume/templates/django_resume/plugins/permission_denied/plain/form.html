@@ -11,7 +11,7 @@
       <input type="hidden" data-field="sub_title" name="sub_title" value="{{ form.sub_title.value }}">
       <input type="hidden" data-field="email" name="email" value="{{ form.email.value }}">
       <input type="hidden" data-field="text" name="text" value="{{ form.text.value }}">
-      <input type="file" id="avatar-img" style="display:none;" name="avatar_img" accept="image/*"/>
+      <input type="file" id="avatar-img" style="display:none;" name="avatar_img" accept="image/jpeg,image/png,image/gif,image/webp"/>
       <input type="hidden" data-field="avatar_alt" name="avatar_alt" value="{{ form.avatar_alt.value }}">
     </form>
     <header>
@@ -39,15 +39,15 @@
             <svg class="avatar editable-avatar" data-field="avatar_img">
               <use href="#avatar"></use>
             </svg>
-            {% for error in form.avatar_img.errors %}
-              <p class="error">{{ error|escape }}</p>
-            {% endfor %}
             <p contenteditable="true" data-field="avatar_alt">{{ form.avatar_alt.value }}</p>
             {% for error in form.avatar_alt.errors %}
               <p class="error">{{ error|escape }}</p>
             {% endfor %}
           </div>
         {% endif %}
+        {% for error in form.avatar_img.errors %}
+          <p class="error">{{ error|escape }}</p>
+        {% endfor %}
       </div>
       <h2 contenteditable="true" data-field="sub_title">{{ form.sub_title.value }}</h2>
       {% for error in form.sub_title.errors %}
