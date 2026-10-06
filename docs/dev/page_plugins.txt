@@ -203,7 +203,7 @@ This is the part the spec most needs to make explicit, because today it is an
 order-dependent side effect (see `Problem`_).
 
 * ``CvPage.check_access`` calls
-  ``TokenPlugin.check_permissions(request, resume.plugin_data.get("token", {}))``
+  ``TokenPlugin.check_permissions(request, resume.plugin_data.get("token", {}), resume)``
   up front. On ``PermissionDenied`` it renders the themed ``cv_403.html`` with
   an **explicitly built** ``permission_denied`` context and returns it with
   status 403.

@@ -619,6 +619,75 @@ def test_public_cv_response_does_not_set_token_referrer_policy(client, resume):
 
     assert r.status_code == 200
     assert r.get("Referrer-Policy") != "no-referrer"
+    assert "no-store" not in r.get("Cache-Control", "")
+    assert "X-Robots-Tag" not in r
+
+
+def _token_gated_cv_url(resume) -> str:
+    resume.owner.save()
+    resume.plugin_data["token"] = {
+        "flat": {"token_required": True},
+        "items": [{"token": "synthetic-token"}],
+    }
+    resume.save()
+    plugin_registry.register(TokenPlugin)
+    return reverse("resume:cv", kwargs={"slug": resume.slug})
+
+
+def _assert_private_cv_headers(response) -> None:
+    cache_control = {
+        part.strip() for part in response["Cache-Control"].split(",") if part
+    }
+    assert {"private", "no-store"} <= cache_control
+    assert response["X-Robots-Tag"] == "noindex"
+    assert response["Referrer-Policy"] == "no-referrer"
+
+
+@pytest.mark.django_db
+def test_token_cv_rejects_non_ascii_token_with_403(client, resume):
+    cv_url = _token_gated_cv_url(resume)
+
+    r = client.get(f"{cv_url}?token=%C3%A4")
+
+    assert r.status_code == 403
+    _assert_private_cv_headers(r)
+
+
+@pytest.mark.django_db
+def test_token_cv_rejects_other_logged_in_user_without_token(
+    client, resume, django_user_model
+):
+    cv_url = _token_gated_cv_url(resume)
+    other = django_user_model.objects.create_user(username="other", password="x")
+    client.force_login(other)
+
+    r = client.get(cv_url)
+
+    assert r.status_code == 403
+    _assert_private_cv_headers(r)
+
+    r = client.get(f"{cv_url}?token=synthetic-token")
+
+    assert r.status_code == 200
+    _assert_private_cv_headers(r)
+
+
+@pytest.mark.django_db
+def test_token_cv_owner_and_staff_pass_without_token(client, resume, django_user_model):
+    cv_url = _token_gated_cv_url(resume)
+
+    client.force_login(resume.owner)
+    r = client.get(cv_url)
+    assert r.status_code == 200
+    _assert_private_cv_headers(r)
+
+    staff = django_user_model.objects.create_user(
+        username="staff", password="x", is_staff=True
+    )
+    client.force_login(staff)
+    r = client.get(cv_url)
+    assert r.status_code == 200
+    _assert_private_cv_headers(r)
 
 
 @pytest.mark.django_db

@@ -4,6 +4,7 @@ from django.contrib.auth.views import redirect_to_login
 from django.core.exceptions import PermissionDenied
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
+from django.utils.cache import patch_cache_control
 
 from ..models import Resume
 from ..plugins import plugin_registry
@@ -63,7 +64,7 @@ class CvPage(ResumePage):
             return None
         try:
             TokenPlugin.check_permissions(
-                request, resume.plugin_data.get(TokenPlugin.name, {})
+                request, resume.plugin_data.get(TokenPlugin.name, {}), resume
             )
         except PermissionDenied:
             return render_cv_403(request, resume, status=403)
@@ -73,7 +74,11 @@ class CvPage(ResumePage):
         self, response: HttpResponse, request: HttpRequest, resume: Resume
     ) -> HttpResponse:
         if resume.token_is_required:
+            # A token-gated CV must not leak via Referer, shared caches or
+            # search engines.
             response["Referrer-Policy"] = "no-referrer"
+            patch_cache_control(response, private=True, no_store=True)
+            response["X-Robots-Tag"] = "noindex"
         return response
 
 

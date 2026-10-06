@@ -7,6 +7,14 @@ Unreleased
 
 Fixes
 ^^^^^
+* Harden access to token-protected CVs. A non-ASCII ``?token=`` value now gets
+  a 403 instead of a server error. Only the resume owner and staff users skip
+  the token check; previously any logged-in account could read every
+  token-protected CV. ``TokenPlugin.check_permissions`` takes an optional
+  ``resume`` argument to identify the owner; callers that omit it only let
+  staff users skip the token. Token-gated CV responses (including the 403
+  page) are now sent with ``Cache-Control: private, no-store`` and
+  ``X-Robots-Tag: noindex``.
 * Accept JSON Resume documents with empty-string item dates such as
   ``"endDate": ""``: the empty optional date is treated as absent and
   reported instead of rejecting the whole import.
