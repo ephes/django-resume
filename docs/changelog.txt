@@ -83,6 +83,11 @@ Fixes
   schema validation or storage. Invalid ``NaN``/``Infinity`` constants and
   overflowing floating-point values previously reached database JSON checks
   and could incorrectly report a duplicate resume slug.
+* Update the JavaScript test dependencies to clear the open ``npm audit``
+  advisories (vitest, tinypool, vite, rollup, postcss, nanoid, ws,
+  source-map-js and others). vitest moves to 5.x, which needs Node.js 22.12
+  or newer for the JavaScript tests; the ``FileReader`` mock in the editor tests
+  now uses a constructible function as vitest 5 requires.
 
 Features
 ^^^^^^^^

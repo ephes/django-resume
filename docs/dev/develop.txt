@@ -102,6 +102,8 @@ Run the Static Analysis
 Install the JavaScript Dependencies
 -----------------------------------
 
+The JavaScript tests use vitest 5, which needs Node.js 22.12 or newer.
+
 .. code-block:: sh
 
     $ npm install

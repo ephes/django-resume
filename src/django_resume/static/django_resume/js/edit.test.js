@@ -196,7 +196,7 @@ describe('EditableForm', () => {
                 this.onload({ target: { result: 'data:image/png;base64,dummydata' } });
             },
         };
-        vi.spyOn(window, 'FileReader').mockImplementation(() => fileReaderMock);
+        vi.spyOn(window, 'FileReader').mockImplementation(function () { return fileReaderMock; });
 
         // Directly set the files property
         Object.defineProperty(fileInput, 'files', {
@@ -225,7 +225,7 @@ describe('EditableForm', () => {
                 this.onload({ target: { result: 'data:image/png;base64,dummydata' } });
             },
         };
-        vi.spyOn(window, 'FileReader').mockImplementation(() => fileReaderMock);
+        vi.spyOn(window, 'FileReader').mockImplementation(function () { return fileReaderMock; });
 
         // Simulate dragover event to allow drop
         fireEvent.dragOver(previewImage);
