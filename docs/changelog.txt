@@ -7,6 +7,18 @@ Unreleased
 
 Fixes
 ^^^^^
+* Harden JSON Resume theme installs. ``npm install`` now pins the ``resumed``
+  renderer to an exact version (``7.0.0``, configurable with
+  ``DJANGO_RESUME_JSON_RESUME_RESUMED_VERSION``) instead of resolving the
+  latest release, saves exact versions, and passes ``--ignore-scripts`` so npm
+  lifecycle scripts of themes and their dependencies no longer run as the web
+  server user. All bundled catalog themes render without them.
+* **Behavior change:** resume owners can no longer make the server install
+  catalog themes by default. Preview and **Use render theme** work for themes
+  already installed in the theme cache and return 403 otherwise. Install them
+  with the new ``install_json_resume_catalog_themes`` management command, or
+  set ``DJANGO_RESUME_JSON_RESUME_ALLOW_CATALOG_THEME_INSTALL = True`` to keep
+  owner-triggered installs.
 * Harden access to token-protected CVs. A non-ASCII ``?token=`` value now gets
   a 403 instead of a server error. Only the resume owner and staff users skip
   the token check; previously any logged-in account could read every

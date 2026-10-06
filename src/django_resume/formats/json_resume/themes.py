@@ -27,6 +27,11 @@ THEME_PACKAGE_RE = re.compile(
 THEME_CATALOG_KEY_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 THEME_EXACT_VERSION_RE = re.compile(r"^[0-9]+(?:\.[0-9]+){2}(?:[-+][0-9A-Za-z.-]+)?$")
 
+# The ``resumed`` renderer installed next to every theme. Pinned so an install
+# never silently picks up a newly published release; override per deployment
+# with DJANGO_RESUME_JSON_RESUME_RESUMED_VERSION (exact version only).
+RESUMED_VERSION = "7.0.0"
+
 DEFAULT_THEME_CATALOG = (
     {
         "key": "even",
@@ -99,6 +104,10 @@ class UnknownThemeCatalogKey(JsonResumeThemeError):
     """Raised when a requested catalog key is unknown or disabled."""
 
 
+class CatalogThemeNotInstalled(JsonResumeThemeError):
+    """Raised when a catalog theme is not installed and installs are disabled."""
+
+
 @dataclass(frozen=True)
 class ThemeSearchResult:
     name: str
@@ -154,6 +163,45 @@ def dynamic_theme_install_allowed() -> bool:
     )
 
 
+def catalog_theme_install_allowed() -> bool:
+    return bool(
+        getattr(
+            settings, "DJANGO_RESUME_JSON_RESUME_ALLOW_CATALOG_THEME_INSTALL", False
+        )
+    )
+
+
+def resumed_version() -> str:
+    configured = getattr(
+        settings, "DJANGO_RESUME_JSON_RESUME_RESUMED_VERSION", RESUMED_VERSION
+    )
+    if not isinstance(configured, str) or not THEME_EXACT_VERSION_RE.fullmatch(
+        configured
+    ):
+        raise JsonResumeThemeError(
+            "DJANGO_RESUME_JSON_RESUME_RESUMED_VERSION must be an exact version"
+        )
+    return configured
+
+
+def catalog_theme_installed(entry: ThemeCatalogEntry) -> bool:
+    """Return whether the pinned catalog version and ``resumed`` are in the cache."""
+    target = _cache_path()
+    if not _resumed_bin(target).exists():
+        return False
+    return _installed_package_version(target, entry.package) == entry.version
+
+
+def _installed_package_version(target: Path, package_name: str) -> str | None:
+    manifest = target / "node_modules" / Path(*package_name.split("/")) / "package.json"
+    try:
+        data = json.loads(manifest.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    version = data.get("version") if isinstance(data, dict) else None
+    return version if isinstance(version, str) else None
+
+
 def theme_catalog() -> tuple[ThemeCatalogEntry, ...]:
     configured = getattr(settings, "DJANGO_RESUME_JSON_RESUME_THEME_CATALOG", None)
     raw_catalog = DEFAULT_THEME_CATALOG if configured is None else configured
@@ -167,13 +215,16 @@ def catalog_theme(key: str, *, enabled_only: bool = True) -> ThemeCatalogEntry:
     raise UnknownThemeCatalogKey(f"Unknown JSON Resume theme catalog key {key!r}")
 
 
-def cache_dir() -> Path:
+def _cache_path() -> Path:
     configured = getattr(settings, "DJANGO_RESUME_JSON_RESUME_THEME_DIR", None)
     if configured:
-        path = Path(configured)
-    else:
-        base_dir = Path(getattr(settings, "BASE_DIR", Path.cwd()))
-        path = base_dir / ".django-resume-jsonresume-themes"
+        return Path(configured)
+    base_dir = Path(getattr(settings, "BASE_DIR", Path.cwd()))
+    return base_dir / ".django-resume-jsonresume-themes"
+
+
+def cache_dir() -> Path:
+    path = _cache_path()
     path.mkdir(mode=0o700, parents=True, exist_ok=True)
     _chmod_owner_only(path, directory=True)
     return path
@@ -265,11 +316,32 @@ def install_catalog_theme(key: str, *, timeout: float = 90.0) -> ThemeCatalogEnt
     return entry
 
 
+def install_catalog_themes(
+    keys: list[str] | None = None, *, timeout: float = 300.0
+) -> tuple[ThemeCatalogEntry, ...]:
+    """Install several pinned catalog themes (all enabled ones by default)."""
+    if keys:
+        entries = tuple(catalog_theme(key) for key in keys)
+    else:
+        entries = tuple(entry for entry in theme_catalog() if entry.enabled)
+    if not entries:
+        raise JsonResumeThemeError(
+            "The JSON Resume theme catalog has no enabled themes"
+        )
+    _install_theme_packages(
+        [f"{entry.package}@{entry.version}" for entry in entries], timeout=timeout
+    )
+    return entries
+
+
 def _install_theme_packages(packages: list[str], *, timeout: float) -> None:
     npm = shutil.which("npm")
     if npm is None:
         raise JsonResumeThemeError("npm is required to install JSON Resume themes")
     target = cache_dir()
+    # --ignore-scripts: never run npm lifecycle scripts (preinstall, install,
+    # postinstall, prepare) of a theme or any transitive dependency as the web
+    # server user. Rendering still executes theme JavaScript.
     command = [
         npm,
         "install",
@@ -277,8 +349,10 @@ def _install_theme_packages(packages: list[str], *, timeout: float) -> None:
         str(target),
         "--no-audit",
         "--no-fund",
+        "--ignore-scripts",
         "--save",
-        "resumed",
+        "--save-exact",
+        f"resumed@{resumed_version()}",
         *packages,
     ]
     completed = _run_process(command, cwd=target, timeout=timeout)

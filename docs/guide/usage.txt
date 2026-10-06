@@ -159,8 +159,15 @@ cache.
 Theme packages execute JavaScript during rendering. Only authenticated owners
 can preview, select, or render themes through these views, but catalog packages
 should still be treated as trusted local code chosen by the site operator.
-Preview and **Use render theme** may run ``npm install`` for the pinned catalog
-package into django-resume's configured local theme cache. Rendering itself uses
+By default, Preview and **Use render theme** only work for catalog themes the
+site operator has installed with
+``python manage.py install_json_resume_catalog_themes``; owners cannot make the
+server run ``npm install``. Operators who accept owner-triggered installs of the
+pinned catalog packages can set
+``DJANGO_RESUME_JSON_RESUME_ALLOW_CATALOG_THEME_INSTALL = True``. Installs pin
+the ``resumed`` renderer to an exact version and pass ``--ignore-scripts``, so
+npm lifecycle scripts do not run, but rendering still executes theme JavaScript
+on the server. Rendering itself uses
 the local cache and does not fetch schemas, renderers, or themes from the
 network. django-resume does not install themes for anonymous visitors, and
 public CV pages or token-protected CV links do not imply permission to install
