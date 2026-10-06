@@ -16,8 +16,9 @@ Backlog Items
 
   django-resume already supports pinned-schema JSON Resume export,
   create-only imports from files or public HTTP(S) URLs, owner-only browser
-  import/export workflows, and curated render-theme previews. Remaining work is
-  focused on import previews, update-in-place semantics, broader real-world
+  import/export workflows, preview-before-create for browser file uploads, and
+  curated render-theme previews. Remaining work is focused on URL import
+  previews (needs staged source bytes), update-in-place semantics, broader real-world
   fixture coverage, optional GitHub/Gist registry publishing or mirroring
   workflows, stronger renderer isolation, and the later trusted
   same-installation round-trip phase with provenance signing, canonicalization,

@@ -389,3 +389,35 @@ editable-form#about [contenteditable="true"] {
     /* Avoid about title deforming blue border box because its too big */
     padding: var(--s-2);
 }
+
+/* JSON Resume file-import preview */
+
+.import-preview {
+    border: var(--border-thin) solid var(--font-color);
+    border-radius: var(--s-2);
+    padding: var(--s-1);
+    overflow-wrap: anywhere;
+}
+
+.import-preview-stale {
+    opacity: 0.5;
+}
+
+.import-preview-facts {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: var(--s-3) var(--s-1);
+    margin: 0;
+}
+
+.import-preview-facts dd {
+    margin: 0;
+}
+
+.import-preview-muted {
+    font-size: var(--s-1);
+}
+
+.import-preview-confirm {
+    font-weight: 300;
+}

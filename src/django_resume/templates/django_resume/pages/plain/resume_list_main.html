@@ -88,7 +88,70 @@
         {% endif %}
       </div>
     {% endif %}
+    {% if import_preview %}
+      {% with plan=import_preview.plan report=import_preview.report %}
+        <section id="json-resume-import-preview" class="stack import-preview" aria-labelledby="json-resume-import-preview-heading">
+          <h4 id="json-resume-import-preview-heading">Preview of the new resume</h4>
+          <p>Nothing has been created yet. Review the result below, then confirm with <strong>Create new resume</strong>.</p>
+          <dl class="import-preview-facts">
+            <dt>Name</dt><dd>{{ plan.name }}</dd>
+            <dt>Slug</dt><dd>{{ plan.slug }} <span class="import-preview-muted">(free right now; not reserved until created)</span></dd>
+            <dt>Owner</dt><dd>{{ import_preview.owner_name }}</dd>
+            <dt>Source</dt><dd>uploaded file {{ import_preview.file_name }} ({{ import_preview.file_size }} bytes, SHA-256 {{ import_preview.input_digest|slice:":12" }}…)</dd>
+            <dt>Mode</dt><dd>{% if import_preview.portable_only %}Standard JSON Resume fields only{% else %}Restore django-resume plugin data when present (default){% endif %}</dd>
+            <dt>Validation</dt><dd>Valid against the pinned JSON Resume v1.0.0 schema</dd>
+          </dl>
+          <h5>Planned content</h5>
+          {% if import_preview.outline %}
+            <ul>
+              {% for entry in import_preview.outline %}
+                <li>{{ entry.name }}: {% if entry.items is not None %}{{ entry.items }} item{{ entry.items|pluralize }}, {% endif %}{{ entry.fields }} field{{ entry.fields|pluralize }}</li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p>No plugin data would be created.</p>
+          {% endif %}
+          {% if report.mapped_plugins %}
+            <p>Mapped plugins: {{ report.mapped_plugins|join:", " }}.</p>
+          {% endif %}
+          {% if report.restored_plugins %}
+            <p>Restored plugins: {{ report.restored_plugins|join:", " }}. The private envelope replaces portable adapter mapping; it is restored structurally and not verified.</p>
+          {% endif %}
+          {% if plan.unmapped_sections %}
+            <p>Source sections not imported into editable plugins: {{ plan.unmapped_sections|join:", " }}.</p>
+          {% endif %}
+          {% if report.omitted_plugins %}
+            <details>
+              <summary>Omitted plugins</summary>
+              <ul>
+                {% for plugin_name, reason in report.omitted_plugins.items %}
+                  <li>{{ plugin_name }}: {{ reason }}</li>
+                {% endfor %}
+              </ul>
+            </details>
+          {% endif %}
+          <h5>Warnings and loss notes</h5>
+          {% if report.notes %}
+            <ul>
+              {% for note in report.notes %}
+                <li>{{ note }}</li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p>None.</p>
+          {% endif %}
+          <p>
+            {% if import_preview.keeps_source_document %}
+              The parsed source document is kept so an unchanged resume re-exports it exactly; that does not undo the plugin-level loss above.
+            {% else %}
+              The source document is not kept for exact re-export in this mode.
+            {% endif %}
+          </p>
+        </section>
+      {% endwith %}
+    {% endif %}
     <form
+      id="json-resume-import-form"
       hx-post='{% url "django_resume:json-resume-import" %}'
       hx-target="#main-resumes-list"
       hx-swap="outerHTML"
@@ -96,9 +159,17 @@
       enctype="multipart/form-data"
       class="stack"
     >
+      <p class="import-preview-muted">Uploaded files are previewed before anything is created. URL imports are not previewed: <strong>Import from URL</strong> fetches and creates the resume in one step.</p>
+      {% if import_preview %}
+        <input type="hidden" name="confirmation" value="{{ import_preview.confirmation }}" data-import-confirmation/>
+        <p id="json-resume-import-confirm-hint" class="import-preview-confirm" data-import-confirm-hint>
+          To create it, select the same file again (browsers do not keep the file between requests) and press <strong>Create new resume</strong> within {{ import_preview.max_age_minutes }} minutes. Changing the file, name, slug or mode needs a new preview.
+        </p>
+        <p class="error" data-import-stale-hint hidden>The options changed after the preview. Preview again before creating.</p>
+      {% endif %}
       <span class="cluster">
         <label for="json-resume-file">JSON Resume file:</label>
-        <input id="json-resume-file" type="file" name="file" accept="application/json,.json"/>
+        <input id="json-resume-file" type="file" name="file" accept="application/json,.json"{% if import_preview %} aria-describedby="json-resume-import-confirm-hint"{% endif %}/>
       </span>
       {% for error in import_form.file.errors %}
         <p class="error">{{ error|escape }}</p>
@@ -111,6 +182,7 @@
           name="source_url"
           value="{{ import_form.source_url.value|default_if_none:'' }}"
           placeholder="https://example.com/resume.json"
+          data-import-option
         />
       </span>
       {% for error in import_form.source_url.errors %}
@@ -124,6 +196,7 @@
           name="name"
           value="{{ import_form.name.value|default_if_none:'' }}"
           placeholder="Defaults to basics.name"
+          data-import-option
         />
       </span>
       {% for error in import_form.name.errors %}
@@ -137,6 +210,7 @@
           name="slug"
           value="{{ import_form.slug.value|default_if_none:'' }}"
           placeholder="unique-slug"
+          data-import-option
         />
       </span>
       {% for error in import_form.slug.errors %}
@@ -149,18 +223,38 @@
           type="checkbox"
           name="portable_only"
           {% if import_form.portable_only.value %}checked{% endif %}
+          data-import-option
         />
       </span>
       {% for error in import_form.non_field_errors %}
         <p class="error">{{ error|escape }}</p>
       {% endfor %}
       <div class="cluster">
-        <button type="submit" class="svg-button">
-          <svg class="edit-icon-small">
-            <use href="#add"></use>
-          </svg>
-        </button>
+        <button type="submit" name="action" value="preview">Preview new resume</button>
+        {% if import_preview %}
+          <button type="submit" name="action" value="create" data-import-create>Create new resume</button>
+        {% endif %}
+        <button type="submit" name="action" value="import-url">Import from URL</button>
       </div>
     </form>
+    {% if import_preview %}
+      <script>
+        (() => {
+          const form = document.getElementById("json-resume-import-form");
+          if (!form) return;
+          const invalidate = () => {
+            form.querySelector("[data-import-confirmation]")?.remove();
+            form.querySelector("[data-import-create]")?.remove();
+            form.querySelector("[data-import-confirm-hint]")?.setAttribute("hidden", "");
+            form.querySelector("[data-import-stale-hint]")?.removeAttribute("hidden");
+            document.getElementById("json-resume-import-preview")?.classList.add("import-preview-stale");
+          };
+          form.querySelectorAll("[data-import-option]").forEach((input) => {
+            input.addEventListener("input", invalidate, { once: true });
+            input.addEventListener("change", invalidate, { once: true });
+          });
+        })();
+      </script>
+    {% endif %}
   </div>
 </main>

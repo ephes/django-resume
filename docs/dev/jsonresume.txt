@@ -1133,9 +1133,11 @@ Remaining JSON Resume import/export work:
   skill badges, treating ``skills[].name`` as a category when keywords are
   present, and importing ``work[].highlights`` as description bullet lines
   rather than long timeline badges.
-* Decide whether browser import needs an explicit preview step before creating
-  the new resume. The current create-only workflow validates and imports in one
-  POST, then reports mapped, restored, omitted, and lossy data inline.
+* Decide whether URL imports need the same preview step as file uploads. That
+  needs a private server-side staged-source contract that guarantees the
+  previewed URL bytes are the bytes created; until then URL imports fetch and
+  create in one POST. File uploads are previewed; see
+  ``Browser File-Upload Import Preview`` below.
 * Design update-in-place imports with previews, per-section confirmation,
   stable item identity, and conservative clearing semantics before allowing a
   JSON Resume document to modify an existing resume.
@@ -1329,3 +1331,63 @@ were skipped, truncated or redacted. No implementation repair or re-review
 cycles were needed. Sphinx HTML generation with ``-W`` passed after the sole
 mechanical heading-underline correction. Raw review artifacts remain local
 and ignored under ``specs/interchange-review/round1``.
+
+Browser File-Upload Import Preview
+----------------------------------
+
+Browser imports of uploaded files are previewed before a resume is created.
+URL imports are unchanged and stay outside the preview.
+
+``prepare_resume_import`` in ``formats/json_resume/importer.py`` is the single
+create-import preparation step. It runs schema validation, round-trip envelope
+validation or plugin adapter mapping, name resolution, slug/name metadata
+checks and the integration-data/source-retention projection, and returns a
+``JsonResumeImportPlan`` (planned ``plugin_data``, ``integration_data``, name,
+slug, mode and the top-level portable sections not claimed by any import
+adapter that produced plugin data)
+together with the ``ImportReport``. It does not query the database.
+``create_prepared_import`` is the only import writer: it refuses an existing
+slug, creates the resume inside a transaction and maps a unique-slug
+``IntegrityError`` race to the same error, so an existing resume is never
+overwritten. ``import_resume_document`` (management command, URL import) is
+``prepare_resume_import`` followed by ``create_prepared_import``. Because the
+existing-slug check now runs after preparation, an invalid document with an
+already-used slug reports its validation errors first.
+
+The browser flow in ``views.import_json_resume``:
+
+* ``action=preview`` with an uploaded file reads it within ``MAX_INPUT_BYTES``,
+  prepares the plan and renders it. A slug that is already used is reported
+  as a slug error; availability is not a reservation. Invalid input, adapter
+  conflicts and metadata errors render form errors and no confirmation. No
+  rows are written.
+* A valid preview returns a signed confirmation (``django.core.signing``,
+  salt ``django_resume.json_resume.import_preview.v1``, 15-minute maximum age)
+  binding the owner's primary key, the SHA-256 of the uploaded bytes, the
+  normalized slug, the caller-supplied name (empty when ``basics.name`` is
+  used), the mode (``restore`` or ``portable``) and a SHA-256 digest of the
+  canonical JSON of the plan plus report. It carries no resume bytes or plugin
+  data; the hidden field is not trusted as input.
+* ``action=create`` requires the owner to upload the same file again with the
+  confirmation. The server verifies signature and age, the owner, the input
+  digest and options, re-parses and re-prepares the file, compares the plan
+  digest and then calls ``create_prepared_import`` once. Any mismatch,
+  expiry or tampering is refused with a request to preview again. A replayed
+  confirmation is refused by the slug check.
+* An uploaded file is created only by ``action=create`` with a valid
+  confirmation; any other action with an uploaded file is refused.
+  ``action=preview`` or ``action=create`` with a URL source is refused with an
+  explanation and does not fetch the URL. URL imports (``action=import-url`` or
+  no action) keep the one-step fetch-and-create behavior.
+
+Signing confirms that this server previewed these bytes and options for this
+owner; it does not authenticate the document, and a restored
+``meta.django_resume`` envelope remains unsigned structural data. A small
+inline script withdraws the **Create new resume** button when the name, slug,
+mode or URL fields change after a preview; the server-side digest checks are
+the actual guard. Tests live in ``tests/json_resume_import_preview_test.py``
+and use synthetic documents only.
+
+The earlier static design prototype on branch
+``experiment/resume-import-preview-20261004`` is not part of this
+implementation.

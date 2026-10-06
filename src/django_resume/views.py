@@ -10,12 +10,27 @@ from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 
 from .formats.json_resume.export import export_resume
+from .formats.json_resume.import_preview import (
+    IMPORT_PREVIEW_MAX_AGE_SECONDS,
+    ImportConfirmationError,
+    ImportPreviewClaims,
+    check_confirmation_inputs,
+    check_confirmation_plan,
+    import_mode,
+    input_digest,
+    load_import_preview,
+    sign_import_preview,
+)
 from .formats.json_resume.importer import (
+    JsonResumeImport,
     JsonResumeImportError,
     MAX_INPUT_BYTES,
+    PreparedJsonResumeImport,
+    create_prepared_import,
     load_document_bytes,
     load_document_url,
     import_resume_document,
+    prepare_resume_import,
 )
 from .formats.json_resume.themes import (
     JsonResumeThemeError,
@@ -50,10 +65,6 @@ def _resume_list_context(request: HttpRequest, **extra: Any) -> dict[str, Any]:
     return context
 
 
-def _add_import_error(form: JsonResumeImportForm, error: JsonResumeImportError) -> None:
-    form.add_error(error.field or "file", str(error))
-
-
 @login_required
 @require_http_methods(["GET", "POST"])
 def resume_list(request: HttpRequest) -> HttpResponse:
@@ -82,48 +93,196 @@ def resume_list(request: HttpRequest) -> HttpResponse:
         )
 
 
+IMPORT_ACTION_PREVIEW = "preview"
+IMPORT_ACTION_CREATE = "create"
+
+
+def _read_uploaded_import(uploaded_file) -> bytes:
+    if uploaded_file.size > MAX_INPUT_BYTES:
+        raise JsonResumeImportError(
+            f"Input exceeds maximum size of {MAX_INPUT_BYTES} bytes"
+        )
+    return uploaded_file.read()
+
+
+def _prepare_uploaded_import(
+    request: HttpRequest, form: JsonResumeImportForm, data: bytes
+) -> PreparedJsonResumeImport:
+    document = load_document_bytes(data, source=form.cleaned_data["file"].name)
+    return prepare_resume_import(
+        document,
+        slug=form.cleaned_data["slug"],
+        name=form.cleaned_data["name"] or None,
+        owner=request.user,
+        restore_django_resume_data=not form.cleaned_data["portable_only"],
+    )
+
+
+def _plugin_outline(plugin_data: dict) -> list[dict[str, Any]]:
+    outline = []
+    for plugin_name, payload in sorted(plugin_data.items()):
+        items = payload.get("items") if isinstance(payload, dict) else None
+        if isinstance(items, list):
+            flat = payload.get("flat")
+            fields = len(flat) if isinstance(flat, dict) else 0
+            item_count: int | None = len(items)
+        else:
+            fields = len(payload) if isinstance(payload, dict) else 0
+            item_count = None
+        outline.append({"name": plugin_name, "fields": fields, "items": item_count})
+    return outline
+
+
+def _confirmation_options(
+    request: HttpRequest, form: JsonResumeImportForm
+) -> dict[str, str]:
+    assert request.user.is_authenticated
+    return {
+        "owner": str(request.user.pk),
+        "slug": form.cleaned_data["slug"],
+        "name": form.cleaned_data["name"] or "",
+        "mode": import_mode(portable_only=form.cleaned_data["portable_only"]),
+    }
+
+
+def _add_validation_errors(
+    form: JsonResumeImportForm, prepared: PreparedJsonResumeImport, field: str
+) -> None:
+    for error in prepared.report.validation_errors:
+        form.add_error(field, error)
+
+
+def _preview_uploaded_import(
+    request: HttpRequest, form: JsonResumeImportForm, context: dict[str, Any]
+) -> None:
+    """Render what a file-upload import would create without writing anything."""
+    uploaded_file = form.cleaned_data["file"]
+    data = _read_uploaded_import(uploaded_file)
+    prepared = _prepare_uploaded_import(request, form, data)
+    if prepared.plan is None:
+        _add_validation_errors(form, prepared, "file")
+        return
+    plan = prepared.plan
+    if Resume.objects.filter(slug=plan.slug).exists():
+        raise JsonResumeImportError(
+            f"A resume with slug {plan.slug!r} already exists", field="slug"
+        )
+    options = _confirmation_options(request, form)
+    digest = input_digest(data)
+    token = sign_import_preview(
+        ImportPreviewClaims(
+            owner=options["owner"],
+            input_digest=digest,
+            slug=options["slug"],
+            name=options["name"],
+            mode=options["mode"],
+            plan_digest=plan.digest(prepared.report),
+        )
+    )
+    context["import_preview"] = {
+        "plan": plan,
+        "report": prepared.report,
+        "outline": _plugin_outline(plan.plugin_data),
+        "owner_name": request.user.get_username(),
+        "file_name": uploaded_file.name,
+        "file_size": len(data),
+        "input_digest": digest,
+        "portable_only": form.cleaned_data["portable_only"],
+        "keeps_source_document": "source_document"
+        in plan.integration_data.get("json_resume", {}),
+        "confirmation": token,
+        "max_age_minutes": IMPORT_PREVIEW_MAX_AGE_SECONDS // 60,
+    }
+
+
+def _confirm_uploaded_import(
+    request: HttpRequest, form: JsonResumeImportForm
+) -> JsonResumeImport | None:
+    """Create a previewed file-upload import if file, options and plan still match."""
+    claims = load_import_preview(request.POST.get("confirmation", ""))
+    data = _read_uploaded_import(form.cleaned_data["file"])
+    options = _confirmation_options(request, form)
+    check_confirmation_inputs(
+        claims,
+        owner=options["owner"],
+        data_digest=input_digest(data),
+        slug=options["slug"],
+        name=options["name"],
+        mode=options["mode"],
+    )
+    prepared = _prepare_uploaded_import(request, form, data)
+    if prepared.plan is None:
+        _add_validation_errors(form, prepared, "file")
+        return None
+    check_confirmation_plan(claims, prepared.plan.digest(prepared.report))
+    return create_prepared_import(prepared, owner=request.user)
+
+
+def _import_from_url(
+    request: HttpRequest, form: JsonResumeImportForm
+) -> JsonResumeImport | None:
+    """Fetch and create in one step; URL imports are not part of the preview."""
+    document = load_document_url(form.cleaned_data["source_url"])
+    result = import_resume_document(
+        document,
+        owner=request.user,
+        slug=form.cleaned_data["slug"],
+        name=form.cleaned_data["name"] or None,
+        restore_django_resume_data=not form.cleaned_data["portable_only"],
+    )
+    if not result.report.valid:
+        for error in result.report.validation_errors:
+            form.add_error("source_url", error)
+        return None
+    return result
+
+
 @login_required
 @require_http_methods(["POST"])
 def import_json_resume(request: HttpRequest) -> HttpResponse:
-    """Import an uploaded JSON Resume document as a new owned resume."""
+    """Import a JSON Resume document as a new owned resume.
+
+    Uploaded files are previewed first (``action=preview``) and created only
+    by a later ``action=create`` request that re-uploads the same file with the
+    signed preview confirmation. URL imports fetch and create in one request.
+    """
     assert request.user.is_authenticated
     form = JsonResumeImportForm(request.POST, request.FILES)
     context = _resume_list_context(request, import_form=form)
+    action = request.POST.get("action", "")
     if form.is_valid():
-        source_error_field = (
-            "source_url" if form.cleaned_data.get("source_url") else "file"
-        )
+        result = None
         try:
-            uploaded_file = form.cleaned_data.get("file")
-            if uploaded_file is not None:
-                if uploaded_file.size > MAX_INPUT_BYTES:
+            if form.cleaned_data.get("file") is None:
+                if action in {IMPORT_ACTION_PREVIEW, IMPORT_ACTION_CREATE}:
                     raise JsonResumeImportError(
-                        f"Input exceeds maximum size of {MAX_INPUT_BYTES} bytes"
+                        "Preview is only available for uploaded files. URL "
+                        "imports are not previewed; use Import from URL to "
+                        "create the resume directly.",
+                        field="source_url",
                     )
-                document = load_document_bytes(
-                    uploaded_file.read(), source=uploaded_file.name
-                )
+                result = _import_from_url(request, form)
+            elif action == IMPORT_ACTION_PREVIEW:
+                _preview_uploaded_import(request, form, context)
+            elif action == IMPORT_ACTION_CREATE:
+                result = _confirm_uploaded_import(request, form)
             else:
-                document = load_document_url(form.cleaned_data["source_url"])
-            result = import_resume_document(
-                document,
-                owner=request.user,
-                slug=form.cleaned_data["slug"],
-                name=form.cleaned_data["name"] or None,
-                restore_django_resume_data=not form.cleaned_data["portable_only"],
-            )
+                raise ImportConfirmationError(
+                    "Preview the uploaded file before creating the resume. "
+                    "Import from URL only imports from a JSON Resume URL.",
+                    field="file",
+                )
         except JsonResumeImportError as exc:
-            _add_import_error(form, exc)
-        else:
-            if result.report.valid:
-                context = _resume_list_context(
-                    request,
-                    imported_resume=result.resume,
-                    import_report=result.report,
-                )
-            else:
-                for error in result.report.validation_errors:
-                    form.add_error(source_error_field, error)
+            form.add_error(exc.field or "file", str(exc))
+            context.pop("import_preview", None)
+        except ImportConfirmationError as exc:
+            form.add_error(exc.field, str(exc))
+        if result is not None:
+            context = _resume_list_context(
+                request,
+                imported_resume=result.resume,
+                import_report=result.report,
+            )
     return render(
         request, "django_resume/pages/plain/resume_list_main.html", context=context
     )

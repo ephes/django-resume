@@ -1,4 +1,5 @@
 import errno
+import hashlib
 import http.client
 import json
 import math
@@ -6,7 +7,7 @@ import ipaddress
 import socket
 import ssl
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, cast
 from urllib.parse import urljoin, urlparse
@@ -450,27 +451,90 @@ def _validate_resume_metadata(*, slug: str, name: str) -> None:
         )
 
 
-def import_resume_document(
+@dataclass
+class JsonResumeImportPlan:
+    slug: str
+    name: str
+    plugin_data: dict
+    integration_data: dict
+    restore_django_resume_data: bool
+    # Top-level portable sections that no created plugin data came from.
+    unmapped_sections: list[str]
+
+    def digest(self, report: ImportReport) -> str:
+        """Return a stable digest of the planned rows and the report."""
+        payload = {
+            "slug": self.slug,
+            "name": self.name,
+            "plugin_data": self.plugin_data,
+            "integration_data": self.integration_data,
+            "restore_django_resume_data": self.restore_django_resume_data,
+            "unmapped_sections": self.unmapped_sections,
+            "report": asdict(report),
+        }
+        # ASCII escapes keep lone surrogates (valid JSON escapes) encodable.
+        encoded = json.dumps(
+            payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True
+        ).encode("ascii")
+        return hashlib.sha256(encoded).hexdigest()
+
+
+@dataclass
+class PreparedJsonResumeImport:
+    """Planned create import computed without touching the database.
+
+    ``plan`` is ``None`` when the document is invalid; ``report`` then carries
+    the validation errors. Otherwise ``plan`` holds exactly the values the
+    create writer stores.
+    """
+
+    plan: JsonResumeImportPlan | None
+    report: ImportReport
+
+
+def _adapter_source_roots(registry, plugin_names: set[str]) -> set[str]:
+    """Top-level document keys claimed by the named plugins' import adapters."""
+    roots = set()
+    for plugin in registry.get_all_plugins():
+        if plugin.name not in plugin_names:
+            continue
+        get_adapters = getattr(plugin, "get_import_adapters", None)
+        adapter = get_adapters().get(FORMAT_ID) if callable(get_adapters) else None
+        for path in getattr(adapter, "source_paths", None) or ():
+            root = path.split("/")[1] if path.startswith("/") else path
+            if root:
+                roots.add(root)
+    return roots
+
+
+def _invalid_import(errors: list[str]) -> PreparedJsonResumeImport:
+    return PreparedJsonResumeImport(
+        plan=None, report=ImportReport(valid=False, validation_errors=errors)
+    )
+
+
+def prepare_resume_import(
     document: dict,
     *,
-    owner,
     slug: str,
     name: str | None = None,
+    owner=None,
     registry=None,
     restore_django_resume_data: bool = True,
-) -> JsonResumeImport:
-    """Create a new resume from a JSON Resume document."""
+) -> PreparedJsonResumeImport:
+    """Plan a create import of a JSON Resume document without database access.
+
+    Validates the document, resolves the round-trip envelope or plugin adapter
+    mappings, the resume name and the integration data, and returns the plan
+    plus the import report. It never creates a resume and does not check slug
+    availability; ``create_prepared_import`` does that at creation time.
+    Raises ``JsonResumeImportError`` for adapter conflicts and invalid
+    slug/name metadata.
+    """
     registry = registry or plugin_registry
     errors = validate_document(document)
     if errors:
-        return JsonResumeImport(
-            resume=None,
-            report=ImportReport(valid=False, validation_errors=errors),
-        )
-    if Resume.objects.filter(slug=slug).exists():
-        raise JsonResumeImportError(
-            f"A resume with slug {slug!r} already exists", field="slug"
-        )
+        return _invalid_import(errors)
 
     django_resume_meta_value = get_pointer(document, "/meta/django_resume", None)
     if django_resume_meta_value is None:
@@ -478,27 +542,24 @@ def import_resume_document(
     elif isinstance(django_resume_meta_value, dict):
         django_resume_meta = django_resume_meta_value
     else:
-        return JsonResumeImport(
-            resume=None,
-            report=ImportReport(
-                valid=False,
-                validation_errors=["meta.django_resume must be an object"],
-            ),
-        )
+        return _invalid_import(["meta.django_resume must be an object"])
     restored_plugin_data = django_resume_meta.get("plugin_data")
+    portable_sections = sorted(set(document) - {"$schema", "meta"})
     if restore_django_resume_data and "plugin_data" in django_resume_meta:
         envelope_errors = _validate_restored_plugin_data(restored_plugin_data)
         if envelope_errors:
-            return JsonResumeImport(
-                resume=None,
-                report=ImportReport(valid=False, validation_errors=envelope_errors),
-            )
+            return _invalid_import(envelope_errors)
         restored_plugin_data = cast(dict, restored_plugin_data)
         plugin_data = deepcopy(restored_plugin_data)
         report = _report_restored_plugin_data(plugin_data)
         report.notes.append("restored plugin data from meta.django_resume.plugin_data")
+        unmapped_sections = portable_sections
     else:
         plugin_data, report = _collect_adapter_plugin_data(document, registry)
+        source_roots = _adapter_source_roots(registry, set(report.mapped_plugins))
+        unmapped_sections = [
+            section for section in portable_sections if section not in source_roots
+        ]
 
     resume_name = name or get_pointer(document, "/basics/name", "") or slug
     _validate_resume_metadata(slug=slug, name=resume_name)
@@ -535,20 +596,69 @@ def import_resume_document(
         )
         report.notes.append("stored meta.django_resume.preserved_extensions")
 
+    return PreparedJsonResumeImport(
+        plan=JsonResumeImportPlan(
+            slug=slug,
+            name=resume_name,
+            plugin_data=plugin_data,
+            integration_data=integration_data,
+            restore_django_resume_data=restore_django_resume_data,
+            unmapped_sections=unmapped_sections,
+        ),
+        report=report,
+    )
+
+
+def create_prepared_import(
+    prepared: PreparedJsonResumeImport, *, owner
+) -> JsonResumeImport:
+    """Create the new resume for a prepared import; the sole import writer.
+
+    Refuses an existing slug, and maps a unique-slug race at insert time to the
+    same error, so an existing resume is never overwritten.
+    """
+    plan = prepared.plan
+    if plan is None:
+        return JsonResumeImport(resume=None, report=prepared.report)
+    if Resume.objects.filter(slug=plan.slug).exists():
+        raise JsonResumeImportError(
+            f"A resume with slug {plan.slug!r} already exists", field="slug"
+        )
     try:
         with transaction.atomic():
             resume = Resume.objects.create(
-                name=resume_name,
-                slug=slug,
+                name=plan.name,
+                slug=plan.slug,
                 owner=owner,
-                plugin_data=plugin_data,
-                integration_data=integration_data,
+                plugin_data=plan.plugin_data,
+                integration_data=plan.integration_data,
             )
     except IntegrityError as exc:
         raise JsonResumeImportError(
-            f"A resume with slug {slug!r} already exists", field="slug"
+            f"A resume with slug {plan.slug!r} already exists", field="slug"
         ) from exc
-    return JsonResumeImport(resume=resume, report=report)
+    return JsonResumeImport(resume=resume, report=prepared.report)
+
+
+def import_resume_document(
+    document: dict,
+    *,
+    owner,
+    slug: str,
+    name: str | None = None,
+    registry=None,
+    restore_django_resume_data: bool = True,
+) -> JsonResumeImport:
+    """Create a new resume from a JSON Resume document."""
+    prepared = prepare_resume_import(
+        document,
+        slug=slug,
+        name=name,
+        owner=owner,
+        registry=registry,
+        restore_django_resume_data=restore_django_resume_data,
+    )
+    return create_prepared_import(prepared, owner=owner)
 
 
 def import_resume_file(

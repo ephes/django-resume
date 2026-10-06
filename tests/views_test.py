@@ -25,6 +25,26 @@ def json_resume_upload(document, *, name="resume.json"):
     )
 
 
+def preview_and_create_upload(client, document, **options):
+    """Preview an upload, then confirm it by re-uploading the same bytes."""
+    data = document if isinstance(document, bytes) else json.dumps(document).encode()
+    import_url = reverse("resume:json-resume-import")
+
+    def upload():
+        return SimpleUploadedFile("resume.json", data, content_type="application/json")
+
+    preview = client.post(
+        import_url, {"file": upload(), "action": "preview", **options}
+    )
+    assert preview.status_code == 200
+    assert "import_preview" in preview.context, preview.context["import_form"].errors
+    token = preview.context["import_preview"]["confirmation"]
+    return client.post(
+        import_url,
+        {"file": upload(), "action": "create", "confirmation": token, **options},
+    )
+
+
 @pytest.mark.django_db
 def test_get_resume_list_view(client, resume):
     # Given a resume in the database
@@ -115,14 +135,10 @@ def test_import_json_resume_view_creates_resume(client, django_user_model):
     user = django_user_model.objects.create_user(username="test", password="test")
     client.login(username="test", password="test")
 
-    response = client.post(
-        reverse("resume:json-resume-import"),
-        {
-            "file": json_resume_upload(
-                {"basics": {"name": "Browser Jane", "email": "jane@example.com"}}
-            ),
-            "slug": "browser-jane",
-        },
+    response = preview_and_create_upload(
+        client,
+        {"basics": {"name": "Browser Jane", "email": "jane@example.com"}},
+        slug="browser-jane",
     )
 
     assert response.status_code == 200
@@ -215,23 +231,17 @@ def test_import_json_resume_view_restores_round_trip_plugin_data(
     django_user_model.objects.create_user(username="test", password="test")
     client.login(username="test", password="test")
 
-    response = client.post(
-        reverse("resume:json-resume-import"),
+    response = preview_and_create_upload(
+        client,
         {
-            "file": json_resume_upload(
-                {
-                    "basics": {"name": "Round Trip Jane"},
-                    "meta": {
-                        "django_resume": {
-                            "plugin_data": {
-                                "token": {"flat": {"token_required": False}}
-                            }
-                        }
-                    },
+            "basics": {"name": "Round Trip Jane"},
+            "meta": {
+                "django_resume": {
+                    "plugin_data": {"token": {"flat": {"token_required": False}}}
                 }
-            ),
-            "slug": "round-trip-jane",
+            },
         },
+        slug="round-trip-jane",
     )
 
     assert response.status_code == 200
@@ -248,24 +258,18 @@ def test_import_json_resume_view_portable_only_ignores_round_trip_plugin_data(
     django_user_model.objects.create_user(username="test", password="test")
     client.login(username="test", password="test")
 
-    response = client.post(
-        reverse("resume:json-resume-import"),
+    response = preview_and_create_upload(
+        client,
         {
-            "file": json_resume_upload(
-                {
-                    "basics": {"name": "Portable Jane"},
-                    "meta": {
-                        "django_resume": {
-                            "plugin_data": {
-                                "token": {"flat": {"token_required": False}}
-                            }
-                        }
-                    },
+            "basics": {"name": "Portable Jane"},
+            "meta": {
+                "django_resume": {
+                    "plugin_data": {"token": {"flat": {"token_required": False}}}
                 }
-            ),
-            "slug": "portable-jane",
-            "portable_only": "on",
+            },
         },
+        slug="portable-jane",
+        portable_only="on",
     )
 
     assert response.status_code == 200
@@ -285,6 +289,7 @@ def test_import_json_resume_view_surfaces_duplicate_slug(client, django_user_mod
         reverse("resume:json-resume-import"),
         {
             "file": json_resume_upload({"basics": {"name": "Browser Jane"}}),
+            "action": "preview",
             "slug": "existing",
         },
     )
@@ -305,7 +310,7 @@ def test_import_json_resume_view_surfaces_invalid_json(client, django_user_model
 
     response = client.post(
         reverse("resume:json-resume-import"),
-        {"file": upload, "slug": "invalid-json"},
+        {"file": upload, "slug": "invalid-json", "action": "preview"},
     )
 
     assert response.status_code == 200
@@ -325,7 +330,7 @@ def test_import_json_resume_view_rejects_oversize_before_reading(
 
     response = client.post(
         reverse("resume:json-resume-import"),
-        {"file": upload, "slug": "oversize-json"},
+        {"file": upload, "slug": "oversize-json", "action": "preview"},
     )
 
     assert response.status_code == 200
@@ -345,6 +350,7 @@ def test_import_json_resume_view_attaches_imported_name_errors_to_name_field(
         reverse("resume:json-resume-import"),
         {
             "file": json_resume_upload({"basics": {"name": "J" * 256}}),
+            "action": "preview",
             "slug": "overlong-imported-name",
         },
     )
@@ -367,6 +373,7 @@ def test_import_json_resume_view_surfaces_schema_errors(client, django_user_mode
             "file": json_resume_upload(
                 {"basics": {"name": "Browser Jane"}, "work": "not an array"}
             ),
+            "action": "preview",
             "slug": "schema-error",
         },
     )
@@ -704,7 +711,7 @@ def test_import_json_resume_upload_rejects_nonfinite_metadata(
     )
     response = client.post(
         reverse("resume:json-resume-import"),
-        {"file": upload, "slug": "nonfinite-upload"},
+        {"file": upload, "slug": "nonfinite-upload", "action": "preview"},
     )
     assert response.status_code == 200
     assert "Non-finite JSON number" in response.content.decode()

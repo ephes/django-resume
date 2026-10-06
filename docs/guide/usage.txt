@@ -199,6 +199,22 @@ The browser import matches the management command's create-only behavior. It
 validates the incoming document against the pinned JSON Resume v1.0.0 schema,
 rejects duplicate JSON object keys, requires a globally unique slug, and reports
 mapped, restored, omitted, or lossy plugin data after a successful import.
+
+Uploaded files are previewed before anything is created. **Preview new resume**
+shows the planned name, slug, mode, plugin content, omitted plugins, source
+sections that do not map into editable plugins, and every warning or loss
+note, without writing to the database. To create the resume, select the same
+file again (browsers do not keep a chosen file between requests) and press
+**Create new resume** within 15 minutes. The server re-reads and re-plans the
+file and creates the resume only if the file bytes, name, slug, mode and
+planned result still match the preview; otherwise it asks for a new preview.
+Changing the name, slug, mode or URL fields after a preview withdraws the
+**Create new resume** button. A preview does not reserve the slug: if another
+resume takes it first, creation is refused and the existing resume is left
+unchanged.
+
+URL imports are not previewed. **Import from URL** fetches the document and
+creates the resume in one step, as before, and reports the mapping afterwards.
 By default, a django-resume round-trip export restores
 ``meta.django_resume.plugin_data`` so application-private fields can survive a
 backup or migration. Select **Standard JSON Resume fields only** to ignore that

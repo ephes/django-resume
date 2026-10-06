@@ -14,6 +14,18 @@ Fixes
 
 Features
 ^^^^^^^^
+* Preview browser JSON Resume file uploads before creating the resume.
+  **Preview new resume** shows the planned name, slug, mode, plugin content,
+  omitted plugins, unmapped source sections and all warnings and loss notes
+  without writing to the database. **Create new resume** then requires
+  selecting the same file again; a short-lived signed confirmation binds the
+  owner, file digest, slug, name, mode and planned result, and creation is
+  refused if any of them changed, the preview expired, or the slug was taken
+  in the meantime. Uploaded files are no longer created without a preview.
+  URL imports are not previewed and still create in one step. Internally,
+  ``prepare_resume_import`` now plans every create import without database
+  access and ``create_prepared_import`` is the single writer. See
+  :doc:`guide/usage`.
 * Add a ``export_json_resume`` management command that exports a resume to a
   JSON Resume v1.0.0 document, validated against a pinned copy of the upstream
   schema. Plugins map their data through plugin-owned JSON Resume adapters built
