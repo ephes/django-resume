@@ -37,6 +37,32 @@ theme package name, an exact version, display metadata, preview image metadata,
 and a boolean ``enabled`` value. Disabled entries can be shown as unavailable
 but cannot be previewed or selected.
 
+``DJANGO_RESUME_JSON_RESUME_ALLOW_CATALOG_THEME_INSTALL``
+=========================================================
+
+Default: ``False``
+
+When ``True``, a resume owner's **Preview render** or **Use render theme** click
+installs the pinned catalog package (and the pinned ``resumed`` renderer) into
+``DJANGO_RESUME_JSON_RESUME_THEME_DIR`` by running ``npm install`` on the
+server. When ``False``, those views never run npm: they work only for catalog
+themes whose pinned version is already installed in the cache and answer
+``403`` otherwise. Operators install themes ahead of time with
+``python manage.py install_json_resume_catalog_themes [KEY ...]``.
+
+Every install passes ``--ignore-scripts``, so npm lifecycle scripts of themes
+and their dependencies do not run. Rendering a theme still executes its
+JavaScript on the server.
+
+``DJANGO_RESUME_JSON_RESUME_RESUMED_VERSION``
+=============================================
+
+Default: ``"7.0.0"`` (``django_resume.formats.json_resume.themes.RESUMED_VERSION``)
+
+Exact version of the ``resumed`` renderer installed next to JSON Resume themes.
+Ranges and tags such as ``latest`` are rejected. ``resumed`` 7 requires Node.js
+24 or newer; set ``"6.1.0"`` on hosts with an older Node.js.
+
 ``DJANGO_RESUME_JSON_RESUME_ALLOW_DYNAMIC_THEME_INSTALL``
 =========================================================
 

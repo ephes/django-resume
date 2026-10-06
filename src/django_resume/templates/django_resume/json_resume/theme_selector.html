@@ -28,6 +28,9 @@
     <section class="stack">
       <h2>Render theme catalog</h2>
       <label for="theme-filter">Filter render theme catalog</label>
+      {% if not allow_catalog_install %}
+        <p class="theme-install-note">Installing catalog themes from the browser is disabled on this site. Only themes the site operator has installed can be previewed or used.</p>
+      {% endif %}
       <input id="theme-filter" type="search" placeholder="even, colophon, stackoverflow" data-theme-filter>
       <ul class="theme-gallery" data-theme-gallery>
         {% for theme in catalog %}

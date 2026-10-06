@@ -412,8 +412,13 @@ with ``DJANGO_RESUME_JSON_RESUME_RENDER_MAX_BYTES``. Theme catalog entries map
 stable local keys to package names, exact versions, display metadata, preview
 images, registry preview URLs, and enabled/disabled state. A checked-in default
 catalog provides an initial curated list, and deployments can replace it with
-``DJANGO_RESUME_JSON_RESUME_THEME_CATALOG``. Catalog preview and selection may
-install the pinned package lazily into the cache; dynamic owner-triggered npm
+``DJANGO_RESUME_JSON_RESUME_THEME_CATALOG``. Operators install catalog themes
+with ``manage.py install_json_resume_catalog_themes``; catalog preview and
+selection install the pinned package lazily only when
+``DJANGO_RESUME_JSON_RESUME_ALLOW_CATALOG_THEME_INSTALL`` is enabled, and
+otherwise require the pinned version to be in the cache already. Every install
+pins ``resumed`` (``DJANGO_RESUME_JSON_RESUME_RESUMED_VERSION``) and passes
+``--ignore-scripts``. Dynamic owner-triggered npm
 search/install is hidden and rejected unless
 ``DJANGO_RESUME_JSON_RESUME_ALLOW_DYNAMIC_THEME_INSTALL`` is explicitly enabled.
 Deployments that need tighter supply-chain control should install from a

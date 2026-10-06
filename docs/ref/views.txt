@@ -198,8 +198,15 @@ reference):
      :class:`~django_resume.plugins.TokenPlugin`) before rendering. If the token
      plugin is registered and the check fails, it short-circuits with a 403
      rendered from ``cv_403.html``.
-   - ``finalize_response`` sets ``Referrer-Policy: no-referrer`` when the resume
-     requires a token, on both the rendered page and the 403 response.
+   - When the resume requires a token, only the resume owner and staff users
+     pass without one; other logged-in users need a valid token like
+     anonymous visitors. An invalid token, including one with non-ASCII
+     characters, is rejected with 403 (previously a non-ASCII token caused a
+     500). CVs that do not require a token stay public.
+   - ``finalize_response`` sets ``Referrer-Policy: no-referrer``,
+     ``Cache-Control: private, no-store`` and ``X-Robots-Tag: noindex`` when
+     the resume requires a token, on both the rendered page and the 403
+     response.
 
    **Example**::
 

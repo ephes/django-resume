@@ -33,6 +33,11 @@ This is the list of built-in plugins that come with django-resume:
   ``editorial``, see :doc:`themes`) and the optional resume language.
 - **Timeline**: A timeline of your work experience.
 - **Tokens**: A token that you can use to access parts of the resume that are protected.
+  When a token is required, only the resume owner and staff users can open
+  the CV without one; any other visitor, logged in or not, needs a valid
+  ``?token=`` link. The token-gated CV and its 403 page are sent with
+  ``Cache-Control: private, no-store``, ``X-Robots-Tag: noindex`` and
+  ``Referrer-Policy: no-referrer``.
 
 Text Formatting
 ---------------
@@ -154,8 +159,15 @@ cache.
 Theme packages execute JavaScript during rendering. Only authenticated owners
 can preview, select, or render themes through these views, but catalog packages
 should still be treated as trusted local code chosen by the site operator.
-Preview and **Use render theme** may run ``npm install`` for the pinned catalog
-package into django-resume's configured local theme cache. Rendering itself uses
+By default, Preview and **Use render theme** only work for catalog themes the
+site operator has installed with
+``python manage.py install_json_resume_catalog_themes``; owners cannot make the
+server run ``npm install``. Operators who accept owner-triggered installs of the
+pinned catalog packages can set
+``DJANGO_RESUME_JSON_RESUME_ALLOW_CATALOG_THEME_INSTALL = True``. Installs pin
+the ``resumed`` renderer to an exact version and pass ``--ignore-scripts``, so
+npm lifecycle scripts do not run, but rendering still executes theme JavaScript
+on the server. Rendering itself uses
 the local cache and does not fetch schemas, renderers, or themes from the
 network. django-resume does not install themes for anonymous visitors, and
 public CV pages or token-protected CV links do not imply permission to install

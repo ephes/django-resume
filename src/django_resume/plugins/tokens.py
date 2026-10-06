@@ -183,9 +183,26 @@ class TokenPlugin(ListPlugin):
         )
 
     @staticmethod
-    def check_permissions(request: HttpRequest, plugin_data: dict) -> None:
+    def user_can_bypass_token(request: HttpRequest, resume: Resume | None) -> bool:
+        """Return whether the requesting user may read the CV without a token.
+
+        Only the resume owner and staff users skip the token check. Other
+        logged-in accounts need a valid token like anonymous visitors. Without
+        a ``resume`` the owner is unknown, so only staff users skip the check.
+        """
+        user = getattr(request, "user", None)
+        if user is None or not user.is_authenticated:
+            return False
+        if user.is_staff:
+            return True
+        return resume is not None and user.pk is not None and resume.owner_id == user.pk
+
+    @staticmethod
+    def check_permissions(
+        request: HttpRequest, plugin_data: dict, resume: Resume | None = None
+    ) -> None:
         token_required = TokenPlugin.token_is_required(plugin_data)
-        if not token_required or request.user.is_authenticated:
+        if not token_required or TokenPlugin.user_can_bypass_token(request, resume):
             return None
         form = TokenViaGetForm(request.GET)
         if not form.is_valid():
@@ -203,7 +220,11 @@ class TokenPlugin(ListPlugin):
             stored_token = item.get("token")
             if not isinstance(stored_token, str):
                 continue
-            token_matches = hmac.compare_digest(token, stored_token)
+            # Compare bytes: compare_digest raises TypeError for str values
+            # with non-ASCII characters, which would turn a bad token into a 500.
+            token_matches = hmac.compare_digest(
+                token.encode("utf-8"), stored_token.encode("utf-8")
+            )
             token_is_unexpired = not is_token_expired(item, now=now, ttl=ttl)
             matched_token |= token_matches
             matched_unexpired_token |= token_matches & token_is_unexpired
@@ -223,5 +244,16 @@ class TokenPlugin(ListPlugin):
         edit: bool = False,
         theme: str = "plain",
     ) -> dict:
-        self.check_permissions(request, plugin_data)
+        # Only load the resume when its owner decides the outcome: a logged-in
+        # non-staff user on a token-gated resume.
+        resume = None
+        user = getattr(request, "user", None)
+        if (
+            TokenPlugin.token_is_required(plugin_data)
+            and user is not None
+            and user.is_authenticated
+            and not user.is_staff
+        ):
+            resume = Resume.objects.filter(pk=resume_pk).first()
+        self.check_permissions(request, plugin_data, resume)
         return {}

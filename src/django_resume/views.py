@@ -33,9 +33,13 @@ from .formats.json_resume.importer import (
     prepare_resume_import,
 )
 from .formats.json_resume.themes import (
+    CatalogThemeNotInstalled,
     JsonResumeThemeError,
+    ThemeCatalogEntry,
     UnknownThemeCatalogKey,
     catalog_theme,
+    catalog_theme_install_allowed,
+    catalog_theme_installed,
     dynamic_theme_install_allowed,
     install_catalog_theme,
     install_theme,
@@ -359,6 +363,7 @@ def json_resume_theme_selector(request: HttpRequest, slug: str) -> HttpResponse:
             "selected_theme": selected_theme_name(resume),
             "selected_catalog_key": selected_catalog_theme_key(resume),
             "allow_dynamic_install": allow_dynamic_install,
+            "allow_catalog_install": catalog_theme_install_allowed(),
             "error": error,
             "is_editable": True,
         },
@@ -396,6 +401,7 @@ def install_json_resume_theme(request: HttpRequest, slug: str) -> HttpResponse:
                 "selected_theme": selected_theme_name(resume),
                 "selected_catalog_key": selected_catalog_theme_key(resume),
                 "allow_dynamic_install": True,
+                "allow_catalog_install": catalog_theme_install_allowed(),
                 "error": str(exc),
                 "is_editable": True,
             },
@@ -405,6 +411,22 @@ def install_json_resume_theme(request: HttpRequest, slug: str) -> HttpResponse:
     if query:
         url = f"{url}?{urlencode({'q': query})}"
     return redirect(url)
+
+
+def _ensure_catalog_theme(entry: ThemeCatalogEntry) -> None:
+    """Install a pinned catalog theme, or require it to be installed already.
+
+    Installing runs ``npm install`` on the server, so owners may only trigger
+    it when ``DJANGO_RESUME_JSON_RESUME_ALLOW_CATALOG_THEME_INSTALL`` is on.
+    Otherwise only themes the operator has installed can be previewed or used.
+    """
+    if catalog_theme_install_allowed():
+        install_catalog_theme(entry.key)
+    elif not catalog_theme_installed(entry):
+        raise CatalogThemeNotInstalled(
+            f"The {entry.display_name} theme is not installed on this site, "
+            "and installing catalog themes from the browser is disabled."
+        )
 
 
 @login_required
@@ -418,10 +440,16 @@ def preview_json_resume_catalog_theme(
         return HttpResponse(status=404)
     try:
         entry = catalog_theme(key)
-        install_catalog_theme(entry.key)
+        _ensure_catalog_theme(entry)
         rendered = render_catalog_theme(resume, entry.key)
     except UnknownThemeCatalogKey as exc:
         raise Http404 from exc
+    except CatalogThemeNotInstalled as exc:
+        return HttpResponse(
+            str(exc),
+            content_type="text/plain; charset=utf-8",
+            status=403,
+        )
     except JsonResumeThemeError as exc:
         return HttpResponse(
             str(exc),
@@ -442,11 +470,12 @@ def use_json_resume_catalog_theme(
         return HttpResponse(status=404)
     try:
         entry = catalog_theme(key)
-        install_catalog_theme(entry.key)
+        _ensure_catalog_theme(entry)
         set_selected_catalog_theme(resume, entry.key)
     except UnknownThemeCatalogKey as exc:
         raise Http404 from exc
     except JsonResumeThemeError as exc:
+        status = 403 if isinstance(exc, CatalogThemeNotInstalled) else 400
         return render(
             request,
             "django_resume/json_resume/theme_selector.html",
@@ -458,10 +487,11 @@ def use_json_resume_catalog_theme(
                 "selected_theme": selected_theme_name(resume),
                 "selected_catalog_key": selected_catalog_theme_key(resume),
                 "allow_dynamic_install": dynamic_theme_install_allowed(),
+                "allow_catalog_install": catalog_theme_install_allowed(),
                 "error": str(exc),
                 "is_editable": True,
             },
-            status=400,
+            status=status,
         )
     return redirect("django_resume:json-resume-themes", slug=resume.slug)
 
