@@ -46,6 +46,11 @@ Run the full local validation suite with:
 
     $ just check
 
+GitHub Actions (``.github/workflows/ci.yml``) runs the same checks in
+check-only mode (``ruff check``, ``ruff format --check``, mypy, pytest with
+coverage) plus ``npx vitest run`` on every push and pull request. The
+Playwright e2e tests are not part of CI.
+
 Line Count Overview
 -------------------
 

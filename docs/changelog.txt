@@ -197,6 +197,12 @@ Fixes
   inline e2e tests no longer need a development server on ``localhost:8000``
   or a prepared user, and uploads go to ``e2e_tests/media/``.
 
+Development
+^^^^^^^^^^^
+* Add GitHub Actions CI (``.github/workflows/ci.yml``) that runs Ruff lint and
+  format checks, mypy, the pytest suite with coverage and the vitest suite on
+  every push and pull request. The Playwright e2e tests are not run in CI.
+
 0.3.0 - 2026-06-21
 ------------------
 
