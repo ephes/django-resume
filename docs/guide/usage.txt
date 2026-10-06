@@ -199,6 +199,11 @@ The browser import matches the management command's create-only behavior. It
 validates the incoming document against the pinned JSON Resume v1.0.0 schema,
 rejects duplicate JSON object keys, requires a globally unique slug, and reports
 mapped, restored, omitted, or lossy plugin data after a successful import.
+Empty-string dates such as ``"endDate": ""`` are treated as absent, profiles
+that only give a ``username`` get a link when the network makes it
+unambiguous, repeated skill keywords become one badge, and item fields without
+a django-resume field are listed in the report. Third-party ``meta`` keys
+such as ``meta.theme`` are kept in later exports.
 
 Uploaded files are previewed before anything is created. **Preview new resume**
 shows the planned name, slug, mode, plugin content, omitted plugins, source

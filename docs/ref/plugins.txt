@@ -128,20 +128,39 @@ snapshot in resume integration state. If a later export sees the same projection
 and the same plugin data, it re-emits the parsed source document so unsupported
 standard fields owned by no bundled plugin are not lost during an unchanged
 import/export check. Once plugin data changes, export uses the current plugin
-adapters and the normal django-resume extension envelope.
+adapters and the normal django-resume extension envelope. Third-party ``meta``
+keys such as ``meta.theme`` are stored at import under
+``integration_data["json_resume"]["meta_extensions"]`` and written back to
+``meta`` on such edited exports. The schema's per-document ``meta.canonical``,
+``meta.version`` and ``meta.lastModified`` are re-exported only with the
+unchanged source document.
+
+Before validation, empty-string item dates such as ``"endDate": ""`` (which
+editors write for ongoing positions) are treated as absent and reported, so
+they do not reject the whole document. Non-empty invalid dates are still
+rejected.
 
 The bundled timeline import adapter maps the portable JSON Resume ``/work``
 array into ``employed_timeline`` and reports that JSON Resume does not preserve
 the django-resume freelance/employed split. Plugins that need a different
 portable split should provide their own import adapter or use
 ``meta.django_resume.plugin_data`` for exact round trips.
-Portable ``work[].highlights`` entries are imported as markdown-style bullet
-lines in the timeline description, not as django-resume timeline badges, because
-JSON Resume highlights are usually accomplishment sentences.
+Portable ``work[].highlights`` and ``projects[].highlights`` entries are
+imported as markdown-style bullet lines in the item description, not as
+django-resume badges, because JSON Resume highlights are usually
+accomplishment sentences.
 The bundled skills adapter imports ``skills[].keywords`` as skill badges and
 uses ``skills[].name`` as a fallback only when no keywords are present; in many
 JSON Resume documents ``name`` is a category label such as "Programming
-Languages" rather than a concrete skill.
+Languages" rather than a concrete skill. Badges repeated across categories are
+imported once, keeping the first spelling and position (compared
+case-insensitively after trimming), and each skipped repeat is reported.
+The identity adapter maps GitHub, LinkedIn and Mastodon profiles. A profile
+without ``url`` gets a link built from ``username`` when that is unambiguous:
+``https://github.com/<username>``, ``https://www.linkedin.com/in/<username>``,
+or, for a full Mastodon handle ``user@host``, ``https://host/@user``. A bare
+Mastodon username names no server, so it is reported instead of becoming an
+empty link. The first profile per network wins; later ones are reported.
 The bundled education adapter exports every education entry in position order
 and maps the degree to ``studyType``. On import, ``area`` is appended to the
 degree because django-resume stores a single degree field.
@@ -149,7 +168,12 @@ The awards adapter maps the project to ``summary`` and the year to ``date``.
 The languages adapter maps the note to ``fluency``; the numeric level has no
 JSON Resume field, so it is not exported and defaults to 80 on import.
 Import adapters should add report notes for any standard JSON Resume fields they
-deliberately ignore or normalize.
+deliberately ignore or normalize. The bundled adapters list the item keys they
+consume and report every other non-empty item key, including item-level ``x-*``
+extension fields, through
+``django_resume.formats.json_resume.mapping.unimported_item_fields``. Because
+``basics`` is shared by several adapters, the importer itself reports filled
+``basics`` keys that no import adapter's ``source_paths`` claim.
 
 Usage Example
 =============

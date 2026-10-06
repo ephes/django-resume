@@ -5,6 +5,9 @@ from django import forms
 from .base import SimplePlugin
 from ..interchange.pointer import get_pointer
 from ..interchange.protocols import AdapterExport, AdapterImport
+from ..formats.json_resume.mapping import unimported_item_fields
+
+SKILL_IMPORTED_KEYS = ("name", "level", "keywords")
 
 
 class SkillsForm(forms.Form):
@@ -38,13 +41,18 @@ class SkillsJsonResumeAdapter:
     def import_data(self, document: dict) -> AdapterImport:
         skills = get_pointer(document, "/skills", []) or []
         notes = []
-        badges = []
+        candidates: list[tuple[str, str]] = []
         for item in skills:
             if not isinstance(item, dict):
                 continue
             name = item.get("name") or "(unnamed skill)"
             if item.get("level"):
                 notes.append(f"skills entry {name!r} level is not imported")
+            notes.extend(
+                unimported_item_fields(
+                    f"skills entry {name!r}", item, SKILL_IMPORTED_KEYS
+                )
+            )
             keywords = item.get("keywords")
             if isinstance(keywords, list):
                 imported_keywords = [
@@ -53,15 +61,38 @@ class SkillsJsonResumeAdapter:
                     if isinstance(keyword, str) and keyword
                 ]
                 if imported_keywords:
-                    badges.extend(imported_keywords)
+                    candidates.extend((keyword, name) for keyword in imported_keywords)
                     notes.append(f"skills entry {name!r} category name is not imported")
                     continue
-            if item.get("name"):
-                badges.append(item["name"])
+            if isinstance(item.get("name"), str) and item["name"]:
+                candidates.append((item["name"], name))
+        badges = _dedupe_badges(candidates, notes)
         return AdapterImport(
             plugin_data={"badges": badges} if badges else {},
             notes=notes,
         )
+
+
+def _dedupe_badges(candidates: list[tuple[str, str]], notes: list[str]) -> list[str]:
+    """Keep the first spelling of each badge in document order.
+
+    Badges compare case-insensitively after trimming whitespace, so a keyword
+    repeated across skill categories becomes one badge. Each skipped repeat
+    is reported with the entry it came from.
+    """
+    badges: list[str] = []
+    seen: set[str] = set()
+    for badge, source in candidates:
+        key = badge.strip().casefold()
+        if key in seen:
+            notes.append(
+                f"skills entry {source!r} keyword {badge!r} duplicates an "
+                "earlier skill badge; imported once"
+            )
+            continue
+        seen.add(key)
+        badges.append(badge)
+    return badges
 
 
 class SkillsPlugin(SimplePlugin):

@@ -9,6 +9,21 @@ from .validation import validate_document
 
 FORMAT_ID = "json_resume"
 DJANGO_RESUME_META_VERSION = 1
+# Schema-defined ``meta`` keys that describe one concrete document (its
+# location, version and modification time). They go stale once the resume is
+# edited, so only third-party ``meta`` keys are carried over to new exports.
+SOURCE_DOCUMENT_META_KEYS = frozenset({"canonical", "lastModified", "version"})
+
+
+def third_party_meta(meta: object) -> dict:
+    """Return the ``meta`` keys that are neither schema-defined nor ours."""
+    if not isinstance(meta, dict):
+        return {}
+    return {
+        key: deepcopy(value)
+        for key, value in meta.items()
+        if key != "django_resume" and key not in SOURCE_DOCUMENT_META_KEYS
+    }
 
 
 @dataclass
@@ -90,7 +105,16 @@ def export_resume(resume: Resume, *, registry=None) -> JsonResumeExport:
         preserved_extensions = json_resume_state.get("preserved_extensions")
         if isinstance(preserved_extensions, list):
             django_resume_meta["preserved_extensions"] = deepcopy(preserved_extensions)
-        document.setdefault("meta", {})["django_resume"] = django_resume_meta
+        meta = document.setdefault("meta", {})
+        meta_extensions = third_party_meta(json_resume_state.get("meta_extensions"))
+        for key, value in meta_extensions.items():
+            meta.setdefault(key, value)
+        if meta_extensions:
+            notes.append(
+                "re-exported third-party meta key(s) "
+                f"{', '.join(sorted(meta_extensions))} stored at import"
+            )
+        meta["django_resume"] = django_resume_meta
     errors = validate_document(document)
     report = ExportReport(
         mapped_plugins=sorted(item.plugin_name for item in resolved),

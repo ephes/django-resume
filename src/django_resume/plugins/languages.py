@@ -5,6 +5,9 @@ from django import forms
 from .base import ListPlugin, ListItemFormMixin, ListInline, ContextDict
 from ..interchange.pointer import get_pointer
 from ..interchange.protocols import AdapterExport, AdapterImport
+from ..formats.json_resume.mapping import unimported_item_fields
+
+LANGUAGE_IMPORTED_KEYS = ("language", "fluency")
 
 
 DEFAULT_LEVEL = 80
@@ -113,6 +116,11 @@ class LanguagesJsonResumeAdapter:
             name = entry.get("language", "")
             if isinstance(name, str) and name.strip():
                 named_entries.append(entry)
+                notes.extend(
+                    unimported_item_fields(
+                        f"languages entry {name!r}", entry, LANGUAGE_IMPORTED_KEYS
+                    )
+                )
             else:
                 # The item form requires a name and export skips nameless items.
                 notes.append("languages entry without a language name is not imported")

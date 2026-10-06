@@ -16,6 +16,12 @@ from ..markdown import (
 )
 from ..interchange.pointer import get_pointer
 from ..interchange.protocols import AdapterExport, AdapterImport
+from ..formats.json_resume.mapping import (
+    description_with_highlights,
+    unimported_item_fields,
+)
+
+PROJECT_IMPORTED_KEYS = ("name", "url", "description", "highlights", "keywords")
 
 
 class ProjectItemForm(ListItemFormMixin, forms.Form):
@@ -153,26 +159,44 @@ class ProjectsJsonResumeAdapter:
     def import_data(self, document: dict) -> AdapterImport:
         projects = get_pointer(document, "/projects", []) or []
         items = []
+        notes: list[str] = []
         for position, entry in enumerate(
             item for item in projects if isinstance(item, dict)
         ):
+            label = entry.get("name") or "?"
+            highlights = entry.get("highlights")
+            if isinstance(highlights, list) and any(
+                isinstance(highlight, str) and highlight for highlight in highlights
+            ):
+                notes.append(
+                    f"projects entry {label!r} highlights appended to the "
+                    "description as bullet lines"
+                )
+            notes.extend(
+                unimported_item_fields(
+                    f"projects entry {label!r}", entry, PROJECT_IMPORTED_KEYS
+                )
+            )
             items.append(
                 {
                     "id": f"json-resume-project-{position + 1}",
                     "title": entry.get("name", ""),
                     "url": entry.get("url", ""),
-                    "description": entry.get("description", ""),
+                    "description": description_with_highlights(
+                        entry.get("description", ""), highlights
+                    ),
                     "badges": entry.get("keywords", []) or [],
                     "position": position,
                 }
             )
         if not items:
-            return AdapterImport(plugin_data={})
+            return AdapterImport(plugin_data={}, notes=notes)
         return AdapterImport(
             plugin_data={"flat": {"title": "Projects"}, "items": items},
             notes=[
                 "projects.flat.title defaulted to 'Projects'; JSON Resume "
-                "projects does not include a section title"
+                "projects does not include a section title",
+                *notes,
             ],
         )
 

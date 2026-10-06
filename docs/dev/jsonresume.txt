@@ -1138,23 +1138,34 @@ Remaining JSON Resume import/export work:
   without a language name.
 * The invented fixtures in ``tests/fixtures/jsonresume/`` (sparse editor
   output, highlights-heavy work history, skill keyword variants, non-ASCII
-  text, extension fields and a round-trip envelope) exposed these remaining
-  mapping gaps, which are not fixed yet:
+  text, extension fields and a round-trip envelope) exposed mapping gaps that
+  are now handled on import:
 
-  * Item-level fields without a django-resume field are dropped without an
-    import note, for example ``projects[].highlights``, ``roles`` and dates,
-    ``education[].score`` and ``courses``, and item-level ``x-*`` fields.
-    Reporting them needs a per-adapter list of consumed item keys.
-  * Editors often write ``"endDate": ""`` for current positions. The pinned
-    schema's date pattern rejects the empty string, so the whole import is
-    refused; a pre-validation normalization that drops empty optional dates
-    and reports it would be needed to accept such documents.
-  * Profiles that only carry ``username`` for a mapped network (GitHub,
-    LinkedIn, Mastodon) import as an empty link without a note, and a second
-    profile for the same network silently replaces the first.
-  * Skill keywords repeated across categories become duplicate skill badges.
-  * Third-party ``meta`` keys such as ``meta.theme`` survive only through the
-    exact unchanged re-export; once plugin data changes they are dropped.
+  * Empty-string item dates such as ``"endDate": ""`` are dropped before
+    schema validation and reported, because every schema date is optional
+    and the pinned date pattern rejects the empty string. The stored source
+    document is the normalized one, so an unchanged re-export stays
+    schema-valid. Non-empty invalid dates still reject the document.
+  * Item-level fields without a django-resume field (for example
+    ``projects[].roles`` and dates, ``education[].score`` and ``courses``,
+    and item-level ``x-*`` fields) are reported per item.
+    ``projects[].highlights`` are kept as description bullet lines, like
+    ``work[].highlights``.
+  * Username-only GitHub, LinkedIn and full-handle Mastodon profiles get a
+    built link; bare Mastodon usernames and usernames that are not plain
+    handles are reported. Later profiles for an already mapped network are
+    reported instead of replacing the first.
+  * Skill keywords repeated across categories are imported once.
+  * Third-party ``meta`` keys are stored as
+    ``integration_data["json_resume"]["meta_extensions"]`` and written back
+    to ``meta`` on edited exports. They stay outside
+    ``meta.django_resume.preserved_extensions`` because ``meta`` accepts
+    additional properties, so they can return to their original location.
+    ``meta.canonical``, ``version`` and ``lastModified`` describe the source
+    document and are re-exported only while the resume is unchanged.
+
+  Item-level unknown fields are still only reported, not preserved; restoring
+  them at their item needs the stable item identity listed below.
 * Decide whether URL imports need the same preview step as file uploads. That
   needs a private server-side staged-source contract that guarantees the
   previewed URL bytes are the bytes created; until then URL imports fetch and

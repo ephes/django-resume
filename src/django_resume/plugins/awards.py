@@ -5,7 +5,10 @@ from django import forms
 from .base import ListPlugin, ListItemFormMixin, ListInline, ContextDict
 from ..interchange.pointer import get_pointer
 from ..interchange.protocols import AdapterExport, AdapterImport
+from ..formats.json_resume.mapping import unimported_item_fields
 from ..formats.json_resume.dates import is_valid_resume_date
+
+AWARD_IMPORTED_KEYS = ("title", "date", "awarder", "summary")
 
 
 class AwardsItemForm(ListItemFormMixin, forms.Form):
@@ -109,6 +112,11 @@ class AwardsJsonResumeAdapter:
             title = entry.get("title", "")
             if entry.get("awarder"):
                 notes.append(f"awards entry {title!r} awarder is not imported")
+            notes.extend(
+                unimported_item_fields(
+                    f"awards entry {title or '?'!r}", entry, AWARD_IMPORTED_KEYS
+                )
+            )
             items.append(
                 {
                     "id": f"json-resume-award-{position + 1}",
@@ -119,7 +127,7 @@ class AwardsJsonResumeAdapter:
                 }
             )
         if not items:
-            return AdapterImport(plugin_data={})
+            return AdapterImport(plugin_data={}, notes=notes)
         return AdapterImport(
             plugin_data={"flat": {"title": "Awards"}, "items": items}, notes=notes
         )

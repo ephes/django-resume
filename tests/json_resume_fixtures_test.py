@@ -117,7 +117,14 @@ def test_adapter_projection_is_schema_valid_and_a_portable_fixpoint(user, name):
     assert validate_document(stored_projection) == []
 
     exported = projected_export(first.resume)
-    assert portable_document(exported.document) == stored_projection
+    # Third-party meta keys are carried over beside the adapter projection.
+    meta_extensions = first.resume.integration_data["json_resume"].get(
+        "meta_extensions"
+    )
+    expected = dict(stored_projection)
+    if meta_extensions:
+        expected["meta"] = meta_extensions
+    assert portable_document(exported.document) == expected
 
     second = import_fixture_document(
         portable_document(exported.document), user, slug_for(name, "-again")
@@ -216,16 +223,25 @@ def test_highlights_heavy_document_maps_bullets_dates_and_long_text(user):
         "2022-02-28",
         "2016-08",
     ]
-    # Item-level project fields without a django-resume field are dropped
-    # without a note; see "Remaining Work" in docs/dev/jsonresume.txt.
+    # Project highlights become description bullets; fields without a
+    # django-resume field are reported.
     assert projection["projects"] == [
         {
             "name": "toy-router",
             "url": "https://toy.example",
-            "description": "A routing toy.",
+            "description": ("A routing toy.\n\n- Featured in an imaginary newsletter"),
             "keywords": ["Rust", "graphs"],
         }
     ]
+    notes = notes_of(result.report)
+    assert (
+        "projects entry 'toy-router' highlights appended to the description "
+        "as bullet lines" in notes
+    )
+    assert (
+        "projects entry 'toy-router' field(s) roles, startDate not imported; "
+        "no django-resume field" in notes
+    )
 
 
 @pytest.mark.django_db
@@ -236,7 +252,8 @@ def test_skills_variants_document_flattens_keywords_and_reports_lossy_fields(use
 
     # Keywords win over category names, empty keywords are skipped, a category
     # with an empty keyword list falls back to its name, and nameless entries
-    # without keywords are dropped. Duplicates across categories are kept.
+    # without keywords are dropped. Duplicates across categories are imported
+    # once, at their first position.
     assert plugin_data["skills"]["badges"] == [
         "Python",
         "Django",
@@ -245,7 +262,6 @@ def test_skills_variants_document_flattens_keywords_and_reports_lossy_fields(use
         "Testing",
         "Docker",
         "Kubernetes",
-        "Docker",
         "Terraform",
     ]
     assert [item["name"] for item in plugin_data["languages"]["items"]] == [
@@ -263,6 +279,10 @@ def test_skills_variants_document_flattens_keywords_and_reports_lossy_fields(use
     assert "skills entry '(unnamed skill)' level is not imported" in notes
     assert "languages entry without a language name is not imported" in notes
     assert "languages levels defaulted to 80" in notes
+    assert (
+        "skills entry 'Cloud' keyword 'Docker' duplicates an earlier skill "
+        "badge; imported once" in notes
+    )
 
     projection = projected_export(result.resume).document
     assert projection["languages"] == [
@@ -351,11 +371,17 @@ def test_extensions_envelope_restores_plugin_data_and_preserved_extensions(user)
         == envelope["preserved_extensions"]
     )
     assert projection["basics"]["summary"] == envelope["plugin_data"]["about"]["text"]
-    # Third-party meta keys and item-level x- fields are not re-exported.
-    assert set(projection["meta"]) == {"django_resume"}
+    # Third-party meta keys survive an edited (projected) export; the
+    # schema's per-document meta keys and item-level x- fields do not.
+    assert projection["meta"]["theme"] == "even"
+    assert projection["meta"]["x-editor"] == {"name": "Invented Editor", "build": 42}
+    assert set(projection["meta"]) == {"theme", "x-editor", "django_resume"}
     assert "x-pronunciation" not in projection["basics"]
     notes = notes_of(projected_export(result.resume).report)
     assert "identity.pronouns has no JSON Resume mapping; not exported" in notes
+    assert "re-exported third-party meta key(s) theme, x-editor stored at import" in (
+        notes
+    )
 
 
 @pytest.mark.django_db
@@ -422,20 +448,53 @@ def test_browser_preview_and_confirm_creates_fixture_resume(client, user, name):
 
 
 @pytest.mark.django_db
-def test_editor_empty_end_date_is_rejected_by_the_pinned_schema(user):
+def test_editor_empty_end_date_is_imported_as_absent(user):
     """Some editors write ``"endDate": ""`` for current positions.
 
-    The pinned schema's date pattern rejects the empty string, so the import is
-    refused as a whole; see "Remaining Work" in docs/dev/jsonresume.txt.
+    The pinned schema's date pattern rejects the empty string; import treats
+    the empty optional date as absent and reports it instead of refusing the
+    whole document.
     """
     user.save()
     document = load_fixture("sparse_editor")
     document["work"][0]["endDate"] = ""
+    document["work"][0]["startDate"] = " "
+    original = json.loads(json.dumps(document))
 
+    prepared = prepare_resume_import(document, slug="empty-end-date")
     result = import_resume_document(document, owner=user, slug="empty-end-date")
 
-    assert result.resume is None
-    assert any("work/0/endDate" in error for error in result.report.validation_errors)
+    assert document == original
+    assert result.resume is not None, result.report.validation_errors
+    assert prepared.plan is not None
+    assert result.resume.plugin_data == prepared.plan.plugin_data
+    assert result.report == prepared.report
+    [work] = result.resume.plugin_data["employed_timeline"]["items"]
+    assert (work["start"], work["end"]) == ("", "")
+    assert result.report.notes[:2] == [
+        "work[0].endDate is an empty string; treated as absent",
+        "work[0].startDate is an empty string; treated as absent",
+    ]
+    exported = export_resume(result.resume)
+    assert exported.report.valid, exported.report.validation_errors
+    assert "endDate" not in exported.document["work"][0]
+    stored = result.resume.integration_data["json_resume"]["source_document"]
+    assert "endDate" not in stored["work"][0]
+
+
+@pytest.mark.django_db
+def test_non_empty_invalid_date_is_still_rejected(user):
+    document = load_fixture("sparse_editor")
+    document["work"][0]["endDate"] = "present"
+    document["projects"] = [{"name": "x", "endDate": ""}]
+
+    prepared = prepare_resume_import(document, slug="present-end-date")
+
+    assert prepared.plan is None
+    assert any("work/0/endDate" in error for error in prepared.report.validation_errors)
+    assert prepared.report.notes == [
+        "projects[0].endDate is an empty string; treated as absent"
+    ]
 
 
 def test_identity_location_address_wins_over_other_location_fields():
@@ -479,3 +538,183 @@ def test_languages_import_reports_only_nameless_entries():
         "languages entry without a language name is not imported",
         "languages entry without a language name is not imported",
     ]
+
+
+def test_username_only_profiles_build_links_only_when_unambiguous():
+    document = load_fixture("unicode_international")
+    document["basics"]["profiles"] = [
+        {"network": "GitHub", "username": "zoe-example"},
+        {"network": "LinkedIn", "username": "zoe-a"},
+        {"network": "Mastodon", "username": "zoe"},
+        {"network": "mastodon", "username": "@zoe@Social.Example"},
+        {"network": "GitHub", "url": "https://github.example/second"},
+        {"network": "LinkedIn", "username": "not a handle"},
+        {"network": "Mastodon", "url": "", "username": ""},
+        {"network": "Xing", "username": "zoe_a"},
+    ]
+
+    result = IdentityJsonResumeAdapter().import_data(document)
+
+    identity = result.plugin_data
+    assert identity["github"] == "https://github.com/zoe-example"
+    assert identity["linkedin"] == "https://www.linkedin.com/in/zoe-a"
+    assert identity["mastodon"] == "https://social.example/@zoe"
+    assert [note for note in result.notes if "profiles" in note] == [
+        "basics.profiles entry 'GitHub' url built from username 'zoe-example': "
+        "https://github.com/zoe-example",
+        "basics.profiles entry 'LinkedIn' url built from username 'zoe-a': "
+        "https://www.linkedin.com/in/zoe-a",
+        "basics.profiles entry 'Mastodon' username 'zoe' could not be turned "
+        "into a link; not imported",
+        "basics.profiles entry 'mastodon' url built from username "
+        "'@zoe@Social.Example': https://social.example/@zoe",
+        "basics.profiles entry 'GitHub' 'https://github.example/second' is not "
+        "imported; the first GitHub profile is kept",
+        "basics.profiles entry 'LinkedIn' username 'not a handle' could not be "
+        "turned into a link; not imported",
+        "basics.profiles entry 'Mastodon' has no url or username",
+        "basics.profiles entry 'Xing' is not imported",
+    ]
+
+
+@pytest.mark.django_db
+def test_username_only_profile_link_round_trips_through_export(user):
+    user.save()
+    document = load_fixture("highlights_heavy")
+    del document["basics"]["profiles"][0]["url"]
+
+    result = import_fixture_document(document, user, "username-profile")
+
+    assert result.resume.plugin_data["identity"]["github"] == (
+        "https://github.com/robin-example"
+    )
+    projection = projected_export(result.resume).document
+    assert projection["basics"]["profiles"] == [
+        {"network": "GitHub", "url": "https://github.com/robin-example"}
+    ]
+
+
+def test_item_fields_without_plugin_field_are_reported():
+    unicode_notes = "\n".join(
+        prepare_resume_import(
+            load_fixture("unicode_international"),
+            slug="unicode-notes",
+            restore_django_resume_data=False,
+        ).report.notes
+    )
+    assert (
+        "education entry 'Universität Beispielstadt' field(s) courses, score "
+        "not imported; no django-resume field" in unicode_notes
+    )
+
+    envelope_notes = prepare_resume_import(
+        load_fixture("extensions_envelope"),
+        slug="envelope-notes",
+        restore_django_resume_data=False,
+    ).report.notes
+    for note in (
+        "basics field(s) x-pronunciation not imported; no django-resume field",
+        "work entry 'Extension Corp' field(s) x-django-resume, x-team-size not "
+        "imported; no django-resume field",
+        "skills entry 'Plugins' field(s) x-years not imported; no django-resume field",
+    ):
+        assert note in envelope_notes
+
+
+@pytest.mark.django_db
+def test_third_party_meta_survives_edits_and_reimport(user):
+    user.save()
+    result = import_fixture("extensions_envelope", user, restore=False)
+    state = result.resume.integration_data["json_resume"]
+    assert state["meta_extensions"] == {
+        "theme": "even",
+        "x-editor": {"name": "Invented Editor", "build": 42},
+    }
+    notes = notes_of(result.report)
+    assert "stored third-party meta key(s) theme, x-editor for re-export" in notes
+    assert (
+        "meta canonical, lastModified, version describe the source document and "
+        "are re-exported only while the resume is unchanged" in notes
+    )
+
+    result.resume.plugin_data["skills"]["badges"].append("Edited")
+    result.resume.save()
+    exported = export_resume(result.resume)
+
+    assert exported.report.valid, exported.report.validation_errors
+    meta = exported.document["meta"]
+    assert set(meta) == {"theme", "x-editor", "django_resume"}
+    portable = portable_document(exported.document)
+    again = import_fixture_document(portable, user, "envelope-meta-again")
+    assert (
+        again.resume.integration_data["json_resume"]["meta_extensions"]
+        == (state["meta_extensions"])
+    )
+
+
+def test_basics_and_profile_extras_are_reported_without_identity_fields():
+    notes = prepare_resume_import(
+        {
+            "basics": {"summary": "Biography", "x-pronunciation": "Example"},
+        },
+        slug="basics-extras",
+        restore_django_resume_data=False,
+    ).report.notes
+    assert "basics field(s) x-pronunciation not imported; no django-resume field" in (
+        notes
+    )
+
+    result = IdentityJsonResumeAdapter().import_data(
+        {
+            "basics": {
+                "profiles": [
+                    {
+                        "network": "GitHub",
+                        "url": "https://github.example/x",
+                        "x-label": "Code",
+                    }
+                ]
+            }
+        }
+    )
+    assert result.notes == [
+        "basics.profiles entry 'GitHub' field(s) x-label not imported; "
+        "no django-resume field"
+    ]
+
+
+def test_adapter_claiming_all_of_basics_gets_no_basics_loss_notes():
+    from django_resume.interchange.protocols import AdapterImport
+
+    class _Adapter:
+        source_paths = ("/basics",)
+
+        def import_data(self, document):
+            basics = document["basics"]
+            return AdapterImport(
+                plugin_data={"name": basics["name"], "email": basics["email"]}
+            )
+
+    class _Plugin:
+        name = "whole_basics"
+
+        def get_import_adapters(self):
+            return {"json_resume": _Adapter()}
+
+    class _Registry:
+        @staticmethod
+        def get_all_plugins():
+            return [_Plugin()]
+
+    prepared = prepare_resume_import(
+        {"basics": {"name": "Jo Invented", "email": "jo@example.org"}},
+        slug="whole-basics",
+        registry=_Registry(),
+        restore_django_resume_data=False,
+    )
+
+    assert prepared.plan is not None
+    assert prepared.plan.plugin_data == {
+        "whole_basics": {"name": "Jo Invented", "email": "jo@example.org"}
+    }
+    assert not [note for note in prepared.report.notes if "basics field" in note]

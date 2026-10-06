@@ -27,7 +27,9 @@ from ...interchange.pointer import get_pointer, has_pointer
 from ...interchange.report import ImportReport
 from ...models import Resume
 from ...plugins import plugin_registry
-from .validation import validate_document
+from .export import SOURCE_DOCUMENT_META_KEYS, third_party_meta
+from .mapping import unimported_item_fields
+from .validation import drop_empty_dates, validate_document
 
 FORMAT_ID = "json_resume"
 MAX_INPUT_BYTES = 2 * 1024 * 1024
@@ -392,9 +394,31 @@ def _collect_adapter_plugin_data(document: dict, registry) -> tuple[dict, Import
             report.mapped_plugins.append(plugin_name)
         else:
             report.omitted_plugins[plugin_name] = "adapter produced no plugin data"
+    report.notes.extend(_unclaimed_basics_notes(document, adapters))
     report.mapped_plugins.sort()
     report.omitted_plugins = dict(sorted(report.omitted_plugins.items()))
     return plugin_data, report
+
+
+def _unclaimed_basics_notes(document: dict, adapters: list) -> list[str]:
+    """Report filled ``basics`` keys that no import adapter claims.
+
+    ``basics`` is shared by several adapters (identity, about), so the check
+    runs here rather than in one adapter, which may not run at all.
+    """
+    basics = document.get("basics")
+    if not isinstance(basics, dict):
+        return []
+    source_paths = [
+        path for _plugin_name, adapter in adapters for path in adapter.source_paths
+    ]
+    # An adapter claiming all of ``basics`` consumes every basics key itself.
+    if "/basics" in source_paths:
+        return []
+    claimed = {
+        path.split("/")[2] for path in source_paths if path.startswith("/basics/")
+    }
+    return unimported_item_fields("basics", basics, claimed)
 
 
 def _report_restored_plugin_data(plugin_data: dict) -> ImportReport:
@@ -532,9 +556,12 @@ def prepare_resume_import(
     slug/name metadata.
     """
     registry = registry or plugin_registry
+    document, normalization_notes = drop_empty_dates(document)
     errors = validate_document(document)
     if errors:
-        return _invalid_import(errors)
+        prepared = _invalid_import(errors)
+        prepared.report.notes.extend(normalization_notes)
+        return prepared
 
     django_resume_meta_value = get_pointer(document, "/meta/django_resume", None)
     if django_resume_meta_value is None:
@@ -561,6 +588,7 @@ def prepare_resume_import(
             section for section in portable_sections if section not in source_roots
         ]
 
+    report.notes[:0] = normalization_notes
     resume_name = name or get_pointer(document, "/basics/name", "") or slug
     _validate_resume_metadata(slug=slug, name=resume_name)
     json_resume_state: dict[str, Any] = {"source_plugin_data": deepcopy(plugin_data)}
@@ -589,6 +617,24 @@ def prepare_resume_import(
                 "stored source JSON Resume document for exact re-export while mapped "
                 "projection and plugin data remain unchanged"
             )
+    meta = document.get("meta")
+    meta_extensions = third_party_meta(meta)
+    if meta_extensions:
+        integration_data["json_resume"]["meta_extensions"] = meta_extensions
+        report.notes.append(
+            "stored third-party meta key(s) "
+            f"{', '.join(sorted(meta_extensions))} for re-export"
+        )
+    stale_meta_keys = sorted(
+        key
+        for key in SOURCE_DOCUMENT_META_KEYS
+        if isinstance(meta, dict) and key in meta
+    )
+    if stale_meta_keys:
+        report.notes.append(
+            f"meta {', '.join(stale_meta_keys)} describe the source document and "
+            "are re-exported only while the resume is unchanged"
+        )
     preserved_extensions = django_resume_meta.get("preserved_extensions")
     if isinstance(preserved_extensions, list):
         integration_data["json_resume"]["preserved_extensions"] = deepcopy(

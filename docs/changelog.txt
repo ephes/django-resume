@@ -7,6 +7,22 @@ Unreleased
 
 Fixes
 ^^^^^
+* Accept JSON Resume documents with empty-string item dates such as
+  ``"endDate": ""``: the empty optional date is treated as absent and
+  reported instead of rejecting the whole import.
+* Build GitHub, LinkedIn and full-handle Mastodon profile links from
+  ``username`` when a JSON Resume profile has no ``url``; report usernames that
+  cannot become a link, and keep the first profile per network instead of
+  silently replacing it with a later one.
+* Import skill keywords repeated across JSON Resume skill categories as one
+  badge and report the repeats.
+* Report JSON Resume item fields that have no django-resume field (such as
+  project roles and dates, education score and courses, item-level ``x-*``
+  fields) in the import report, and keep ``projects[].highlights`` as
+  description bullet lines.
+* Keep third-party JSON Resume ``meta`` keys such as ``meta.theme`` in exports
+  after the imported resume is edited. Previously they survived only an
+  unchanged re-export.
 * Import JSON Resume ``basics.location`` into the identity location name.
   ``address`` is used when present, which makes django-resume's own export
   round-trip; otherwise ``city``, ``region`` and ``countryCode`` are joined by

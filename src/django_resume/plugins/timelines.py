@@ -23,21 +23,20 @@ from ..markdown import (
 from ..interchange.pointer import get_pointer
 from ..interchange.protocols import AdapterExport, AdapterImport
 from ..formats.json_resume.dates import is_valid_resume_date
+from ..formats.json_resume.mapping import (
+    description_with_highlights,
+    unimported_item_fields,
+)
 
-
-def _work_description(summary: object, highlights: object) -> str:
-    parts = []
-    if isinstance(summary, str) and summary:
-        parts.append(summary)
-    if isinstance(highlights, list):
-        bullet_lines = [
-            "- " + highlight.replace("\n", " ")
-            for highlight in highlights
-            if isinstance(highlight, str) and highlight
-        ]
-        if bullet_lines:
-            parts.append("\n".join(bullet_lines))
-    return "\n\n".join(parts)
+WORK_IMPORTED_KEYS = (
+    "name",
+    "url",
+    "position",
+    "summary",
+    "highlights",
+    "startDate",
+    "endDate",
+)
 
 
 class TimelineJsonResumeAdapter:
@@ -85,16 +84,24 @@ class TimelineJsonResumeAdapter:
     def import_data(self, document: dict) -> AdapterImport:
         work = get_pointer(document, "/work", []) or []
         items = []
+        notes: list[str] = []
         for position, entry in enumerate(
             item for item in work if isinstance(item, dict)
         ):
+            notes.extend(
+                unimported_item_fields(
+                    f"work entry {entry.get('name') or '?'!r}",
+                    entry,
+                    WORK_IMPORTED_KEYS,
+                )
+            )
             items.append(
                 {
                     "id": f"json-resume-work-{position + 1}",
                     "company_name": entry.get("name", ""),
                     "company_url": entry.get("url", ""),
                     "role": entry.get("position", ""),
-                    "description": _work_description(
+                    "description": description_with_highlights(
                         entry.get("summary", ""),
                         entry.get("highlights", []),
                     ),
@@ -105,12 +112,13 @@ class TimelineJsonResumeAdapter:
                 }
             )
         if not items:
-            return AdapterImport(plugin_data={})
+            return AdapterImport(plugin_data={}, notes=notes)
         return AdapterImport(
             plugin_data={"flat": {"title": "Work Experience"}, "items": items},
             notes=[
                 "JSON Resume /work imported into employed_timeline; portable "
-                "JSON Resume cannot distinguish freelance and employed timelines"
+                "JSON Resume cannot distinguish freelance and employed timelines",
+                *notes,
             ],
         )
 

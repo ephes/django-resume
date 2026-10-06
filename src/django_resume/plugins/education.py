@@ -5,8 +5,18 @@ from django import forms
 from .base import ListPlugin, ListItemFormMixin, ListInline, ListData, ContextDict
 from ..interchange.pointer import get_pointer
 from ..interchange.protocols import AdapterExport, AdapterImport
+from ..formats.json_resume.mapping import unimported_item_fields
 from ..formats.json_resume.dates import is_valid_resume_date
 from ..models import Resume
+
+EDUCATION_IMPORTED_KEYS = (
+    "institution",
+    "url",
+    "area",
+    "studyType",
+    "startDate",
+    "endDate",
+)
 
 
 LEGACY_EDUCATION_FIELDS = ("school_name", "school_url", "start", "end")
@@ -156,6 +166,13 @@ class EducationJsonResumeAdapter:
         for position, entry in enumerate(
             item for item in education if isinstance(item, dict)
         ):
+            notes.extend(
+                unimported_item_fields(
+                    f"education entry {entry.get('institution') or '?'!r}",
+                    entry,
+                    EDUCATION_IMPORTED_KEYS,
+                )
+            )
             degree = entry.get("studyType", "")
             area = entry.get("area", "")
             if area:
@@ -176,7 +193,7 @@ class EducationJsonResumeAdapter:
                 }
             )
         if not items:
-            return AdapterImport(plugin_data={})
+            return AdapterImport(plugin_data={}, notes=notes)
         return AdapterImport(
             plugin_data={"flat": {"title": "Education"}, "items": items},
             notes=notes,

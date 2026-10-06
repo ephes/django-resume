@@ -1,3 +1,5 @@
+import re
+
 from django import forms
 from django.core.files.storage import default_storage
 from django.http import HttpRequest
@@ -7,6 +9,7 @@ from ..images import ImageFormMixin
 from ..markdown import safe_link_url
 from ..interchange.pointer import get_pointer
 from ..interchange.protocols import AdapterExport, AdapterImport
+from ..formats.json_resume.mapping import unimported_item_fields
 
 
 LINK_FIELDS = ("location_url", "github", "linkedin", "mastodon", "website")
@@ -179,23 +182,105 @@ class IdentityJsonResumeAdapter:
         for profile in basics.get("profiles", []) or []:
             if not isinstance(profile, dict):
                 continue
-            network = str(profile.get("network", "")).lower()
-            url = profile.get("url", "")
-            if network == "github":
-                plugin_data["github"] = url
-            elif network == "linkedin":
-                plugin_data["linkedin"] = url
-            elif network == "mastodon":
-                plugin_data["mastodon"] = url
-            else:
+            network = str(profile.get("network", "")).strip().lower()
+            if network not in _PROFILE_URL_BUILDERS:
                 label = profile.get("network") or profile.get("url") or "(unknown)"
                 notes.append(f"basics.profiles entry {label!r} is not imported")
+                continue
+            label = profile.get("network")
+            url, profile_notes = _import_profile_url(network, label, profile)
+            if not url:
+                notes.extend(profile_notes)
+                continue
+            if plugin_data[network]:
+                notes.append(
+                    f"basics.profiles entry {label!r} {url!r} is not imported; "
+                    f"the first {label} profile is kept"
+                )
+                continue
+            plugin_data[network] = url
+            notes.extend(profile_notes)
+            notes.extend(
+                unimported_item_fields(
+                    f"basics.profiles entry {label!r}",
+                    profile,
+                    ("network", "url", "username"),
+                )
+            )
         if basics.get("image"):
             notes.append("basics.image cannot be imported into local avatar storage")
         location_name, location_notes = _import_location(basics.get("location"))
         plugin_data["location_name"] = location_name
         notes.extend(location_notes)
         return AdapterImport(plugin_data=plugin_data, notes=notes)
+
+
+_GITHUB_USERNAME_RE = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$")
+_LINKEDIN_USERNAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{1,99}$")
+_MASTODON_HANDLE_RE = re.compile(
+    r"^@?(?P<user>[A-Za-z0-9_]+(?:[.-][A-Za-z0-9_]+)*)"
+    r"@(?P<host>[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?"
+    r"(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+)$"
+)
+
+
+def _github_url(username: str) -> str:
+    username = username.removeprefix("@")
+    if _GITHUB_USERNAME_RE.match(username):
+        return f"https://github.com/{username}"
+    return ""
+
+
+def _linkedin_url(username: str) -> str:
+    username = username.removeprefix("@")
+    if _LINKEDIN_USERNAME_RE.match(username):
+        return f"https://www.linkedin.com/in/{username}"
+    return ""
+
+
+def _mastodon_url(username: str) -> str:
+    # A bare Mastodon username does not name its server, so only a full
+    # ``user@host`` handle is unambiguous.
+    match = _MASTODON_HANDLE_RE.match(username)
+    if match:
+        return f"https://{match['host'].lower()}/@{match['user']}"
+    return ""
+
+
+# Networks with an identity link field, keyed by lower-case network name.
+_PROFILE_URL_BUILDERS = {
+    "github": _github_url,
+    "linkedin": _linkedin_url,
+    "mastodon": _mastodon_url,
+}
+
+
+def _import_profile_url(
+    network: str, label: object, profile: dict
+) -> tuple[str, list[str]]:
+    """Return the link for a mapped profile plus notes.
+
+    ``url`` wins. Without it, a link is built from ``username`` only when the
+    network's URL scheme is unambiguous; otherwise the username is reported so
+    it stays visible in the import report instead of becoming an empty link.
+    """
+    url = profile.get("url")
+    if isinstance(url, str) and url.strip():
+        return url, []
+    username = profile.get("username")
+    if not isinstance(username, str) or not username.strip():
+        return "", [f"basics.profiles entry {label!r} has no url or username"]
+    username = username.strip()
+    built = _PROFILE_URL_BUILDERS[network](username)
+    if built:
+        return built, [
+            f"basics.profiles entry {label!r} url built from username "
+            f"{username!r}: {built}"
+        ]
+    return "", [
+        f"basics.profiles entry {label!r} username {username!r} could not be "
+        "turned into a link; not imported"
+    ]
 
 
 _LOCATION_NAME_PARTS = ("city", "region", "countryCode")
