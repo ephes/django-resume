@@ -7,6 +7,12 @@ Unreleased
 
 Fixes
 ^^^^^
+* Update the development lockfile to releases that fix known advisories:
+  Django 5.2.12 → 5.2.17 and 6.0.3 → 6.0.8, anyio 4.12.1 → 4.14.2,
+  sqlparse 0.5.5 → 0.6.0, urllib3 2.6.3 → 2.8.0, requests 2.32.5 → 2.33.0,
+  idna 3.11 → 3.15, pygments 2.19.2 → 2.20.0, soupsieve 2.8.3 → 2.9,
+  click 8.3.1 → 8.3.3, pytest 9.0.2 → 9.0.3, anthropic 0.86.0 → 0.87.0 and
+  pip 26.0.1 → 26.2. The package's own requirements are unchanged.
 * Accept JSON Resume documents with empty-string item dates such as
   ``"endDate": ""``: the empty optional date is treated as absent and
   reported instead of rejecting the whole import.
