@@ -2015,6 +2015,124 @@ def test_render_json_resume_theme_view_returns_theme_html(client, user, monkeypa
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "output_kind",
+    [
+        "invalid_utf8",
+        "directory",
+        "missing",
+        "oversized",
+        "stat_error",
+        "read_error",
+        "symlink",
+        "valid",
+    ],
+)
+def test_render_json_resume_theme_output_contract(
+    client, user, tmp_path, settings, monkeypatch, output_kind
+):
+    settings.DJANGO_RESUME_JSON_RESUME_THEME_DIR = tmp_path / "themes"
+    settings.DJANGO_RESUME_JSON_RESUME_RENDER_MAX_BYTES = 64
+    target = json_resume_themes.cache_dir()
+    resumed_bin = target / "node_modules" / ".bin" / "resumed"
+    resumed_bin.parent.mkdir(parents=True)
+    resumed_bin.write_text("fake renderer", encoding="utf-8")
+    user.save()
+    resume = Resume.objects.create(
+        name="Jane",
+        slug="output-contract",
+        owner=user,
+        integration_data={
+            "json_resume": {"theme": {"package": "jsonresume-theme-even"}}
+        },
+    )
+    IdentityPlugin().data.set_data(resume, {"name": "Jane Doe"})
+    resume.save()
+    client.force_login(user)
+    output_paths = []
+    faults = []
+    original_lstat = Path.lstat
+    original_open = Path.open
+    original_stat = Path.stat
+
+    def fake_run(command, *, cwd, timeout):
+        output = Path(command[command.index("--output") + 1])
+        output_paths.append(output)
+        assert output.parent.stat().st_mode & 0o777 == 0o700
+        if output_kind == "directory":
+            output.mkdir()
+        elif output_kind == "symlink":
+            linked_html = output.parent / "linked.html"
+            linked_html.write_text("<html>Jane</html>", encoding="utf-8")
+            output.symlink_to(linked_html)
+        elif output_kind != "missing":
+            content = b"\xff" if output_kind == "invalid_utf8" else b"<html>Jane</html>"
+            if output_kind == "oversized":
+                content = b"x" * 65
+            output.write_bytes(content)
+        return json_resume_themes.subprocess.CompletedProcess(command, 0, "", "")
+
+    def failing_lstat(path, *args, **kwargs):
+        if path in output_paths:
+            faults.append("stat")
+            raise OSError("private renderer path and content")
+        return original_lstat(path, *args, **kwargs)
+
+    def failing_stat(path, *args, **kwargs):
+        if path in output_paths:
+            faults.append("stat")
+            raise OSError("private renderer path and content")
+        return original_stat(path, *args, **kwargs)
+
+    def failing_open(path, *args, **kwargs):
+        if path in output_paths and "r" in (
+            args[0] if args else kwargs.get("mode", "r")
+        ):
+            faults.append("read")
+            raise PermissionError("private renderer path and content")
+        return original_open(path, *args, **kwargs)
+
+    monkeypatch.setattr(json_resume_themes, "_run_process", fake_run)
+    if output_kind == "stat_error":
+        monkeypatch.setattr(Path, "lstat", failing_lstat)
+        monkeypatch.setattr(Path, "stat", failing_stat)
+    if output_kind == "read_error":
+        monkeypatch.setattr(Path, "open", failing_open)
+
+    response = client.get(
+        reverse("django_resume:json-resume-rendered", kwargs={"slug": resume.slug})
+    )
+
+    assert len(output_paths) == 1
+    assert not output_paths[0].parent.exists()
+    if output_kind == "valid":
+        assert response.status_code == 200
+        assert response.content == b"<html>Jane</html>"
+        assert response.headers["Cache-Control"] == "private, no-store"
+        assert "default-src 'none'" in response.headers["Content-Security-Policy"]
+        assert response.headers["X-Frame-Options"] == "SAMEORIGIN"
+    else:
+        assert response.status_code == 422
+        assert response.headers["Content-Type"] == "text/plain; charset=utf-8"
+        expected_messages = {
+            "invalid_utf8": "Theme render output could not be read as UTF-8 HTML",
+            "directory": "Theme render output must be a regular file",
+            "symlink": "Theme render output must be a regular file",
+            "missing": "Theme render did not write an HTML output file",
+            "oversized": "Theme render output exceeds maximum size of 64 bytes",
+            "stat_error": "Theme render output could not be read as UTF-8 HTML",
+            "read_error": "Theme render output could not be read as UTF-8 HTML",
+        }
+        assert response.content.decode() == expected_messages[output_kind]
+        assert len(response.content) < 200
+        assert b"private renderer" not in response.content
+        assert str(output_paths[0]).encode() not in response.content
+        assert b"Jane" not in response.content
+    if output_kind in {"stat_error", "read_error"}:
+        assert faults == ["stat" if output_kind == "stat_error" else "read"]
+
+
+@pytest.mark.django_db
 def test_render_json_resume_theme_view_can_allow_theme_scripts(
     client, user, settings, monkeypatch
 ):
