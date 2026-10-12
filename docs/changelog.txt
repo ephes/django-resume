@@ -7,6 +7,8 @@ Unreleased
 
 Fixes
 ^^^^^
+* Bound each LOC cloc invocation to 60 seconds and report timeout/startup
+  failures with exit status 1. Preserve the fallback when cloc is unavailable.
 * Return a concise 422 for missing, nonregular (including symlink), oversized,
   unreadable or invalid UTF-8 JSON Resume renderer output. Bound output reads
   and retain private temporary-file cleanup and successful HTML response headers.
