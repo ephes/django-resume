@@ -69,6 +69,16 @@ The document is written to stdout (or ``--output FILE``); an export report --
 mapped plugins, omitted plugins, dropped fields, and any omitted invalid dates --
 is written to stderr. The command exits non-zero if the document fails
 validation against the pinned JSON Resume v1.0.0 schema and writes no output.
+For ``--output FILE``, the complete UTF-8 document is written and flushed to a
+unique temporary file beside the destination before atomic replacement. Write,
+flush or replacement failures preserve an existing export and remove the
+temporary file. Published files use owner-only permissions, as exports can
+contain private plugin settings; replacement does not preserve an existing
+file's mode or group. Symlinks are followed to their target; other existing
+nonregular destinations (such as devices, directories and FIFOs) are rejected
+with a command error. Use stdout redirection for streams.
+This protects against ordinary I/O failures;
+it does not promise durability across a power loss.
 Authenticated owners can also download the same export from
 ``/<resume-prefix>/<slug>/json-resume/``. The URL returns ``application/json``
 with an attachment filename of ``<slug>.json`` and is deliberately owner-only,
