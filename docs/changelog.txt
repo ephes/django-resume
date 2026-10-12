@@ -7,6 +7,9 @@ Unreleased
 
 Fixes
 ^^^^^
+* Remove plugin data in one transaction with row locks and conditional updates.
+  Concurrent edits on SQLite cause a database conflict instead of lost data;
+  filesystem removal restores files and reports the failure.
 * Bound each LOC cloc invocation to 60 seconds and report timeout/startup
   failures with exit status 1. Preserve the fallback when cloc is unavailable.
 * Return a concise 422 for missing, nonregular (including symlink), oversized,

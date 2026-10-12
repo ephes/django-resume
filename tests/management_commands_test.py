@@ -486,3 +486,29 @@ def test_plugin_commands_restore_on_keyboard_interrupt(
         b"original 1",
         b"original 2",
     ]
+
+
+@pytest.mark.django_db
+def test_remove_reports_database_conflict_and_restores_files(
+    stored_plugin, monkeypatch
+):
+    from django.db import DatabaseError
+    from django_resume.models import ResumeManager
+
+    resume, paths = stored_plugin
+    original_data = resume.plugin_data.copy()
+    original_files = [path.read_bytes() for path in paths]
+    remove = ResumeManager.remove_plugin_data_by_name
+
+    def conflict_after_update(manager, name):
+        remove(manager, name)
+        raise DatabaseError("injected conflict")
+
+    monkeypatch.setattr(
+        ResumeManager, "remove_plugin_data_by_name", conflict_after_update
+    )
+    with pytest.raises(CommandError, match="injected conflict"):
+        call_command("remove_plugin_by_name", "safe_plugin")
+    resume.refresh_from_db()
+    assert resume.plugin_data == original_data
+    assert [path.read_bytes() for path in paths] == original_files

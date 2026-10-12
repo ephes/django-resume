@@ -103,6 +103,18 @@ Properties
 Methods
 =======
 
+.. method:: Resume.objects.remove_plugin_data_by_name(plugin_name)
+
+   Remove one plugin key from every resume in a single transaction on the
+   manager's database. Rows are locked on databases supporting row locks.
+   Conditional updates also check the original JSON document before replacing
+   it. SQLite can raise ``django.db.DatabaseError`` (including a lock or stale
+   snapshot error) when a concurrent writer wins; all removal updates roll
+   back. Retry the whole operation after the competing transaction finishes.
+   Unrelated plugin data is preserved. This protects removal against competing
+   writes; other code saving stale whole documents must provide its own
+   concurrency protection.
+
 .. method:: save(*args, **kwargs)
 
    Overridden from :meth:`django.db.models.Model.save` to ensure
