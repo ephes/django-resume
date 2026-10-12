@@ -106,7 +106,9 @@ Methods
 .. method:: Resume.objects.remove_plugin_data_by_name(plugin_name)
 
    Remove one plugin key from every resume in a single transaction on the
-   manager's database. Rows are locked on databases supporting row locks.
+   write database: the alias bound with ``db_manager()`` if any, otherwise the
+   one the database router selects for writes. Reads for the removal use that
+   same database. Rows are locked on databases supporting row locks.
    Conditional updates also check the original JSON document before replacing
    it. SQLite can raise ``django.db.DatabaseError`` (including a lock or stale
    snapshot error) when a concurrent writer wins; all removal updates roll

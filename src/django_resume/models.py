@@ -1,10 +1,12 @@
-from django.db import DatabaseError, models, transaction
+from django.db import DatabaseError, models, router, transaction
 from django.contrib.auth import get_user_model
 
 
 class ResumeManager(models.Manager["Resume"]):
     def remove_plugin_data_by_name(self, plugin_name: str) -> None:
-        database = self.db
+        # Manager.db routes for reads. Removal writes, so honor an explicitly
+        # bound alias and otherwise ask the router for the write database.
+        database = self._db or router.db_for_write(self.model)
         resumes = self.using(database)
         with transaction.atomic(using=database):
             for resume in resumes.select_for_update().only("id", "plugin_data"):

@@ -81,3 +81,57 @@ def test_conditional_update_conflict_rolls_back_all_removals(user, monkeypatch):
         Resume.objects.remove_plugin_data_by_name("about")
     assert len(attempts) == 2
     assert all(resume.plugin_data == data for resume in Resume.objects.all())
+
+
+class ReadReplicaRouter:
+    def db_for_read(self, model, **hints):
+        return "replica"
+
+    def db_for_write(self, model, **hints):
+        return "default"
+
+
+class MissingWriteRouter:
+    def db_for_read(self, model, **hints):
+        return "missing"
+
+    def db_for_write(self, model, **hints):
+        return "missing"
+
+
+@pytest.mark.django_db
+def test_removal_reads_and_writes_the_routed_write_database(user, settings):
+    user.save()
+    resume = Resume.objects.create(
+        name="Routed",
+        slug="routed",
+        owner=user,
+        plugin_data={"about": {"title": "old"}, "skills": {"items": ["keep"]}},
+    )
+    # The "replica" alias is not configured: any query routed there fails.
+    settings.DATABASE_ROUTERS = [ReadReplicaRouter()]
+    assert Resume.objects.db == "replica"
+
+    Resume.objects.remove_plugin_data_by_name("about")
+
+    settings.DATABASE_ROUTERS = []
+    resume.refresh_from_db()
+    assert resume.plugin_data == {"skills": {"items": ["keep"]}}
+
+
+@pytest.mark.django_db
+def test_removal_honors_an_explicitly_bound_manager_database(user, settings):
+    user.save()
+    resume = Resume.objects.create(
+        name="Bound",
+        slug="bound",
+        owner=user,
+        plugin_data={"about": {"title": "old"}, "skills": {"items": ["keep"]}},
+    )
+    settings.DATABASE_ROUTERS = [MissingWriteRouter()]
+
+    Resume.objects.db_manager("default").remove_plugin_data_by_name("about")
+
+    settings.DATABASE_ROUTERS = []
+    resume.refresh_from_db()
+    assert resume.plugin_data == {"skills": {"items": ["keep"]}}
