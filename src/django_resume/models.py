@@ -1,21 +1,31 @@
-from django.db import models, transaction
+from django.db import DatabaseError, models, router, transaction
 from django.contrib.auth import get_user_model
 
 
 class ResumeManager(models.Manager["Resume"]):
     def remove_plugin_data_by_name(self, plugin_name: str) -> None:
-        resumes_to_update = []
-        for resume in self.only("id", "plugin_data"):
-            if plugin_name not in resume.plugin_data:
-                continue
-            plugin_data = dict(resume.plugin_data)
-            plugin_data.pop(plugin_name, None)
-            assert plugin_name not in plugin_data
-            resume.plugin_data = plugin_data
-            resumes_to_update.append(resume)
-        if resumes_to_update:
-            with transaction.atomic():
-                self.bulk_update(resumes_to_update, ["plugin_data"])
+        # Manager.db routes for reads. Removal writes, so honor an explicitly
+        # bound alias and otherwise ask the router, with the manager's hints,
+        # for the write database.
+        hints = self._hints  # type: ignore[attr-defined]  # missing from stubs
+        database = self._db or router.db_for_write(self.model, **hints)
+        resumes = self.using(database)
+        with transaction.atomic(using=database):
+            for resume in resumes.select_for_update().only("id", "plugin_data"):
+                original = resume.plugin_data
+                if plugin_name not in original:
+                    continue
+                updated = dict(original)
+                updated.pop(plugin_name)
+                # SQLite ignores row locks. Compare the complete snapshot so
+                # even an unlocked backend cannot silently replace newer data.
+                changed = resumes.filter(pk=resume.pk, plugin_data=original).update(
+                    plugin_data=updated
+                )
+                if changed != 1:
+                    raise DatabaseError(
+                        "Resume plugin data changed during removal; retry the operation."
+                    )
 
 
 class Resume(models.Model):

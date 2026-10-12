@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from django.core.management.base import BaseCommand, CommandError
-from django.db import transaction
+from django.db import DatabaseError, transaction
 
 from ...models import Resume
 from ._file_rollback import backup_files
@@ -39,7 +39,7 @@ class Command(BaseCommand):
                     for path in paths:
                         path.unlink(missing_ok=True)
                     Resume.objects.remove_plugin_data_by_name(plugin_name)
-        except OSError as error:
+        except (OSError, DatabaseError) as error:
             raise CommandError(f"Could not remove plugin: {error}") from error
 
         self.stdout.write(
