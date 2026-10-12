@@ -251,3 +251,11 @@ adapters.
 Signed provenance and update-in-place imports remain future work in the JSON
 Resume plan. Browser import currently creates a fresh resume; it does not merge
 or replace data in an existing resume.
+
+Inline editor text
+------------------
+
+Inline saves remove structural HTML before decoding entities once. Ampersands,
+literal angle brackets and nonbreaking spaces are preserved in stored text and
+JSON Resume exports. Encoded markup is not parsed again during input cleaning;
+rendered Markdown still passes through the output sanitizer.

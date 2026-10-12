@@ -255,3 +255,27 @@ def test_markdown_to_plain_text_keeps_boundary_before_list():
     assert markdown_to_plain_text("Intro\n- one\n- two\nOutro") == (
         "Intro\none\ntwo\nOutro"
     )
+
+
+def test_editor_entities_roundtrip_through_about_form_and_export():
+    from django_resume.plugins.about import AboutForm, AboutJsonResumeAdapter
+
+    inner_html = (
+        "<div>R&amp;D &lt;3&nbsp;team</div>"
+        "<div>&lt;em&gt;literal&lt;/em&gt;<br>&amp;lt;tag&amp;gt;</div>"
+        "<div>&lt;script&gt;alert(1)&lt;/script&gt;</div>"
+    )
+    expected = (
+        "R&D <3\u00a0team\n<em>literal</em>\n&lt;tag&gt;\n<script>alert(1)</script>"
+    )
+    form = AboutForm(data={"title": "About", "text": inner_html})
+    assert form.is_valid(), form.errors
+    assert form.cleaned_data["text"] == expected
+    exported = AboutJsonResumeAdapter().export({"summary": form.cleaned_data["text"]})
+    assert exported.contributions == [("/basics/summary", expected)]
+    # The editor escapes literal markup again for the next unchanged save.
+    display = textarea_input_to_html(markdown_to_textarea_input(expected))
+    again = AboutForm(data={"title": "About", "text": display})
+    assert again.is_valid()
+    assert again.cleaned_data["text"] == expected
+    assert "<script>" not in markdown_to_html(expected)

@@ -5,6 +5,9 @@ Changelog
 Unreleased
 ----------
 
+* Decode inline editor HTML entities once after stripping structural tags,
+  preserving literal text through unchanged saves and JSON Resume exports.
+
 Fixes
 ^^^^^
 * Never render a dangerous URL scheme as a link target in the timeline,

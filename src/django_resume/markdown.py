@@ -84,6 +84,9 @@ def textarea_input_to_markdown(text: str) -> str:
     # Remove any remaining HTML tags
     content = re.sub(r"<[^>]+>", "", content)
 
+    # Decode once after stripping tags: encoded markup remains literal text.
+    content = html.unescape(content)
+
     # Fix multiple newlines (more than 2) to maximum 2 newlines
     content = re.sub(r"\n{3,}", "\n\n", content)
 
