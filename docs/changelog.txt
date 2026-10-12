@@ -7,6 +7,10 @@ Unreleased
 
 Fixes
 ^^^^^
+* Publish JSON Resume command output atomically, preserving existing exports
+  on write or replacement failure and cleaning up temporary files. Output files
+  now have owner-only permissions (0600); existing mode/group is not preserved.
+  Follow symlink targets and reject nonregular output destinations.
 * Remove newly saved image uploads when storage or plugin persistence fails,
   preserving existing image objects and database data.
 * Validate complete stdin plugin bundles and all output paths before writing.

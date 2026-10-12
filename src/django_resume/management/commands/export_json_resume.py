@@ -1,4 +1,7 @@
 import json
+import os
+from pathlib import Path
+from tempfile import NamedTemporaryFile
 
 from django.core.management.base import BaseCommand, CommandError
 
@@ -55,8 +58,26 @@ class Command(BaseCommand):
         payload = json.dumps(result.document, indent=2, ensure_ascii=False)
         output = options["output"]
         if output:
-            with open(output, "w", encoding="utf-8") as handle:
-                handle.write(payload + "\n")
+            destination = Path(output).resolve()
+            if destination.exists() and not destination.is_file():
+                raise CommandError("--output must name a regular file.")
+            temporary = None
+            try:
+                with NamedTemporaryFile(
+                    mode="w",
+                    encoding="utf-8",
+                    dir=destination.parent,
+                    prefix=f".{destination.name}.",
+                    suffix=".tmp",
+                    delete=False,
+                ) as handle:
+                    temporary = Path(handle.name)
+                    handle.write(payload + "\n")
+                    handle.flush()
+                os.replace(temporary, destination)
+            finally:
+                if temporary is not None:
+                    temporary.unlink(missing_ok=True)
             self.stderr.write(self.style.SUCCESS(f"Wrote {output}"))
         else:
             self.stdout.write(payload)
