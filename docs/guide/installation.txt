@@ -41,6 +41,13 @@ type, and stores each upload under a random name with the extension of the
 detected format (for example ``uploads/3f2a…c9.png``). SVG, HTML and other
 files are rejected, and uploads are limited to 2 MB.
 
+If an upload or the plugin database mutation fails, the editing views delete
+only uploads newly created by that operation. Existing images and plugin data
+are preserved. Storage must support deletion for compensation to succeed;
+a backend deletion failure is reported rather than silently ignored. Custom
+views using ``ImageFormMixin`` must call ``cleanup_new_image_uploads()`` if
+persistence fails after successful validation.
+
 Serve ``MEDIA_URL`` so that the content type follows the stored file extension,
 and keep ``X-Content-Type-Options: nosniff`` enabled (Django's
 ``SecurityMiddleware`` sends it by default for responses it handles; configure

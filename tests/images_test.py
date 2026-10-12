@@ -202,3 +202,140 @@ def test_upload_widget_advertises_allowed_types():
 )
 def test_detect_image_format(content, expected):
     assert detect_image_format(content) == expected
+
+
+def test_second_storage_failure_removes_first_upload(in_memory_storage, monkeypatch):
+    from django.core.files.storage import default_storage
+
+    original_save = default_storage.save
+    calls = []
+
+    def fail_second(name, content):
+        calls.append(name)
+        if len(calls) == 2:
+            raise OSError("storage unavailable")
+        return original_save(name, content)
+
+    monkeypatch.setattr(default_storage, "save", fail_second)
+    form = TwoImageForm(
+        data={},
+        files={
+            "avatar_img": SimpleUploadedFile("a.png", png_bytes(1, 1)),
+            "signature_img": SimpleUploadedFile("s.png", png_bytes(2, 2)),
+        },
+    )
+    with pytest.raises(OSError, match="storage unavailable"):
+        form.is_valid()
+    assert len(calls) == 2
+    assert stored_uploads() == []
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("surface", ["admin", "inline", "cover_admin", "cover_inline"])
+def test_failed_resume_save_preserves_old_images(
+    client, resume, in_memory_storage, monkeypatch, surface
+):
+    from django.core.files.base import ContentFile
+    from django.core.files.storage import default_storage
+    from django_resume.models import Resume
+    from django_resume.plugins import plugin_registry
+
+    resume.owner.is_staff = True
+    resume.owner.is_superuser = True
+    resume.owner.save()
+    old_bytes = png_bytes(3, 3)
+    old_path = default_storage.save("uploads/old.png", ContentFile(old_bytes))
+    is_cover = surface.startswith("cover")
+    field = "signature_img" if is_cover else "avatar_img"
+    old_data = (
+        {"cover": {"flat": {field: old_path}, "items": []}}
+        if is_cover
+        else {"identity": {"name": "Old", field: old_path}}
+    )
+    resume.plugin_data = old_data
+    resume.save()
+    client.force_login(resume.owner)
+    plugin = plugin_registry.get_plugin("cover" if is_cover else "identity")
+    urls = {
+        "admin": lambda: plugin.admin.get_change_post_url(resume.pk),
+        "inline": lambda: plugin.inline.get_post_url(resume.pk),
+        "cover_admin": lambda: plugin.admin.get_change_flat_post_url(resume.pk),
+        "cover_inline": lambda: plugin.inline.get_edit_flat_post_url(resume.pk),
+    }
+    calls = []
+
+    def fail_save(self, *args, **kwargs):
+        calls.append(self.pk)
+        raise OSError("database unavailable")
+
+    monkeypatch.setattr(Resume, "save", fail_save)
+    with pytest.raises(OSError, match="database unavailable"):
+        client.post(
+            urls[surface](),
+            {"name": "New", field: SimpleUploadedFile("new.png", png_bytes(2, 2))},
+        )
+    assert calls == [resume.pk]
+    resume.refresh_from_db()
+    assert resume.plugin_data == old_data
+    assert stored_uploads() == ["old.png"]
+    assert default_storage.open(old_path).read() == old_bytes
+
+
+@pytest.mark.django_db
+def test_admin_render_failure_keeps_committed_upload(
+    client, resume, in_memory_storage, monkeypatch
+):
+    from django_resume.plugins import plugin_registry
+    from django_resume.plugins import base
+
+    resume.owner.is_staff = True
+    resume.owner.is_superuser = True
+    resume.owner.save()
+    resume.save()
+    client.force_login(resume.owner)
+    plugin = plugin_registry.get_plugin("identity")
+
+    def fail_render(*args, **kwargs):
+        raise RuntimeError("render failed")
+
+    monkeypatch.setattr(base, "render", fail_render)
+    with pytest.raises(RuntimeError, match="render failed"):
+        client.post(
+            plugin.admin.get_change_post_url(resume.pk),
+            {
+                "name": "New",
+                "avatar_img": SimpleUploadedFile("new.png", png_bytes(2, 2)),
+            },
+        )
+    resume.refresh_from_db()
+    path = resume.plugin_data["identity"]["avatar_img"]
+    assert stored_uploads() == [path.removeprefix("uploads/")]
+
+
+def test_cleanup_attempts_every_new_object(in_memory_storage, monkeypatch):
+    from django.core.files.storage import default_storage
+
+    form = TwoImageForm(
+        data={},
+        files={
+            "avatar_img": SimpleUploadedFile("a.png", png_bytes(1, 1)),
+            "signature_img": SimpleUploadedFile("s.png", png_bytes(2, 2)),
+        },
+    )
+    assert form.is_valid()
+    first, second = form.new_image_uploads
+    original_delete = default_storage.delete
+    calls = []
+
+    def fail_first(name):
+        calls.append(name)
+        if name == first:
+            raise OSError("delete failed")
+        original_delete(name)
+
+    monkeypatch.setattr(default_storage, "delete", fail_first)
+    with pytest.raises(OSError, match="delete failed"):
+        form.cleanup_new_image_uploads()
+    assert calls == [first, second]
+    assert form.new_image_uploads == [first]
+    assert stored_uploads() == [first.removeprefix("uploads/")]

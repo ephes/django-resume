@@ -24,6 +24,7 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 
+from ..images import ImageFormMixin
 from ..models import Resume
 
 # Deleting an item changes data, so it must never be reachable via GET (Django
@@ -227,24 +228,30 @@ class SimpleAdmin(LockedResumeMutationMixin):
         Handle post requests to update the plugin data and returns either the main template or
         the form with errors.
         """
-        resume = self.get_resume_or_error(request, resume_id)
-        form = self.form_class(request.POST, request.FILES)
-        setattr(
-            form, "post_url", self.get_change_post_url(resume.pk)
-        )  # make mypy happy
-        context = {"form": form}
-        if form.is_valid():
-            if self.form_class == SimpleJsonForm:
-                # special case for the SimpleJsonForm which has a JSONField for the plugin data
-                plugin_data = form.cleaned_data["plugin_data"]
-            else:
-                plugin_data = form.cleaned_data
-            resume = self.mutate_resume_plugin_data(
-                request,
-                resume_id,
-                lambda locked_resume: self.data.update(locked_resume, plugin_data),
-            )
-            setattr(form, "post_url", self.get_change_post_url(resume.pk))
+        form = None
+        try:
+            resume = self.get_resume_or_error(request, resume_id)
+            form = self.form_class(request.POST, request.FILES)
+            setattr(
+                form, "post_url", self.get_change_post_url(resume.pk)
+            )  # make mypy happy
+            context = {"form": form}
+            if form.is_valid():
+                if self.form_class == SimpleJsonForm:
+                    # special case for the SimpleJsonForm which has a JSONField for the plugin data
+                    plugin_data = form.cleaned_data["plugin_data"]
+                else:
+                    plugin_data = form.cleaned_data
+                resume = self.mutate_resume_plugin_data(
+                    request,
+                    resume_id,
+                    lambda locked_resume: self.data.update(locked_resume, plugin_data),
+                )
+        except Exception:
+            if isinstance(form, ImageFormMixin):
+                form.cleanup_new_image_uploads()
+            raise
+        setattr(form, "post_url", self.get_change_post_url(resume.pk))
         return render(request, self.change_form, context)
 
     def get_urls(self, admin_view: Callable) -> URLPatterns:
@@ -459,34 +466,46 @@ class SimpleInline(LockedResumeMutationMixin):
         Handle post requests to update the plugin data and returns either the main template or
         the form with errors.
         """
-        with transaction.atomic():
-            resume = self.get_locked_resume_or_error(request, resume_id)
-            plugin_data = self.data.get_data(resume)
-            form_class = self.form_class
-            form = form_class(request.POST, request.FILES, initial=plugin_data)
-            setattr(form, "post_url", self.get_post_url(resume.pk))  # make mypy happy
-            context: dict[str, Any] = {"form": form}
-            if form.is_valid():
-                # update the plugin data and render the main template
-                resume = self.data.update(resume, form.cleaned_data)
-                self.save_plugin_data(resume)
-                # update the context with the new plugin data from plugin
-                updated_plugin_data = self.data.get_data(resume)
-                templates = resolve_fragment_templates(self.templates, resume, "main")
-                context[self.plugin_name] = self.get_context(
-                    # passing the theme is really important!
-                    request,
-                    updated_plugin_data,
-                    resume.pk,
-                    context=context,
-                    theme=templates.theme,
-                )
-                context["show_edit_button"] = True
-                context[self.plugin_name]["edit_url"] = self.get_edit_url(resume.pk)
-                return templates.render(request, SimpleTemplateName("main"), context)
-            # render the form again with errors
-            templates = resolve_fragment_templates(self.templates, resume, "form")
-            return templates.render(request, SimpleTemplateName("form"), context)
+        form = None
+        try:
+            with transaction.atomic():
+                resume = self.get_locked_resume_or_error(request, resume_id)
+                plugin_data = self.data.get_data(resume)
+                form_class = self.form_class
+                form = form_class(request.POST, request.FILES, initial=plugin_data)
+                setattr(
+                    form, "post_url", self.get_post_url(resume.pk)
+                )  # make mypy happy
+                context: dict[str, Any] = {"form": form}
+                if form.is_valid():
+                    # update the plugin data and render the main template
+                    resume = self.data.update(resume, form.cleaned_data)
+                    self.save_plugin_data(resume)
+                    # update the context with the new plugin data from plugin
+                    updated_plugin_data = self.data.get_data(resume)
+                    templates = resolve_fragment_templates(
+                        self.templates, resume, "main"
+                    )
+                    context[self.plugin_name] = self.get_context(
+                        # passing the theme is really important!
+                        request,
+                        updated_plugin_data,
+                        resume.pk,
+                        context=context,
+                        theme=templates.theme,
+                    )
+                    context["show_edit_button"] = True
+                    context[self.plugin_name]["edit_url"] = self.get_edit_url(resume.pk)
+                    return templates.render(
+                        request, SimpleTemplateName("main"), context
+                    )
+                # render the form again with errors
+                templates = resolve_fragment_templates(self.templates, resume, "form")
+                return templates.render(request, SimpleTemplateName("form"), context)
+        except Exception:
+            if isinstance(form, ImageFormMixin):
+                form.cleanup_new_image_uploads()
+            raise
 
     def get_urls(self) -> URLPatterns:
         """
@@ -944,19 +963,25 @@ class ListAdmin(LockedResumeMutationMixin):
 
     def post_flat_view(self, request: HttpRequest, resume_id: int) -> HttpResponse:
         """Handle post requests to update flat data."""
-        with transaction.atomic():
-            resume = self.get_locked_resume_or_error(request, resume_id)
-            form_class = self.form_classes["flat"]
-            plugin_data = self.data.get_data(resume)
-            form = form_class(
-                request.POST, request.FILES, initial=plugin_data.get("flat", {})
-            )
-            form.post_url = self.get_change_flat_post_url(resume.pk)
-            context = {"form": form}
-            if form.is_valid():
-                resume = self.data.update_flat(resume, form.cleaned_data)
-                self.save_plugin_data(resume)
-            return render(request, self.admin_flat_form_template, context)
+        form = None
+        try:
+            with transaction.atomic():
+                resume = self.get_locked_resume_or_error(request, resume_id)
+                form_class = self.form_classes["flat"]
+                plugin_data = self.data.get_data(resume)
+                form = form_class(
+                    request.POST, request.FILES, initial=plugin_data.get("flat", {})
+                )
+                form.post_url = self.get_change_flat_post_url(resume.pk)
+                context = {"form": form}
+                if form.is_valid():
+                    resume = self.data.update_flat(resume, form.cleaned_data)
+                    self.save_plugin_data(resume)
+                return render(request, self.admin_flat_form_template, context)
+        except Exception:
+            if isinstance(form, ImageFormMixin):
+                form.cleanup_new_image_uploads()
+            raise
 
     def delete_item_view(
         self, request: HttpRequest, resume_id: int, item_id: str
@@ -1098,26 +1123,36 @@ class ListInline(LockedResumeMutationMixin):
 
     def post_edit_flat_view(self, request: HttpRequest, resume_id: int) -> HttpResponse:
         """Handle post requests to update flat data."""
-        with transaction.atomic():
-            resume = self.get_locked_resume_or_error(request, resume_id)
-            flat_form_class = self.form_classes["flat"]
-            plugin_data = self.data.get_data(resume)
-            flat_form = flat_form_class(
-                request.POST, request.FILES, initial=plugin_data.get("flat", {})
-            )
-            context: dict[str, Any] = {}
-            if flat_form.is_valid():
-                resume = self.data.update_flat(resume, flat_form.cleaned_data)
-                self.save_plugin_data(resume)
+        flat_form = None
+        try:
+            with transaction.atomic():
+                resume = self.get_locked_resume_or_error(request, resume_id)
+                flat_form_class = self.form_classes["flat"]
                 plugin_data = self.data.get_data(resume)
-                context["edit_flat_url"] = self.get_edit_flat_url(resume.pk)
-                context = flat_form.set_context(plugin_data["flat"], context)
-                context["show_edit_button"] = True
-                return render(request, self.template_path(resume, "flat"), context)
-            else:
-                context["form"] = flat_form
-                context["edit_flat_post_url"] = self.get_edit_flat_post_url(resume.pk)
-                return render(request, self.template_path(resume, "flat_form"), context)
+                flat_form = flat_form_class(
+                    request.POST, request.FILES, initial=plugin_data.get("flat", {})
+                )
+                context: dict[str, Any] = {}
+                if flat_form.is_valid():
+                    resume = self.data.update_flat(resume, flat_form.cleaned_data)
+                    self.save_plugin_data(resume)
+                    plugin_data = self.data.get_data(resume)
+                    context["edit_flat_url"] = self.get_edit_flat_url(resume.pk)
+                    context = flat_form.set_context(plugin_data["flat"], context)
+                    context["show_edit_button"] = True
+                    return render(request, self.template_path(resume, "flat"), context)
+                else:
+                    context["form"] = flat_form
+                    context["edit_flat_post_url"] = self.get_edit_flat_post_url(
+                        resume.pk
+                    )
+                    return render(
+                        request, self.template_path(resume, "flat_form"), context
+                    )
+        except Exception:
+            if isinstance(flat_form, ImageFormMixin):
+                flat_form.cleanup_new_image_uploads()
+            raise
 
     def get_item_view(
         self, request: HttpRequest, resume_id: int, item_id=None
