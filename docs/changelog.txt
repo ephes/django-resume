@@ -7,6 +7,10 @@ Unreleased
 
 Fixes
 ^^^^^
+* Preserve literal ``---`` in generated and stdin-installed form templates.
+  Only a standalone final response marker after the last form section is
+  removed. Commentary after ``---``
+  is no longer discarded; remove commentary from existing bundles before use.
 * Bound each LOC cloc invocation to 60 seconds and report timeout/startup
   failures with exit status 1. Preserve the fallback when cloc is unavailable.
 * Return a concise 422 for missing, nonregular (including symlink), oversized,

@@ -6,6 +6,8 @@ from pathlib import Path
 
 from django.core.management.base import BaseCommand, CommandError
 
+from ...plugin_generator import strip_response_terminator
+
 from ._file_rollback import backup_files, cleanup_backups
 from ._path_safety import resolve_within, validate_plugin_name
 
@@ -34,7 +36,8 @@ class Command(BaseCommand):
         for name in names:
             if name not in plugin_data:
                 raise CommandError(f"Missing required section: {name}")
-        plugin_data[names[2]] = plugin_data[names[2]].split("---")[0]
+        if sections[-2].strip() == names[2]:
+            plugin_data[names[2]] = strip_response_terminator(plugin_data[names[2]])
         paths = [
             resolve_within(Path.cwd() / "core/plugins", names[0]),
             resolve_within(Path.cwd() / "templates", names[1]),

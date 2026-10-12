@@ -232,7 +232,7 @@ def plugin_bundle(omit=None):
     sections = {
         "safe_plugin.py": "print('new')",
         "django_resume/plugins/safe_plugin/plain/content.html": "<div>new</div>",
-        "django_resume/plugins/safe_plugin/plain/form.html": "<form>new</form>---explanation",
+        "django_resume/plugins/safe_plugin/plain/form.html": "<form>new</form>\n---",
     }
     return "===safe_plugin===\n" + "\n".join(
         f"==={name}===\n{source}" for name, source in sections.items() if name != omit
