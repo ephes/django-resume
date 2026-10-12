@@ -135,3 +135,32 @@ def test_removal_honors_an_explicitly_bound_manager_database(user, settings):
     settings.DATABASE_ROUTERS = []
     resume.refresh_from_db()
     assert resume.plugin_data == {"skills": {"items": ["keep"]}}
+
+
+class HintRouter:
+    def db_for_read(self, model, **hints):
+        return hints.get("tenant", "missing")
+
+    def db_for_write(self, model, **hints):
+        return hints.get("tenant", "missing")
+
+
+@pytest.mark.django_db
+def test_removal_passes_manager_hints_to_the_write_router(user, settings):
+    user.save()
+    resume = Resume.objects.create(
+        name="Hinted",
+        slug="hinted",
+        owner=user,
+        plugin_data={"about": {"title": "old"}, "skills": {"items": ["keep"]}},
+    )
+    # Without the hint the router selects an unconfigured alias and fails.
+    settings.DATABASE_ROUTERS = [HintRouter()]
+
+    Resume.objects.db_manager(hints={"tenant": "default"}).remove_plugin_data_by_name(
+        "about"
+    )
+
+    settings.DATABASE_ROUTERS = []
+    resume.refresh_from_db()
+    assert resume.plugin_data == {"skills": {"items": ["keep"]}}

@@ -5,8 +5,10 @@ from django.contrib.auth import get_user_model
 class ResumeManager(models.Manager["Resume"]):
     def remove_plugin_data_by_name(self, plugin_name: str) -> None:
         # Manager.db routes for reads. Removal writes, so honor an explicitly
-        # bound alias and otherwise ask the router for the write database.
-        database = self._db or router.db_for_write(self.model)
+        # bound alias and otherwise ask the router, with the manager's hints,
+        # for the write database.
+        hints = self._hints  # type: ignore[attr-defined]  # missing from stubs
+        database = self._db or router.db_for_write(self.model, **hints)
         resumes = self.using(database)
         with transaction.atomic(using=database):
             for resume in resumes.select_for_update().only("id", "plugin_data"):
