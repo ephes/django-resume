@@ -1,8 +1,10 @@
 from pathlib import Path
 
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
+from django.db import transaction
 
 from ...models import Resume
+from ._file_rollback import backup_files
 from ._path_safety import resolve_within, validate_plugin_name
 
 
@@ -18,25 +20,27 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         plugin_name = validate_plugin_name(options["plugin_name"])
-        Resume.objects.remove_plugin_data_by_name(plugin_name)
-
-        plugin_file_name = f"{plugin_name}.py"
-        plugin_path = resolve_within(Path.cwd() / "core" / "plugins", plugin_file_name)
-        plugin_path.unlink(missing_ok=True)
-
-        content_template_path = (
-            f"django_resume/plugins/{plugin_name}/plain/content.html"
-        )
-        real_content_template_path = resolve_within(
-            Path.cwd() / "templates", content_template_path
-        )
-        real_content_template_path.unlink(missing_ok=True)
-
-        form_template_path = f"django_resume/plugins/{plugin_name}/plain/form.html"
-        real_form_template_path = resolve_within(
-            Path.cwd() / "templates", form_template_path
-        )
-        real_form_template_path.unlink(missing_ok=True)
+        paths = [
+            resolve_within(Path.cwd() / "core/plugins", f"{plugin_name}.py"),
+            resolve_within(
+                Path.cwd() / "templates",
+                f"django_resume/plugins/{plugin_name}/plain/content.html",
+            ),
+            resolve_within(
+                Path.cwd() / "templates",
+                f"django_resume/plugins/{plugin_name}/plain/form.html",
+            ),
+        ]
+        if len(set(paths)) != len(paths):
+            raise CommandError("Plugin targets must resolve to distinct files")
+        try:
+            with backup_files(paths):
+                with transaction.atomic():
+                    for path in paths:
+                        path.unlink(missing_ok=True)
+                    Resume.objects.remove_plugin_data_by_name(plugin_name)
+        except OSError as error:
+            raise CommandError(f"Could not remove plugin: {error}") from error
 
         self.stdout.write(
             self.style.SUCCESS(

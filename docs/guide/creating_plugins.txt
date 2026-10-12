@@ -113,3 +113,43 @@ of your project code.
 
    creating_simple_plugins
    creating_list_plugins
+
+Removing filesystem plugins
+---------------------------
+
+Run ``python manage.py remove_plugin_by_name NAME`` from your project's root
+to remove ``core/plugins/NAME.py``, the plain content/form templates under
+``templates/django_resume/plugins/NAME/plain/``, and that plugin's stored data
+from every resume. Missing files are allowed. All three paths are validated
+before any changes; paths escaping their expected tree or resolving to the
+same file are rejected.
+
+The command creates sibling ``.FILENAME.backup-*`` copies before removing
+files and uses a database transaction. An ordinary file or database failure
+rolls back the data change and restores the files. Ctrl+C also triggers
+restoration. This is not a transaction
+across the filesystem and database: process termination, concurrent edits,
+or a further I/O failure during recovery can leave partial results. Run these
+commands with plugin writers stopped and keep a database backup. If restoration
+fails, the error lists affected paths and retained backup locations; restore
+those files manually before retrying. A backup cleanup warning after success
+means the operation completed but the named leftover backup needs removal.
+
+Installing filesystem plugin bundles
+------------------------------------
+
+``python manage.py create_plugin_from_stdin < bundle.txt`` intentionally
+replaces existing plugin files. The bundle begins with ``===NAME===`` and must
+contain exactly one section for each of ``===NAME.py===``,
+``===django_resume/plugins/NAME/plain/content.html===``, and
+``===django_resume/plugins/NAME/plain/form.html===``. Names use lowercase
+letters, numbers and underscores, starting with a letter. Missing, duplicate,
+unknown or malformed sections raise ``CommandError`` before output files are
+opened. Trailing form commentary after ``---`` is ignored as before.
+
+All three paths are validated and complete UTF-8 files staged beside the targets
+before replacement begins. Existing file permissions are preserved; new files
+use the usual umask-based permissions. Ordinary replacement failures restore previous files and
+remove newly installed files. Empty directories created during staging can
+remain after failure. The same crash, concurrency and recovery limitations as
+removal apply; errors identify retained backups when manual recovery is needed.
