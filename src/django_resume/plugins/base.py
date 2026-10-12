@@ -25,6 +25,7 @@ from django.core.exceptions import PermissionDenied
 from django.db import transaction
 
 from ..images import ImageFormMixin
+from ..markdown import safe_link_url
 from ..models import Resume
 
 # Deleting an item changes data, so it must never be reachable via GET (Django
@@ -1290,6 +1291,10 @@ class ListPlugin:
     template_class: type[ThemedTemplates] = ListThemedTemplates
     data_class: type[ListData] = ListData
     sort_by_reverse_position: bool = True
+    # Item fields rendered as link targets. Item data can come from JSON Resume
+    # imports, which bypass the item form's URL validation, so these fields are
+    # reduced to safe schemes before they reach a template.
+    link_fields: tuple[str, ...] = ()
 
     def __init__(self):
         super().__init__()
@@ -1356,6 +1361,10 @@ class ListPlugin:
         ordered_entries = self.items_ordered_by_position(
             plugin_data.get("items", []), reverse=self.sort_by_reverse_position
         )
+        for entry in ordered_entries:
+            for field_name in self.link_fields:
+                if field_name in entry:
+                    entry[field_name] = safe_link_url(str(entry[field_name] or ""))
         if edit:
             # if there should be edit buttons, add the edit URLs to each entry
             context["show_edit_button"] = True

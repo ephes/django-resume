@@ -7,6 +7,12 @@ Unreleased
 
 Fixes
 ^^^^^
+* Never render a dangerous URL scheme as a link target in the timeline,
+  projects and education sections. Item data from JSON Resume imports is stored
+  without the item forms' URL validation, so ``company_url``, project ``url``
+  and ``school_url`` are now reduced to ``http``, ``https`` and ``mailto``
+  links when rendered, as the identity links already were. List plugins declare
+  such fields in the new ``ListPlugin.link_fields`` attribute.
 * Preserve literal ``---`` in generated and stdin-installed form templates.
   Only a standalone final response marker after the last form section is
   removed. Commentary after ``---``

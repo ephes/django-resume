@@ -30,6 +30,12 @@ admin or inline views.
   :class:`ListThemedTemplates`.
 - **sort_by_reverse_position**: A boolean indicating whether items should be
   sorted in reverse order (by the ``"position"`` key). Defaults to ``True``.
+- **link_fields**: Names of item fields that templates render as link targets
+  (``href``). ``get_context`` empties any such value whose scheme is not
+  ``http``, ``https`` or ``mailto``, because item data can come from imports
+  that bypass the item form. Defaults to ``()``. Item forms that build their
+  own entry context in ``set_context`` should pass these values through
+  ``django_resume.markdown.safe_link_url`` as well.
 
 **Main Components:**
 
