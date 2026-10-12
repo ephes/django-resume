@@ -37,6 +37,7 @@ class ClocSummary(TypedDict):
     rows: list[ClocSummaryRow]
 
 
+CLOC_TIMEOUT_SECONDS = 60
 EXCLUDED_LANGUAGES = "JSON,Markdown"
 FALLBACK_LANGUAGE_BY_NAME = {
     "justfile": "Justfile",
@@ -180,7 +181,19 @@ def _count_with_python() -> int:
 
 def _run_cloc(command: list[str]) -> str:
     try:
-        result = subprocess.run(command, check=True, capture_output=True, text=True)
+        result = subprocess.run(
+            command,
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=CLOC_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired as exc:
+        print(f"cloc timed out after {CLOC_TIMEOUT_SECONDS} seconds.", file=sys.stderr)
+        raise SystemExit(1) from exc
+    except OSError as exc:
+        print(f"cloc could not start: {exc}", file=sys.stderr)
+        raise SystemExit(1) from exc
     except subprocess.CalledProcessError as exc:
         stderr = exc.stderr.strip()
         if stderr:
