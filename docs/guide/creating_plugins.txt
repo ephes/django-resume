@@ -125,7 +125,10 @@ before any changes; paths escaping their expected tree or resolving to the
 same file are rejected.
 
 The command creates sibling ``.FILENAME.backup-*`` copies before removing
-files and uses a database transaction. An ordinary file or database failure
+files and uses a database transaction. Resume rows are locked where supported
+and checked against their original JSON data before updating. A concurrent
+SQLite edit can abort removal with a database conflict; retry the whole command
+after that writer finishes. An ordinary file or database failure
 rolls back the data change and restores the files. Ctrl+C also triggers
 restoration. This is not a transaction
 across the filesystem and database: process termination, concurrent edits,
