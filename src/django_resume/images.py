@@ -46,7 +46,8 @@ def validate_image_upload(upload: UploadedFile) -> tuple[bytes, str, int, int]:
     """
     Check that an uploaded file really is an allowed raster image.
 
-    The client's filename and content type are ignored: the format is detected
+    Both declared and actual sizes are checked; copying stops at the limit plus
+    one byte. The client's filename and content type are ignored: the format is detected
     from the file content. Returns the file content, the extension to store it
     under, and the image width and height. Raises ``forms.ValidationError``
     for files that are too large, not an allowed image format, or unreadable.
@@ -54,9 +55,13 @@ def validate_image_upload(upload: UploadedFile) -> tuple[bytes, str, int, int]:
     if upload.size is None or upload.size > MAX_IMAGE_UPLOAD_SIZE:
         raise forms.ValidationError("Image file too large ( > 2mb )")
     upload.seek(0)
-    data = b"".join(upload.chunks())
-    if len(data) > MAX_IMAGE_UPLOAD_SIZE:
-        raise forms.ValidationError("Image file too large ( > 2mb )")
+    buffer = bytearray()
+    for chunk in upload.chunks():
+        remaining = MAX_IMAGE_UPLOAD_SIZE + 1 - len(buffer)
+        buffer.extend(chunk[:remaining])
+        if len(buffer) > MAX_IMAGE_UPLOAD_SIZE:
+            raise forms.ValidationError("Image file too large ( > 2mb )")
+    data = bytes(buffer)
     image_format = detect_image_format(data)
     if image_format is None:
         raise forms.ValidationError(
@@ -145,9 +150,11 @@ def get_image_metadata_from_bytesio(input: IO[bytes], size: int) -> tuple[int, i
             height = int(h) & 0x3FFF  # 14-bit height
         elif data[12:16] == b"VP8L":
             # WebP lossless format with VP8L chunk
-            w, h = struct.unpack("<HH", data[21:25])
-            width = (w & 0x3FFF) + 1
-            height = (h & 0x3FFF) + 1
+            if len(data) < 25 or data[20] != 0x2F:
+                raise UnknownImageFormat("Invalid or truncated WebP VP8L header")
+            dimensions = int.from_bytes(data[21:25], "little")
+            width = (dimensions & 0x3FFF) + 1
+            height = ((dimensions >> 14) & 0x3FFF) + 1
         elif data[12:16] == b"VP8X":
             # WebP extended format with VP8X chunk: 24-bit canvas width and
             # height minus one, little endian, at offsets 24 and 27
