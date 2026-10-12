@@ -339,3 +339,95 @@ def test_cleanup_attempts_every_new_object(in_memory_storage, monkeypatch):
     assert calls == [first, second]
     assert form.new_image_uploads == [first]
     assert stored_uploads() == [first.removeprefix("uploads/")]
+
+
+def webp_vp8l_bytes(width: int, height: int) -> bytes:
+    # VP8L: signature then 14-bit width-1, 14-bit height-1, alpha and version.
+    packed = (width - 1) | ((height - 1) << 14) | (1 << 28)
+    payload = b"\x2f" + struct.pack("<I", packed)
+    chunk = b"VP8L" + struct.pack("<I", len(payload)) + payload + b"\x00"
+    return b"RIFF" + struct.pack("<I", 4 + len(chunk)) + b"WEBP" + chunk
+
+
+@pytest.mark.parametrize("width,height", [(301, 199), (1, 16384), (16384, 1)])
+def test_lossless_webp_upload_and_rendered_dimensions(in_memory_storage, width, height):
+    from django.template.loader import render_to_string
+    from django_resume.images import get_image_dimensions_from_storage
+
+    upload = SimpleUploadedFile("photo.webp", webp_vp8l_bytes(width, height))
+    form = OneImageForm(data={}, files={"avatar_img": upload})
+    assert form.is_valid(), form.errors
+    data = form.cleaned_data
+    assert (data["avatar_img_width"], data["avatar_img_height"]) == (width, height)
+    assert get_image_dimensions_from_storage(data["avatar_img"]) == (width, height)
+    rendered = render_to_string(
+        "django_resume/plugins/cover/plain/flat.html", {"cover": data}
+    )
+    assert f'width="{width}"' in rendered
+    assert f'height="{height}"' in rendered
+
+
+@pytest.mark.parametrize("length", range(20, 25))
+def test_truncated_lossless_webp_is_rejected(in_memory_storage, length):
+    upload = SimpleUploadedFile("photo.webp", webp_vp8l_bytes(301, 199)[:length])
+    form = OneImageForm(data={}, files={"avatar_img": upload})
+    assert not form.is_valid()
+    assert stored_uploads() == []
+
+
+def test_lossless_webp_invalid_signature_is_rejected(in_memory_storage):
+    content = bytearray(webp_vp8l_bytes(301, 199))
+    content[20] = 0
+    form = OneImageForm(
+        data={}, files={"avatar_img": SimpleUploadedFile("photo.webp", bytes(content))}
+    )
+    assert not form.is_valid()
+    assert stored_uploads() == []
+
+
+class UnderstatedUpload(SimpleUploadedFile):
+    def __init__(self, chunks):
+        super().__init__("photo.png", b"x")
+        self.source_chunks = chunks
+        self.consumed = 0
+        self.rewinds = 0
+
+    def seek(self, *args):
+        self.rewinds += 1
+        return super().seek(*args)
+
+    def chunks(self, chunk_size=None):
+        for chunk in self.source_chunks:
+            self.consumed += 1
+            yield chunk
+
+
+def test_understated_upload_stops_copying_and_stores_nothing(in_memory_storage):
+    upload = UnderstatedUpload(
+        [png_bytes(1, 1), b"x" * MAX_IMAGE_UPLOAD_SIZE] + [b"x" * 65536] * 20
+    )
+    form = OneImageForm(data={}, files={"avatar_img": upload})
+    assert not form.is_valid()
+    assert "too large" in form.errors["avatar_img"][0]
+    assert upload.consumed == 2
+    assert upload.rewinds == 1
+    assert stored_uploads() == []
+
+
+@pytest.mark.parametrize("extra", [0, 1])
+def test_actual_upload_size_boundary(in_memory_storage, extra):
+    header = png_bytes(1, 1)
+    content = header + b"x" * (MAX_IMAGE_UPLOAD_SIZE - len(header) + extra)
+    upload = UnderstatedUpload([content[:100], content[100:]])
+    upload.seek(1)
+    form = OneImageForm(data={}, files={"avatar_img": upload})
+    assert form.is_valid() == (extra == 0)
+    if extra:
+        assert "too large" in form.errors["avatar_img"][0]
+        assert stored_uploads() == []
+    else:
+        from django.core.files.storage import default_storage
+
+        with default_storage.open(form.cleaned_data["avatar_img"]) as stored:
+            assert stored.read() == content
+        assert upload.consumed == 4  # both validation passes restart the source

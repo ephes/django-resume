@@ -39,7 +39,11 @@ Avatar and signature images are stored with Django's default storage under
 the format from the file content rather than the client's filename or content
 type, and stores each upload under a random name with the extension of the
 detected format (for example ``uploads/3f2a…c9.png``). SVG, HTML and other
-files are rejected, and uploads are limited to 2 MB.
+files are rejected, and uploads are limited to 2 MB. Lossless WebP (VP8L)
+dimensions are read from its packed header, including asymmetric images;
+truncated headers and invalid VP8L signatures are rejected. Both declared and
+actual upload sizes are checked: copying retains at most 2 MiB plus one byte
+and stops consuming chunks immediately when the limit is exceeded.
 
 If an upload or the plugin database mutation fails, the editing views delete
 only uploads newly created by that operation. Existing images and plugin data
