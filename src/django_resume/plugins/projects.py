@@ -9,6 +9,7 @@ from .base import ListPlugin, ListItemFormMixin, ListInline, ContextDict
 
 from ..markdown import (
     markdown_to_html,
+    safe_link_url,
     textarea_input_to_markdown,
     textarea_input_to_html,
     markdown_to_textarea_input,
@@ -70,7 +71,7 @@ class ProjectItemForm(ListItemFormMixin, forms.Form):
     def set_context(self, item: dict, context: ContextDict) -> ContextDict:
         context["project"] = {
             "id": item["id"],
-            "url": item["url"],
+            "url": safe_link_url(str(item["url"] or "")),
             "title": item["title"],
             "description": markdown_to_html(
                 item["description"], handlers={"link": underlined_link_handler}
@@ -208,6 +209,7 @@ class ProjectsPlugin(ListPlugin):
     inline: ListInline
     flat_form_class = ProjectFlatForm
     sort_by_reverse_position: bool = False
+    link_fields: tuple[str, ...] = ("url",)
 
     @staticmethod
     def get_form_classes() -> dict[str, Type[forms.Form]]:

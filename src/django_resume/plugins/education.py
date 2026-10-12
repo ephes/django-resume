@@ -7,6 +7,7 @@ from ..interchange.pointer import get_pointer
 from ..interchange.protocols import AdapterExport, AdapterImport
 from ..formats.json_resume.mapping import unimported_item_fields
 from ..formats.json_resume.dates import is_valid_resume_date
+from ..markdown import safe_link_url
 from ..models import Resume
 
 EDUCATION_IMPORTED_KEYS = (
@@ -78,7 +79,7 @@ class EducationItemForm(ListItemFormMixin, forms.Form):
         context["entry"] = {
             "id": item.get("id"),
             "school_name": item["school_name"],
-            "school_url": item.get("school_url", ""),
+            "school_url": safe_link_url(str(item.get("school_url") or "")),
             "degree": item.get("degree", ""),
             "start": item.get("start", ""),
             "end": item.get("end", ""),
@@ -208,6 +209,7 @@ class EducationPlugin(ListPlugin):
     inline: ListInline
     flat_form_class = EducationFlatForm
     sort_by_reverse_position: bool = False
+    link_fields: tuple[str, ...] = ("school_url",)
 
     @staticmethod
     def get_form_classes() -> dict[str, Type[forms.Form]]:

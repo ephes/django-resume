@@ -15,6 +15,7 @@ from .base import (
 
 from ..markdown import (
     markdown_to_html,
+    safe_link_url,
     textarea_input_to_markdown,
     textarea_input_to_html,
     markdown_to_textarea_input,
@@ -192,7 +193,7 @@ class TimelineItemForm(ListItemFormMixin, forms.Form):
     def set_context(self, item: dict, context: dict[str, Any]) -> dict[str, Any]:
         context["entry"] = {
             "id": item["id"],
-            "company_url": item["company_url"],
+            "company_url": safe_link_url(str(item["company_url"] or "")),
             "company_name": item["company_name"],
             "role": item["role"],
             "start": item["start"],
@@ -253,6 +254,7 @@ class TimelineMixin:
     verbose_name: str
     inline: ListInline
     template_class: type[ThemedTemplates] = TimelineThemedTemplates
+    link_fields: tuple[str, ...] = ("company_url",)
 
     @staticmethod
     def get_form_classes() -> dict[str, Type[forms.Form]]:
