@@ -7,6 +7,9 @@ Unreleased
 
 Fixes
 ^^^^^
+* Return a concise 422 for missing, nonregular (including symlink), oversized,
+  unreadable or invalid UTF-8 JSON Resume renderer output. Bound output reads
+  and retain private temporary-file cleanup and successful HTML response headers.
 * Publish JSON Resume command output atomically, preserving existing exports
   on write or replacement failure and cleaning up temporary files. Output files
   now have owner-only permissions (0600); existing mode/group is not preserved.

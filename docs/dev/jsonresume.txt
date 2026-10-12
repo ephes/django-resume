@@ -408,7 +408,14 @@ The implemented path is staged:
 The renderer configuration should be explicit and deployment-owned. The current
 implementation installs ``resumed`` and selected npm packages into
 ``DJANGO_RESUME_JSON_RESUME_THEME_DIR`` and enforces a maximum HTML output size
-with ``DJANGO_RESUME_JSON_RESUME_RENDER_MAX_BYTES``. Theme catalog entries map
+with ``DJANGO_RESUME_JSON_RESUME_RENDER_MAX_BYTES``. Output must be a regular,
+readable UTF-8 file (symlinks are rejected); reads are bounded by the configured
+byte limit. Missing, nonregular, oversized, unreadable or invalid UTF-8 output
+raises ``JsonResumeThemeError`` and the owner render view returns a concise 422
+without exposing filesystem paths or output content. The private temporary
+directory is cleaned up on success and failure. Successful HTML responses retain
+their restrictive CSP and ``Cache-Control: private, no-store`` headers.
+Theme catalog entries map
 stable local keys to package names, exact versions, display metadata, preview
 images, registry preview URLs, and enabled/disabled state. A checked-in default
 catalog provides an initial curated list, and deployments can replace it with

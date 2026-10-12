@@ -404,16 +404,33 @@ def render_theme(
         completed = _run_process(command, cwd=target, timeout=timeout)
         if completed.returncode != 0:
             raise JsonResumeThemeError(_bounded_error("Theme render failed", completed))
-        if not output_path.exists():
-            raise JsonResumeThemeError("Theme render did not write an HTML output file")
         max_bytes = int(
             getattr(settings, "DJANGO_RESUME_JSON_RESUME_RENDER_MAX_BYTES", 5_000_000)
         )
-        if output_path.stat().st_size > max_bytes:
+        try:
+            output_stat = output_path.lstat()
+            if not stat.S_ISREG(output_stat.st_mode):
+                raise JsonResumeThemeError("Theme render output must be a regular file")
+            if output_stat.st_size > max_bytes:
+                raise JsonResumeThemeError(
+                    f"Theme render output exceeds maximum size of {max_bytes} bytes"
+                )
+            with output_path.open("rb") as output:
+                content = output.read(max_bytes + 1)
+            if len(content) > max_bytes:
+                raise JsonResumeThemeError(
+                    f"Theme render output exceeds maximum size of {max_bytes} bytes"
+                )
+            html = content.decode("utf-8")
+        except FileNotFoundError as exc:
             raise JsonResumeThemeError(
-                f"Theme render output exceeds maximum size of {max_bytes} bytes"
-            )
-        html = output_path.read_text(encoding="utf-8")
+                "Theme render did not write an HTML output file"
+            ) from exc
+        except (OSError, UnicodeDecodeError) as exc:
+            raise JsonResumeThemeError(
+                "Theme render output could not be read as UTF-8 HTML"
+            ) from exc
+
     return RenderedTheme(
         html=html,
         theme_name=theme_name,
