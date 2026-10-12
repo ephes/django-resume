@@ -205,6 +205,7 @@ class ImageFormMixin:
     image_fields: Iterable[tuple[str, str]] = []  # [("image_field", "clear_field")]
 
     def __init__(self, *args, **kwargs) -> None:
+        self.new_image_uploads: list[str] = []
         super().__init__(*args, **kwargs)
         initial = cast(dict[str, Any], self.initial)  # type: ignore
         for field_name, _clear in self.image_fields:
@@ -221,9 +222,8 @@ class ImageFormMixin:
     def get_image_url_for_field(image_path: str) -> str:
         return default_storage.url(image_path)
 
-    @staticmethod
     def do_clean_image_field(
-        cleaned_data: dict[str, Any], image_field: str, clear_field: str
+        self, cleaned_data: dict[str, Any], image_field: str, clear_field: str
     ) -> dict[str, Any]:
         image = cleaned_data.get(image_field)
         clear_image = cleaned_data.get(clear_field)
@@ -248,6 +248,7 @@ class ImageFormMixin:
             cleaned_data[image_field] = default_storage.save(
                 f"uploads/{uuid.uuid4().hex}.{extension}", ContentFile(data)
             )
+            self.new_image_uploads.append(cleaned_data[image_field])
             image_handled = True
             cleaned_data[f"{image_field}_width"] = width
             cleaned_data[f"{image_field}_height"] = height
@@ -277,8 +278,26 @@ class ImageFormMixin:
         if has_invalid_upload or self.errors:  # type: ignore[attr-defined]
             # do not store uploads for a form that will be rejected anyway
             return cleaned_data
-        for image_field, clear_field in self.image_fields:
-            cleaned_data = self.do_clean_image_field(
-                cleaned_data, image_field, clear_field
-            )
-        return cleaned_data
+        try:
+            for image_field, clear_field in self.image_fields:
+                cleaned_data = self.do_clean_image_field(
+                    cleaned_data, image_field, clear_field
+                )
+            return cleaned_data
+        except Exception:
+            self.cleanup_new_image_uploads()
+            raise
+
+    def cleanup_new_image_uploads(self) -> None:
+        """Delete only objects successfully created by this form."""
+        first_error = None
+        for filename in self.new_image_uploads[:]:
+            try:
+                default_storage.delete(filename)
+            except Exception as error:
+                if first_error is None:
+                    first_error = error
+            else:
+                self.new_image_uploads.remove(filename)
+        if first_error is not None:
+            raise first_error

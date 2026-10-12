@@ -7,6 +7,8 @@ Unreleased
 
 Fixes
 ^^^^^
+* Remove newly saved image uploads when storage or plugin persistence fails,
+  preserving existing image objects and database data.
 * Validate complete stdin plugin bundles and all output paths before writing.
   Stage replacements and restore previous files on ordinary replacement errors.
 * Preflight all filesystem plugin removal paths before deleting resume data.
