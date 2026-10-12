@@ -218,6 +218,11 @@ def context_to_output_via_llm(context: str, model_name: str = "gpt-4o-mini") -> 
     return response.text()
 
 
+def strip_response_terminator(source: str) -> str:
+    """Remove only a standalone terminal response marker, preserving literals."""
+    return re.sub(r"(?m)^---(?:\r?\n)?\Z", "", source)
+
+
 def parse_llm_output_as_simple_plugin(llm_output: str) -> dict:
     sections = re.split(r"===(.+?)===", llm_output.strip())
     if len(sections) < 3:
@@ -230,7 +235,8 @@ def parse_llm_output_as_simple_plugin(llm_output: str) -> dict:
     content_template_source = plugin_data[content_template_path]
     form_template_path = f"django_resume/plugins/{plugin_name}/plain/form.html"
     form_template_source = plugin_data[form_template_path]
-    form_template_source = form_template_source.split("---")[0]
+    if sections[-2].strip() == form_template_path:
+        form_template_source = strip_response_terminator(form_template_source)
     return {
         "name": plugin_name,
         "module": plugin_module,

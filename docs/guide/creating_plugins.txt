@@ -145,7 +145,14 @@ contain exactly one section for each of ``===NAME.py===``,
 ``===django_resume/plugins/NAME/plain/form.html===``. Names use lowercase
 letters, numbers and underscores, starting with a letter. Missing, duplicate,
 unknown or malformed sections raise ``CommandError`` before output files are
-opened. Trailing form commentary after ``---`` is ignored as before.
+opened. Generation and stdin installation preserve literal ``---`` in form
+text, comments, attributes and scripts. A legacy end-of-response marker is
+recognized only when ``---`` occupies the final line by itself (an optional
+final newline is allowed) and the form section is the last bundle section.
+A marker ending an earlier form section remains source content.
+That response marker is removed; the preceding newline is
+retained. Inline markers and nonterminal marker lines remain source content.
+Do not append commentary after the final form section.
 
 All three paths are validated and complete UTF-8 files staged beside the targets
 before replacement begins. Existing file permissions are preserved; new files
