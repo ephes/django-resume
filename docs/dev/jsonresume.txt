@@ -1438,3 +1438,13 @@ and use synthetic documents only.
 The earlier static design prototype on branch
 ``experiment/resume-import-preview-20261004`` is not part of this
 implementation.
+
+URL fetch limits
+----------------
+
+URL imports share a 15-second monotonic fetch budget across all redirect hops
+and streamed response bodies, in addition to the 10-second socket timeout and
+2 MiB input limit. Deadline failures are reported as URL fetch errors. Socket
+reads (including headers and chunk framing) are interrupted when the budget
+expires. System DNS resolution is synchronous and cannot be interrupted by
+this budget; elapsed resolution time counts against subsequent network work.

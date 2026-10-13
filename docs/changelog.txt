@@ -7,6 +7,8 @@ Unreleased
 
 Fixes
 ^^^^^
+* Bound URL imports to one 15-second fetch budget across redirects and streamed
+  response bodies; interrupt stalled or dripping HTTP responses.
 * Fix inline token-requirement edits returning an error; render the saved switch
   and keep its edit control available using the plain fragment fallback.
   Default the inline and admin requirement checkboxes to checked when no flat

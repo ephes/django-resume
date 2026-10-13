@@ -8,6 +8,8 @@ import stat
 import ipaddress
 import socket
 import ssl
+import time
+from threading import Event, Timer
 from copy import deepcopy
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -37,6 +39,7 @@ FORMAT_ID = "json_resume"
 MAX_INPUT_BYTES = 2 * 1024 * 1024
 MAX_NESTING_DEPTH = 64
 URL_FETCH_TIMEOUT_SECONDS = 10
+URL_FETCH_TOTAL_SECONDS = 15
 MAX_URL_REDIRECTS = 5
 
 
@@ -263,11 +266,18 @@ class _PinnedHTTPSConnection(http.client.HTTPSConnection):
         self._resolved_address = address
 
     def connect(self) -> None:
+        assert self.timeout is not None
+        deadline = time.monotonic() + self.timeout
         sock = socket.create_connection(
             (self._resolved_address, self.port),
             self.timeout,
         )
         _set_tcp_no_delay(sock)
+        try:
+            sock.settimeout(_remaining_fetch_time(deadline))
+        except TimeoutError:
+            sock.close()
+            raise
         self.sock = self._ssl_context.wrap_socket(
             sock,
             server_hostname=self.host,
@@ -281,12 +291,45 @@ def _connection_for_url(url: _ResolvedImportURL) -> http.client.HTTPConnection:
     return connection_class(url.hostname, url.port, url.address)
 
 
+def _remaining_fetch_time(deadline: float, expired: Event | None = None) -> float:
+    remaining = deadline - time.monotonic()
+    if remaining <= 0 or (expired is not None and expired.is_set()):
+        raise TimeoutError("total fetch deadline exceeded")
+    return min(URL_FETCH_TIMEOUT_SECONDS, remaining)
+
+
+def _interrupt_fetch(sock: socket.socket, expired: Event) -> None:
+    # Also interrupt a peer dripping headers or chunk framing inside read1().
+    expired.set()
+    try:
+        # Bypass SSLSocket.shutdown: it clears _sslobj concurrently with reads.
+        socket.socket.shutdown(sock, socket.SHUT_RDWR)
+    except OSError:
+        pass
+
+
 def load_document_url(url: str) -> dict:
+    deadline = time.monotonic() + URL_FETCH_TOTAL_SECONDS
+    expired = Event()
     current_url = url
     for _redirect in range(MAX_URL_REDIRECTS + 1):
-        checked_url = _validate_import_url(current_url)
-        connection = _connection_for_url(checked_url)
+        connection = None
+        timer = None
+        response = None
         try:
+            _remaining_fetch_time(deadline, expired)
+            checked_url = _validate_import_url(current_url)
+            connection = _connection_for_url(checked_url)
+            connection.timeout = _remaining_fetch_time(deadline, expired)
+            connection.connect()
+            sock = connection.sock
+            if sock is not None:
+                sock.settimeout(_remaining_fetch_time(deadline, expired))
+                timer = Timer(
+                    deadline - time.monotonic(), _interrupt_fetch, (sock, expired)
+                )
+                timer.daemon = True
+                timer.start()
             connection.request(
                 "GET",
                 checked_url.request_target,
@@ -299,6 +342,7 @@ def load_document_url(url: str) -> dict:
                 },
             )
             response = connection.getresponse()
+            _remaining_fetch_time(deadline, expired)
             if response.status in {301, 302, 303, 307, 308}:
                 location = response.getheader("Location")
                 if not location:
@@ -324,22 +368,41 @@ def load_document_url(url: str) -> dict:
                         f"Input exceeds maximum size of {MAX_INPUT_BYTES} bytes",
                         field="source_url",
                     )
-            data = response.read(MAX_INPUT_BYTES + 1)
+            data = bytearray()
+            while len(data) <= MAX_INPUT_BYTES:
+                timeout = _remaining_fetch_time(deadline, expired)
+                if sock is not None:
+                    sock.settimeout(timeout)
+                chunk = response.read1(min(64 * 1024, MAX_INPUT_BYTES + 1 - len(data)))
+                _remaining_fetch_time(deadline, expired)
+                if not chunk:
+                    break
+                data.extend(chunk)
         except JsonResumeImportError:
             raise
         except (http.client.HTTPException, OSError) as exc:
+            message = (
+                "total fetch deadline exceeded"
+                if expired.is_set() or time.monotonic() >= deadline
+                else str(exc)
+            )
             raise JsonResumeImportError(
-                f"Could not read JSON Resume URL: {exc}", field="source_url"
+                f"Could not read JSON Resume URL: {message}", field="source_url"
             ) from exc
         finally:
-            connection.close()
+            if timer is not None:
+                timer.cancel()
+            if response is not None:
+                response.close()
+            if connection is not None:
+                connection.close()
         if len(data) > MAX_INPUT_BYTES:
             raise JsonResumeImportError(
                 f"Input exceeds maximum size of {MAX_INPUT_BYTES} bytes",
                 field="source_url",
             )
         try:
-            return load_document_bytes(data, source=checked_url.url)
+            return load_document_bytes(bytes(data), source=checked_url.url)
         except JsonResumeImportError as exc:
             exc.field = "source_url"
             raise
