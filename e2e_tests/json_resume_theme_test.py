@@ -27,18 +27,30 @@ def _admin_login(page: Page, live_server, username: str) -> None:
     page.wait_for_url(f"{live_server.url}/admin/")
 
 
+@pytest.mark.parametrize("owner_installs", [True, False])
 def test_owner_previews_then_uses_catalog_json_resume_theme(
-    page: Page, live_server, seed, monkeypatch
+    page: Page, live_server, seed, settings, monkeypatch, owner_installs
 ):
+    """Themes on: either owners may install, or the operator installed them."""
     from django_resume.formats.json_resume.themes import (
         RenderedTheme,
         catalog_theme,
         selected_theme_name,
     )
 
-    monkeypatch.setattr(
-        "django_resume.views.install_catalog_theme", lambda key: catalog_theme(key)
-    )
+    settings.DJANGO_RESUME_JSON_RESUME_ALLOW_CATALOG_THEME_INSTALL = owner_installs
+    if owner_installs:
+        monkeypatch.setattr(
+            "django_resume.views.install_catalog_theme", lambda key: catalog_theme(key)
+        )
+    else:
+        monkeypatch.setattr(
+            "django_resume.views.install_catalog_theme",
+            lambda key: pytest.fail("owner-triggered installs are disabled"),
+        )
+        monkeypatch.setattr(
+            "django_resume.views.catalog_theme_installed", lambda entry: True
+        )
 
     def fake_preview_render(resume, key):
         assert selected_theme_name(resume) is None
@@ -110,6 +122,51 @@ def test_owner_previews_then_uses_catalog_json_resume_theme(
         expect(rendered.get_by_text("Jochen Example")).to_be_visible()
     finally:
         rendered.close()
+
+
+def test_owner_sees_refusal_for_catalog_theme_that_is_not_installed(
+    page: Page, live_server, seed, settings, tmp_path, monkeypatch
+):
+    """Themes off: nothing installed and owners may not install."""
+    settings.DJANGO_RESUME_JSON_RESUME_ALLOW_CATALOG_THEME_INSTALL = False
+    settings.DJANGO_RESUME_JSON_RESUME_THEME_DIR = tmp_path / "themes"
+    monkeypatch.setattr(
+        "django_resume.views.install_catalog_theme",
+        lambda key: pytest.fail("owner-triggered installs are disabled"),
+    )
+    refusal = (
+        "The Even theme is not installed on this site, "
+        "and installing catalog themes from the browser is disabled."
+    )
+
+    _admin_login(page, live_server, "jochen")
+    page.goto(f"{live_server.url}/resume/jochen/json-resume/themes/")
+    expect(
+        page.get_by_text("Installing catalog themes from the browser is disabled")
+    ).to_be_visible()
+    even_card = page.locator("[data-theme-card]").filter(
+        has_text="jsonresume-theme-even"
+    )
+
+    with page.expect_popup() as popup_info:
+        with page.context.expect_event(
+            "response", lambda response: response.url.endswith("/even/preview/")
+        ) as response_info:
+            even_card.get_by_role("button", name="Preview render").click(force=True)
+    preview = popup_info.value
+    assert response_info.value.status == 403
+    expect(preview.get_by_text(refusal)).to_be_visible()
+    preview.close()
+
+    with page.expect_response(
+        lambda response: response.url.endswith("/even/use/")
+    ) as response_info:
+        even_card.get_by_role("button", name="Use render theme").click(force=True)
+    assert response_info.value.status == 403
+    expect(page.locator("p.error")).to_have_text(refusal)
+    expect(
+        page.get_by_text("No JSON Resume render theme is selected yet.")
+    ).to_be_visible()
 
 
 def test_catalog_use_button_shows_pending_feedback(
