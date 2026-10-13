@@ -7,8 +7,11 @@ Unreleased
 
 Fixes
 ^^^^^
-* Decode inline editor HTML entities once after stripping structural tags,
-  preserving literal text through unchanged saves and JSON Resume exports.
+* Decode inline editor HTML entities once after stripping structural tags, and
+  entity-escape stored text when it is loaded into the inline editor or the
+  admin textarea. Ampersands, angle brackets, nonbreaking spaces and a literal
+  ``<br>`` now survive unchanged saves and JSON Resume exports. Entities stored
+  by earlier versions are not repaired and show up literally in the editor.
 * Correct packed lossless WebP (VP8L) height decoding and reject truncated or
   invalid-signature headers. Existing stored dimensions are not repaired.
 * Bound image upload copying to 2 MiB plus one byte and stop reading as soon as

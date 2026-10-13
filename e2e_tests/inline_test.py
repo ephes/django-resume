@@ -169,7 +169,7 @@ def test_cover_item_text_entities_survive_unchanged_inline_saves(
     # Given a cover item whose text holds ampersands, angle brackets, a
     # nonbreaking space and markup-looking literal text typed by the user
     page = page_with_resume
-    typed = "R&D <3 team <em>literal</em> &lt;tag&gt;"
+    typed = "R&D <3\u00a0team <em>literal</em> &lt;tag&gt; a <br> b"
     page.click("a.underlined[href='/resume/john-doe/']")
     page.locator("#edit-mode").click()
     page.locator(".edit-icon-small[hx-target='#cover-items'] use[href='#add']").click()
