@@ -62,3 +62,12 @@ The editing views require ``POST`` for saves and ``DELETE`` or ``POST`` for
 item deletes, so Django's CSRF protection applies to every change. If you
 override the editable templates, keep the ``X-CSRFToken`` header that the
 bundled pages set for htmx requests.
+
+Admin JavaScript
+----------------
+
+The plugin admin editor loads HTMX 2.0.3 from unpkg with subresource integrity
+and ``crossorigin="anonymous"``, matching the bundled page templates. The
+browser must be able to reach this CDN for admin plugin forms (save, add item,
+and delete item) to work; a script
+whose bytes do not match the pinned hash is rejected by the browser.
