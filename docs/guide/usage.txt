@@ -281,3 +281,15 @@ to unknown extension fields and direct ``prepare_resume_import`` calls too.
 Unsupported nesting and recursion exhaustion produce ``JsonResumeImportError``
 (or a command/form error), before a resume is created. Supported extensions
 continue to round-trip.
+
+Removing all resumes administratively
+-------------------------------------
+
+``python manage.py remove_all_resumes`` only reports the current resume count.
+To permanently delete **every owner's resumes** in the configured write database, run
+``python manage.py remove_all_resumes --delete-all-resumes``. Confirm your Django
+settings/database routing before using that flag. The preview uses the same
+write database as deletion. The confirmed deletion, including
+related rows deleted by Django, runs in one transaction and rolls back on a
+database failure, reported as a command error. The preview is informational; the confirmed command deletes
+all resumes present when it runs, including any added after the preview.

@@ -11,6 +11,9 @@ Fixes
   import work and report recursion exhaustion as an import validation error.
 * Read JSON Resume files through one regular-file descriptor with a bounded
   2 MiB plus one byte read, rejecting directories and FIFOs promptly.
+* **Behavior change:** Make ``remove_all_resumes`` a count-only preview by default. Deleting every
+  owner's resumes now requires ``--delete-all-resumes`` and runs in one
+  transaction. Existing automation must explicitly opt into deletion.
 * Decode inline editor HTML entities once after stripping structural tags, and
   entity-escape stored text when it is loaded into the inline editor or the
   admin textarea. Ampersands, angle brackets, nonbreaking spaces and a literal
