@@ -13,6 +13,8 @@ Fixes
   and keep its edit control available using the plain fragment fallback.
   Default the inline and admin requirement checkboxes to checked when no flat
   data is stored, matching the default token-gated CV behavior.
+* Pin admin HTMX to 2.0.3 with the same subresource integrity hash and anonymous
+  crossorigin policy as the bundled page templates.
 * Reject JSON Resume nesting beyond 64 object/array levels before recursive
   import work and report recursion exhaustion as an import validation error.
 * Read JSON Resume files through one regular-file descriptor with a bounded
