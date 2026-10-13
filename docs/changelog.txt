@@ -288,6 +288,11 @@ Development
 * Add GitHub Actions CI (``.github/workflows/ci.yml``) that runs Ruff lint and
   format checks, mypy, the pytest suite with coverage and the vitest suite on
   every push and pull request. The Playwright e2e tests are not run in CI.
+* Fix the JSON Resume catalog theme browser test, which still assumed that
+  owners may install themes. It now covers both working setups (owner installs
+  allowed, or theme installed by the operator) and the refusal an owner sees
+  when a theme is not installed and owner installs are off. No Node.js or npm
+  is needed to run it.
 
 0.3.0 - 2026-06-21
 ------------------
