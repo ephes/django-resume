@@ -5,12 +5,17 @@ from typing import Type, cast, Any
 from django import forms
 from django.http import HttpRequest
 
-from .base import ListPlugin, ListItemFormMixin, ListInline, ContextDict
+from .base import (
+    EditorTextField,
+    ListPlugin,
+    ListItemFormMixin,
+    ListInline,
+    ContextDict,
+)
 
 from ..markdown import (
     markdown_to_html,
     safe_link_url,
-    textarea_input_to_markdown,
     textarea_input_to_html,
     markdown_to_textarea_input,
     underlined_link_handler,
@@ -28,7 +33,7 @@ PROJECT_IMPORTED_KEYS = ("name", "url", "description", "highlights", "keywords")
 class ProjectItemForm(ListItemFormMixin, forms.Form):
     title = forms.CharField(widget=forms.TextInput())
     url = forms.URLField(widget=forms.URLInput(), required=False, assume_scheme="https")
-    description = forms.CharField(widget=forms.Textarea())
+    description = EditorTextField()
     initial_badges = ["Some Badge", "Another Badge"]
     badges = forms.JSONField(
         widget=forms.TextInput(), required=False, initial=initial_badges
@@ -101,9 +106,6 @@ class ProjectItemForm(ListItemFormMixin, forms.Form):
         if "position" not in initial:
             initial["position"] = self.get_max_position(self.existing_items) + 1
         self.initial = initial
-
-    def clean_description(self) -> str:
-        return textarea_input_to_markdown(self.cleaned_data["description"])
 
     def clean_position(self) -> int:
         position = self.cleaned_data.get("position", 0)

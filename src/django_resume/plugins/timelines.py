@@ -5,6 +5,7 @@ from django import forms
 from django.http import HttpRequest
 
 from .base import (
+    EditorTextField,
     ListPlugin,
     ListItemFormMixin,
     ListInline,
@@ -16,7 +17,6 @@ from .base import (
 from ..markdown import (
     markdown_to_html,
     safe_link_url,
-    textarea_input_to_markdown,
     textarea_input_to_html,
     markdown_to_textarea_input,
     underlined_link_handler,
@@ -142,7 +142,7 @@ class TimelineItemForm(ListItemFormMixin, forms.Form):
         widget=forms.URLInput(), required=False, assume_scheme="https"
     )
     company_name = forms.CharField(widget=forms.TextInput(), max_length=50)
-    description = forms.CharField(widget=forms.Textarea())
+    description = EditorTextField()
     start = forms.CharField(widget=forms.TextInput(), required=False)
     end = forms.CharField(widget=forms.TextInput(), required=False)
     initial_badges = [
@@ -217,9 +217,6 @@ class TimelineItemForm(ListItemFormMixin, forms.Form):
         """Set the position to the next available position."""
         if "position" not in self.initial:
             self.initial["position"] = self.get_max_position(self.existing_items) + 1
-
-    def clean_description(self) -> str:
-        return textarea_input_to_markdown(self.cleaned_data["description"])
 
     def clean_position(self) -> int:
         position = self.cleaned_data.get("position", 0)

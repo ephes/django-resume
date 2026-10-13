@@ -153,3 +153,49 @@ def test_create_resume_cv_inline(
 
     # Then I should see the new timeline item
     assert page.locator("h3:has-text('New Company Name')").is_visible()
+
+
+def stored_cover_item_text() -> str:
+    from django_resume.models import Resume
+
+    resume = Resume.objects.get(slug="john-doe")
+    (item,) = resume.plugin_data["cover"]["items"]
+    return item["text"]
+
+
+def test_cover_item_text_entities_survive_unchanged_inline_saves(
+    page_with_resume: Page,
+):
+    # Given a cover item whose text holds ampersands, angle brackets, a
+    # nonbreaking space and markup-looking literal text typed by the user
+    page = page_with_resume
+    typed = "R&D <3\u00a0team <em>literal</em> &lt;tag&gt; a <br> b"
+    page.click("a.underlined[href='/resume/john-doe/']")
+    page.locator("#edit-mode").click()
+    page.locator(".edit-icon-small[hx-target='#cover-items'] use[href='#add']").click()
+    page.locator('[contenteditable="true"][data-field="title"]').fill("Entities")
+    text_field = page.locator(
+        '[contenteditable="true"][data-field="text"][data-type="html"]'
+    )
+    text_field.fill(typed)
+    assert "&amp;" in text_field.inner_html()
+    page.locator('[id^="cover-submit-item-"]').click()
+
+    # Then the stored text is exactly what was typed and it is shown literally
+    item = page.locator('#cover-items [id^="cover-item-"]')
+    expect(item).to_contain_text("R&D <3")
+    assert stored_cover_item_text() == typed
+
+    # When the item is opened for editing and saved again without changes
+    for _ in range(2):
+        item.locator(".edit-icon-small").first.click()
+        text_field = page.locator(
+            '[contenteditable="true"][data-field="text"][data-type="html"]'
+        )
+        expect(text_field).to_have_text(typed)
+        page.locator('[id^="cover-submit-item-"]').click()
+        expect(item).to_contain_text("R&D <3")
+
+        # Then the stored text does not change and no markup was injected
+        assert stored_cover_item_text() == typed
+    assert item.locator("script").count() == 0

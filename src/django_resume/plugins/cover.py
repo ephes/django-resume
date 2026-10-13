@@ -4,11 +4,16 @@ from django import forms
 from django.core.files.storage import default_storage
 from django.http import HttpRequest
 
-from .base import ListPlugin, ListItemFormMixin, ListInline, ContextDict
+from .base import (
+    EditorTextField,
+    ListPlugin,
+    ListItemFormMixin,
+    ListInline,
+    ContextDict,
+)
 
 from ..markdown import (
     markdown_to_html,
-    textarea_input_to_markdown,
     textarea_input_to_html,
     markdown_to_textarea_input,
     underlined_link_handler,
@@ -22,11 +27,10 @@ class CoverItemForm(ListItemFormMixin, forms.Form):
         max_length=256,
         initial="Cover Title",
     )
-    text = forms.CharField(
+    text = EditorTextField(
         label="Cover Letter Text",
         max_length=4096,
         initial="Some cover letter text...",
-        widget=forms.Textarea(),
     )
 
     def __init__(self, *args, **kwargs) -> None:
@@ -36,11 +40,6 @@ class CoverItemForm(ListItemFormMixin, forms.Form):
         initial["text"] = markdown_to_textarea_input(self.initial.get("text", ""))
         self.initial = initial
         self.text_display_html = textarea_input_to_html(self["text"].value() or "")
-
-    def clean_text(self) -> str:
-        text = self.cleaned_data["text"]
-        text = textarea_input_to_markdown(text)
-        return text
 
     @staticmethod
     def get_initial() -> ContextDict:

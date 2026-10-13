@@ -84,6 +84,9 @@ def textarea_input_to_markdown(text: str) -> str:
     # Remove any remaining HTML tags
     content = re.sub(r"<[^>]+>", "", content)
 
+    # Decode once after stripping tags: encoded markup remains literal text.
+    content = html.unescape(content)
+
     # Fix multiple newlines (more than 2) to maximum 2 newlines
     content = re.sub(r"\n{3,}", "\n\n", content)
 
@@ -94,16 +97,19 @@ def textarea_input_to_markdown(text: str) -> str:
 
 
 def markdown_to_textarea_input(text: str) -> str:
-    # \n to <br>
-    text = text.replace("\n", "<br>")
-
-    return text
+    """Encode stored text as editor input: an HTML fragment in which literal
+    text is entity-escaped and ``<br>`` is the only markup. It is the inverse
+    of ``textarea_input_to_markdown``, so an unchanged save stores the same
+    text again."""
+    return html.escape(text, quote=False).replace("\n", "<br>")
 
 
 def textarea_input_to_html(text: str) -> str:
-    text = html.escape(text)
-    text = re.sub(r"&lt;br\s*/?&gt;", "<br>", text, flags=re.IGNORECASE)
-    return text.replace("\n", "<br>")
+    """Render editor input (stored text encoded by
+    ``markdown_to_textarea_input`` or submitted ``innerHTML``) for a
+    contenteditable field: the text it would be saved as, escaped, with line
+    breaks as the only markup."""
+    return markdown_to_textarea_input(textarea_input_to_markdown(text))
 
 
 def markdown_to_plain_text(text: str) -> str:
