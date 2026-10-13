@@ -308,3 +308,38 @@ def test_editor_entities_roundtrip_through_about_form_and_export():
         assert again.is_valid()
         assert again.cleaned_data["text"] == expected
     assert "<script>" not in markdown_to_html(expected)
+
+
+def test_editor_text_length_limit_applies_to_decoded_text():
+    from django_resume.plugins.about import AboutForm
+
+    # Given stored text exactly at the limit whose encoding is longer
+    stored = "A" * 1020 + "&<>&"
+    assert len(stored) == 1024
+    edit_form = AboutForm(initial={"title": "About", "text": stored})
+    assert len(edit_form["text"].value()) > 1024
+    assert "maxlength" not in str(edit_form["text"])
+
+    # When it is saved unchanged from the admin textarea or the inline editor
+    for unchanged in (edit_form["text"].value(), edit_form.text_display_html):
+        form = AboutForm(data={"title": "About", "text": unchanged})
+
+        # Then it is accepted and stored unchanged
+        assert form.is_valid(), form.errors
+        assert form.cleaned_data["text"] == stored
+
+    # And one more stored character is rejected, however it is encoded
+    for too_long in (stored + "B", markdown_to_textarea_input(stored + "&")):
+        form = AboutForm(data={"title": "About", "text": too_long})
+        assert not form.is_valid()
+        assert "at most 1024 characters" in str(form.errors["text"])
+
+
+def test_editor_text_field_keeps_required_and_structure_only_behaviour():
+    from django_resume.plugins.about import AboutForm
+
+    assert not AboutForm(data={"title": "About", "text": "  "}).is_valid()
+    # Markup-only editor content is still accepted and stored as empty text.
+    form = AboutForm(data={"title": "About", "text": "<div><br></div>"})
+    assert form.is_valid(), form.errors
+    assert form.cleaned_data["text"] == ""

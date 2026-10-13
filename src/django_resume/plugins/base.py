@@ -25,7 +25,7 @@ from django.core.exceptions import PermissionDenied
 from django.db import transaction
 
 from ..images import ImageFormMixin
-from ..markdown import safe_link_url
+from ..markdown import safe_link_url, textarea_input_to_markdown
 from ..models import Resume
 
 # Deleting an item changes data, so it must never be reachable via GET (Django
@@ -111,6 +111,33 @@ class SimpleData:
 
     def update(self, resume: Resume, data: dict) -> Resume:
         return self.set_data(resume, data)
+
+
+class EditorTextField(forms.CharField):
+    """Multi-line text submitted as editor input (see
+    ``markdown_to_textarea_input``).
+
+    The submitted value is decoded to the stored literal text before length
+    validation, so ``max_length`` limits what is stored rather than its
+    entity-escaped encoding, and the cleaned value is the stored text.
+    """
+
+    widget = forms.Textarea
+
+    def widget_attrs(self, widget: forms.Widget) -> dict[str, Any]:
+        # The encoded value can be longer than the text it stands for; a
+        # browser-side maxlength would count the encoding.
+        attrs = super().widget_attrs(widget)
+        attrs.pop("maxlength", None)
+        attrs.pop("minlength", None)
+        return attrs
+
+    def clean(self, value: Any) -> str:
+        submitted = self.to_python(value)
+        self.validate(submitted)
+        text = textarea_input_to_markdown(submitted or "")
+        self.run_validators(text)
+        return text
 
 
 class SimpleJsonForm(forms.Form):

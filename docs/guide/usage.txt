@@ -262,7 +262,7 @@ structural HTML and then decodes entities once, so ampersands, angle brackets,
 nonbreaking spaces and markup-looking text such as a literal ``<br>`` survive
 unchanged saves and JSON Resume exports. Encoded markup is not parsed again
 during input cleaning; rendered Markdown still passes through the output
-sanitizer.
+sanitizer. Length limits apply to the stored text, not to its encoded form.
 
 The Django admin textarea shows the same encoded format: ``R&D <3`` appears as
 ``R&amp;D &lt;3``, and markup typed there without escaping is treated as

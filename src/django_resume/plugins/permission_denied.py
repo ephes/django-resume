@@ -4,13 +4,12 @@ from django.http import HttpRequest
 from django.template import TemplateDoesNotExist
 from django.template.loader import get_template
 
-from .base import SimplePlugin, SimpleThemedTemplates, ContextDict
+from .base import EditorTextField, SimplePlugin, SimpleThemedTemplates, ContextDict
 from ..images import ImageFormMixin
 from ..markdown import (
     markdown_to_html,
     markdown_to_textarea_input,
     textarea_input_to_html,
-    textarea_input_to_markdown,
     underlined_link_handler,
 )
 
@@ -31,7 +30,7 @@ class PermissionDeniedForm(ImageFormMixin, forms.Form):
         max_length=100,
         initial="tokensupport@example.com",
     )
-    text = forms.CharField(
+    text = EditorTextField(
         label="Permission Denied Message",
         max_length=1024,
         initial=(
@@ -64,11 +63,6 @@ class PermissionDeniedForm(ImageFormMixin, forms.Form):
         # Transform initial text from markdown to textarea input.
         self.initial["text"] = markdown_to_textarea_input(self.initial.get("text", ""))
         self.text_display_html = textarea_input_to_html(self["text"].value() or "")
-
-    def clean_text(self):
-        text = self.cleaned_data["text"]
-        text = textarea_input_to_markdown(text)
-        return text
 
     @property
     def avatar_img_url(self):
