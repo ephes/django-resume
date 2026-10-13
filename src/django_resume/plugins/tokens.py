@@ -2,6 +2,7 @@ import hmac
 import secrets
 import string
 from datetime import datetime, timedelta
+from typing import Any
 
 from django.conf import settings
 from django import forms
@@ -144,7 +145,17 @@ class TokenItemForm(ListItemFormMixin, forms.Form):
 
 
 class TokenForm(forms.Form):
-    token_required = forms.BooleanField(required=False, label="Token Required")
+    token_required = forms.BooleanField(
+        required=False, initial=True, label="Token Required"
+    )
+
+    @staticmethod
+    def set_context(item: dict, context: dict[str, Any]) -> dict[str, Any]:
+        context["token"] = {
+            "token_required": item.get("token_required", True),
+            "edit_flat_url": context["edit_flat_url"],
+        }
+        return context
 
 
 class TokenViaGetForm(forms.Form):

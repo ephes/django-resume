@@ -248,3 +248,79 @@ def test_tokens_check_permissions_staff_user_bypasses_token(
         )
         is None
     )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("required", [True, False])
+@pytest.mark.parametrize("theme", ["plain", "headwind", "editorial"])
+def test_owner_edits_token_requirement(client, resume, required, theme):
+    resume.owner.save()
+    resume.plugin_data = {
+        "theme": {"name": theme},
+        "token": {
+            "flat": {"token_required": not required},
+            "items": [{"id": "existing"}],
+        },
+    }
+    resume.save()
+    assert resume.current_theme == theme
+    client.force_login(resume.owner)
+    plugin = TokenPlugin()
+    edit_url = plugin.inline.get_edit_flat_url(resume.pk)
+    form = client.get(edit_url)
+    assert form.status_code == 200
+    response = client.post(
+        plugin.inline.get_edit_flat_post_url(resume.pk),
+        {"token_required": "on"} if required else {},
+    )
+    assert response.status_code == 200
+    assert response.context["token"] == {
+        "token_required": required,
+        "edit_flat_url": edit_url,
+    }
+    assert f"Token required: {'Yes' if required else 'No'}" in response.content.decode()
+    assert edit_url in response.content.decode()
+    resume.refresh_from_db()
+    assert plugin.data.get_data(resume)["flat"]["token_required"] is required
+    assert plugin.data.get_data(resume)["items"] == [{"id": "existing"}]
+
+
+@pytest.mark.django_db
+def test_other_user_cannot_edit_token_requirement(client, resume, django_user_model):
+    resume.owner.save()
+    resume.save()
+    other = django_user_model.objects.create_user(username="other-editor")
+    client.force_login(other)
+    response = client.post(TokenPlugin().inline.get_edit_flat_post_url(resume.pk), {})
+    assert response.status_code == 403
+    resume.refresh_from_db()
+    assert resume.plugin_data == {}
+
+
+@pytest.mark.django_db
+def test_unstored_token_requirement_starts_checked(client, resume):
+    resume.owner.save()
+    resume.save()
+    client.force_login(resume.owner)
+    plugin = TokenPlugin()
+    response = client.get(plugin.inline.get_edit_flat_url(resume.pk))
+    assert response.status_code == 200
+    assert response.context["form"]["token_required"].value() is True
+    assert "checked" in str(response.context["form"]["token_required"])
+    response = client.post(
+        plugin.inline.get_edit_flat_post_url(resume.pk), {"token_required": "on"}
+    )
+    assert response.status_code == 200
+    resume.refresh_from_db()
+    assert resume.plugin_data["token"]["flat"] == {"token_required": True}
+
+
+@pytest.mark.django_db
+def test_admin_unstored_token_requirement_starts_checked(client, resume):
+    resume.owner.is_staff = True
+    resume.owner.save()
+    resume.save()
+    client.force_login(resume.owner)
+    response = client.get(TokenPlugin().admin.get_change_url(resume.pk))
+    assert response.status_code == 200
+    assert response.context["flat_form"]["token_required"].value() is True
