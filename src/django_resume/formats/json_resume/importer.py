@@ -3,6 +3,8 @@ import hashlib
 import http.client
 import json
 import math
+import os
+import stat
 import ipaddress
 import socket
 import ssl
@@ -33,6 +35,7 @@ from .validation import drop_empty_dates, validate_document
 
 FORMAT_ID = "json_resume"
 MAX_INPUT_BYTES = 2 * 1024 * 1024
+MAX_NESTING_DEPTH = 64
 URL_FETCH_TIMEOUT_SECONDS = 10
 MAX_URL_REDIRECTS = 5
 
@@ -84,6 +87,21 @@ def _finite_json_number(token: str) -> float:
     return value
 
 
+def _check_nesting_depth(document: dict) -> None:
+    """Count container levels iteratively, with the root object at depth one."""
+    pending: list[tuple[dict | list, int]] = [(document, 1)]
+    while pending:
+        value, depth = pending.pop()
+        if depth > MAX_NESTING_DEPTH:
+            raise JsonResumeImportError(
+                f"Input exceeds maximum nesting depth of {MAX_NESTING_DEPTH}"
+            )
+        children = value.values() if isinstance(value, dict) else value
+        pending.extend(
+            (child, depth + 1) for child in children if isinstance(child, (dict, list))
+        )
+
+
 def _loads_document(text: str) -> dict:
     try:
         document = json.loads(
@@ -92,24 +110,35 @@ def _loads_document(text: str) -> dict:
             parse_constant=_finite_json_number,
             parse_float=_finite_json_number,
         )
+    except RecursionError as exc:
+        raise JsonResumeImportError("Input nesting exceeds supported limits") from exc
     except json.JSONDecodeError as exc:
         raise JsonResumeImportError(f"Invalid JSON: {exc}") from exc
-    return _coerce_document(document)
+    document = _coerce_document(document)
+    _check_nesting_depth(document)
+    return document
 
 
 def load_document(path: str | Path) -> dict:
     input_path = Path(path)
     try:
-        if input_path.stat().st_size > MAX_INPUT_BYTES:
-            raise JsonResumeImportError(
-                f"Input exceeds maximum size of {MAX_INPUT_BYTES} bytes"
-            )
-        text = input_path.read_text(encoding="utf-8")
+        # Nonblocking open avoids waiting for a FIFO writer before fstat.
+        flags = os.O_RDONLY | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_BINARY", 0)
+        fd = os.open(input_path, flags)
+        try:
+            if not stat.S_ISREG(os.fstat(fd).st_mode):
+                raise JsonResumeImportError(
+                    f"Could not read {input_path}: input must be a regular file"
+                )
+            stream = os.fdopen(fd, "rb")
+        except BaseException:
+            os.close(fd)
+            raise
+        with stream:
+            data = stream.read(MAX_INPUT_BYTES + 1)
     except OSError as exc:
         raise JsonResumeImportError(f"Could not read {input_path}: {exc}") from exc
-    except UnicodeDecodeError as exc:
-        raise JsonResumeImportError(f"Invalid UTF-8 in {input_path}: {exc}") from exc
-    return _loads_document(text)
+    return load_document_bytes(data, source=str(input_path))
 
 
 def load_document_bytes(data: bytes, *, source: str = "input") -> dict:
@@ -538,6 +567,38 @@ def _invalid_import(errors: list[str]) -> PreparedJsonResumeImport:
 
 
 def prepare_resume_import(
+    document: dict,
+    *,
+    slug: str,
+    name: str | None = None,
+    owner=None,
+    registry=None,
+    restore_django_resume_data: bool = True,
+) -> PreparedJsonResumeImport:
+    """Plan a create import without database access or creating a resume.
+
+    Validates the document and nesting before schema/adapter/copy work, resolves
+    plugin mappings and resume metadata, and returns the plan and import report.
+    Does not check slug availability; ``create_prepared_import`` does that.
+    Raises ``JsonResumeImportError`` for unsupported nesting, recursion
+    exhaustion, adapter conflicts and invalid slug/name metadata.
+    """
+    document = _coerce_document(document)
+    _check_nesting_depth(document)
+    try:
+        return _prepare_resume_import(
+            document,
+            slug=slug,
+            name=name,
+            owner=owner,
+            registry=registry,
+            restore_django_resume_data=restore_django_resume_data,
+        )
+    except RecursionError as exc:
+        raise JsonResumeImportError("Input nesting exceeds supported limits") from exc
+
+
+def _prepare_resume_import(
     document: dict,
     *,
     slug: str,

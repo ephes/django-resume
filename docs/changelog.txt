@@ -7,6 +7,10 @@ Unreleased
 
 Fixes
 ^^^^^
+* Reject JSON Resume nesting beyond 64 object/array levels before recursive
+  import work and report recursion exhaustion as an import validation error.
+* Read JSON Resume files through one regular-file descriptor with a bounded
+  2 MiB plus one byte read, rejecting directories and FIFOs promptly.
 * Decode inline editor HTML entities once after stripping structural tags, and
   entity-escape stored text when it is loaded into the inline editor or the
   admin textarea. Ampersands, angle brackets, nonbreaking spaces and a literal
