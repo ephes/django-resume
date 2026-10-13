@@ -1,0 +1,6 @@
+<div id="token-flat">
+  <p>Token required: {{ token.token_required|yesno:"Yes,No" }}</p>
+  {% if show_edit_button %}
+    <button hx-get="{{ token.edit_flat_url }}" hx-target="#token-flat" hx-swap="outerHTML">Edit token requirement</button>
+  {% endif %}
+</div>
