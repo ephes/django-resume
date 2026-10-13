@@ -2384,13 +2384,21 @@ def test_load_document_url_does_not_read_redirect_response_body(monkeypatch):
                 return self._location
             return None
 
-        def read(self, *args):
+        def close(self):
+            pass
+
+        def read1(self, amount):
             if self.status in {301, 302, 303, 307, 308}:
                 raise AssertionError("redirect response body should not be read")
-            assert args == (MAX_INPUT_BYTES + 1,)
-            return self._body
+            result, self._body = self._body[:amount], self._body[amount:]
+            return result
 
     class FakeConnection:
+        sock = None
+
+        def connect(self):
+            pass
+
         def __init__(self, response):
             self.response = response
 
@@ -2441,6 +2449,11 @@ def test_load_document_url_does_not_read_redirect_response_body(monkeypatch):
 
 def test_load_document_url_wraps_malformed_http_response(monkeypatch):
     class BadConnection:
+        sock = None
+
+        def connect(self):
+            pass
+
         def request(self, *args, **kwargs):
             pass
 
