@@ -269,3 +269,15 @@ The Django admin textarea shows the same encoded format: ``R&D <3`` appears as
 structure and removed. Text saved by earlier versions may contain stored
 entities (for example ``R&amp;D``); the editor now shows them literally so they
 can be corrected once.
+
+JSON Resume import limits
+-------------------------
+
+File, upload and URL imports accept at most 2 MiB of UTF-8 JSON. File imports
+open the input once, require a regular file and read at most the limit plus one
+byte; directories and FIFOs are rejected. JSON documents support up to 64 nested
+object/array levels, counting the root object as level one. This limit applies
+to unknown extension fields and direct ``prepare_resume_import`` calls too.
+Unsupported nesting and recursion exhaustion produce ``JsonResumeImportError``
+(or a command/form error), before a resume is created. Supported extensions
+continue to round-trip.
