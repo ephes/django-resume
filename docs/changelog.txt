@@ -7,6 +7,9 @@ Unreleased
 
 Fixes
 ^^^^^
+* Treat an empty position on a timeline or project item as 0, as the awards,
+  education and languages items already do, instead of failing the save with a
+  server error.
 * Keep the stored avatar when the identity or permission-denied section is
   saved in the admin without a new upload; previously every admin save removed
   it. The admin form is now validated against the locked stored data, as the
