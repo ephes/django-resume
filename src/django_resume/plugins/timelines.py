@@ -219,7 +219,7 @@ class TimelineItemForm(ListItemFormMixin, forms.Form):
             self.initial["position"] = self.get_max_position(self.existing_items) + 1
 
     def clean_position(self) -> int:
-        position = self.cleaned_data.get("position", 0)
+        position = self.cleaned_data.get("position", 0) or 0
         if position < 0:
             raise forms.ValidationError("Position must be a positive integer.")
         for item in self.existing_items:

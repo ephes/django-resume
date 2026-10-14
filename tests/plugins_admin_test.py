@@ -4,6 +4,8 @@ import pytest
 from django import forms
 from django.conf import settings
 from django.contrib import admin
+from django.core.files.storage import default_storage
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import RequestFactory
 from django.urls import clear_url_caches, reverse
 
@@ -12,6 +14,8 @@ from django_resume.plugins import (
 )
 from django_resume.models import Resume
 from django_resume.plugins import plugin_registry as global_plugin_registry
+
+from .conftest import png_bytes
 
 
 def _rebuild_admin_urls() -> None:
@@ -262,3 +266,95 @@ def test_simple_plugin_integration(admin_client, resume, plugin_registry):
     plugin_data = plugin.get_data(resume)
 
     assert plugin_data == {"foo": "bar"}
+
+
+# simple plugins with an image field keep the stored image on admin saves
+
+IMAGE_PLUGIN_POSTS = {
+    "identity": {"name": "Jane Doe"},
+    "permission_denied": {
+        "title": "Token needed",
+        "sub_title": "Ask for one",
+        "email": "jane@example.com",
+        "text": "Please write me.",
+    },
+}
+
+
+@pytest.fixture
+def staff_resume_with_avatar(request, admin_client, resume, in_memory_storage):
+    plugin_name = request.param
+    resume.owner.is_staff = True
+    resume.owner.save()
+    resume.plugin_data = {
+        plugin_name: {
+            **IMAGE_PLUGIN_POSTS[plugin_name],
+            "avatar_img": "uploads/stored.png",
+            "avatar_alt": "Stored avatar",
+        }
+    }
+    resume.save()
+    admin_client.force_login(resume.owner)
+    plugin = global_plugin_registry.get_plugin(plugin_name)
+    return plugin, resume
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "staff_resume_with_avatar", sorted(IMAGE_PLUGIN_POSTS), indirect=True
+)
+def test_simple_plugin_admin_save_without_upload_keeps_avatar(
+    admin_client, staff_resume_with_avatar
+):
+    # Given a stored avatar
+    plugin, resume = staff_resume_with_avatar
+
+    # When the admin form is saved without a new upload
+    data = {**IMAGE_PLUGIN_POSTS[plugin.name], "avatar_alt": "Changed alt"}
+    r = admin_client.post(plugin.admin.get_change_post_url(resume.pk), data)
+
+    # Then the other fields change and the stored avatar is kept
+    assert r.status_code == 200
+    assert not r.context["form"].errors
+    resume.refresh_from_db()
+    plugin_data = plugin.get_data(resume)
+    assert plugin_data["avatar_img"] == "uploads/stored.png"
+    assert plugin_data["avatar_alt"] == "Changed alt"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "staff_resume_with_avatar", sorted(IMAGE_PLUGIN_POSTS), indirect=True
+)
+def test_simple_plugin_admin_clear_removes_avatar(
+    admin_client, staff_resume_with_avatar
+):
+    plugin, resume = staff_resume_with_avatar
+
+    data = {**IMAGE_PLUGIN_POSTS[plugin.name], "clear_avatar": "on"}
+    r = admin_client.post(plugin.admin.get_change_post_url(resume.pk), data)
+
+    assert r.status_code == 200
+    resume.refresh_from_db()
+    assert plugin.get_data(resume)["avatar_img"] is None
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "staff_resume_with_avatar", sorted(IMAGE_PLUGIN_POSTS), indirect=True
+)
+def test_simple_plugin_admin_upload_replaces_avatar(
+    admin_client, staff_resume_with_avatar
+):
+    plugin, resume = staff_resume_with_avatar
+
+    upload = SimpleUploadedFile("new.png", png_bytes(2, 3), content_type="image/png")
+    data = {**IMAGE_PLUGIN_POSTS[plugin.name], "avatar_img": upload}
+    r = admin_client.post(plugin.admin.get_change_post_url(resume.pk), data)
+
+    assert r.status_code == 200
+    resume.refresh_from_db()
+    stored = plugin.get_data(resume)["avatar_img"]
+    assert stored != "uploads/stored.png"
+    assert stored.startswith("uploads/") and stored.endswith(".png")
+    assert default_storage.exists(stored)
