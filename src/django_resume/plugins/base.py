@@ -258,23 +258,29 @@ class SimpleAdmin(LockedResumeMutationMixin):
         """
         form = None
         try:
-            resume = self.get_resume_or_error(request, resume_id)
-            form = self.form_class(request.POST, request.FILES)
-            setattr(
-                form, "post_url", self.get_change_post_url(resume.pk)
-            )  # make mypy happy
-            context = {"form": form}
-            if form.is_valid():
+            with transaction.atomic():
+                # Validate against the locked, stored data: fields like an image
+                # upload fall back to their initial value when nothing is posted,
+                # so without it a save would drop the stored image.
+                resume = self.get_locked_resume_or_error(request, resume_id)
+                stored_data = dict(self.data.get_data(resume))
                 if self.form_class == SimpleJsonForm:
                     # special case for the SimpleJsonForm which has a JSONField for the plugin data
-                    plugin_data = form.cleaned_data["plugin_data"]
+                    initial = {"plugin_data": stored_data}
                 else:
-                    plugin_data = form.cleaned_data
-                resume = self.mutate_resume_plugin_data(
-                    request,
-                    resume_id,
-                    lambda locked_resume: self.data.update(locked_resume, plugin_data),
-                )
+                    initial = stored_data
+                form = self.form_class(request.POST, request.FILES, initial=initial)
+                setattr(
+                    form, "post_url", self.get_change_post_url(resume.pk)
+                )  # make mypy happy
+                context = {"form": form}
+                if form.is_valid():
+                    if self.form_class == SimpleJsonForm:
+                        plugin_data = form.cleaned_data["plugin_data"]
+                    else:
+                        plugin_data = form.cleaned_data
+                    resume = self.data.update(resume, plugin_data)
+                    self.save_plugin_data(resume)
         except Exception:
             if isinstance(form, ImageFormMixin):
                 form.cleanup_new_image_uploads()
