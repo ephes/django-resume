@@ -7,6 +7,9 @@ Unreleased
 
 Security
 ^^^^^^^^
+* Refresh the development lock's setuptools from 84.0.0 to 84.1.0 for
+  GHSA-xmj3-9gf7-h52w (Windows legacy wheel installation path escape).
+  Refresh developer/build environments; no service deploy is needed.
 * Update the development lock's certifi CA bundle to 2026.10.19 and pip to
   26.2.2 for the eMudhra/emSign CA compromise
   (`GHSA-6q48-6c7w-9gw2 <https://github.com/certifi/python-certifi/security/advisories/GHSA-6q48-6c7w-9gw2>`_).

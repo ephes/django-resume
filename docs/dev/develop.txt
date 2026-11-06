@@ -51,6 +51,16 @@ check-only mode (``ruff check``, ``ruff format --check``, mypy, pytest with
 coverage) plus ``npx vitest run`` on every push and pull request. The
 Playwright e2e tests are not part of CI.
 
+Setuptools tooling advisory
+--------------------------
+
+The setuptools 84.1.0 refresh addresses
+`GHSA-xmj3-9gf7-h52w <https://github.com/pypa/setuptools/security/advisories/GHSA-xmj3-9gf7-h52w>`_,
+which affects Windows legacy ``Wheel.install_as_egg`` handling of crafted
+``namespace_packages.txt`` paths. This is development/build tooling exposure;
+it does not establish a remotely exploitable resume endpoint. Refresh those
+environments with ``uv sync --frozen --dev``; no service deploy is required.
+
 Line Count Overview
 -------------------
 
