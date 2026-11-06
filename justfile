@@ -16,6 +16,10 @@ check:
     just typecheck
     just test
 
+# Audit frozen Python registry dependencies (requires network)
+audit:
+    uv run --frozen python scripts/audit_python.py
+
 # Run tests with coverage
 test:
     uv run coverage run -m pytest

@@ -44,6 +44,8 @@ jobs:
           cache-dependency-glob: uv.lock
       - name: Sync locked dependencies
         run: uv sync
+      - name: Audit locked Python registry dependencies
+        run: uv run --frozen python scripts/audit_python.py
       - name: Lint (just lint, check-only)
         run: |
           uv run ruff check .
