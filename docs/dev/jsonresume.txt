@@ -1090,6 +1090,11 @@ resume-level permission checks.
   owner-triggered npm installation flow must be explicitly enabled, validate npm
   package names before installing them, and be documented as executing
   third-party JavaScript during rendering.
+  Theme install, catalog preview and selection POSTs require Django CSRF
+  validation as well as the owner session. Middleware-level tests use synthetic
+  resumes and mocked npm/render collaborators to prove missing/mismatched
+  tokens and foreign origins are rejected before side effects; a valid token
+  does not bypass ownership.
 
 Core Boundary
 -------------

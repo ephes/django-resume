@@ -13,6 +13,8 @@ Security
 * Audit locked Python registry dependencies in CI with pinned pip-audit.
   Fail on stale locks, export errors and audit failures; explicitly exclude
   this project and the local entrypoint-demo fixture from registry auditing.
+* Add real middleware CSRF regressions for owner theme installation, catalog
+  preview and selection, including rejected foreign origins and non-owners.
 * Update the development lock's certifi CA bundle to 2026.10.19 and pip to
   26.2.2 for the eMudhra/emSign CA compromise
   (`GHSA-6q48-6c7w-9gw2 <https://github.com/certifi/python-certifi/security/advisories/GHSA-6q48-6c7w-9gw2>`_).
