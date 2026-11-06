@@ -3,6 +3,7 @@ import secrets
 import string
 from datetime import datetime, timedelta
 from typing import Any
+from urllib.parse import urlencode
 
 from django.conf import settings
 from django import forms
@@ -32,21 +33,20 @@ UNSET_TTL = _UnsetTTL()
 
 def normalize_token_created(value: object) -> datetime | None:
     created: datetime | None
-    if isinstance(value, datetime):
-        created = value
-    elif isinstance(value, str):
-        created = parse_datetime(value)
-        if created is None:
-            try:
+    try:
+        if isinstance(value, datetime):
+            created = value
+        elif isinstance(value, str):
+            created = parse_datetime(value)
+            if created is None:
                 created = datetime.fromisoformat(value)
-            except ValueError:
-                return None
-    else:
+        else:
+            return None
+        if timezone.is_naive(created):
+            return timezone.make_aware(created, timezone.get_current_timezone())
+        return created
+    except (ValueError, OverflowError):
         return None
-
-    if timezone.is_naive(created):
-        return timezone.make_aware(created, timezone.get_current_timezone())
-    return created
 
 
 def get_token_ttl() -> timedelta | None:
@@ -72,12 +72,12 @@ def is_token_expired(
 
     created = normalize_token_created(item.get("created"))
     if created is None:
-        # Keep older token entries without timestamps working.
-        return False
+        # Missing timestamps retain the legacy policy; malformed ones fail closed.
+        return item.get("created") is not None
 
     if now is None:
         now = timezone.now()
-    return created + resolved_ttl <= now
+    return now - created >= resolved_ttl
 
 
 def generate_random_string(length=20) -> str:
@@ -121,7 +121,7 @@ class TokenItemForm(ListItemFormMixin, forms.Form):
 
     def generate_cv_link(self, resume: Resume) -> None:
         base_url = reverse("django_resume:cv", kwargs={"slug": resume.slug})
-        link = f"{base_url}?token={self.token}"
+        link = f"{base_url}?{urlencode({'token': self.token})}"
         self.fields["cv_link"].initial = link
 
     def clean_token(self) -> str:

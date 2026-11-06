@@ -40,7 +40,9 @@ This is the list of built-in plugins that come with django-resume:
   the CV without one; any other visitor, logged in or not, needs a valid
   ``?token=`` link. The token-gated CV and its 403 page are sent with
   ``Cache-Control: private, no-store``, ``X-Robots-Tag: noindex`` and
-  ``Referrer-Policy: no-referrer``.
+  ``Referrer-Policy: no-referrer``. Generated CV links query-encode the exact
+  stored token, including punctuation and Unicode, so editable credentials
+  containing ``+``, ``&``, ``=`` or ``#`` remain redeemable.
 
 Text Formatting
 ---------------

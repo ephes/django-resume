@@ -14,6 +14,10 @@ Security
 
 Fixes
 ^^^^^
+* Query-encode editable CV tokens so punctuation and Unicode round-trip through
+  generated links without changing the stored credential.
+* Compare token age without datetime addition overflow; malformed timestamps
+  fail closed with expiry enabled while missing legacy timestamps still work.
 * Preserve newly committed integration metadata when selecting a theme from a
   stale resume; report concurrent selection conflicts as retryable errors.
 * Require JSON objects in the default simple-plugin form and leave stored data

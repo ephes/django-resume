@@ -15,7 +15,13 @@ timestamp.
 
 Set this to a ``datetime.timedelta`` to enforce token expiration, or ``None`` to
 disable age-based expiry checks. Older stored token entries without a
-``created`` timestamp continue to work for backward compatibility.
+``created`` timestamp (missing or null) continue to work for backward
+compatibility. With expiry enabled, a present but malformed/out-of-range
+creation timestamp is refused as expired. Valid extreme dates and large TTLs
+are compared by elapsed age without overflowing datetime boundaries. Setting
+``None`` disables these expiry checks. The owner token editor retains its
+existing normalization: missing/malformed creation timestamps initialize to the
+current time, and saving the item renews its timestamp/TTL.
 
 ``DJANGO_RESUME_JSON_RESUME_THEME_DIR``
 =======================================
