@@ -14,6 +14,9 @@ Security
 
 Fixes
 ^^^^^
+* Serialize theme installs, readiness checks and renders across processes with a
+  bounded cache lock. Require both the pinned theme and configured renderer
+  version for catalog readiness and recheck readiness under the render lock.
 * Treat an empty position on a timeline or project item as 0, as the awards,
   education and languages items already do, instead of failing the save with a
   server error.

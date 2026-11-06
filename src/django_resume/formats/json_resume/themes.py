@@ -7,11 +7,14 @@ import stat
 import subprocess
 import tempfile
 import threading
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlencode
 from urllib.request import urlopen
+
+from filelock import FileLock, Timeout
 
 from django.conf import settings
 
@@ -186,10 +189,17 @@ def resumed_version() -> str:
 
 def catalog_theme_installed(entry: ThemeCatalogEntry) -> bool:
     """Return whether the pinned catalog version and ``resumed`` are in the cache."""
-    target = _cache_path()
+    with _theme_cache_lock() as target:
+        return _catalog_theme_installed(target, entry)
+
+
+def _catalog_theme_installed(target: Path, entry: ThemeCatalogEntry) -> bool:
     if not _resumed_bin(target).exists():
         return False
-    return _installed_package_version(target, entry.package) == entry.version
+    return (
+        _installed_package_version(target, entry.package) == entry.version
+        and _installed_package_version(target, "resumed") == resumed_version()
+    )
 
 
 def _installed_package_version(target: Path, package_name: str) -> str | None:
@@ -228,6 +238,31 @@ def cache_dir() -> Path:
     path.mkdir(mode=0o700, parents=True, exist_ok=True)
     _chmod_owner_only(path, directory=True)
     return path
+
+
+@contextmanager
+def _theme_cache_lock():
+    configured = getattr(settings, "DJANGO_RESUME_JSON_RESUME_CACHE_LOCK_TIMEOUT", 10.0)
+    try:
+        timeout = float(configured)
+        if isinstance(configured, bool) or not 0 < timeout < float("inf"):
+            raise ValueError("invalid timeout")
+    except (ValueError, TypeError) as exc:
+        raise JsonResumeThemeError(
+            "JSON Resume theme cache lock timeout must be positive and finite"
+        ) from exc
+    try:
+        target = cache_dir()
+        with FileLock(target / ".cache.lock", timeout=timeout, mode=0o600):
+            yield target
+    except Timeout as exc:
+        raise JsonResumeThemeError(
+            "JSON Resume theme cache is busy; retry the operation"
+        ) from exc
+    except OSError as exc:
+        raise JsonResumeThemeError(
+            "JSON Resume theme cache could not be accessed"
+        ) from exc
 
 
 def selected_theme_name(resume: Resume) -> str | None:
@@ -338,29 +373,32 @@ def _install_theme_packages(packages: list[str], *, timeout: float) -> None:
     npm = shutil.which("npm")
     if npm is None:
         raise JsonResumeThemeError("npm is required to install JSON Resume themes")
-    target = cache_dir()
-    # --ignore-scripts: never run npm lifecycle scripts (preinstall, install,
-    # postinstall, prepare) of a theme or any transitive dependency as the web
-    # server user. Rendering still executes theme JavaScript.
-    command = [
-        npm,
-        "install",
-        "--prefix",
-        str(target),
-        "--no-audit",
-        "--no-fund",
-        "--ignore-scripts",
-        "--save",
-        "--save-exact",
-        f"resumed@{resumed_version()}",
-        *packages,
-    ]
-    completed = _run_process(command, cwd=target, timeout=timeout)
-    if completed.returncode != 0:
-        raise JsonResumeThemeError(_bounded_error("npm install failed", completed))
+    with _theme_cache_lock() as target:
+        # --ignore-scripts: never run npm lifecycle scripts (preinstall, install,
+        # postinstall, prepare) of a theme or any transitive dependency as the web
+        # server user. Rendering still executes theme JavaScript.
+        command = [
+            npm,
+            "install",
+            "--prefix",
+            str(target),
+            "--no-audit",
+            "--no-fund",
+            "--ignore-scripts",
+            "--save",
+            "--save-exact",
+            f"resumed@{resumed_version()}",
+            *packages,
+        ]
+        completed = _run_process(command, cwd=target, timeout=timeout)
+        if completed.returncode != 0:
+            raise JsonResumeThemeError(_bounded_error("npm install failed", completed))
 
 
 def render_selected_theme(resume: Resume, *, timeout: float = 30.0) -> RenderedTheme:
+    key = selected_catalog_theme_key(resume)
+    if key is not None:
+        return render_catalog_theme(resume, key, timeout=timeout)
     theme_name = selected_theme_name(resume)
     if theme_name is None:
         raise JsonResumeThemeError("No JSON Resume theme is selected")
@@ -370,6 +408,11 @@ def render_selected_theme(resume: Resume, *, timeout: float = 30.0) -> RenderedT
 def render_theme(
     resume: Resume, theme_name: str, *, timeout: float = 30.0
 ) -> RenderedTheme:
+    with _theme_cache_lock():
+        return _render_theme(resume, theme_name, timeout=timeout)
+
+
+def _render_theme(resume: Resume, theme_name: str, *, timeout: float) -> RenderedTheme:
     _validate_theme_name(theme_name)
     exported = export_resume(resume)
     if not exported.report.valid:
@@ -442,7 +485,12 @@ def render_catalog_theme(
     resume: Resume, key: str, *, timeout: float = 30.0
 ) -> RenderedTheme:
     entry = catalog_theme(key)
-    return render_theme(resume, entry.package, timeout=timeout)
+    with _theme_cache_lock() as target:
+        if not _catalog_theme_installed(target, entry):
+            raise CatalogThemeNotInstalled(
+                "The pinned theme and renderer must be installed in the cache by the operator"
+            )
+        return _render_theme(resume, entry.package, timeout=timeout)
 
 
 def _catalog_entries(raw_catalog) -> list[ThemeCatalogEntry]:

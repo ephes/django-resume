@@ -46,7 +46,8 @@ When ``True``, a resume owner's **Preview render** or **Use render theme** click
 installs the pinned catalog package (and the pinned ``resumed`` renderer) into
 ``DJANGO_RESUME_JSON_RESUME_THEME_DIR`` by running ``npm install`` on the
 server. When ``False``, those views never run npm: they work only for catalog
-themes whose pinned version is already installed in the cache and answer
+themes whose pinned version and configured renderer manifest version are already
+installed in the cache and answer
 ``403`` otherwise. Operators install themes ahead of time with
 ``python manage.py install_json_resume_catalog_themes [KEY ...]``.
 
@@ -61,7 +62,9 @@ Default: ``"7.0.0"`` (``django_resume.formats.json_resume.themes.RESUMED_VERSION
 
 Exact version of the ``resumed`` renderer installed next to JSON Resume themes.
 Ranges and tags such as ``latest`` are rejected. ``resumed`` 7 requires Node.js
-24 or newer; set ``"6.1.0"`` on hosts with an older Node.js.
+24 or newer; set ``"6.1.0"`` on hosts with an older Node.js. Changing this pin
+requires an explicit cache refresh; catalog views return ``403`` until both
+theme and renderer versions match when browser installs are disabled.
 
 ``DJANGO_RESUME_JSON_RESUME_ALLOW_DYNAMIC_THEME_INSTALL``
 =========================================================
@@ -89,3 +92,17 @@ Default: ``200000``
 Maximum size, in bytes, captured from each stdout or stderr stream while running
 ``npm install`` or the JSON Resume renderer. The child process is terminated if
 either stream exceeds this limit.
+
+
+``DJANGO_RESUME_JSON_RESUME_CACHE_LOCK_TIMEOUT``
+================================================
+
+Default: ``10.0`` (seconds)
+
+Positive, finite wait for the shared theme cache's exclusive native file lock.
+Installs, readiness checks and renders all use this lock and renders are
+serialized across workers. A long render/install can make another operation
+reach its wait timeout; contention and inaccessible caches produce
+``JsonResumeThemeError``. The worker needs a writable cache directory and lock
+file even when browser installs are disabled. Keep ``.cache.lock`` in place
+while workers run and use a filesystem supporting native file locks.
