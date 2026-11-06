@@ -407,3 +407,11 @@ Troubleshooting
    1. Use django-resume CSS design system variables for consistency
    2. Include your custom CSS in the template using ``{% load static %}`` and ``<link>`` tags
    3. Check browser dev tools for CSS conflicts or missing styles
+
+Default JSON form
+-----------------
+
+Plugins using the default ``SimpleJsonForm`` must submit a JSON object,
+including an empty object (``{}``). Arrays, strings, numbers, booleans and null
+produce a field error and do not change stored plugin data. Plugins that define
+a custom form retain their own validation contract.

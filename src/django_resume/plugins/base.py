@@ -141,7 +141,14 @@ class EditorTextField(forms.CharField):
 
 
 class SimpleJsonForm(forms.Form):
-    plugin_data = forms.JSONField(widget=forms.Textarea)
+    # Let {} reach object validation; missing/blank values are rejected there.
+    plugin_data = forms.JSONField(widget=forms.Textarea, required=False)
+
+    def clean_plugin_data(self) -> dict:
+        data = self.cleaned_data["plugin_data"]
+        if not isinstance(data, dict):
+            raise forms.ValidationError("Enter a JSON object.")
+        return data
 
 
 class LockedResumeMutationMixin:

@@ -305,3 +305,18 @@ Publishing, pushing, and creating GitHub releases are maintainer actions.
 Agents preparing a release should stop after validation and artifact
 generation, then report the remaining ``uv publish``, ``git push``, and
 ``gh release create`` commands for the maintainer to run.
+
+
+Theme selection concurrency
+---------------------------
+
+``just check`` includes SQLite conflict and stale-instance regressions. CI also
+runs the selection suite against an ephemeral PostgreSQL 17 service, exercising
+a real row-lock wait while another integration writer commits. To run it with a
+local disposable database named ``resume_test`` and the synthetic credentials
+in ``tests/postgres_settings.py``::
+
+    uv sync --group postgres
+    DJANGO_SETTINGS_MODULE=tests.postgres_settings uv run --group postgres pytest -v tests/theme_selection_concurrency_test.py
+
+The fixtures contain only synthetic data; no production database is used.

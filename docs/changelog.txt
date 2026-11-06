@@ -14,6 +14,10 @@ Security
 
 Fixes
 ^^^^^
+* Preserve newly committed integration metadata when selecting a theme from a
+  stale resume; report concurrent selection conflicts as retryable errors.
+* Require JSON objects in the default simple-plugin form and leave stored data
+  unchanged for scalar/array submissions. Custom plugin forms are unaffected.
 * Serialize theme installs, readiness checks and renders across processes with a
   bounded cache lock. Require both the pinned theme and configured renderer
   version for catalog readiness and recheck readiness under the render lock.

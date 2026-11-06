@@ -1,9 +1,8 @@
 name: CI
 
-# Same checks as `just check` (lint, typecheck, test), run through uv directly
-# and in check-only mode. Tests use tests.settings (SQLite, no external
-# services), so no secrets are needed. The Playwright e2e suite in e2e_tests/
-# is not run here.
+# Core lint, typecheck and SQLite tests mirror `just check`, in check-only
+# mode. A separate synthetic PostgreSQL service checks theme-selection
+# interleavings. No secrets are needed. Playwright e2e_tests/ are not run here.
 
 on:
   push:
@@ -75,3 +74,40 @@ jobs:
         run: npm ci
       - name: Run vitest
         run: npx vitest run
+
+
+  postgres-selection:
+    name: Theme selection concurrency (PostgreSQL 17)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: resume_test
+          POSTGRES_USER: resume
+          POSTGRES_PASSWORD: synthetic-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+      - name: Set up uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.12.23"
+      - name: Sync locked PostgreSQL test dependencies
+        run: uv sync --group postgres
+      - name: Test real row-lock interleavings
+        env:
+          DJANGO_SETTINGS_MODULE: tests.postgres_settings
+        run: uv run --group postgres pytest -v tests/theme_selection_concurrency_test.py

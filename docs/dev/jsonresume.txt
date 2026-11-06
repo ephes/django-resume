@@ -1472,3 +1472,19 @@ binary, and a ``resumed/package.json`` version matching
 under the same lock. Missing or stale renderer manifests require an explicit
 operator cache refresh when browser installs are disabled; readiness never
 installs packages itself.
+
+Theme selection and concurrent integration edits
+------------------------------------------------
+
+Theme selection reloads the current resume on its routed write database inside
+an atomic transaction, locks the row where supported, and updates only the
+``json_resume.theme`` subtree. Unrelated integration keys and sibling JSON
+Resume metadata from already committed imports/editors are preserved. A
+conditional update compares the complete integration snapshot; SQLite snapshot
+write conflicts and concurrent changes become ``JsonResumeThemeError`` with a
+retry instruction. Failed selections leave the caller's state unchanged.
+
+On SQLite the conditional snapshot comparison uses the JSON field's serialized
+text. Integration metadata should be written through the Django ORM. Raw SQL
+writers using a different JSON serialization can cause a controlled conflict
+on every selection; normalize such rows with an ORM save before retrying.
