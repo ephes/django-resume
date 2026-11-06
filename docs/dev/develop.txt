@@ -51,6 +51,39 @@ check-only mode (``ruff check``, ``ruff format --check``, mypy, pytest with
 coverage) plus ``npx vitest run`` on every push and pull request. The
 Playwright e2e tests are not part of CI.
 
+Python dependency advisory audit
+--------------------------------
+
+Run the same network-dependent advisory gate used by CI with:
+
+.. code-block:: sh
+
+    $ just audit
+
+The command uses pinned ``pip-audit==2.10.1`` against ``uv export --locked``
+requirements for all dependency groups (runtime, dev, e2e and postgres).
+Only pip-audit's top-level version is pinned; its isolated tool dependencies
+are resolved separately from PyPI and are not locked by this repository.
+It rejects stale locks even when ``UV_FROZEN=1`` is set for CI installs.
+Export and audit failures propagate to CI. The fully pinned registry graph is
+audited without installing it or resolving newer dependencies.
+
+The export explicitly excludes ``django-resume`` (the project under test) and
+``resume-entrypoint-demo`` (the editable local fixture under
+``example/resume_entrypoint_demo``, which has no registry version). Their code
+is covered by package/entrypoint tests, not by the registry advisory service.
+The audit evaluates requirement markers for the running interpreter/platform:
+CI covers Python 3.14 on Linux, not every Python/platform branch in the lock.
+Run the command in each additional supported environment when checking its
+marker-specific graph. No advisories are ignored.
+
+The setuptools 84.1.0 refresh addresses
+`GHSA-xmj3-9gf7-h52w <https://github.com/pypa/setuptools/security/advisories/GHSA-xmj3-9gf7-h52w>`_,
+which affects Windows legacy ``Wheel.install_as_egg`` handling of crafted
+``namespace_packages.txt`` paths. This is development/build tooling exposure;
+it does not establish a remotely exploitable resume endpoint. Refresh those
+environments with ``uv sync --frozen --dev``; no service deploy is required.
+
 Line Count Overview
 -------------------
 
