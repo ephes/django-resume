@@ -75,6 +75,9 @@ dev = [
 e2e = [
     "resume-entrypoint-demo",
 ]
+postgres = [
+    "psycopg[binary]>=3.2",
+]
 
 [tool.uv.sources]
 resume-entrypoint-demo = { path = "example/resume_entrypoint_demo", editable = true }

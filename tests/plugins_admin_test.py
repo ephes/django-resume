@@ -358,3 +358,33 @@ def test_simple_plugin_admin_upload_replaces_avatar(
     assert stored != "uploads/stored.png"
     assert stored.startswith("uploads/") and stored.endswith(".png")
     assert default_storage.exists(stored)
+
+
+@pytest.mark.parametrize(
+    "submitted", ['["data"]', '"data"', "42", "true", "false", "null"]
+)
+@pytest.mark.django_db
+def test_default_simple_plugin_requires_json_object(
+    admin_client, resume, plugin_registry, submitted
+):
+    resume.owner.is_staff = True
+    resume.owner.save()
+    plugin = plugin_registry.get_plugin(SimplePlugin.name)
+    plugin.data.set_data(resume, {"existing": "keep"})
+    resume.save()
+    admin_client.force_login(resume.owner)
+    response = admin_client.post(
+        plugin.admin.get_change_post_url(resume.pk), {"plugin_data": submitted}
+    )
+    assert response.status_code == 200
+    assert "plugin_data" in response.context["form"].errors
+    resume.refresh_from_db()
+    assert plugin.get_data(resume) == {"existing": "keep"}
+
+
+def test_default_simple_json_form_accepts_empty_object():
+    from django_resume.plugins.base import SimpleJsonForm
+
+    form = SimpleJsonForm({"plugin_data": "{}"})
+    assert form.is_valid(), form.errors
+    assert form.cleaned_data["plugin_data"] == {}

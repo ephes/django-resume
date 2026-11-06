@@ -16,7 +16,10 @@ from urllib.request import urlopen
 
 from filelock import FileLock, Timeout
 
+from copy import deepcopy
+
 from django.conf import settings
+from django.db import DatabaseError, router, transaction
 
 from ...models import Resume
 from .export import export_resume, portable_document
@@ -308,16 +311,31 @@ def set_selected_catalog_theme(resume: Resume, key: str) -> None:
 
 
 def _set_theme_state(resume: Resume, theme_state: dict[str, str]) -> None:
-    integration_data = resume.integration_data
-    if not isinstance(integration_data, dict):
-        integration_data = {}
-    json_resume_state = integration_data.get("json_resume")
-    if not isinstance(json_resume_state, dict):
-        json_resume_state = {}
-    json_resume_state["theme"] = theme_state
-    integration_data["json_resume"] = json_resume_state
+    database = router.db_for_write(Resume, instance=resume)
+    resumes = Resume.objects.using(database)
+    conflict = (
+        "Resume integration data changed during theme selection; retry the operation"
+    )
+    try:
+        with transaction.atomic(using=database):
+            current = resumes.select_for_update().get(pk=resume.pk)
+            original = current.integration_data
+            integration_data = deepcopy(original) if isinstance(original, dict) else {}
+            json_resume_state = integration_data.get("json_resume")
+            if not isinstance(json_resume_state, dict):
+                json_resume_state = {}
+            json_resume_state["theme"] = theme_state
+            integration_data["json_resume"] = json_resume_state
+            # Row locks protect supported locking backends. The comparison also
+            # prevents silent lost updates on backends such as SQLite.
+            changed = resumes.filter(pk=resume.pk, integration_data=original).update(
+                integration_data=integration_data
+            )
+            if changed != 1:
+                raise JsonResumeThemeError(conflict)
+    except (DatabaseError, Resume.DoesNotExist) as exc:
+        raise JsonResumeThemeError(conflict) from exc
     resume.integration_data = integration_data
-    resume.save(update_fields=["integration_data"])
 
 
 def search_themes(
