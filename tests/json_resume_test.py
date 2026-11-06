@@ -1273,23 +1273,12 @@ def test_search_themes_queries_npm_registry_and_filters_results(monkeypatch):
     }
     seen_urls = []
 
-    class _Response:
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *_args):
-            return None
-
-        @staticmethod
-        def read():
-            return json.dumps(payload).encode("utf-8")
-
-    def fake_urlopen(url, timeout):
+    def fake_registry(url, *, timeout):
         seen_urls.append(url)
         assert timeout == 8.0
-        return _Response()
+        return json.dumps(payload).encode("utf-8")
 
-    monkeypatch.setattr(json_resume_themes, "urlopen", fake_urlopen)
+    monkeypatch.setattr(json_resume_themes, "_read_registry_response", fake_registry)
 
     results = search_themes("even")
 

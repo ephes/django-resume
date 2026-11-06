@@ -1,7 +1,10 @@
 import json
+from http.client import HTTPSConnection, HTTPException
 import os
 import re
 import signal
+import socket
+from time import monotonic
 import shutil
 import stat
 import subprocess
@@ -10,8 +13,9 @@ import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlencode
-from urllib.request import urlopen
+from urllib.parse import urlencode, urlsplit, unquote
+from urllib.request import getproxies, proxy_bypass
+from base64 import b64encode
 
 from django.conf import settings
 
@@ -20,6 +24,7 @@ from .export import export_resume, portable_document
 
 NPM_SEARCH_URL = "https://registry.npmjs.org/-/v1/search"
 THEME_SEARCH_SIZE = 100
+THEME_SEARCH_MAX_BYTES = 1_048_576
 THEME_PACKAGE_RE = re.compile(
     r"^(?:jsonresume-theme-[a-z0-9][a-z0-9._-]*|"
     r"@jsonresume/jsonresume-theme-[a-z0-9][a-z0-9._-]*)$"
@@ -292,17 +297,115 @@ def search_themes(
     search_text = "keywords:jsonresume-theme"
     params = urlencode({"text": search_text, "size": min(max(size, 1), 250)})
     url = f"{NPM_SEARCH_URL}?{params}"
+    data = _read_registry_response(url, timeout=timeout)
     try:
-        with urlopen(url, timeout=timeout) as response:
-            payload = json.loads(response.read().decode("utf-8"))
-    except OSError as exc:
-        raise JsonResumeThemeError(f"Could not search npm registry: {exc}") from exc
-    except json.JSONDecodeError as exc:
+        payload = json.loads(data.decode("utf-8"))
+    except (ValueError, RecursionError) as exc:
         raise JsonResumeThemeError("npm registry returned invalid JSON") from exc
     results = _parse_search_results(payload)
     if query:
         results = _filter_theme_results(results, query)
     return results
+
+
+def _registry_connection(host: str, *, timeout: float) -> HTTPSConnection:
+    try:
+        proxy = getproxies().get("https") if not proxy_bypass(host) else None
+        if not proxy:
+            return HTTPSConnection(host, timeout=timeout)
+        parsed = urlsplit(proxy if "://" in proxy else f"http://{proxy}")
+        # http.client supports HTTP CONNECT, not TLS to the proxy itself.
+        if parsed.scheme != "http" or not parsed.hostname:
+            raise ValueError("unsupported proxy")
+        headers = {}
+        if parsed.username is not None:
+            credentials = f"{unquote(parsed.username)}:{unquote(parsed.password or '')}"
+            headers["Proxy-Authorization"] = "Basic " + b64encode(
+                credentials.encode()
+            ).decode("ascii")
+        connection = HTTPSConnection(
+            parsed.hostname, parsed.port or 80, timeout=timeout
+        )
+        connection.set_tunnel(host, port=443, headers=headers)
+        return connection
+    except (ValueError, HTTPException) as exc:
+        raise JsonResumeThemeError(
+            "Could not search npm registry: unsupported HTTPS proxy"
+        ) from exc
+
+
+def _read_registry_response(url: str, *, timeout: float) -> bytes:
+    """Bound registry bytes and wall time, including dripping headers/framing."""
+    deadline = monotonic() + timeout
+    parsed = urlsplit(url)
+    connection = _registry_connection(parsed.hostname or "", timeout=timeout)
+    expired = threading.Event()
+    timer = None
+    response = None
+
+    def remaining() -> float:
+        seconds = deadline - monotonic()
+        if seconds <= 0 or expired.is_set():
+            raise TimeoutError("total search deadline exceeded")
+        return seconds
+
+    def interrupt(sock) -> None:
+        expired.set()
+        try:
+            # Keep SSLSocket's SSL object alive while another thread reads it.
+            socket.socket.shutdown(sock, socket.SHUT_RDWR)
+        except OSError:
+            pass
+
+    try:
+        remaining()
+        connection.connect()
+        sock = connection.sock
+        if sock is not None:
+            sock.settimeout(remaining())
+            timer = threading.Timer(remaining(), interrupt, (sock,))
+            timer.daemon = True
+            timer.start()
+        connection.request(
+            "GET",
+            f"{parsed.path}?{parsed.query}",
+            headers={"Accept": "application/json"},
+        )
+        response = connection.getresponse()
+        remaining()
+        if response.status != 200:
+            raise JsonResumeThemeError(
+                f"Could not search npm registry: HTTP {response.status}"
+            )
+        data = bytearray()
+        while len(data) <= THEME_SEARCH_MAX_BYTES:
+            seconds = remaining()
+            if sock is not None:
+                sock.settimeout(seconds)
+            chunk = response.read1(
+                min(64 * 1024, THEME_SEARCH_MAX_BYTES + 1 - len(data))
+            )
+            remaining()
+            if not chunk:
+                return bytes(data)
+            data.extend(chunk)
+        raise JsonResumeThemeError(
+            f"npm registry response exceeds maximum size of {THEME_SEARCH_MAX_BYTES} bytes"
+        )
+    except (OSError, HTTPException) as exc:
+        detail = (
+            "total search deadline exceeded"
+            if expired.is_set() or monotonic() >= deadline
+            else "request failed"
+        )
+        raise JsonResumeThemeError(f"Could not search npm registry: {detail}") from exc
+    finally:
+        if timer is not None:
+            timer.cancel()
+            timer.join()
+        if response is not None:
+            response.close()
+        connection.close()
 
 
 def install_theme(package_name: str, *, timeout: float = 90.0) -> None:
@@ -507,10 +610,15 @@ def _validate_catalog_entry(entry: ThemeCatalogEntry) -> None:
         )
 
 
-def _parse_search_results(payload: dict[str, Any]) -> list[ThemeSearchResult]:
+def _parse_search_results(payload: Any) -> list[ThemeSearchResult]:
+    error = "npm registry returned invalid search results"
+    if not isinstance(payload, dict) or not isinstance(payload.get("objects"), list):
+        raise JsonResumeThemeError(error)
     results = []
-    for item in payload.get("objects", []):
-        package = item.get("package", {}) if isinstance(item, dict) else {}
+    for item in payload["objects"]:
+        if not isinstance(item, dict) or not isinstance(item.get("package"), dict):
+            raise JsonResumeThemeError(error)
+        package = item["package"]
         name = package.get("name")
         if not isinstance(name, str) or not is_theme_package_name(name):
             continue

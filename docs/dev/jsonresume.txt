@@ -1448,3 +1448,20 @@ and streamed response bodies, in addition to the 10-second socket timeout and
 reads (including headers and chunk framing) are interrupted when the budget
 expires. System DNS resolution is synchronous and cannot be interrupted by
 this budget; elapsed resolution time counts against subsequent network work.
+
+Registry discovery limits
+-------------------------
+
+Dynamic theme discovery accepts at most 1 MiB of registry response data and
+uses one eight-second elapsed response budget for the request, headers and body (the
+``search_themes(timeout=...)`` argument changes that budget). DNS resolution and
+connection setup are subject to system/per-operation timeouts: multiple TCP
+addresses, proxy CONNECT and TLS negotiation can exceed the response budget.
+No response is consumed if setup already exhausted it. Standard HTTPS proxy
+settings using HTTP CONNECT and proxy bypass rules are honored. Proxies that
+require TLS to the proxy itself (``https://`` proxy URLs) are rejected explicitly. Dripping headers
+and chunk framing are interrupted when the budget expires. Registry redirects
+and non-200 responses fail with the existing theme-search error. These limits
+apply only to discovery, not npm installs or rendered HTML. Invalid UTF-8,
+excessively nested JSON, and invalid search/object/package structures also
+produce a bounded selector error; invalid individual package names are skipped.
