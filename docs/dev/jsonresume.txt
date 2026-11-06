@@ -1448,3 +1448,27 @@ and streamed response bodies, in addition to the 10-second socket timeout and
 reads (including headers and chunk framing) are interrupted when the budget
 expires. System DNS resolution is synchronous and cannot be interrupted by
 this budget; elapsed resolution time counts against subsequent network work.
+
+Shared theme cache coordination
+-------------------------------
+
+Installs, readiness checks and renders share an exclusive cross-process lock in
+``DJANGO_RESUME_JSON_RESUME_THEME_DIR`` through the ``filelock`` package's native
+Windows/POSIX locking. The lock is held until the subprocess and output read
+finish. This intentionally serializes all renders, even for different resumes;
+a long render or install can make other workers reach their contention timeout.
+Readiness checks create the directory/lock file and require a writable,
+worker-owned cache. Access failures are reported as theme errors.
+Lock waits default to ten seconds; set the positive, finite
+``DJANGO_RESUME_JSON_RESUME_CACHE_LOCK_TIMEOUT`` (seconds) to override. Contention
+raises ``JsonResumeThemeError`` so the owner can retry. Keep the cache and its
+``.cache.lock`` file on a filesystem supporting native file locks; never remove
+the lock file while workers are running. All writers must use the install APIs
+or the existing management command.
+
+Catalog readiness requires the theme manifest's exact pinned version, a renderer
+binary, and a ``resumed/package.json`` version matching
+``DJANGO_RESUME_JSON_RESUME_RESUMED_VERSION``. Catalog rendering rechecks these
+under the same lock. Missing or stale renderer manifests require an explicit
+operator cache refresh when browser installs are disabled; readiness never
+installs packages itself.

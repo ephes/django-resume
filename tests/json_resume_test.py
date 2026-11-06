@@ -1439,7 +1439,12 @@ def _fake_installed_theme(target: Path, package: str, version: str) -> None:
     )
     bin_dir = target / "node_modules" / ".bin"
     bin_dir.mkdir(parents=True, exist_ok=True)
-    (bin_dir / "resumed").write_text("", encoding="utf-8")
+    json_resume_themes._resumed_bin(target).write_text("", encoding="utf-8")
+    renderer_dir = target / "node_modules" / "resumed"
+    renderer_dir.mkdir(exist_ok=True)
+    (renderer_dir / "package.json").write_text(
+        _json.dumps({"version": json_resume_themes.RESUMED_VERSION}), encoding="utf-8"
+    )
 
 
 def test_catalog_theme_installed_requires_pinned_version_and_resumed(
@@ -1459,7 +1464,7 @@ def test_catalog_theme_installed_requires_pinned_version_and_resumed(
     )
     assert json_resume_themes.catalog_theme_installed(entry) is True
 
-    (target / "node_modules" / ".bin" / "resumed").unlink()
+    json_resume_themes._resumed_bin(target).unlink()
     assert json_resume_themes.catalog_theme_installed(entry) is False
 
 
