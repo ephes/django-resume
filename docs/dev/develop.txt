@@ -60,6 +60,20 @@ server. It checks native click/Enter/``requestSubmit()`` submission and actual
 ``FormData`` file contents after successful and rejected drops. Vitest covers
 controlled reader completion order, failures, cancellation and reconnects.
 
+Browser mutation CSRF regressions
+---------------------------------
+
+Run the real-middleware owner-session regressions with::
+
+    uv run pytest -q tests/browser_mutation_csrf_test.py
+
+They cover file preview/confirmation, URL import, whole-resume DELETE, and
+simple, flat and list-item inline edits. Valid preview confirmations and editor
+revisions are supplied even when CSRF proof is rejected. Missing/mismatched
+proof and foreign origins must reject before URL fetches, import preparation,
+database writes or avatar storage. Same-origin controls exercise the real saves
+with synthetic documents and in-memory images; no external service is used.
+
 Failure cleanup
 ---------------
 
