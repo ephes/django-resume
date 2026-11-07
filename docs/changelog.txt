@@ -5,6 +5,15 @@ Changelog
 Unreleased
 ----------
 
+Documentation
+^^^^^^^^^^^^^
+* Correct contributor setup to sync dependencies before installing hooks with
+  ``uvx prek install``; document optional hook-environment preparation.
+* Replace the obsolete separate wheel/sdist build workaround with a combined
+  build and explicit module, migration and template checks in both artifacts.
+* Distinguish Python/Django installer minima from the Python 3.14 and locked
+  Django 6.0.8 environment used by the existing checks.
+
 Compatibility
 ^^^^^^^^^^^^^
 * Custom inline editor templates (including generated/database-stored plugins)

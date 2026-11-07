@@ -17,19 +17,34 @@ Switch to the django-resume directory:
 
     $ cd django-resume
 
-Install the pre-commit hooks
-----------------------------
-
-.. code-block:: sh
-
-    $ uvx run pre-commit install
-
 Install the Package using uv
 ----------------------------
+
+The installer minima and the environment exercised by the current checks are
+listed in :doc:`../guide/installation`. Use Python 3.14 to reproduce the current
+locked development checks.
 
 .. code-block:: sh
 
     $ uv sync --dev
+
+Install the pre-commit hooks
+----------------------------
+
+After syncing dependencies, install the repository's configured Git hook:
+
+.. code-block:: sh
+
+    $ uvx prek install
+
+Optionally prepare the hook environments up front (for example on a first
+checkout), rather than waiting for the first commit:
+
+.. code-block:: sh
+
+    $ uvx prek install-hooks
+
+The hooks in ``.pre-commit-config.yaml`` run Ruff linting and formatting.
 
 Repository Checks
 -----------------
@@ -338,21 +353,48 @@ releases from ``main`` and uses plain version-number git tags, for example
        $ just check
        $ make -C docs html
 
-6. Clean old package artifacts and build the package.
+6. Clean old package artifacts and build the wheel and sdist together.
 
-   .. admonition:: wheel/sdist issues
-
-       ``uv build`` will build both a wheel and a sdist. But the wheel
-       will be empty. To build a wheel with the correct content, you
-       need to run ``uv build --wheel`` and ``uv build --sdist`` separately.
+   ``--no-sources`` checks the distributable build without local uv source
+   overrides.
 
    .. code-block:: sh
 
        $ rm -rf dist/
-       $ uv build --wheel
-       $ uv build --sdist
+       $ uv build --no-sources
 
-7. Validate the package artifacts:
+7. Validate the package artifacts. First check actual package contents in both
+   formats; metadata validation alone does not detect a missing application.
+   Run this Python snippet from the repository root (for example in
+   ``uv run python``). It requires one wheel and one sdist in ``dist/``:
+
+   .. code-block:: python
+
+       from pathlib import Path
+       import tarfile
+       import zipfile
+
+       required = {
+           "__init__.py",
+           "models.py",
+           "migrations/0001_initial.py",
+           "templates/django_resume/pages/plain/resume_cv.html",
+       }
+       wheels = list(Path("dist").glob("django_resume-*.whl"))
+       sdists = list(Path("dist").glob("django_resume-*.tar.gz"))
+       assert len(wheels) == len(sdists) == 1, "Expected one wheel and one sdist"
+       with zipfile.ZipFile(wheels[0]) as wheel:
+           names = set(wheel.namelist())
+           for name in required:
+               assert "django_resume/" + name in names, name
+       with tarfile.open(sdists[0]) as sdist:
+           names = set(sdist.getnames())
+           prefix = sdists[0].name.removesuffix(".tar.gz") + "/src/django_resume/"
+           for name in required:
+               assert prefix + name in names, name
+       print("Checked:", wheels[0], sdists[0])
+
+   Then validate the distribution metadata:
 
    .. code-block:: sh
 

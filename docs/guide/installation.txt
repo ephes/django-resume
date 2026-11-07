@@ -4,9 +4,14 @@ Installation
 Requirements
 ------------
 
-Python 3.10 to 3.13 supported.
+Package metadata requires Python ``>=3.10`` and Django ``>=4.2``. These are
+installer minima, not a tested compatibility matrix or upper version limits.
+Django itself must also support the chosen Python version.
 
-Django 4.2 to 5.2 supported.
+The existing development/CI gates use Python 3.14; the current lock selects
+Django 6.0.8 for that interpreter. They do not exercise every combination
+allowed by the metadata. See :doc:`../dev/develop` for the local validation
+commands and the lock's environment-specific dependency audit.
 
 Installation
 ------------
