@@ -267,6 +267,7 @@ Create the template directory structure:
 
    <!-- templates/django_resume/plugins/certifications/plain/flat_form.html -->
    <form hx-post="{{ edit_flat_post_url }}" hx-target="this" hx-swap="outerHTML">
+       {% include "django_resume/edit_revision.html" %}
      <div class="cluster">
        <input class="editable-h2" type="text" name="title" value="{{ form.title.value|default:'Certifications' }}">
        <button type="submit">
@@ -324,6 +325,7 @@ Create the template directory structure:
        hx-target="#certifications-item-{{ form.item_id }}"
        hx-swap="outerHTML"
      >
+       {% include "django_resume/edit_revision.html" %}
        <input type="hidden" name="id" value="{{ form.item_id }}">
        <input type="hidden" name="position" value="{{ form.position.value }}">
        
@@ -515,3 +517,12 @@ Troubleshooting
 
 **Ordering issues**
    Verify position management methods are implemented correctly.
+
+Editor revision field
+---------------------
+
+Every custom editor form must render the signed revision field and its errors
+inside its ``<form>``. Include ``django_resume/edit_revision.html`` as shown
+above. Forms rendered with ``form.as_p`` already include both. Old templates
+must be updated before editing with this version; missing revisions are
+rejected and the editor asks the user to reload.

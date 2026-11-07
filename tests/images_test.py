@@ -1,3 +1,4 @@
+from tests.editor_helpers import post_current_editor
 import re
 import struct
 
@@ -270,7 +271,8 @@ def test_failed_resume_save_preserves_old_images(
 
     monkeypatch.setattr(Resume, "save", fail_save)
     with pytest.raises(OSError, match="database unavailable"):
-        client.post(
+        post_current_editor(
+            client,
             urls[surface](),
             {"name": "New", field: SimpleUploadedFile("new.png", png_bytes(2, 2))},
         )
@@ -300,7 +302,8 @@ def test_admin_render_failure_keeps_committed_upload(
 
     monkeypatch.setattr(base, "render", fail_render)
     with pytest.raises(RuntimeError, match="render failed"):
-        client.post(
+        post_current_editor(
+            client,
             plugin.admin.get_change_post_url(resume.pk),
             {
                 "name": "New",

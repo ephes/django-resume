@@ -1,3 +1,4 @@
+from tests.editor_helpers import post_current_editor
 import pytest
 
 from django_resume.models import Resume
@@ -28,7 +29,7 @@ def test_edit_timeline_title(client, resume):
 
     # When we post a title that is too long using the edit form
     title_edit_post_url = r.context["edit_flat_post_url"]
-    r = client.post(title_edit_post_url, {"title": "x" * 51})
+    r = post_current_editor(client, title_edit_post_url, {"title": "x" * 51})
 
     # Then the response should be successful and contain the title form with an error
     assert r.status_code == 200
@@ -37,7 +38,7 @@ def test_edit_timeline_title(client, resume):
 
     # When we post a valid title using the edit form
     title_edit_post_url = r.context["edit_flat_post_url"]
-    r = client.post(title_edit_post_url, {"title": "Updated title"})
+    r = post_current_editor(client, title_edit_post_url, {"title": "Updated title"})
 
     # Then the response should be successful and contain the updated title
     assert r.status_code == 200
@@ -103,7 +104,7 @@ def test_create_item(client, resume, timeline_item_data):
 
     # When we post a new item
     add_item_url = plugin.inline.get_post_item_url(resume.pk)
-    r = client.post(add_item_url, timeline_item_data)
+    r = post_current_editor(client, add_item_url, timeline_item_data)
 
     # Then the response should be successful and the item should be added to the database
     assert r.status_code == 200
@@ -132,7 +133,7 @@ def test_update_item(client, resume_with_timeline_item, timeline_item_data):
     # When we post an updated item
     update_item_url = plugin.inline.get_post_item_url(resume.pk)
     timeline_item_data["company_name"] = "Updated company name"
-    r = client.post(update_item_url, timeline_item_data)
+    r = post_current_editor(client, update_item_url, timeline_item_data)
 
     # Then the response should be successful and the item should be updated in the database
     assert r.status_code == 200
@@ -160,7 +161,7 @@ def test_delete_item(client, resume_with_timeline_item):
 
     # When we post a delete request for the item
     delete_item_url = plugin.inline.get_delete_item_url(resume.pk, item["id"])
-    r = client.post(delete_item_url)
+    r = post_current_editor(client, delete_item_url)
 
     # Then the response should be successful and the item should be deleted from the database
     assert r.status_code == 200

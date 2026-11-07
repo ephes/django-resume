@@ -1,5 +1,8 @@
 """Denial pages and inline editing remain available for partial themes."""
 
+from tests.editor_helpers import post_current_editor
+
+
 from copy import deepcopy
 
 import pytest
@@ -95,12 +98,13 @@ def test_partial_third_party_theme_falls_back_for_denial_fragments(
         t.name for t in form.templates
     }
     post_url = reverse("resume:permission_denied-post", kwargs={"resume_id": resume.pk})
-    invalid = client.post(post_url, {"title": ""})
+    invalid = post_current_editor(client, post_url, {"title": ""})
     assert invalid.status_code == 200
     assert "django_resume/plugins/permission_denied/plain/form.html" in {
         t.name for t in invalid.templates
     }
-    updated = client.post(
+    updated = post_current_editor(
+        client,
         post_url,
         {**resume.plugin_data["permission_denied"], "title": "Updated access request"},
     )

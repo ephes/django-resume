@@ -1,5 +1,8 @@
 """A resume can render its pages in its own language."""
 
+from tests.editor_helpers import post_current_editor
+
+
 import pytest
 from django.urls import reverse
 from django.utils import translation
@@ -116,7 +119,8 @@ def test_inline_fragments_use_resume_language(client, german_resume):
     plugin = plugin_registry.get_plugin("employed_timeline")
 
     with translation.override("en"):
-        response = client.post(
+        response = post_current_editor(
+            client,
             plugin.inline.get_post_item_url(german_resume.pk),
             {
                 "id": "w1",
@@ -146,11 +150,11 @@ def test_theme_form_saves_and_validates_language(client, german_resume):
     # the current theme is preselected, so saving the language keeps the theme
     assert '<option value="editorial" selected>' in form
 
-    client.post(url, {"name": "editorial", "language": "en"})
+    post_current_editor(client, url, {"name": "editorial", "language": "en"})
     german_resume.refresh_from_db()
     assert german_resume.plugin_data["theme"] == {"name": "editorial", "language": "en"}
 
-    response = client.post(url, {"name": "editorial", "language": "xx"})
+    response = post_current_editor(client, url, {"name": "editorial", "language": "xx"})
     assert response.status_code == 200
     german_resume.refresh_from_db()
     assert german_resume.plugin_data["theme"]["language"] == "en"

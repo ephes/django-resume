@@ -1,3 +1,4 @@
+from tests.editor_helpers import post_current_editor
 import json
 
 import pytest
@@ -36,7 +37,7 @@ def test_post_view_not_authenticated(client, resume):
     plugin = plugin_registry.get_plugin(SimplePlugin.name)
     url = plugin.inline.get_post_url(resume.pk)
     json_data = json.dumps({"foo": "bar"})
-    r = client.post(url, {"plugin_data": json_data})
+    r = post_current_editor(client, url, {"plugin_data": json_data})
 
     # Then the response should be a redirect to the login page
     assert r.status_code == 302
@@ -58,7 +59,7 @@ def test_post_view_not_authorized(client, resume, django_user_model):
     plugin = plugin_registry.get_plugin(SimplePlugin.name)
     url = plugin.inline.get_post_url(resume.pk)
     json_data = json.dumps({"foo": "bar"})
-    r = client.post(url, {"plugin_data": json_data})
+    r = post_current_editor(client, url, {"plugin_data": json_data})
 
     # Then the response should be a 403 permission denied
     assert r.status_code == 403
@@ -76,7 +77,7 @@ def test_post_view_resume_not_found(client, resume):
     plugin = plugin_registry.get_plugin(SimplePlugin.name)
     url = plugin.inline.get_post_url(23)
     json_data = json.dumps({"foo": "bar"})
-    r = client.post(url, {"plugin_data": json_data})
+    r = post_current_editor(client, url, {"plugin_data": json_data})
 
     # Then the response should be a 404 not found
     assert r.status_code == 404
@@ -95,7 +96,7 @@ def test_post_view(client, resume):
     plugin = plugin_registry.get_plugin(SimplePlugin.name)
     url = plugin.inline.get_post_url(resume.pk)
     json_data = json.dumps({"foo": "bar"})
-    r = client.post(url, {"plugin_data": json_data})
+    r = post_current_editor(client, url, {"plugin_data": json_data})
 
     # Then the response should be successful
     assert r.status_code == 200
@@ -121,7 +122,7 @@ def test_post_view_invalid_data(client, resume):
     # When we post the form with invalid data
     plugin = plugin_registry.get_plugin(SimplePlugin.name)
     url = plugin.inline.get_post_url(resume.pk)
-    r = client.post(url, {"plugin_data": "invalid"})
+    r = post_current_editor(client, url, {"plugin_data": "invalid"})
 
     # Then the response should be successful
     assert r.status_code == 200

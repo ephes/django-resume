@@ -11,6 +11,7 @@ reloads the page instead of only swapping this fragment. {% endcomment %}
     hx-swap="outerHTML"
     enctype="multipart/form-data"
   >
+    {% include "django_resume/edit_revision.html" %}
     <input type="hidden" data-field="name" name="name" value="{{ form.name.value }}">
     <input type="hidden" data-field="pronouns" name="pronouns" value="{{ form.pronouns.value }}">
     <input type="hidden" data-field="tagline" name="tagline" value="{{ form.tagline.value }}">

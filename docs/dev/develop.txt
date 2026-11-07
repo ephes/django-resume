@@ -362,3 +362,16 @@ in ``tests/postgres_settings.py``::
     DJANGO_SETTINGS_MODULE=tests.postgres_settings uv run --group postgres pytest -v tests/theme_selection_concurrency_test.py
 
 The fixtures contain only synthetic data; no production database is used.
+
+Routed editor transactions
+--------------------------
+
+The PostgreSQL CI job also runs ``tests/plugin_resume_mutation_test.py`` and
+``tests/plugin_stale_edit_test.py``. Two separate synthetic databases verify
+alias-specific rollback and real competing editor row locks. The same editor
+GET/POST regressions run on SQLite in ``just check``. Locally, with the
+PostgreSQL 17 fixture databases from ``tests/postgres_settings.py`` available,
+run::
+
+    uv sync --frozen --group postgres
+    DJANGO_SETTINGS_MODULE=tests.postgres_settings uv run --group postgres pytest -q tests/plugin_resume_mutation_test.py tests/plugin_stale_edit_test.py

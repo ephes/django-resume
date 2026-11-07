@@ -5,6 +5,7 @@
     hx-target="#certifications-item-{{ form.item_id }}"
     hx-swap="outerHTML"
   >
+    {% include "django_resume/edit_revision.html" %}
     <input type="hidden" name="id" value="{{ form.item_id }}">
     <input type="hidden" name="position" value="{{ form.position.value }}">
     

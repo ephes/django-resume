@@ -1,3 +1,4 @@
+from tests.editor_helpers import post_current_editor
 import json
 import re
 
@@ -46,7 +47,7 @@ def test_create_item(admin_client, resume, timeline_item_data):
     post_url = plugin.admin.get_change_item_post_url(resume.id)
 
     # When we create a new timeline item
-    r = admin_client.post(post_url, timeline_item_data)
+    r = post_current_editor(admin_client, post_url, timeline_item_data)
 
     # Then the response should be successful
     assert r.status_code == 200
@@ -80,7 +81,7 @@ def test_update_item(admin_client, resume_with_timeline_item, timeline_item_data
     update_url = plugin.admin.get_change_item_post_url(resume.id)
 
     # When we update the timeline item
-    r = admin_client.post(update_url, timeline_item_data)
+    r = post_current_editor(admin_client, update_url, timeline_item_data)
 
     # Then the response should be successful
     assert r.status_code == 200
@@ -101,7 +102,7 @@ def test_delete_item(admin_client, resume_with_timeline_item):
 
     # When we delete the timeline item
     delete_url = plugin.admin.get_delete_item_url(resume.id, "123")
-    r = admin_client.post(delete_url)
+    r = post_current_editor(admin_client, delete_url)
 
     # Then the response should be successful
     assert r.status_code == 200  # yes, 200 not 204 - htmx won't work with 204
@@ -126,7 +127,7 @@ def test_update_flat_view(admin_client, resume):
     post_url = plugin.admin.get_change_flat_post_url(resume.id)
 
     # When we update the flat form
-    r = admin_client.post(post_url, {"title": "Updated title"})
+    r = post_current_editor(admin_client, post_url, {"title": "Updated title"})
 
     # Then the response should be successful
     assert r.status_code == 200
@@ -174,7 +175,7 @@ def test_add_and_update_via_main_change_view(admin_client, resume, timeline_item
     assert r.status_code == 200
 
     post_new_item_here_url = r.context["form"].post_url
-    r = admin_client.post(post_new_item_here_url, timeline_item_data)
+    r = post_current_editor(admin_client, post_new_item_here_url, timeline_item_data)
     assert r.status_code == 200
 
     # Then the item should be in the database and have an id

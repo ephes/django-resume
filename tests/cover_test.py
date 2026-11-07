@@ -1,3 +1,4 @@
+from tests.editor_helpers import post_current_editor
 import re
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -70,7 +71,8 @@ def test_cover_signature_upload_without_avatar_is_kept_on_next_save(
     url = plugin.inline.get_edit_flat_post_url(resume.pk)
 
     # When a signature is uploaded on a cover letter without an avatar
-    response = client.post(
+    response = post_current_editor(
+        client,
         url,
         {
             **LETTER_DETAILS,
@@ -89,7 +91,7 @@ def test_cover_signature_upload_without_avatar_is_kept_on_next_save(
     assert flat["closing"] == "Best regards"
 
     # And saving the letter again without a new upload keeps the signature
-    client.post(url, {**LETTER_DETAILS, "subject": "Updated subject"})
+    post_current_editor(client, url, {**LETTER_DETAILS, "subject": "Updated subject"})
     resume.refresh_from_db()
     flat = resume.plugin_data["cover"]["flat"]
     assert flat["subject"] == "Updated subject"
@@ -116,7 +118,8 @@ def test_cover_admin_flat_save_keeps_signature(client, resume, in_memory_storage
     plugin = plugin_registry.get_plugin("cover")
 
     # When the flat data is saved in the Django admin without a new upload
-    response = client.post(
+    response = post_current_editor(
+        client,
         plugin.admin.get_change_flat_post_url(resume.pk),
         {**LETTER_DETAILS, "signature_name": "J. Doe"},
     )
@@ -141,7 +144,8 @@ def test_cover_rejects_svg_signature_upload(client, resume, in_memory_storage):
 
     # When an SVG with a script is uploaded under an image name
     svg = b'<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'
-    response = client.post(
+    response = post_current_editor(
+        client,
         url,
         {
             **LETTER_DETAILS,
@@ -172,7 +176,8 @@ def test_cover_shows_error_when_replacing_avatar_with_svg(
     plugin = plugin_registry.get_plugin("cover")
 
     # When the avatar is replaced with an SVG
-    response = client.post(
+    response = post_current_editor(
+        client,
         plugin.inline.get_edit_flat_post_url(resume.pk),
         {
             **LETTER_DETAILS,

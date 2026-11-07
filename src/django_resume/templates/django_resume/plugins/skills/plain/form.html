@@ -7,6 +7,7 @@
     hx-target="#skills"
     hx-swap="outerHTML"
   >
+    {% include "django_resume/edit_revision.html" %}
     <input id="form-skills-badges" type="hidden" data-field="badges" name="badges" value="{{ form.badges_as_json}}">
   </form>
   <h2>Skills</h2>

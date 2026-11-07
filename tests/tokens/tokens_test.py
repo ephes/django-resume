@@ -1,3 +1,4 @@
+from tests.editor_helpers import post_current_editor
 from datetime import timedelta
 
 import pytest
@@ -269,7 +270,8 @@ def test_owner_edits_token_requirement(client, resume, required, theme):
     edit_url = plugin.inline.get_edit_flat_url(resume.pk)
     form = client.get(edit_url)
     assert form.status_code == 200
-    response = client.post(
+    response = post_current_editor(
+        client,
         plugin.inline.get_edit_flat_post_url(resume.pk),
         {"token_required": "on"} if required else {},
     )
@@ -291,7 +293,9 @@ def test_other_user_cannot_edit_token_requirement(client, resume, django_user_mo
     resume.save()
     other = django_user_model.objects.create_user(username="other-editor")
     client.force_login(other)
-    response = client.post(TokenPlugin().inline.get_edit_flat_post_url(resume.pk), {})
+    response = post_current_editor(
+        client, TokenPlugin().inline.get_edit_flat_post_url(resume.pk), {}
+    )
     assert response.status_code == 403
     resume.refresh_from_db()
     assert resume.plugin_data == {}
@@ -307,8 +311,10 @@ def test_unstored_token_requirement_starts_checked(client, resume):
     assert response.status_code == 200
     assert response.context["form"]["token_required"].value() is True
     assert "checked" in str(response.context["form"]["token_required"])
-    response = client.post(
-        plugin.inline.get_edit_flat_post_url(resume.pk), {"token_required": "on"}
+    response = post_current_editor(
+        client,
+        plugin.inline.get_edit_flat_post_url(resume.pk),
+        {"token_required": "on"},
     )
     assert response.status_code == 200
     resume.refresh_from_db()

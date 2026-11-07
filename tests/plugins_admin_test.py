@@ -1,3 +1,4 @@
+from tests.editor_helpers import post_current_editor
 import importlib
 
 import pytest
@@ -169,7 +170,7 @@ def test_simple_plugin_post_data_changes_data(admin_client, resume, plugin_regis
     plugin = plugin_registry.get_plugin(SimplePlugin.name)
     post_url = plugin.admin.get_change_post_url(resume.pk)
     data = {"plugin_data": '{"foo": "bar"}'}
-    r = admin_client.post(post_url, data)
+    r = post_current_editor(admin_client, post_url, data)
 
     # Then the data should be updated
     assert r.status_code == 200
@@ -192,7 +193,7 @@ def test_simple_plugin_post_data_invalid(admin_client, resume, plugin_registry):
     plugin = plugin_registry.get_plugin(SimplePlugin.name)
     post_url = plugin.admin.get_change_post_url(resume.pk)
     data = {"plugin_data": "invalid"}
-    r = admin_client.post(post_url, data)
+    r = post_current_editor(admin_client, post_url, data)
 
     # Then the error message should be shown
     assert r.status_code == 200
@@ -215,7 +216,7 @@ def test_simple_plugin_post_data_checks_permissions_before_validation(
 
     plugin = plugin_registry.get_plugin(SimplePlugin.name)
     post_url = plugin.admin.get_change_post_url(resume.pk)
-    response = admin_client.post(post_url, {"plugin_data": "invalid"})
+    response = post_current_editor(admin_client, post_url, {"plugin_data": "invalid"})
 
     assert response.status_code == 403
 
@@ -253,7 +254,7 @@ def test_simple_plugin_integration(admin_client, resume, plugin_registry):
 
     # When we post data to the plugin
     data = {"foo": "bar"}
-    r = admin_client.post(post_url, data)
+    r = post_current_editor(admin_client, post_url, data)
     assert r.status_code == 200
 
     # Then the data should be updated in the content (foo field value should be "bar")
@@ -311,7 +312,9 @@ def test_simple_plugin_admin_save_without_upload_keeps_avatar(
 
     # When the admin form is saved without a new upload
     data = {**IMAGE_PLUGIN_POSTS[plugin.name], "avatar_alt": "Changed alt"}
-    r = admin_client.post(plugin.admin.get_change_post_url(resume.pk), data)
+    r = post_current_editor(
+        admin_client, plugin.admin.get_change_post_url(resume.pk), data
+    )
 
     # Then the other fields change and the stored avatar is kept
     assert r.status_code == 200
@@ -332,7 +335,9 @@ def test_simple_plugin_admin_clear_removes_avatar(
     plugin, resume = staff_resume_with_avatar
 
     data = {**IMAGE_PLUGIN_POSTS[plugin.name], "clear_avatar": "on"}
-    r = admin_client.post(plugin.admin.get_change_post_url(resume.pk), data)
+    r = post_current_editor(
+        admin_client, plugin.admin.get_change_post_url(resume.pk), data
+    )
 
     assert r.status_code == 200
     resume.refresh_from_db()
@@ -350,7 +355,9 @@ def test_simple_plugin_admin_upload_replaces_avatar(
 
     upload = SimpleUploadedFile("new.png", png_bytes(2, 3), content_type="image/png")
     data = {**IMAGE_PLUGIN_POSTS[plugin.name], "avatar_img": upload}
-    r = admin_client.post(plugin.admin.get_change_post_url(resume.pk), data)
+    r = post_current_editor(
+        admin_client, plugin.admin.get_change_post_url(resume.pk), data
+    )
 
     assert r.status_code == 200
     resume.refresh_from_db()
@@ -373,8 +380,10 @@ def test_default_simple_plugin_requires_json_object(
     plugin.data.set_data(resume, {"existing": "keep"})
     resume.save()
     admin_client.force_login(resume.owner)
-    response = admin_client.post(
-        plugin.admin.get_change_post_url(resume.pk), {"plugin_data": submitted}
+    response = post_current_editor(
+        admin_client,
+        plugin.admin.get_change_post_url(resume.pk),
+        {"plugin_data": submitted},
     )
     assert response.status_code == 200
     assert "plugin_data" in response.context["form"].errors

@@ -1,3 +1,4 @@
+from tests.editor_helpers import post_current_editor
 import pytest
 
 from django_resume.plugins import EmployedTimelinePlugin
@@ -99,7 +100,7 @@ def test_item_post_with_empty_position_saves_item(
         post_url = plugin.inline.get_post_item_url(resume.pk)
 
     # When an item is posted with an empty position
-    response = client.post(post_url, {**item, "position": ""})
+    response = post_current_editor(client, post_url, {**item, "position": ""})
 
     # Then it is stored at position 0 instead of failing
     assert response.status_code == 200

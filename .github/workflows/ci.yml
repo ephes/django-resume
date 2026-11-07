@@ -113,7 +113,7 @@ jobs:
       - name: Test real row-lock interleavings
         env:
           DJANGO_SETTINGS_MODULE: tests.postgres_settings
-        run: uv run --group postgres pytest -v tests/theme_selection_concurrency_test.py
+        run: uv run --group postgres pytest -v tests/theme_selection_concurrency_test.py tests/plugin_resume_mutation_test.py tests/plugin_stale_edit_test.py
 
   editor-browser:
     name: Synthetic editor browser tests (Chromium)
