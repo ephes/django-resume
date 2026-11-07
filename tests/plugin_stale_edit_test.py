@@ -1,5 +1,7 @@
 """Real GET/POST editor revisions, with synthetic rows and in-memory uploads."""
 
+from html.parser import HTMLParser
+
 import pytest
 from django.core.files.storage import default_storage
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -10,14 +12,15 @@ from django_resume.plugins.identity import IdentityPlugin
 from tests.conftest import png_bytes
 
 
-@pytest.fixture
-def editor_resume(client, django_user_model):
+@pytest.fixture(params=["plain", "editorial", "headwind"])
+def editor_resume(client, django_user_model, request):
     owner = django_user_model.objects.create_superuser(username="synthetic-owner")
     resume = Resume.objects.create(
         name="Synthetic",
         slug="synthetic",
         owner=owner,
         plugin_data={
+            "theme": {"name": request.param},
             "identity": {"name": "Original"},
             "education": {
                 "flat": {"title": "Education"},
@@ -70,19 +73,59 @@ def editor_case(kind, resume):
     return get_url, post_url, "school_name", "item"
 
 
-def loaded_data(client, url, scope):
-    response = client.get(url)
+class RenderedForms(HTMLParser):
+    """Read the input controls used by these editor fixtures, within each form."""
+
+    def __init__(self):
+        super().__init__()
+        self.forms = []
+        self.current = None
+
+    def handle_starttag(self, tag, attrs):
+        attrs = dict(attrs)
+        if tag == "form":
+            assert self.current is None, "Nested forms are not browser-submittable"
+            self.current = (attrs, {})
+            self.forms.append(self.current)
+        elif self.current is not None and tag == "input":
+            name = attrs.get("name")
+            kind = attrs.get("type", "text")
+            if (
+                not name
+                or "disabled" in attrs
+                or kind in {"file", "submit", "button", "reset", "image"}
+            ):
+                return
+            if kind in {"checkbox", "radio"} and "checked" not in attrs:
+                return
+            controls = self.current[1]
+            assert name not in controls, f"Duplicate input {name}"
+            controls[name] = attrs.get(
+                "value", "on" if kind in {"checkbox", "radio"} else ""
+            )
+        elif self.current is not None:
+            assert tag not in {"select", "textarea"}, (
+                "Extend fixture reader for this control"
+            )
+
+    def handle_endtag(self, tag):
+        if tag == "form":
+            self.current = None
+
+
+def rendered_data(response, post_url):
     assert response.status_code == 200
-    if scope == "flat" and "flat_form" in response.context:
-        form = response.context["flat_form"]
-    elif scope == "item" and "item_forms" in response.context:
-        form = response.context["item_forms"][0]
-    else:
-        form = response.context["form"]
-    return {
-        name: field.value() or ""
-        for name, field in ((name, form[name]) for name in form.fields)
-    }
+    parser = RenderedForms()
+    parser.feed(response.content.decode())
+    forms = [data for attrs, data in parser.forms if attrs.get("hx-post") == post_url]
+    assert len(forms) == 1, f"Expected one form posting to {post_url}"
+    data = forms[0]
+    assert data.get("edit_revision"), "Revision must belong to the submitted form"
+    return data
+
+
+def loaded_data(client, url, post_url):
+    return rendered_data(client.get(url), post_url)
 
 
 KINDS = [
@@ -101,8 +144,8 @@ def test_stale_editor_preserves_input_and_saved_state(
     client, editor_resume, kind, in_memory_storage, mocker
 ):
     get_url, post_url, field, scope = editor_case(kind, editor_resume)
-    first = loaded_data(client, get_url, scope)
-    second = loaded_data(client, get_url, scope)
+    first = loaded_data(client, get_url, post_url)
+    second = loaded_data(client, get_url, post_url)
     second[field] = "Saved by second browser"
     assert client.post(post_url, second).status_code == 200
     editor_resume.refresh_from_db()
@@ -123,7 +166,7 @@ def test_stale_editor_preserves_input_and_saved_state(
     assert "edit_revision" not in str(saved)
     # Admin keeps the form after a successful POST; its new token supports another save.
     if kind.endswith("admin"):
-        data = loaded_data(client, get_url, scope)
+        data = loaded_data(client, get_url, post_url)
         data[field] = "Fresh third save"
         assert client.post(post_url, data).context["form"].is_valid()
 
@@ -152,7 +195,7 @@ def test_missing_or_invalid_revision_cannot_store_upload(
 @pytest.mark.parametrize("kind", KINDS)
 def test_unrelated_plugin_edit_does_not_conflict(client, editor_resume, kind):
     get_url, post_url, field, scope = editor_case(kind, editor_resume)
-    data = loaded_data(client, get_url, scope)
+    data = loaded_data(client, get_url, post_url)
     updated = editor_resume.plugin_data
     updated["unrelated"] = {"version": 2}
     Resume.objects.filter(pk=editor_resume.pk).update(plugin_data=updated)
@@ -178,14 +221,13 @@ def test_new_item_and_admin_resubmission(client, editor_resume, admin):
         if admin
         else view.get_post_item_url(editor_resume.pk)
     )
-    data = loaded_data(client, get_url, "item")
+    data = loaded_data(client, get_url, post_url)
     data.update(school_name="New synthetic school", position=1)
     response = client.post(post_url, data)
     editor_resume.refresh_from_db()
     assert len(editor_resume.plugin_data["education"]["items"]) == 2
     if admin:
-        form = response.context["form"]
-        again = {name: form[name].value() or "" for name in form.fields}
+        again = rendered_data(response, post_url)
         again["school_name"] = "Renamed new school"
         response = client.post(post_url, again)
         assert response.context["form"].is_valid()
@@ -200,7 +242,7 @@ def test_new_item_and_admin_resubmission(client, editor_resume, admin):
 @pytest.mark.django_db
 def test_list_item_revision_ignores_other_items_and_flat_data(client, editor_resume):
     get_url, post_url, field, scope = editor_case("item-inline", editor_resume)
-    data = loaded_data(client, get_url, scope)
+    data = loaded_data(client, get_url, post_url)
     plugin_data = editor_resume.plugin_data
     plugin_data["education"]["flat"]["title"] = "Concurrent title"
     plugin_data["education"]["items"].append(
@@ -228,7 +270,7 @@ def test_revision_cannot_be_reused_for_a_different_target(
     client, editor_resume, target
 ):
     get_url, post_url, field, scope = editor_case("item-inline", editor_resume)
-    data = loaded_data(client, get_url, scope)
+    data = loaded_data(client, get_url, post_url)
     if target == "other-resume":
         other = Resume.objects.create(
             name="Other",
@@ -255,7 +297,7 @@ def test_legacy_item_without_position_can_be_saved(client, editor_resume, kind):
     editor_resume.plugin_data["education"]["items"][0].pop("position")
     editor_resume.save(update_fields=["plugin_data"])
     get_url, post_url, field, scope = editor_case(kind, editor_resume)
-    data = loaded_data(client, get_url, scope)
+    data = loaded_data(client, get_url, post_url)
     data[field] = "Edited legacy item"
     response = client.post(post_url, data)
     assert "changed since you opened it" not in response.content.decode()
@@ -346,3 +388,40 @@ def test_custom_example_forms_render_one_revision(settings):
         parser = RevisionInputs()
         parser.feed(render_to_string(path, {"form": form}))
         assert parser.values == ["signed-example"], path
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("kind", KINDS)
+def test_validation_error_html_keeps_revision_in_its_form(client, editor_resume, kind):
+    get_url, post_url, field, scope = editor_case(kind, editor_resume)
+    data = loaded_data(client, get_url, post_url)
+    if scope == "item":
+        assert data["id"] == "school"
+    invalid_field = "email" if scope == "simple" else field
+    invalid_value = (
+        "invalid-email" if scope == "simple" else ("x" * 51 if scope == "flat" else "")
+    )
+    data[invalid_field] = invalid_value
+    before = editor_resume.plugin_data
+    response = client.post(post_url, data)
+    assert response.context["form"].errors[invalid_field]
+    editor_resume.refresh_from_db()
+    assert editor_resume.plugin_data == before
+    corrected = rendered_data(response, post_url)
+    assert corrected[invalid_field] == invalid_value
+    corrected[invalid_field] = (
+        "synthetic@example.invalid" if scope == "simple" else "Corrected synthetic text"
+    )
+    corrected[field] = "Corrected synthetic text"
+    response = client.post(post_url, corrected)
+    assert "changed since you opened it" not in response.content.decode()
+    editor_resume.refresh_from_db()
+    if scope == "simple":
+        assert editor_resume.plugin_data["identity"][field] == corrected[field]
+    elif scope == "flat":
+        assert editor_resume.plugin_data["education"]["flat"][field] == corrected[field]
+    else:
+        assert (
+            editor_resume.plugin_data["education"]["items"][0][field]
+            == corrected[field]
+        )

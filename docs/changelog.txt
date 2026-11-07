@@ -33,6 +33,12 @@ Security
 
 Fixes
 ^^^^^
+* Render absent optional education item values as empty strings in all bundled
+  inline themes, so an omitted school URL does not submit the invalid URL "None".
+* Test editor revisions through rendered admin/inline form controls, including
+  stale saves and validation-error resubmission across all bundled themes.
+* Replace shared-mapper preview expectations with independent mapping, loss,
+  restoration, source-preservation and export expectations for synthetic data.
 * Preserve the original save/render error when compensating image deletion also
   fails. Attempt all owned uploads and log bounded object hashes and exception
   classes for orphan recovery; standalone cleanup still raises deletion errors.

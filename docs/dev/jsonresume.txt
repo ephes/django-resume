@@ -1437,7 +1437,12 @@ owner; it does not authenticate the document, and a restored
 ``meta.django_resume`` envelope remains unsigned structural data. A small
 inline script withdraws the **Create new resume** button when the name, slug,
 mode or URL fields change after a preview; the server-side digest checks are
-the actual guard. Tests live in ``tests/json_resume_import_preview_test.py``
+the actual guard. The preview regression suite also checks a handwritten loss
+oracle against the rendered warnings, stored editable fields and downloaded
+export: portable fields map with explicit loss notes; restoring an envelope
+replaces adapter mapping and retains the source for unchanged re-export;
+ignoring an envelope does not retain its source document for exact re-export.
+Tests live in ``tests/json_resume_import_preview_test.py``
 and use synthetic documents only.
 
 The earlier static design prototype on branch
