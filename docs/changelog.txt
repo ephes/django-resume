@@ -33,6 +33,18 @@ Security
 
 Fixes
 ^^^^^
+* Preserve the resume language when an unrendered template response fails and
+  is rendered again. Successful post-render caching and replacement responses
+  retain their existing behavior.
+* Add deterministic concurrent async-view regressions for separate resume
+  languages, deferred rendering, exceptions, cancellation and later requests.
+* Serialize cooperating filesystem plugin create/remove writers by resolved
+  target with a bounded native lock held through backup, mutation and rollback.
+  Unrelated plugin targets remain independent; unrelated editors must stop.
+  Require filelock 3.20.1 or newer for its native lock-file symlink fix.
+* Keep best-effort plugin backup/staging cleanup from replacing the primary
+  failure or completed publication, including under warnings-as-errors. Log
+  bounded leftover-path diagnostics and retain failed-restoration backups.
 * Render absent optional education item values as empty strings in all bundled
   inline themes, so an omitted school URL does not submit the invalid URL "None".
 * Test editor revisions through rendered admin/inline form controls, including
