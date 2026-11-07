@@ -678,69 +678,71 @@ def _run_process(command: list[str], *, cwd: Path, timeout: float):
             stderr=subprocess.PIPE,
             **_process_group_kwargs(),
         )
-        assert process.stdout is not None
-        assert process.stderr is not None
-        stdout = bytearray()
-        stderr = bytearray()
-        output_error: list[_OutputLimitExceeded] = []
-
-        def read_stream(stream, buffer: bytearray, stream_name: str) -> None:
-            while True:
-                chunk = stream.read(8192)
-                if not chunk:
-                    return
-                buffer.extend(chunk)
-                if len(buffer) > max_output_bytes:
-                    output_error.append(_OutputLimitExceeded(stream_name))
-                    _terminate_process_tree(process)
-                    return
-
-        threads = [
-            threading.Thread(
-                target=read_stream,
-                args=(process.stdout, stdout, "stdout"),
-                daemon=True,
-            ),
-            threading.Thread(
-                target=read_stream,
-                args=(process.stderr, stderr, "stderr"),
-                daemon=True,
-            ),
-        ]
-        for thread in threads:
-            thread.start()
+        started_threads: list[threading.Thread] = []
         try:
+            assert process.stdout is not None
+            assert process.stderr is not None
+            stdout = bytearray()
+            stderr = bytearray()
+            output_error: list[_OutputLimitExceeded] = []
+
+            def read_stream(stream, buffer: bytearray, stream_name: str) -> None:
+                while True:
+                    chunk = stream.read(8192)
+                    if not chunk:
+                        return
+                    buffer.extend(chunk)
+                    if len(buffer) > max_output_bytes:
+                        output_error.append(_OutputLimitExceeded(stream_name))
+                        _terminate_process_tree(process)
+                        return
+
+            threads = [
+                threading.Thread(
+                    target=read_stream,
+                    args=(process.stdout, stdout, "stdout"),
+                    daemon=True,
+                ),
+                threading.Thread(
+                    target=read_stream,
+                    args=(process.stderr, stderr, "stderr"),
+                    daemon=True,
+                ),
+            ]
+            for thread in threads:
+                thread.start()
+                started_threads.append(thread)
             returncode = process.wait(timeout=timeout)
-        except subprocess.TimeoutExpired as exc:
-            _terminate_process_tree(process)
-            _wait_after_terminate(process)
+            if not _join_reader_threads(threads):
+                raise JsonResumeThemeError(
+                    "Command output streams did not close after child process exited"
+                )
+            if output_error:
+                stream_name = output_error[0].stream_name
+                raise JsonResumeThemeError(
+                    f"Command {stream_name} exceeded maximum size of "
+                    f"{max_output_bytes} bytes"
+                )
             _close_process_streams(process)
-            _join_reader_threads(threads)
-            raise JsonResumeThemeError(
-                f"Command timed out after {timeout:g} seconds"
-            ) from exc
-        if not _join_reader_threads(threads):
-            _terminate_process_tree(process)
-            _wait_after_terminate(process)
-            _close_process_streams(process)
-            _join_reader_threads(threads)
-            raise JsonResumeThemeError(
-                "Command output streams did not close after child process exited"
+            return _CapturedProcess(
+                returncode=returncode,
+                stdout=stdout.decode("utf-8", errors="replace"),
+                stderr=stderr.decode("utf-8", errors="replace"),
             )
-        if output_error:
-            stream_name = output_error[0].stream_name
-            _wait_after_terminate(process)
-            _close_process_streams(process)
-            _join_reader_threads(threads)
-            raise JsonResumeThemeError(
-                f"Command {stream_name} exceeded maximum size of "
-                f"{max_output_bytes} bytes"
-            )
-        return _CapturedProcess(
-            returncode=returncode,
-            stdout=stdout.decode("utf-8", errors="replace"),
-            stderr=stderr.decode("utf-8", errors="replace"),
-        )
+        except BaseException:
+            # Ownership starts at Popen, including partial reader startup and
+            # interruptions. Attempt every cleanup step, preserving the cause.
+            for cleanup in (
+                lambda: _terminate_process_tree(process),
+                lambda: _wait_after_terminate(process),
+                lambda: _close_process_streams(process),
+                lambda: _join_reader_threads(started_threads),
+            ):
+                try:
+                    cleanup()
+                except BaseException:
+                    pass
+            raise
     except subprocess.TimeoutExpired as exc:
         raise JsonResumeThemeError(
             f"Command timed out after {timeout:g} seconds"
@@ -774,6 +776,7 @@ def _wait_after_terminate(process) -> None:
         process.wait(timeout=_READER_JOIN_TIMEOUT)
     except subprocess.TimeoutExpired:
         process.kill()
+        process.wait(timeout=_READER_JOIN_TIMEOUT)
 
 
 def _close_process_streams(process) -> None:

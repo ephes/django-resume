@@ -30,6 +30,12 @@ Security
 
 Fixes
 ^^^^^
+* Preserve the original save/render error when compensating image deletion also
+  fails. Attempt all owned uploads and log bounded object hashes and exception
+  classes for orphan recovery; standalone cleanup still raises deletion errors.
+* Terminate and reap owned theme/npm processes on interruption or reader startup
+  failure, close their streams and join started readers without replacing the
+  original failure.
 * Keep inline/admin plugin transactions, locked reads and saves on the Resume
   write router's alias, including image and nested form mutations.
 * Reject stale simple, flat and list-item editor forms using signed section

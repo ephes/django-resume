@@ -60,6 +60,31 @@ server. It checks native click/Enter/``requestSubmit()`` submission and actual
 ``FormData`` file contents after successful and rejected drops. Vitest covers
 controlled reader completion order, failures, cancellation and reconnects.
 
+Failure cleanup
+---------------
+
+Image forms compensate failed mutations by deleting only their newly stored
+uploads. Every owned object is attempted. A failed delete keeps the object in
+``form.new_image_uploads`` for retry and emits an ERROR through
+``django_resume.images`` with ``object_id`` (the first 16 hexadecimal characters
+of SHA-256 of the UTF-8 storage name) and ``exception_class`` (at most 80
+characters). Storage names, exception messages and tracebacks are omitted from
+these cleanup events. To investigate orphans, compare this identifier with hashes
+of candidate objects in the configured storage and confirm that an object is
+unreferenced before removing it. Existing referenced images are never cleanup
+targets. During an active exception, cleanup preserves that original failure;
+standalone ``cleanup_new_image_uploads()`` still raises the first deletion error
+after attempting every object.
+
+Theme rendering and npm commands own their child process from successful spawn.
+Any abnormal exit, including ``KeyboardInterrupt`` or partial reader-thread
+startup, attempts process-group termination, bounded reaping, stream closure and
+bounded joins of readers that started. Secondary cleanup errors do not replace
+the initiating exception. POSIX uses the child's new process group; Windows
+retains the existing direct-child termination behavior. Timeout and captured
+output limits still apply. Regressions use synthetic storage and fake processes
+and threads so interruption checks do not depend on operating-system signals.
+
 Python dependency advisory audit
 --------------------------------
 
