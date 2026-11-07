@@ -74,6 +74,24 @@ proof and foreign origins must reject before URL fetches, import preparation,
 database writes or avatar storage. Same-origin controls exercise the real saves
 with synthetic documents and in-memory images; no external service is used.
 
+Rendered editor and import oracles
+----------------------------------
+
+``tests/plugin_stale_edit_test.py`` selects each rendered form by its HTMX
+POST URL and submits its successful input controls, including hidden revision
+and item ID fields. The existing save/stale/target-isolation checks now cover
+admin forms and plain, editorial and headwind inline forms using HTML rather
+than form context. Validation-error forms are parsed and resubmitted too. The
+fixture reader handles input controls only and fails explicitly if these forms
+acquire select/textarea controls, which would require extending the reader.
+
+``tests/json_resume_import_preview_test.py`` uses handwritten expected plugin
+fields, omission reasons, loss notes and export documents for an invented
+resume. It covers portable documents, envelope restoration and ignoring an
+envelope, independently of the shared preview/create mapper. Run both with::
+
+    uv run pytest -q tests/plugin_stale_edit_test.py tests/json_resume_import_preview_test.py
+
 Failure cleanup
 ---------------
 

@@ -3,7 +3,8 @@
 import base64
 import json
 import time
-from dataclasses import asdict
+from copy import deepcopy
+from html import unescape
 
 import pytest
 from django.core import signing
@@ -21,7 +22,6 @@ from django_resume.formats.json_resume.import_preview import (
     sign_import_preview,
 )
 from django_resume.formats.json_resume.importer import (
-    import_resume_document,
     prepare_resume_import,
 )
 from django_resume.interchange.protocols import AdapterImport
@@ -40,13 +40,49 @@ LOSSY_DOCUMENT = {
     "volunteer": [{"organization": "Invented Org"}],
 }
 
-ENVELOPE_DOCUMENT = {
-    "basics": {"name": "Envelope Eve"},
-    "meta": {
-        "django_resume": {
-            "plugin_data": {"token": {"flat": {"token_required": False}}},
-        }
+# Independent, hand-written mapping/loss oracle; never derive it from prepare().
+EXPECTED_MAPPED = {
+    "identity": {
+        "name": "Synthetic Sam",
+        "email": "sam@example.invalid",
+        "tagline": "",
+        "phone": "",
+        "github": "",
+        "linkedin": "",
+        "mastodon": "",
+        "website": "",
+        "pronouns": "",
+        "location_name": "",
+        "location_url": "",
+        "avatar_img": "",
+        "avatar_alt": "",
     },
+    "about": {"title": "About", "text": "Invented summary for preview tests."},
+    "skills": {"badges": ["pytest"]},
+}
+EXPECTED_OMITTED = {
+    "awards": "source paths absent",
+    "cover": "no json_resume import adapter",
+    "education": "source paths absent",
+    "employed_timeline": "source paths absent",
+    "freelance_timeline": "no json_resume import adapter",
+    "languages": "source paths absent",
+    "permission_denied": "no json_resume import adapter",
+    "projects": "source paths absent",
+    "theme": "no json_resume import adapter",
+    "token": "no json_resume import adapter",
+}
+LOSS_NOTES = {
+    "about.title defaulted to 'About'; JSON Resume basics.summary does not include a section title",
+    "basics.profiles entry 'Fediverse' is not imported",
+    "skills entry 'Testing' level is not imported",
+    "skills entry 'Testing' category name is not imported",
+}
+PRESERVATION_NOTE = "stored source JSON Resume document for exact re-export while mapped projection and plugin data remain unchanged"
+IGNORED_ENVELOPE_NOTE = "did not store source JSON Resume document for exact re-export because meta.django_resume.plugin_data was ignored"
+RESTORED_PLUGINS = {
+    "identity": {"name": "Private envelope name"},
+    "token": {"flat": {"token_required": False}},
 }
 
 
@@ -124,13 +160,8 @@ def test_preview_and_confirm_creates_exactly_one_owned_resume(client, owner):
     assert created.slug == "sam-created"
     assert created.owner == owner
     assert created.name == "Sam Override"
-    expected = prepare_resume_import(
-        LOSSY_DOCUMENT, slug="sam-created", name="Sam Override", owner=owner
-    )
-    assert expected.plan is not None
-    assert created.plugin_data == expected.plan.plugin_data
-    assert created.integration_data == expected.plan.integration_data
-    assert asdict(response.context["import_report"]) == asdict(expected.report)
+    assert created.plugin_data == EXPECTED_MAPPED
+    assert created.integration_data["json_resume"]["source_document"] == LOSSY_DOCUMENT
     assert "Imported Sam Override." in response.content.decode()
 
     replay = confirm(client, data, token, slug="sam-created", name="Sam Override")
@@ -139,53 +170,93 @@ def test_preview_and_confirm_creates_exactly_one_owned_resume(client, owner):
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("portable_only", [False, True])
-def test_preview_report_matches_shared_preparation_and_creation(
-    client, owner, portable_only
-):
-    options = {"slug": "eve"}
-    if portable_only:
+@pytest.mark.parametrize(
+    "mode", ["portable-document", "restore-envelope", "ignore-envelope"]
+)
+def test_preview_creation_and_export_match_independent_loss_oracle(client, owner, mode):
+    document = deepcopy(LOSSY_DOCUMENT)
+    if mode != "portable-document":
+        document["meta"] = {
+            "django_resume": {"plugin_data": deepcopy(RESTORED_PLUGINS)}
+        }
+    options = {"slug": "oracle"}
+    if mode == "ignore-envelope":
         options["portable_only"] = "on"
-    data = encode(ENVELOPE_DOCUMENT)
-
+    data = encode(document)
     response = preview(client, data, **options)
-
     shown = response.context["import_preview"]
-    expected = prepare_resume_import(
-        ENVELOPE_DOCUMENT,
-        slug="eve",
-        owner=owner,
-        restore_django_resume_data=not portable_only,
+    plan, report = shown["plan"], shown["report"]
+    restoring = mode == "restore-envelope"
+    keeping_source = mode != "ignore-envelope"
+    expected_plugins = RESTORED_PLUGINS if restoring else EXPECTED_MAPPED
+    expected_notes = (
+        {"restored plugin data from meta.django_resume.plugin_data", PRESERVATION_NOTE}
+        if restoring
+        else LOSS_NOTES
+        | {PRESERVATION_NOTE if keeping_source else IGNORED_ENVELOPE_NOTE}
     )
-    assert asdict(shown["report"]) == asdict(expected.report)
-    assert shown["plan"] == expected.plan
-    content = response.content.decode()
-    if portable_only:
-        assert expected.report.restored_plugins == []
-        assert "did not store source JSON Resume document" in content
-        assert "Standard JSON Resume fields only" in content
-        assert "not kept for exact re-export" in content
+    assert plan.plugin_data == expected_plugins
+    assert plan.unmapped_sections == (
+        ["basics", "skills", "volunteer"] if restoring else ["volunteer"]
+    )
+    assert report.mapped_plugins == (
+        [] if restoring else ["about", "identity", "skills"]
+    )
+    assert report.restored_plugins == (["identity", "token"] if restoring else [])
+    assert report.omitted_plugins == ({} if restoring else EXPECTED_OMITTED)
+    assert report.valid and report.validation_errors == []
+    assert set(report.notes) == expected_notes
+    assert shown["keeps_source_document"] is keeping_source
+    content = unescape(response.content.decode())
+    for note in expected_notes:
+        assert note in content
+    assert (
+        "Source sections not imported into editable plugins: "
+        + ("basics, skills, volunteer." if restoring else "volunteer.")
+        in content
+    )
+    if restoring:
+        assert "Restored plugins: identity, token." in content
+        assert "private envelope replaces portable adapter mapping" in content
+        assert "Mapped plugins:" not in content
     else:
-        assert expected.report.restored_plugins == ["token"]
-        assert "Restored plugins: token." in content
-        assert "Source sections not imported into editable plugins: basics." in (
-            content
-        )
+        assert "Mapped plugins: about, identity, skills." in content
+        assert "Restored plugins:" not in content
+        for plugin, reason in EXPECTED_OMITTED.items():
+            assert f"{plugin}: {reason}" in content
+    assert (
+        "The parsed source document is kept"
+        if keeping_source
+        else "The source document is not kept for exact re-export in this mode."
+    ) in content
+    assert Resume.objects.count() == 0
 
-    confirm(client, data, shown["confirmation"], **options)
-    created = Resume.objects.get(slug="eve")
-    assert expected.plan is not None
-    assert created.plugin_data == expected.plan.plugin_data
-
-    # The one-step importer still reports the same mapping for the same input.
-    Resume.objects.all().delete()
-    direct = import_resume_document(
-        ENVELOPE_DOCUMENT,
-        owner=owner,
-        slug="eve",
-        restore_django_resume_data=not portable_only,
-    )
-    assert asdict(direct.report) == asdict(expected.report)
+    response = confirm(client, data, shown["confirmation"], **options)
+    assert response.status_code == 200
+    created = Resume.objects.get(slug="oracle")
+    assert created.owner == owner
+    assert created.name == "Synthetic Sam"
+    assert created.plugin_data == expected_plugins
+    state = created.integration_data["json_resume"]
+    assert state["source_plugin_data"] == expected_plugins
+    if keeping_source:
+        assert state["source_document"] == document
+    else:
+        assert "source_document" not in state
+    exported = client.get(reverse("resume:json-resume", kwargs={"slug": created.slug}))
+    assert exported.status_code == 200
+    if keeping_source:
+        assert exported.json() == document
+    else:
+        assert exported.json() == {
+            "basics": {
+                "name": "Synthetic Sam",
+                "email": "sam@example.invalid",
+                "summary": "Invented summary for preview tests.",
+            },
+            "skills": [{"name": "pytest"}],
+            "meta": {"django_resume": {"version": 1, "plugin_data": EXPECTED_MAPPED}},
+        }
 
 
 @pytest.mark.django_db
