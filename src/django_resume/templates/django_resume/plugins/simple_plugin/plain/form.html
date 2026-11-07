@@ -7,6 +7,7 @@
     hx-target="#simple-plugin"
     hx-swap="outerHTML"
   >
+    {% include "django_resume/edit_revision.html" %}
     <input type="hidden" data-field="foo" name="foo" value="{{ form.foo.value }}">
   </form>
   <h2>Simple Plugin</h2>

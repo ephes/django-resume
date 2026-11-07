@@ -156,6 +156,8 @@ Please follow this format to generate a new plugin:
     - Should provide:
     - Editable fields using contenteditable="true".
     - A submit button with a visually appropriate layout.
+    - Include the edit_revision hidden field and its errors inside every form,
+      as shown in the examples; missing revisions reject saves.
     - When using the editable-form web component, input fields should only be in
       the form, not in the content section. In the content section editable fields
       are just those with the contenteditable attribute. There should be exactly

@@ -1,3 +1,4 @@
+from tests.editor_helpers import post_current_editor
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.template.loader import render_to_string
@@ -114,8 +115,10 @@ def test_identity_rejects_html_avatar_and_shows_error(
         b"<html><script>alert(1)</script></html>",
         content_type="image/png",
     )
-    response = client.post(
-        plugin.inline.get_post_url(resume.pk), {"name": "Jane", "avatar_img": upload}
+    response = post_current_editor(
+        client,
+        plugin.inline.get_post_url(resume.pk),
+        {"name": "Jane", "avatar_img": upload},
     )
 
     # Then the inline form shows the error and nothing is stored

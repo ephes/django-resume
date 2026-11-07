@@ -12,6 +12,7 @@ INSTALLED_APPS = [
 ]
 
 DATABASES = {
+    "other": {"ENGINE": "django.db.backends.sqlite3", "NAME": ":memory:"},
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": "tests/test_database.sqlite3",

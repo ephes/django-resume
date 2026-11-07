@@ -6,6 +6,7 @@
     hx-swap="outerHTML"
     class="bg-white rounded-lg p-6 border border-slate-300 shadow-sm space-y-6"
   >
+    {% include "django_resume/edit_revision.html" %}
     <input id="form-skills-badges" type="hidden" data-field="badges" name="badges" value="{{ form.badges_as_json }}">
 
     <div class="flex items-center justify-between mb-6">

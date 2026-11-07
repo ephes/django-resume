@@ -1,5 +1,8 @@
 """Inline fragments render in the theme of the edited resume, not a shared one."""
 
+from tests.editor_helpers import post_current_editor
+
+
 import pytest
 from django.contrib.auth.models import User
 from django.urls import reverse
@@ -55,16 +58,18 @@ def test_list_fragments_alternate_between_resume_themes(client, themed_resumes):
             item_form = client.get(plugin.inline.get_edit_item_url(resume.pk, "w1"))
             assert f"{prefix}item_form.html" in used_templates(item_form)
 
-            item = client.post(
-                plugin.inline.get_post_item_url(resume.pk), TIMELINE_ITEM
+            item = post_current_editor(
+                client, plugin.inline.get_post_item_url(resume.pk), TIMELINE_ITEM
             )
             assert f"{prefix}item.html" in used_templates(item)
 
             flat_form = client.get(plugin.inline.get_edit_flat_url(resume.pk))
             assert f"{prefix}flat_form.html" in used_templates(flat_form)
 
-            flat = client.post(
-                plugin.inline.get_edit_flat_post_url(resume.pk), {"title": "Work"}
+            flat = post_current_editor(
+                client,
+                plugin.inline.get_edit_flat_post_url(resume.pk),
+                {"title": "Work"},
             )
             assert f"{prefix}flat.html" in used_templates(flat)
 
@@ -81,12 +86,16 @@ def test_simple_fragments_alternate_between_resume_themes(client, themed_resumes
         form = client.get(plugin.inline.get_edit_url(resume.pk))
         assert f"{prefix}form.html" in used_templates(form)
 
-        main = client.post(
-            plugin.inline.get_post_url(resume.pk), {"title": "About", "text": "Hi"}
+        main = post_current_editor(
+            client,
+            plugin.inline.get_post_url(resume.pk),
+            {"title": "About", "text": "Hi"},
         )
         assert f"{prefix}content.html" in used_templates(main)
 
-        invalid = client.post(plugin.inline.get_post_url(resume.pk), {"title": ""})
+        invalid = post_current_editor(
+            client, plugin.inline.get_post_url(resume.pk), {"title": ""}
+        )
         assert f"{prefix}form.html" in used_templates(invalid)
 
 

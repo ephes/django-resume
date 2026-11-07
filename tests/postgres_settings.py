@@ -12,3 +12,5 @@ DATABASES = {
         "PORT": "5432",
     }
 }
+
+DATABASES["other"] = {**DATABASES["default"], "NAME": "resume_other"}

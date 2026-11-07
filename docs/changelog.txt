@@ -5,6 +5,14 @@ Changelog
 Unreleased
 ----------
 
+Compatibility
+^^^^^^^^^^^^^
+* Custom inline editor templates (including generated/database-stored plugins)
+  must render ``form.edit_revision`` and its errors inside the form, or include
+  ``django_resume/edit_revision.html``. Update templates before upgrading:
+  missing revisions now reject saves. Templates using ``form.as_p`` already
+  include the field. Bundled examples and plugin authoring guides are updated.
+
 Security
 ^^^^^^^^
 * Refresh the development lock's setuptools from 84.0.0 to 84.1.0 for
@@ -22,6 +30,12 @@ Security
 
 Fixes
 ^^^^^
+* Keep inline/admin plugin transactions, locked reads and saves on the Resume
+  write router's alias, including image and nested form mutations.
+* Reject stale simple, flat and list-item editor forms using signed section
+  revisions. Preserve submitted text and reject uploads before storage on
+  conflicts; independent sections remain editable. Custom form templates must
+  include the revision hidden field and errors (see the usage guide).
 * Synchronize inline editable fields on native form submission, including
   keyboard and ``requestSubmit()`` paths, before HTMX serializes them.
   Save buttons retain native constraint validation.

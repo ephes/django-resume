@@ -1,4 +1,8 @@
 import copy
+import hashlib
+import json
+from contextlib import contextmanager
+from collections.abc import Iterator
 from uuid import uuid4
 
 from typing import (
@@ -21,8 +25,9 @@ from django.template.loader import get_template
 from django.urls import reverse, path, URLPattern
 from django.utils.html import format_html
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
+from django.core import signing
 from django.core.exceptions import PermissionDenied
-from django.db import transaction
+from django.db import router, transaction
 
 from ..images import ImageFormMixin
 from ..markdown import safe_link_url, textarea_input_to_markdown
@@ -151,28 +156,84 @@ class SimpleJsonForm(forms.Form):
         return data
 
 
+EDIT_REVISION_FIELD = "edit_revision"
+
+
+def set_edit_revision(
+    form: forms.Form,
+    resume: Resume,
+    plugin_name: str,
+    scope: str,
+    state: Any,
+    *,
+    refresh: bool = False,
+) -> None:
+    """Bind a form to just the section/item it can replace, before cleaning uploads."""
+    fingerprint = hashlib.sha256(
+        json.dumps(state, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+    expected = [resume.pk, plugin_name, scope, fingerprint]
+
+    def validate_revision(value: str) -> None:
+        try:
+            actual = signing.loads(value, salt="django_resume.edit")
+        except signing.BadSignature:
+            actual = None
+        if actual != expected:
+            raise forms.ValidationError(
+                "This section changed since you opened it. Reload the editor and reapply your changes."
+            )
+
+    token = signing.dumps(expected, salt="django_resume.edit")
+    form.fields[EDIT_REVISION_FIELD] = forms.CharField(
+        widget=forms.HiddenInput,
+        initial=token,
+        validators=[validate_revision],
+        error_messages={"required": "Reload the editor before saving this section."},
+    )
+    if refresh and form.is_bound:
+        refreshed_data = {key: form.data[key] for key in form.data}
+        refreshed_data[EDIT_REVISION_FIELD] = token
+        form.data = refreshed_data
+
+
+def valid_edit_form(form: forms.Form) -> bool:
+    valid = form.is_valid()
+    # Revision metadata belongs to the editor, never to stored plugin data.
+    form.cleaned_data.pop(EDIT_REVISION_FIELD, None)
+    return valid
+
+
 class LockedResumeMutationMixin:
     def check_permissions(self, request: HttpRequest, resume: Resume) -> bool:
         raise NotImplementedError
 
     def get_locked_resume_or_error(
-        self, request: HttpRequest, resume_id: int
+        self, request: HttpRequest, resume_id: int, *, using: str | None = None
     ) -> Resume:
         """Return a locked resume row or raise 404/403 for invalid access."""
-        resume = get_object_or_404(Resume.objects.select_for_update(), id=resume_id)
+        using = using or router.db_for_write(Resume, resume_id=resume_id)
+        resume = get_object_or_404(
+            Resume.objects.using(using).select_for_update(), id=resume_id
+        )
         if not self.check_permissions(request, resume):
             raise PermissionDenied("Permission denied")
         return resume
 
+    @contextmanager
+    def locked_resume(self, request: HttpRequest, resume_id: int) -> Iterator[Resume]:
+        using = router.db_for_write(Resume, resume_id=resume_id)
+        with transaction.atomic(using=using):
+            yield self.get_locked_resume_or_error(request, resume_id, using=using)
+
     @staticmethod
     def save_plugin_data(resume: Resume) -> None:
-        resume.save(update_fields=["plugin_data"])
+        resume.save(using=resume._state.db, update_fields=["plugin_data"])
 
     def mutate_resume_plugin_data(
         self, request: HttpRequest, resume_id: int, mutate: Callable[[Resume], object]
     ) -> Resume:
-        with transaction.atomic():
-            resume = self.get_locked_resume_or_error(request, resume_id)
+        with self.locked_resume(request, resume_id) as resume:
             mutate(resume)
             self.save_plugin_data(resume)
             return resume
@@ -236,6 +297,7 @@ class SimpleAdmin(LockedResumeMutationMixin):
             form = self.form_class(initial={"plugin_data": plugin_data})
         else:
             form = self.form_class(initial=plugin_data)
+        set_edit_revision(form, resume, self.plugin_name, "simple", plugin_data)
         setattr(
             form, "post_url", self.get_change_post_url(resume.pk)
         )  # make mypy happy
@@ -265,11 +327,10 @@ class SimpleAdmin(LockedResumeMutationMixin):
         """
         form = None
         try:
-            with transaction.atomic():
+            with self.locked_resume(request, resume_id) as resume:
                 # Validate against the locked, stored data: fields like an image
                 # upload fall back to their initial value when nothing is posted,
                 # so without it a save would drop the stored image.
-                resume = self.get_locked_resume_or_error(request, resume_id)
                 stored_data = dict(self.data.get_data(resume))
                 if self.form_class == SimpleJsonForm:
                     # special case for the SimpleJsonForm which has a JSONField for the plugin data
@@ -277,17 +338,26 @@ class SimpleAdmin(LockedResumeMutationMixin):
                 else:
                     initial = stored_data
                 form = self.form_class(request.POST, request.FILES, initial=initial)
+                set_edit_revision(form, resume, self.plugin_name, "simple", stored_data)
                 setattr(
                     form, "post_url", self.get_change_post_url(resume.pk)
                 )  # make mypy happy
                 context = {"form": form}
-                if form.is_valid():
+                if valid_edit_form(form):
                     if self.form_class == SimpleJsonForm:
                         plugin_data = form.cleaned_data["plugin_data"]
                     else:
                         plugin_data = form.cleaned_data
                     resume = self.data.update(resume, plugin_data)
                     self.save_plugin_data(resume)
+                    set_edit_revision(
+                        form,
+                        resume,
+                        self.plugin_name,
+                        "simple",
+                        self.data.get_data(resume),
+                        refresh=True,
+                    )
         except Exception:
             if isinstance(form, ImageFormMixin):
                 form.cleanup_new_image_uploads()
@@ -498,6 +568,7 @@ class SimpleInline(LockedResumeMutationMixin):
         templates = resolve_fragment_templates(self.templates, resume, "form")
         plugin_data = self.data.get_data(resume)
         form = self.form_class(initial=plugin_data)
+        set_edit_revision(form, resume, self.plugin_name, "simple", plugin_data)
         setattr(form, "post_url", self.get_post_url(resume.pk))  # make mypy happy
         context = {"form": form}
         return templates.render(request, SimpleTemplateName("form"), context)
@@ -509,16 +580,16 @@ class SimpleInline(LockedResumeMutationMixin):
         """
         form = None
         try:
-            with transaction.atomic():
-                resume = self.get_locked_resume_or_error(request, resume_id)
+            with self.locked_resume(request, resume_id) as resume:
                 plugin_data = self.data.get_data(resume)
                 form_class = self.form_class
                 form = form_class(request.POST, request.FILES, initial=plugin_data)
+                set_edit_revision(form, resume, self.plugin_name, "simple", plugin_data)
                 setattr(
                     form, "post_url", self.get_post_url(resume.pk)
                 )  # make mypy happy
                 context: dict[str, Any] = {"form": form}
-                if form.is_valid():
+                if valid_edit_form(form):
                     # update the plugin data and render the main template
                     resume = self.data.update(resume, form.cleaned_data)
                     self.save_plugin_data(resume)
@@ -910,6 +981,7 @@ class ListAdmin(LockedResumeMutationMixin):
         form_class = self.form_classes["item"]
         existing_items = self.data.get_data(resume).get("items", [])
         form = form_class(initial={}, resume=resume, existing_items=existing_items)
+        set_edit_revision(form, resume, self.plugin_name, "item:" + form.item_id, None)
         form.post_url = self.get_change_item_post_url(resume.pk)
         context = {"form": form}
         return render(request, self.admin_item_change_form_template, context)
@@ -937,6 +1009,9 @@ class ListAdmin(LockedResumeMutationMixin):
         # flat form
         flat_form_class = form_classes["flat"]
         flat_form = flat_form_class(initial=plugin_data.get("flat", {}))
+        set_edit_revision(
+            flat_form, resume, self.plugin_name, "flat", plugin_data.get("flat", {})
+        )
         flat_form.post_url = self.get_change_flat_post_url(resume.pk)
         context["flat_form"] = flat_form
         # item forms
@@ -946,9 +1021,16 @@ class ListAdmin(LockedResumeMutationMixin):
         item_forms = []
         for initial_item_data in initial_items_data:
             form = item_form_class(
-                initial=initial_item_data,
+                initial=copy.deepcopy(initial_item_data),
                 resume=resume,
                 existing_items=initial_items_data,
+            )
+            set_edit_revision(
+                form,
+                resume,
+                self.plugin_name,
+                "item:" + initial_item_data["id"],
+                initial_item_data,
             )
             form.post_url = post_url
             form.delete_url = self.get_delete_item_url(
@@ -961,8 +1043,7 @@ class ListAdmin(LockedResumeMutationMixin):
 
     def post_item_view(self, request: HttpRequest, resume_id: int) -> HttpResponse:
         """Handle post requests to create or update a single item."""
-        with transaction.atomic():
-            resume = self.get_locked_resume_or_error(request, resume_id)
+        with self.locked_resume(request, resume_id) as resume:
             form_class = self.form_classes["item"]
             existing_items = self.data.get_data(resume).get("items", [])
             form = form_class(
@@ -971,9 +1052,17 @@ class ListAdmin(LockedResumeMutationMixin):
                 resume=resume,
                 existing_items=existing_items,
             )
+            item_id = request.POST.get("id", "")
+            set_edit_revision(
+                form,
+                resume,
+                self.plugin_name,
+                "item:" + item_id,
+                self.data.get_item_by_id(resume, item_id),
+            )
             form.post_url = self.get_change_item_post_url(resume.pk)
             context = {"form": form}
-            if form.is_valid():
+            if valid_edit_form(form):
                 # try to find out whether we are updating an existing item or creating a new one
                 existing = True
                 item_id = form.cleaned_data.get("id", None)
@@ -999,6 +1088,14 @@ class ListAdmin(LockedResumeMutationMixin):
                     form.data = form.data.copy()
                     form.data["id"] = item_id
                 self.save_plugin_data(resume)
+                set_edit_revision(
+                    form,
+                    resume,
+                    self.plugin_name,
+                    "item:" + item_id,
+                    self.data.get_item_by_id(resume, item_id),
+                    refresh=True,
+                )
                 form.delete_url = self.get_delete_item_url(resume.id, item_id)
             return render(request, self.admin_item_change_form_template, context)
 
@@ -1006,18 +1103,28 @@ class ListAdmin(LockedResumeMutationMixin):
         """Handle post requests to update flat data."""
         form = None
         try:
-            with transaction.atomic():
-                resume = self.get_locked_resume_or_error(request, resume_id)
+            with self.locked_resume(request, resume_id) as resume:
                 form_class = self.form_classes["flat"]
                 plugin_data = self.data.get_data(resume)
                 form = form_class(
                     request.POST, request.FILES, initial=plugin_data.get("flat", {})
                 )
+                set_edit_revision(
+                    form, resume, self.plugin_name, "flat", plugin_data.get("flat", {})
+                )
                 form.post_url = self.get_change_flat_post_url(resume.pk)
                 context = {"form": form}
-                if form.is_valid():
+                if valid_edit_form(form):
                     resume = self.data.update_flat(resume, form.cleaned_data)
                     self.save_plugin_data(resume)
+                    set_edit_revision(
+                        form,
+                        resume,
+                        self.plugin_name,
+                        "flat",
+                        self.data.get_data(resume).get("flat", {}),
+                        refresh=True,
+                    )
                 return render(request, self.admin_flat_form_template, context)
         except Exception:
             if isinstance(form, ImageFormMixin):
@@ -1028,8 +1135,7 @@ class ListAdmin(LockedResumeMutationMixin):
         self, request: HttpRequest, resume_id: int, item_id: str
     ) -> HttpResponse:
         """Delete an item from the items list of this plugin."""
-        with transaction.atomic():
-            resume = self.get_locked_resume_or_error(request, resume_id)
+        with self.locked_resume(request, resume_id) as resume:
             resume = self.data.delete(resume, {"id": item_id})
             self.save_plugin_data(resume)
         return HttpResponse(status=200)
@@ -1155,6 +1261,9 @@ class ListInline(LockedResumeMutationMixin):
         plugin_data = self.data.get_data(resume)
         flat_form_class = self.form_classes["flat"]
         flat_form = flat_form_class(initial=plugin_data.get("flat", {}))
+        set_edit_revision(
+            flat_form, resume, self.plugin_name, "flat", plugin_data.get("flat", {})
+        )
         flat_form.post_url = self.get_edit_flat_post_url(resume.pk)
         context = {
             "form": flat_form,
@@ -1166,15 +1275,21 @@ class ListInline(LockedResumeMutationMixin):
         """Handle post requests to update flat data."""
         flat_form = None
         try:
-            with transaction.atomic():
-                resume = self.get_locked_resume_or_error(request, resume_id)
+            with self.locked_resume(request, resume_id) as resume:
                 flat_form_class = self.form_classes["flat"]
                 plugin_data = self.data.get_data(resume)
                 flat_form = flat_form_class(
                     request.POST, request.FILES, initial=plugin_data.get("flat", {})
                 )
+                set_edit_revision(
+                    flat_form,
+                    resume,
+                    self.plugin_name,
+                    "flat",
+                    plugin_data.get("flat", {}),
+                )
                 context: dict[str, Any] = {}
-                if flat_form.is_valid():
+                if valid_edit_form(flat_form):
                     resume = self.data.update_flat(resume, flat_form.cleaned_data)
                     self.save_plugin_data(resume)
                     plugin_data = self.data.get_data(resume)
@@ -1209,15 +1324,23 @@ class ListInline(LockedResumeMutationMixin):
             for item in existing_items:
                 if item["id"] == item_id:
                     initial = item
-        form = form_class(initial=initial, resume=resume, existing_items=existing_items)
+        form = form_class(
+            initial=copy.deepcopy(initial), resume=resume, existing_items=existing_items
+        )
+        set_edit_revision(
+            form,
+            resume,
+            self.plugin_name,
+            "item:" + form.item_id,
+            self.data.get_item_by_id(resume, form.item_id),
+        )
         form.post_url = self.get_post_item_url(resume.pk)
         context = {"form": form, "plugin_name": self.plugin_name}
         return render(request, self.template_path(resume, "item_form"), context=context)
 
     def post_item_view(self, request: HttpRequest, resume_id: int) -> HttpResponse:
         """Handle post requests to create or update a single item."""
-        with transaction.atomic():
-            resume = self.get_locked_resume_or_error(request, resume_id)
+        with self.locked_resume(request, resume_id) as resume:
             form_class = self.form_classes["item"]
             existing_items = self.data.get_data(resume).get("items", [])
             form = form_class(
@@ -1226,9 +1349,17 @@ class ListInline(LockedResumeMutationMixin):
                 resume=resume,
                 existing_items=existing_items,
             )
+            item_id = request.POST.get("id", "")
+            set_edit_revision(
+                form,
+                resume,
+                self.plugin_name,
+                "item:" + item_id,
+                self.data.get_item_by_id(resume, item_id),
+            )
             form.post_url = self.get_post_item_url(resume.pk)
             context = {"form": form, "plugin_name": self.plugin_name}
-            if form.is_valid():
+            if valid_edit_form(form):
                 # try to find out whether we are updating an existing item or creating a new one
                 existing = True
                 item_id = form.cleaned_data.get("id", None)
@@ -1271,8 +1402,7 @@ class ListInline(LockedResumeMutationMixin):
         self, request: HttpRequest, resume_id: int, item_id: str
     ) -> HttpResponse:
         """Delete an item from the items list of this plugin."""
-        with transaction.atomic():
-            resume = self.get_locked_resume_or_error(request, resume_id)
+        with self.locked_resume(request, resume_id) as resume:
             resume = self.data.delete(resume, {"id": item_id})
             self.save_plugin_data(resume)
         return HttpResponse(status=200)

@@ -1,5 +1,8 @@
 """The plain and headwind CVs show awards and languages."""
 
+from tests.editor_helpers import post_current_editor
+
+
 import pytest
 from django.urls import reverse
 
@@ -130,15 +133,19 @@ def test_awards_and_languages_inline_round_trip(client, cv_resume, theme):
         form = client.get(plugin.inline.get_edit_item_url(cv_resume.pk, data["id"]))
         assert f"{prefix}item_form.html" in used_templates(form)
 
-        item = client.post(plugin.inline.get_post_item_url(cv_resume.pk), data)
+        item = post_current_editor(
+            client, plugin.inline.get_post_item_url(cv_resume.pk), data
+        )
         assert f"{prefix}item.html" in used_templates(item)
         assert expected in item.content.decode()
 
         flat_form = client.get(plugin.inline.get_edit_flat_url(cv_resume.pk))
         assert f"{prefix}flat_form.html" in used_templates(flat_form)
 
-        flat = client.post(
-            plugin.inline.get_edit_flat_post_url(cv_resume.pk), {"title": "Renamed"}
+        flat = post_current_editor(
+            client,
+            plugin.inline.get_edit_flat_post_url(cv_resume.pk),
+            {"title": "Renamed"},
         )
         assert f"{prefix}flat.html" in used_templates(flat)
         assert "Renamed" in flat.content.decode()
