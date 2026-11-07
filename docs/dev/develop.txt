@@ -95,6 +95,13 @@ envelope, independently of the shared preview/create mapper. Run both with::
 Failure cleanup
 ---------------
 
+Plugin command ownership regressions use spawned processes on every platform,
+synthetic plugin bundles and a temporary SQLite database. They cover competing
+create/create and create/remove writers, independent plugins, rollback and
+backup cleanup under warnings-as-errors. Run them with::
+
+    uv run pytest -q tests/plugin_file_ownership_test.py tests/management_commands_test.py
+
 Image forms compensate failed mutations by deleting only their newly stored
 uploads. Every owned object is attempted. A failed delete keeps the object in
 ``form.new_image_uploads`` for retry and emits an ERROR through

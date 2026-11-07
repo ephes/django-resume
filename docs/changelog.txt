@@ -33,6 +33,13 @@ Security
 
 Fixes
 ^^^^^
+* Serialize cooperating filesystem plugin create/remove writers by resolved
+  target with a bounded native lock held through backup, mutation and rollback.
+  Unrelated plugin targets remain independent; unrelated editors must stop.
+  Require filelock 3.20.1 or newer for its native lock-file symlink fix.
+* Keep best-effort plugin backup/staging cleanup from replacing the primary
+  failure or completed publication, including under warnings-as-errors. Log
+  bounded leftover-path diagnostics and retain failed-restoration backups.
 * Render absent optional education item values as empty strings in all bundled
   inline themes, so an omitted school URL does not submit the invalid URL "None".
 * Test editor revisions through rendered admin/inline form controls, including

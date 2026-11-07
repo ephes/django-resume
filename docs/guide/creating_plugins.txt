@@ -130,13 +130,39 @@ and checked against their original JSON data before updating. A concurrent
 SQLite edit can abort removal with a database conflict; retry the whole command
 after that writer finishes. An ordinary file or database failure
 rolls back the data change and restores the files. Ctrl+C also triggers
-restoration. This is not a transaction
-across the filesystem and database: process termination, concurrent edits,
-or a further I/O failure during recovery can leave partial results. Run these
-commands with plugin writers stopped and keep a database backup. If restoration
+restoration. Cooperating create/remove commands take native ``filelock`` locks
+on each resolved target, in sorted order, before backup and hold them through
+the database transaction and any rollback. Waiting has a total 10-second budget;
+a busy writer raises ``CommandError`` and can be retried. Unrelated plugin
+targets remain independent. Lock names are SHA-256 hashes of normalized resolved
+target paths in a private per-account directory under Python's OS temporary
+directory (``django-resume-plugin-locks-ACCOUNT/*.lock``). On POSIX this directory
+must be owned by the current uid with no group/other permissions; symlinks and
+non-directories are rejected. Cooperating writers must run as the same account,
+share that directory (including the same ``TMPDIR`` configuration), and use the
+same canonical path spelling and mount. Separate temp/container namespaces or
+alternate case spellings on case-insensitive filesystems are outside this lock
+contract. No output directories are created just to remove absent files.
+
+Do not manually delete active lock files; ``filelock`` owns their lifecycle.
+Locks are released when their process exits, even if files remain. A busy
+writer can be retried after it finishes. If the lock directory is unsafe or
+inaccessible, stop all cooperating writers and configure the same private
+``TMPDIR`` for every invocation before retrying; do not remove another user's
+lock directory or switch namespaces while a writer is active.
+
+This is not a transaction across the filesystem and database: process
+termination, unrelated editors (which do not take these locks), or a further
+I/O failure during recovery can leave partial results. Stop unrelated editors
+and keep a database backup. If restoration
 fails, the error lists affected paths and retained backup locations; restore
 those files manually before retrying. A backup cleanup warning after success
 means the operation completed but the named leftover backup needs removal.
+Cleanup logs a bounded warning through
+``django_resume.management.commands._file_rollback`` naming leftover paths;
+even strict Python warning filters or a failing logging handler cannot replace
+the primary error or turn completed publication into failure. Failed
+restoration retains the recovery copy.
 
 Installing filesystem plugin bundles
 ------------------------------------
