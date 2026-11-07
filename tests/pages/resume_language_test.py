@@ -304,3 +304,141 @@ def test_cache_page_view_renders_and_caches_in_resume_language(
     assert first.content.decode() == "lang=de"
     assert second.content.decode() == "lang=de"
     assert len(calls) == 1  # the second request came from the cache
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("replacement", [False, True])
+def test_failed_deferred_render_can_retry_in_resume_language(
+    rf, monkeypatch, replacement
+):
+    import pickle
+
+    from django.http import HttpResponse
+    from django_resume.i18n import render_in_language
+
+    response = _template_response(rf.get("/"))
+    template_render = response.template_name.render
+    attempts = []
+
+    def flaky_render(*args, **kwargs):
+        attempts.append(translation.get_language())
+        if len(attempts) == 1:
+            raise ValueError("synthetic template failure")
+        return template_render(*args, **kwargs)
+
+    monkeypatch.setattr(response.template_name, "render", flaky_render)
+    cached = []
+
+    def cache_and_replace(rendered):
+        # The wrapper must already be absent inside successful callbacks.
+        cached.append(pickle.loads(pickle.dumps(rendered)).content)
+        if replacement:
+            return HttpResponse(rendered.content + b" replaced", status=201)
+
+    response.add_post_render_callback(cache_and_replace)
+    with translation.override("en"):
+        render_in_language(response, "de")
+        with pytest.raises(ValueError, match="synthetic template failure"):
+            response.render()
+        assert not response.is_rendered
+        assert translation.get_language() == "en"
+        rendered = response.render()
+        assert translation.get_language() == "en"
+        assert "render" not in response.__dict__
+    assert attempts == ["de", "de"]
+    assert cached == [b"lang=de"]
+    assert rendered.content == (b"lang=de replaced" if replacement else b"lang=de")
+    assert rendered.status_code == (201 if replacement else 200)
+    assert pickle.loads(pickle.dumps(rendered)).content == rendered.content
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("failure", [None, "exception", "cancellation"])
+def test_concurrent_async_resume_languages_are_isolated(rf, german_resume, failure):
+    import asyncio
+
+    from asgiref.sync import async_to_sync, sync_to_async
+    from django_resume.i18n import with_resume_language
+    from django_resume.models import Resume
+
+    french_resume = Resume.objects.create(
+        name="Synthetic French",
+        slug="synthetic-french",
+        owner=german_resume.owner,
+        plugin_data={"theme": {"language": "fr"}},
+    )
+    codes = {german_resume.pk: "de", french_resume.pk: "fr"}
+
+    async def scenario():
+        arrived = {code: asyncio.Event() for code in codes.values()}
+        proceed = {code: asyncio.Event() for code in codes.values()}
+        observed = {code: [] for code in codes.values()}
+        restored = {}
+
+        @with_resume_language
+        async def view(request, resume_id):
+            code = codes[resume_id]
+            observed[code].append(translation.get_language())
+            arrived[code].set()
+            await proceed[code].wait()
+            observed[code].append(translation.get_language())
+            if code == "de" and failure == "exception":
+                raise ValueError("synthetic async failure")
+            return _template_response(request)
+
+        async def call(resume_id):
+            assert translation.get_language() == "en"
+            try:
+                return await view(rf.get("/"), resume_id=resume_id)
+            finally:
+                restored[codes[resume_id]] = translation.get_language()
+
+        tasks = {code: asyncio.create_task(call(pk)) for pk, code in codes.items()}
+        try:
+            await asyncio.wait_for(
+                asyncio.gather(*(event.wait() for event in arrived.values())), 10
+            )
+            assert translation.get_language() == "en"
+            # Finish/fail the German request while French is suspended inside
+            # its override; render French later in the caller's English context.
+            if failure == "cancellation":
+                tasks["de"].cancel()
+                with pytest.raises(asyncio.CancelledError):
+                    await tasks["de"]
+            else:
+                proceed["de"].set()
+                if failure == "exception":
+                    with pytest.raises(ValueError, match="synthetic async failure"):
+                        await tasks["de"]
+                else:
+                    german = await tasks["de"]
+                    assert not german.is_rendered
+                    rendered = await sync_to_async(german.render)()
+                    assert rendered.content == b"lang=de"
+            assert translation.get_language() == "en"
+            proceed["fr"].set()
+            french = await tasks["fr"]
+            assert not french.is_rendered
+            rendered = await sync_to_async(french.render)()
+            assert rendered.content == b"lang=fr"
+            assert translation.get_language() == "en"
+            assert observed["fr"] == ["fr", "fr"]
+            assert observed["de"] == (
+                ["de"] if failure == "cancellation" else ["de", "de"]
+            )
+            assert restored == {"de": "en", "fr": "en"}
+
+            # A later request in the same event loop also starts/restores cleanly.
+            later = await view(rf.get("/later/"), resume_id=french_resume.pk)
+            rendered = await sync_to_async(later.render)()
+            assert rendered.content == b"lang=fr"
+            assert translation.get_language() == "en"
+        finally:
+            for task in tasks.values():
+                if not task.done():
+                    task.cancel()
+            await asyncio.gather(*tasks.values(), return_exceptions=True)
+
+    with translation.override("en"):
+        async_to_sync(scenario)()
+        assert translation.get_language() == "en"

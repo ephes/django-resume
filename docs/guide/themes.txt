@@ -134,6 +134,12 @@ the one chosen by ``LocaleMiddleware``. Codes that are not in
 ``settings.LANGUAGES`` are ignored. The JSON Resume render themes are not
 affected.
 
+Deferred template responses also render in the resume language after the view
+returns. If rendering fails while the response is still unrendered, retrying
+``response.render()`` keeps that language. The caller's active language is
+restored after either attempt. Concurrent async inline views keep separate
+language contexts, including when another request fails or is cancelled.
+
 Content Security Policy
 -----------------------
 

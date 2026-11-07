@@ -57,8 +57,13 @@ def render_in_language(response: HttpResponse, language: str) -> HttpResponse:
             # callbacks (cache_page) pickle the response inside render(), and a
             # local function on the instance cannot be pickled.
             response.__dict__.pop("render", None)
-            with resume_language(language):
-                return render()
+            try:
+                with resume_language(language):
+                    return render()
+            except BaseException:
+                if not response.is_rendered:
+                    response.render = render_with_language  # type: ignore[method-assign]
+                raise
 
         response.render = render_with_language  # type: ignore[method-assign]
     return response

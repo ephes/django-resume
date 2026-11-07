@@ -92,6 +92,22 @@ envelope, independently of the shared preview/create mapper. Run both with::
 
     uv run pytest -q tests/plugin_stale_edit_test.py tests/json_resume_import_preview_test.py
 
+Resume language contexts
+------------------------
+
+``with_resume_language`` supports sync and async inline views. Each async
+request keeps its own resume language across awaits and restores its caller's
+language on success, exceptions and cancellation. Deferred template responses
+render later in the resume language; a failed render keeps its wrapper for retry
+only while the response remains unrendered. Successful post-render callbacks
+can pickle the response or replace it without retaining the local wrapper.
+
+The language suite uses real decorated views, synthetic database records and
+event rendezvous points in one event loop, plus a real lazy template that fails
+once before succeeding. Run it with::
+
+    uv run pytest -q tests/pages/resume_language_test.py
+
 Failure cleanup
 ---------------
 

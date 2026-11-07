@@ -33,6 +33,11 @@ Security
 
 Fixes
 ^^^^^
+* Preserve the resume language when an unrendered template response fails and
+  is rendered again. Successful post-render caching and replacement responses
+  retain their existing behavior.
+* Add deterministic concurrent async-view regressions for separate resume
+  languages, deferred rendering, exceptions, cancellation and later requests.
 * Serialize cooperating filesystem plugin create/remove writers by resolved
   target with a bounded native lock held through backup, mutation and rollback.
   Unrelated plugin targets remain independent; unrelated editors must stop.
