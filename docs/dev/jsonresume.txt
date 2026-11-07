@@ -1493,3 +1493,20 @@ On SQLite the conditional snapshot comparison uses the JSON field's serialized
 text. Integration metadata should be written through the Django ORM. Raw SQL
 writers using a different JSON serialization can cause a controlled conflict
 on every selection; normalize such rows with an ORM save before retrying.
+
+Restored built-in list items
+----------------------------
+
+Round-trip imports validate item identities and order-value types for ``awards``, ``cover``,
+``education``, ``employed_timeline``, ``freelance_timeline``, ``languages``,
+``projects`` and ``token``. Each restored item needs a nonempty string ``id``,
+unique within that plugin's list. If present, ``position`` must be an integer
+(JSON booleans, strings, null and floats are rejected). Older items without a
+position retain the default ordering value of zero. Invalid envelopes report
+the plugin, item index and field during preview/planning and create no Resume.
+Other form-specific constraints (such as nonnegative, unique positions) still
+apply when editing. Correct the source envelope and preview it again, or choose portable-only
+import to ignore the private plugin payload.
+
+Unknown plugin payloads retain their existing opaque round-trip support:
+these built-in identity and position rules do not impose schemas on extensions.

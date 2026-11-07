@@ -36,6 +36,12 @@ Fixes
   revisions. Preserve submitted text and reject uploads before storage on
   conflicts; independent sections remain editable. Custom form templates must
   include the revision hidden field and errors (see the usage guide).
+* Validate restored built-in list item IDs, uniqueness and integer positions
+  before importing a round-trip envelope. Report field errors without creating
+  a Resume; preserve older items without positions and unknown-plugin payloads.
+* Reuse the loaded Resume during built-in token-section permission checks,
+  removing a duplicate owner CV query while preserving standalone plugin calls
+  and third-party context signatures.
 * Synchronize inline editable fields on native form submission, including
   keyboard and ``requestSubmit()`` paths, before HTMX serializes them.
   Save buttons retain native constraint validation.

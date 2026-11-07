@@ -480,3 +480,15 @@ afterwards (see the sections above):
    (valid / expired / missing token → themed 403 carrying the
    ``permission_denied`` content and ``Referrer-Policy: no-referrer``); the 403
    editor is owner-only; themed template resolution picks the right theme.
+
+Built-in token section query budget
+-----------------------------------
+
+Section rendering passes the already loaded Resume to the built-in
+``TokenPlugin`` for its permission check. It remains local to that render;
+there is no cached authorization shared between requests. With an already
+loaded user, the plain built-in CV dispatch uses one Resume query (including
+its owner), for both small and large section lists. Standalone token-plugin
+calls retain their owner lookup when needed. Third-party plugins, including
+token subclasses, keep the original ``get_context`` keyword arguments and an
+empty per-plugin context.

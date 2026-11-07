@@ -254,13 +254,14 @@ class TokenPlugin(ListPlugin):
         context: dict,
         edit: bool = False,
         theme: str = "plain",
+        resume: Resume | None = None,
     ) -> dict:
         # Only load the resume when its owner decides the outcome: a logged-in
         # non-staff user on a token-gated resume.
-        resume = None
         user = getattr(request, "user", None)
         if (
-            TokenPlugin.token_is_required(plugin_data)
+            resume is None
+            and TokenPlugin.token_is_required(plugin_data)
             and user is not None
             and user.is_authenticated
             and not user.is_staff
