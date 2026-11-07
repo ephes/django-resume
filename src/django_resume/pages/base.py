@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, render
@@ -10,7 +11,7 @@ from django.urls import reverse
 
 from ..i18n import render_in_language, resume_language
 from ..models import Resume
-from ..plugins import plugin_registry
+from ..plugins import plugin_registry, TokenPlugin
 
 
 @dataclass(frozen=True)
@@ -105,6 +106,11 @@ def build_section_context(
     # data lives in base_context; plugins are not meant to see each other's
     # context. Do NOT pass base_context here — that would change behavior.
     for plugin in plugins:
+        # Only the built-in token section accepts this request-local instance.
+        # Subclasses/extensions keep their existing get_context call signature.
+        extra: dict[str, Any] = (
+            {"resume": resume} if type(plugin) is TokenPlugin else {}
+        )
         base_context[plugin.name] = plugin.get_context(
             request,
             plugin.get_data(resume),
@@ -112,6 +118,7 @@ def build_section_context(
             context={},
             edit=show_edit_button,
             theme=theme,
+            **extra,
         )
     return base_context
 

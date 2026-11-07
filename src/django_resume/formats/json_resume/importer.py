@@ -42,6 +42,21 @@ URL_FETCH_TIMEOUT_SECONDS = 10
 URL_FETCH_TOTAL_SECONDS = 15
 MAX_URL_REDIRECTS = 5
 
+# Only built-ins use these item identity/order-type checks. Extensions may
+# have their own item schema and retain their opaque round-trip payloads.
+BUILTIN_LIST_PLUGINS = frozenset(
+    {
+        "awards",
+        "cover",
+        "education",
+        "employed_timeline",
+        "freelance_timeline",
+        "languages",
+        "projects",
+        "token",
+    }
+)
+
 
 class JsonResumeImportError(ValueError):
     """Raised when a JSON Resume document cannot be imported."""
@@ -438,6 +453,23 @@ def _validate_restored_plugin_data(plugin_data: object) -> list[str]:
                     "meta.django_resume.plugin_data."
                     f"{plugin_name}.items must contain objects"
                 )
+        if plugin_name in BUILTIN_LIST_PLUGINS and isinstance(
+            payload.get("items"), list
+        ):
+            seen = set()
+            for index, item in enumerate(payload["items"]):
+                if not isinstance(item, dict):
+                    continue  # reported above
+                field = f"meta.django_resume.plugin_data.{plugin_name}.items[{index}]"
+                item_id = item.get("id")
+                if not isinstance(item_id, str) or not item_id.strip():
+                    errors.append(f"{field}.id must be a nonempty string")
+                elif item_id in seen:
+                    errors.append(f"{field}.id duplicates {item_id!r}")
+                else:
+                    seen.add(item_id)
+                if "position" in item and type(item["position"]) is not int:
+                    errors.append(f"{field}.position must be an integer when present")
     return errors
 
 
