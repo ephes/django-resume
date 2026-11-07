@@ -15,6 +15,9 @@ Compatibility
 
 Security
 ^^^^^^^^
+* Add real middleware CSRF regressions for file preview/confirmation, URL import,
+  whole-resume deletion and inline simple/flat/item writes, including avatar
+  storage and token policy. Valid application proof cannot replace CSRF proof.
 * Refresh the development lock's setuptools from 84.0.0 to 84.1.0 for
   GHSA-xmj3-9gf7-h52w (Windows legacy wheel installation path escape).
   Refresh developer/build environments; no service deploy is needed.
