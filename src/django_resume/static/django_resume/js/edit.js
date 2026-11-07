@@ -4,10 +4,12 @@ class EditableForm extends HTMLElement {
     }
 
     connectedCallback() {
+        this.listeners = new AbortController();
+        const options = {signal: this.listeners.signal};
+
         // Access elements within the component
         const formElement = this.querySelector('form');
         const submitButton = this.querySelector('button[type="submit"]');
-        const contentEditableElements = this.querySelectorAll('[contenteditable="true"]');
         const checkbox = this.querySelector('input[type="checkbox"]');
 
         // Handle checkbox separately since it's a special case
@@ -18,14 +20,24 @@ class EditableForm extends HTMLElement {
                     // Use "on" when checked, which is what Django expects from checkbox inputs
                     hiddenInput.value = checkbox.checked ? "on" : "";
                 }
-            });
+            }, options);
         }
 
-        submitButton.addEventListener('click', (e) => {
-            e.preventDefault(); // Prevent the default form submission
+        // Built-in templates keep Save outside the hidden form. Give it native
+        // form ownership so clicks use the same validation/submit path as keyboards.
+        if (submitButton && !submitButton.form) {
+            if (!formElement.id) {
+                let index = 1;
+                while (document.getElementById(`editable-form-${index}`)) index++;
+                formElement.id = `editable-form-${index}`;
+            }
+            submitButton.setAttribute('form', formElement.id);
+        }
 
+        // Capture runs before HTMX's bubbling listener serializes the form.
+        formElement.addEventListener('submit', () => {
             // Collect data from contenteditable elements
-            contentEditableElements.forEach((field) => {
+            this.querySelectorAll('[contenteditable="true"]').forEach((field) => {
                 const fieldName = field.dataset.field;
                 const fieldType = field.dataset.type;
                 let fieldValue;
@@ -42,10 +54,7 @@ class EditableForm extends HTMLElement {
                     hiddenInput.value = fieldValue;
                 }
             });
-
-            // Submit the form using htmx
-            htmx.trigger(formElement, 'submit');
-        });
+        }, {...options, capture: true});
 
         // Handle file inputs and their preview elements
         const fileInputs = this.querySelectorAll('input[type="file"]');
@@ -55,38 +64,68 @@ class EditableForm extends HTMLElement {
         });
     }
 
+    disconnectedCallback() {
+        this.listeners.abort();
+    }
+
     setupFileInput(fileInput) {
+        const options = {signal: this.listeners.signal};
         const fieldName = fileInput.name;
-        let previewElements = Array.from(this.querySelectorAll(`.editable-avatar[data-field="${fieldName}"]`));
+        const previewElements = Array.from(this.querySelectorAll(`.editable-avatar[data-field="${fieldName}"]`));
+
+        let currentReader = null;
+        // Mount an empty live region before any failure needs announcing.
+        const status = document.createElement('p');
+        status.setAttribute('role', 'status');
+        this.append(status);
+        const showStatus = (message) => {
+            status.textContent = message;
+        };
+        const clearStatus = () => {
+            status.textContent = '';
+        };
+        const cancelRead = () => {
+            const reader = currentReader;
+            currentReader = null;
+            if (reader) reader.abort();
+        };
+        options.signal.addEventListener('abort', () => {
+            cancelRead();
+            status.remove();
+        }, {once: true});
 
         const addEventListenersToPreviewElement = (previewElement) => {
             previewElement.addEventListener('click', () => {
                 fileInput.click();
-            });
+            }, options);
 
             previewElement.addEventListener('dragover', (event) => {
                 event.preventDefault();
                 previewElement.classList.add('drag-over');
-            });
+            }, options);
 
             previewElement.addEventListener('dragleave', () => {
                 previewElement.classList.remove('drag-over');
-            });
+            }, options);
 
             previewElement.addEventListener('drop', (event) => {
                 event.preventDefault();
                 previewElement.classList.remove('drag-over');
                 const file = event.dataTransfer.files[0];
-                if (file) {
+                if (file && updateFileInput(file)) {
                     handleFileUpload(file);
-                    updateFileInput(file);
                 }
-            });
+            }, options);
         };
 
         const handleFileUpload = (file) => {
+            cancelRead();
+            clearStatus();
             const reader = new FileReader();
+            currentReader = reader;
             reader.onload = (event) => {
+                if (currentReader !== reader) return;
+                currentReader = null;
                 const result = event.target.result;
 
                 previewElements.forEach((previewElement) => {
@@ -114,20 +153,32 @@ class EditableForm extends HTMLElement {
                     }
                 });
             };
-            reader.readAsDataURL(file);
+            const fail = () => {
+                if (currentReader !== reader) return;
+                currentReader = null;
+                showStatus('Could not preview this image. Choose a file again.');
+            };
+            reader.onerror = fail;
+            reader.onabort = fail;
+            try {
+                reader.readAsDataURL(file);
+            } catch (error) {
+                fail();
+            }
         };
 
         const updateFileInput = (file) => {
-            const dataTransfer = new DataTransfer();
-            dataTransfer.items.add(file);
-
             try {
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(file);
                 fileInput.files = dataTransfer.files;
+                if (fileInput.files[0] === file) return true;
             } catch (error) {
-                // Handle the error during tests or in environments where assignment fails
-                // Optionally, log the error or ignore it
+                // Unsupported browsers must retain the submitted selection/preview.
             }
-        }
+            showStatus('Could not select the dropped image. Use the file picker.');
+            return false;
+        };
 
         previewElements.forEach((previewElement) => {
             addEventListenersToPreviewElement(previewElement);
@@ -137,8 +188,11 @@ class EditableForm extends HTMLElement {
             const file = event.target.files[0];
             if (file) {
                 handleFileUpload(file);
+            } else {
+                cancelRead();
+                clearStatus();
             }
-        });
+        }, options);
     }
 }
 

@@ -44,6 +44,22 @@ This is the list of built-in plugins that come with django-resume:
   stored token, including punctuation and Unicode, so editable credentials
   containing ``+``, ``&``, ``=`` or ``#`` remain redeemable.
 
+Inline Editing
+--------------
+
+Save submits the current editable text and formatted fields through the native
+form submit event, including keyboard and ``requestSubmit()`` submissions.
+Normal browser validation still applies. Reconnecting an editor (for example,
+after an HTMX move) keeps one set of save, checkbox and image listeners.
+
+For avatar and signature images, the latest selected file owns the preview.
+Choosing another file or removing the editor cancels a pending preview read.
+If a preview cannot be read, the selected file and previous preview remain,
+with a short message asking you to choose a file again. A dropped file is
+previewed only after the browser accepts it as the form's file selection;
+otherwise the previous selection and preview remain and a message asks you
+to use the file picker.
+
 Text Formatting
 ---------------
 
