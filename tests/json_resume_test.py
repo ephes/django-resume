@@ -1468,6 +1468,55 @@ def test_catalog_theme_installed_requires_pinned_version_and_resumed(
     assert json_resume_themes.catalog_theme_installed(entry) is False
 
 
+@pytest.mark.parametrize("failure_at", ["wait", "second_thread_start"])
+@pytest.mark.parametrize("cleanup_fails", [False, True])
+def test_run_process_cleans_owned_process_on_interruption(
+    tmp_path, monkeypatch, failure_at, cleanup_fails
+):
+    from io import BytesIO
+    from unittest.mock import Mock
+
+    primary = (
+        KeyboardInterrupt() if failure_at == "wait" else RuntimeError("start failed")
+    )
+    process = Mock(stdout=BytesIO(), stderr=BytesIO())
+    process.wait.side_effect = [primary, 0] if failure_at == "wait" else [0]
+    threads = [Mock(), Mock()]
+    for thread in threads:
+        thread.is_alive.return_value = False
+    if failure_at == "second_thread_start":
+        threads[1].start.side_effect = primary
+    monkeypatch.setattr(
+        json_resume_themes.subprocess, "Popen", Mock(return_value=process)
+    )
+    monkeypatch.setattr(
+        json_resume_themes.threading, "Thread", Mock(side_effect=threads)
+    )
+    terminate = Mock(side_effect=OSError("cleanup failed") if cleanup_fails else None)
+    monkeypatch.setattr(json_resume_themes, "_terminate_process_tree", terminate)
+
+    with pytest.raises(type(primary)) as caught:
+        json_resume_themes._run_process(["synthetic-renderer"], cwd=tmp_path, timeout=5)
+
+    assert caught.value is primary
+    terminate.assert_called_once_with(process)
+    assert (
+        process.wait.call_args.kwargs["timeout"]
+        == json_resume_themes._READER_JOIN_TIMEOUT
+    )
+    assert process.stdout.closed
+    assert process.stderr.closed
+    threads[0].join.assert_called_once_with(
+        timeout=json_resume_themes._READER_JOIN_TIMEOUT
+    )
+    if failure_at == "second_thread_start":
+        threads[1].join.assert_not_called()
+    else:
+        threads[1].join.assert_called_once_with(
+            timeout=json_resume_themes._READER_JOIN_TIMEOUT
+        )
+
+
 def test_run_process_rejects_oversized_child_output(settings):
     settings.DJANGO_RESUME_JSON_RESUME_PROCESS_OUTPUT_MAX_BYTES = 32
 

@@ -1,4 +1,7 @@
 import io
+import logging
+import sys
+from hashlib import sha256
 import struct
 import uuid
 
@@ -9,6 +12,9 @@ from django import forms
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.core.files.uploadedfile import UploadedFile
+
+
+logger = logging.getLogger(__name__)
 
 
 class UnknownImageFormat(Exception):
@@ -296,15 +302,21 @@ class ImageFormMixin:
             raise
 
     def cleanup_new_image_uploads(self) -> None:
-        """Delete only objects successfully created by this form."""
+        """Delete owned uploads without replacing an active mutation failure."""
+        compensating = sys.exc_info()[0] is not None
         first_error = None
         for filename in self.new_image_uploads[:]:
             try:
                 default_storage.delete(filename)
             except Exception as error:
+                logger.error(
+                    "Image cleanup failed: object_id=%s exception_class=%s",
+                    sha256(filename.encode()).hexdigest()[:16],
+                    type(error).__name__[:80],
+                )
                 if first_error is None:
                     first_error = error
             else:
                 self.new_image_uploads.remove(filename)
-        if first_error is not None:
+        if first_error is not None and not compensating:
             raise first_error

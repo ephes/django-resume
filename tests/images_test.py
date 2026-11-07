@@ -233,8 +233,9 @@ def test_second_storage_failure_removes_first_upload(in_memory_storage, monkeypa
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("surface", ["admin", "inline", "cover_admin", "cover_inline"])
+@pytest.mark.parametrize("cleanup_fails", [False, True])
 def test_failed_resume_save_preserves_old_images(
-    client, resume, in_memory_storage, monkeypatch, surface
+    client, resume, in_memory_storage, monkeypatch, surface, cleanup_fails, caplog
 ):
     from django.core.files.base import ContentFile
     from django.core.files.storage import default_storage
@@ -269,6 +270,16 @@ def test_failed_resume_save_preserves_old_images(
         calls.append(self.pk)
         raise OSError("database unavailable")
 
+    deleted = []
+    original_delete = default_storage.delete
+
+    def delete_upload(name):
+        deleted.append(name)
+        if cleanup_fails:
+            raise PermissionError("synthetic-delete-secret")
+        original_delete(name)
+
+    monkeypatch.setattr(default_storage, "delete", delete_upload)
     monkeypatch.setattr(Resume, "save", fail_save)
     with pytest.raises(OSError, match="database unavailable"):
         post_current_editor(
@@ -279,7 +290,20 @@ def test_failed_resume_save_preserves_old_images(
     assert calls == [resume.pk]
     resume.refresh_from_db()
     assert resume.plugin_data == old_data
-    assert stored_uploads() == ["old.png"]
+    assert len(deleted) == 1
+    if cleanup_fails:
+        from hashlib import sha256
+
+        records = [r for r in caplog.records if r.name == "django_resume.images"]
+        assert len(records) == 1
+        assert sha256(deleted[0].encode()).hexdigest()[:16] in records[0].message
+        assert "PermissionError" in records[0].message
+        assert "synthetic-delete-secret" not in records[0].message
+        assert deleted[0] not in records[0].message
+        assert records[0].exc_info is None
+        assert len(stored_uploads()) == 2
+    else:
+        assert stored_uploads() == ["old.png"]
     assert default_storage.open(old_path).read() == old_bytes
 
 
@@ -315,7 +339,10 @@ def test_admin_render_failure_keeps_committed_upload(
     assert stored_uploads() == [path.removeprefix("uploads/")]
 
 
-def test_cleanup_attempts_every_new_object(in_memory_storage, monkeypatch):
+@pytest.mark.parametrize("during_failure", [False, True])
+def test_cleanup_attempts_every_new_object(
+    in_memory_storage, monkeypatch, during_failure
+):
     from django.core.files.storage import default_storage
 
     form = TwoImageForm(
@@ -337,8 +364,16 @@ def test_cleanup_attempts_every_new_object(in_memory_storage, monkeypatch):
         original_delete(name)
 
     monkeypatch.setattr(default_storage, "delete", fail_first)
-    with pytest.raises(OSError, match="delete failed"):
-        form.cleanup_new_image_uploads()
+    if during_failure:
+        with pytest.raises(ValueError, match="save failed"):
+            try:
+                raise ValueError("save failed")
+            except ValueError:
+                form.cleanup_new_image_uploads()
+                raise
+    else:
+        with pytest.raises(OSError, match="delete failed"):
+            form.cleanup_new_image_uploads()
     assert calls == [first, second]
     assert form.new_image_uploads == [first]
     assert stored_uploads() == [first.removeprefix("uploads/")]
