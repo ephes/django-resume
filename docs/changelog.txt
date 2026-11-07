@@ -22,6 +22,16 @@ Security
 
 Fixes
 ^^^^^
+* Synchronize inline editable fields on native form submission, including
+  keyboard and ``requestSubmit()`` paths, before HTMX serializes them.
+  Save buttons retain native constraint validation.
+* Remove inline-editor listeners on disconnect so HTMX moves and reconnects
+  do not duplicate saves, toggles or file-picker actions.
+* Cancel superseded avatar reads and ignore stale completions after a newer
+  selection or disconnect. Preview failures keep the selection and show a
+  short message.
+* Commit dropped avatar files before previewing them. Unsupported drops retain
+  the existing file and preview and ask the user to use the file picker.
 * Query-encode editable CV tokens so punctuation and Unicode round-trip through
   generated links without changing the stored credential.
 * Compare token age without datetime addition overflow; malformed timestamps
