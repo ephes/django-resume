@@ -77,7 +77,7 @@ class PermissionDeniedTemplates(SimpleThemedTemplates):
         if self.theme != "plain":
             try:
                 get_template(path)
-            except TemplateDoesNotExist:
+            except (TemplateDoesNotExist, OSError, ValueError):
                 filename = self.template_names[template_name]
                 return f"django_resume/plugins/{self.plugin_name}/plain/{filename}"
         return path

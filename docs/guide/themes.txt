@@ -11,6 +11,10 @@ plugin; the choice is stored per resume. django-resume ships three page themes:
 - ``editorial``: a magazine-style CV and cover letter with self-writing
   handwritten labels.
 
+Theme names must match ``[A-Za-z0-9_-]+`` (ASCII letters, digits, underscores
+and hyphens). Custom theme names remain supported. Invalid legacy names fall
+back to ``plain`` at template-path construction.
+
 A theme renders a page from ``django_resume/pages/<theme>/<template>`` and each
 plugin from ``django_resume/plugins/<plugin>/<theme>/``. When a theme does not
 ship a page template, the page falls back to ``plain``. The fragments that

@@ -1,5 +1,6 @@
 from django import forms
 from django.http import HttpRequest
+from django.core.validators import RegexValidator
 
 from .base import SimplePlugin, ContextDict
 from ..i18n import language_choices, normalize_language
@@ -10,6 +11,12 @@ class ThemeForm(forms.Form):
         label="Theme Name",
         max_length=100,
         initial="plain",
+        validators=[
+            RegexValidator(
+                r"\A[A-Za-z0-9_-]+\Z",
+                "Use only letters, digits, underscores and hyphens.",
+            )
+        ],
     )
     language = forms.ChoiceField(
         label="Resume language",

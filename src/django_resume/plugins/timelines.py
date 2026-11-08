@@ -14,6 +14,7 @@ from .base import (
     ContextDict,
 )
 
+from ..theme_names import is_valid_theme_name
 from ..markdown import (
     markdown_to_html,
     safe_link_url,
@@ -133,7 +134,8 @@ class TimelineThemedTemplates(ListThemedTemplates):
 
     def get_template_path(self, template_name: str) -> str:
         template_name = self.template_names[template_name]
-        return f"django_resume/plugins/timelines/{self.theme}/{template_name}"
+        theme = self.theme if is_valid_theme_name(self.theme) else "plain"
+        return f"django_resume/plugins/timelines/{theme}/{template_name}"
 
 
 class TimelineItemForm(ListItemFormMixin, forms.Form):

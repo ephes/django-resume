@@ -93,6 +93,8 @@ class AboutPlugin(SimplePlugin):
             _request, plugin_data, resume_pk, context=context, edit=edit, theme=theme
         )
         text_markdown = context.pop("text", "")
+        if not isinstance(text_markdown, str):
+            text_markdown = ""
         context["text_markdown"] = text_markdown
         context["text_plain"] = markdown_to_plain_text(text_markdown)
         context["text_html"] = markdown_to_html(text_markdown)

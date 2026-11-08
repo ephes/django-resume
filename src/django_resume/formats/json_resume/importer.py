@@ -30,6 +30,7 @@ from ...interchange.conflicts import detect_path_conflicts
 from ...interchange.pointer import get_pointer, has_pointer
 from ...interchange.report import ImportReport
 from ...models import Resume
+from ...theme_names import is_valid_theme_name
 from ...plugins import plugin_registry
 from .export import SOURCE_DOCUMENT_META_KEYS, third_party_meta
 from .mapping import unimported_item_fields
@@ -386,8 +387,13 @@ def load_document_url(url: str) -> dict:
             data = bytearray()
             while len(data) <= MAX_INPUT_BYTES:
                 timeout = _remaining_fetch_time(deadline, expired)
-                if sock is not None:
-                    sock.settimeout(timeout)
+                # getresponse() transfers close-style transports to the response.
+                # Its file owns that socket until EOF; only the connection-owned
+                # socket may still be configured here. The timer remains armed
+                # against the original transport while the response is reading.
+                live_sock = connection.sock
+                if live_sock is not None:
+                    live_sock.settimeout(timeout)
                 chunk = response.read1(min(64 * 1024, MAX_INPUT_BYTES + 1 - len(data)))
                 _remaining_fetch_time(deadline, expired)
                 if not chunk:
@@ -439,6 +445,24 @@ def _validate_restored_plugin_data(plugin_data: object) -> list[str]:
                 f"meta.django_resume.plugin_data.{plugin_name} must be an object"
             )
             continue
+        if plugin_name == "theme":
+            for field in ("name", "language"):
+                if field not in payload:
+                    continue
+                value = payload[field]
+                if field == "language" and value == "":
+                    continue  # Use the active site language.
+                if not is_valid_theme_name(value):
+                    errors.append(
+                        f"meta.django_resume.plugin_data.theme.{field} must be a single "
+                        "segment containing only ASCII letters, digits, underscores or hyphens"
+                    )
+        if (
+            plugin_name == "about"
+            and "text" in payload
+            and not isinstance(payload["text"], str)
+        ):
+            errors.append("meta.django_resume.plugin_data.about.text must be a string")
         if "flat" in payload and not isinstance(payload["flat"], dict):
             errors.append(
                 f"meta.django_resume.plugin_data.{plugin_name}.flat must be an object"
