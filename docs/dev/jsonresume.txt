@@ -285,6 +285,17 @@ only when every contributor declares the path multivalued, assembles the
 document, validates it, and returns a report. Raw adapterless plugin payloads
 are never dumped into the portable JSON Resume document.
 
+Each non-multivalued path may be contributed only once, including by its owning
+adapter: repeated equal values are rejected as well as differing values. Every
+contribution to a declared multivalued path must be a Python ``list``; strings,
+mappings, tuples, null and other scalars are rejected before document assembly.
+Empty lists are valid, and repeated list contributions from one or several
+adapters are concatenated in contribution and adapter order. These contract
+failures raise ``PathConflictError`` with the plugin name and path, without
+including contributed values. The export command reports an adapter
+configuration error without writing output or replacing an existing file; the
+owner download route returns a plain-text configuration error (HTTP 500).
+
 Schema pinning was resolved against JSON Resume v1.0.0 and the schema is
 vendored into the package. Validation is offline: django-resume must not fetch a
 schema at runtime, and ``meta.version`` must not be treated as a schema version
