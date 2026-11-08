@@ -1526,3 +1526,29 @@ import to ignore the private plugin payload.
 
 Unknown plugin payloads retain their existing opaque round-trip support:
 these built-in identity and position rules do not impose schemas on extensions.
+
+Supported export pointers
+-------------------------
+
+Adapter ``owned_paths`` and ``multivalued_paths`` use an object-only subset of
+JSON Pointer: a leading slash followed by one or more nonempty keys, separated
+by slashes (for example ``/basics/name``). Root/empty pointers, empty keys and
+all ``~`` escapes are unsupported. Arrays are contributed whole at a leaf.
+Invalid declarations raise ``PathConflictError`` before conflict detection or
+any adapter export call. Pointer lookup, writing and conflict checks share the
+same subset (low-level helpers raise ``ValueError``).
+
+Import parser limits
+--------------------
+
+All byte/file/URL loaders and browser preview/create imports reject decimal
+integer tokens longer than 4,300 digits (excluding the sign), even if Python's
+own digit limit is disabled. A stricter interpreter limit is also honored.
+Failures use the fixed ``JsonResumeImportError`` message "JSON integer exceeds
+supported limits" without echoing the token and create no resume or image.
+The file-only ``import_json_resume`` command uses the same loader.
+
+Malformed URL authorities (including brackets, normalization and ports) raise
+``JsonResumeImportError`` with ``field="source_url"`` and the bounded message
+"Invalid JSON Resume URL authority" before DNS or HTTP. Valid public IPv6 URLs
+retain DNS pinning and public-address checks.

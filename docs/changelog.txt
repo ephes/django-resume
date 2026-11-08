@@ -37,6 +37,14 @@ Security
 
 Fixes
 ^^^^^
+* Retain the manual create form on competing slug inserts and bound stored-image
+  dimension reads to 2 MiB without trusting storage size metadata.
+* Normalize oversized JSON integers and malformed URL authorities into bounded
+  import errors before writes or network access, respectively.
+* Refuse unsupported legacy education extensions before upgrade writes and
+  preflight export adapter declarations against one object pointer subset.
+* Bind education migration reads and writes to the selected database and refuse
+  lossy education rollback before changing any rows; document backup recovery.
 * Reject repeated non-multivalued export contributions, even for equal values,
   and require lists for declared multivalued contributions. Adapter contract
   errors now reach the controlled CLI/download error path before output is

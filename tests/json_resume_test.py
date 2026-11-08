@@ -2410,7 +2410,9 @@ def test_load_document_url_rejects_non_http_url():
 
 
 def test_load_document_url_rejects_invalid_port():
-    with pytest.raises(JsonResumeImportError, match="Invalid JSON Resume URL port"):
+    with pytest.raises(
+        JsonResumeImportError, match="Invalid JSON Resume URL authority"
+    ):
         load_document_url("https://example.com:99999/resume.json")
 
 
