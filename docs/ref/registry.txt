@@ -36,6 +36,10 @@ Overview
       and appends them to the global ``urlpatterns`` in
       :mod:`django_resume.urls`.
 
+      Registration prepares the instance, inline URLs and language wrappers before
+      replacing an existing plugin. If preparation or publication fails, the
+      previous plugin and exact URL list are restored, including route order.
+
       :param plugin_class: A subclass of :class:`Plugin <django_resume.plugins.base.Plugin>`.
 
       **Example**::
@@ -50,9 +54,14 @@ Overview
 
    .. method:: register_plugin_list(plugin_classes)
 
-      Accepts a list of plugin classes and calls :meth:`.register` on each of
-      them. This is commonly used at application startup (e.g., in an
-      ``apps.py``) to bulk-register a set of plugin classes.
+      Registers a list of plugin classes in input order as one batch. If any
+      registration fails, the entire batch restores the previous plugins and
+      inline URLs, so retrying cannot leave duplicate routes. URL resolver
+      caches are cleared once after success or rollback. This is commonly used
+      at application startup (e.g., in an ``apps.py``).
+
+      Registration is a synchronous startup operation. It does not roll back
+      external side effects performed by plugin constructors or URL factories.
 
       :param plugin_classes: A list of plugin classes to register.
 

@@ -33,6 +33,9 @@ Security
 
 Fixes
 ^^^^^
+* Preserve the previous plugin and inline routes when a replacement fails.
+  Bulk registration now rolls back the whole batch on failure, retains input
+  order and clears URL resolver caches once after success or rollback.
 * Preserve the resume language when an unrendered template response fails and
   is rendered again. Successful post-render caching and replacement responses
   retain their existing behavior.
