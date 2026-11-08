@@ -7,7 +7,7 @@ from .protocols import AdapterExport, ExportAdapter
 
 
 class PathConflictError(Exception):
-    """Raised when adapters claim the same non-multivalued JSON Pointer."""
+    """Raised when adapters violate their declared contribution path contracts."""
 
 
 @dataclass
@@ -74,8 +74,9 @@ def build_document(resolved: list[ResolvedAdapter]) -> tuple[dict, list[str]]:
 
     Raises PathConflictError before assembly on identical non-multivalued claims
     or ancestor/descendant path overlaps, and during assembly if an adapter
-    contributes a pointer it did not declare in ``owned_paths``. Multivalued
-    (array) paths claimed by several adapters are concatenated in order.
+    contributes an undeclared pointer, repeats a non-multivalued contribution,
+    or contributes a non-list to a multivalued path. Multivalued (array) paths
+    claimed by several adapters are concatenated in order.
     """
     _check_conflicts(resolved)
     notes: list[str] = []
@@ -93,8 +94,18 @@ def build_document(resolved: list[ResolvedAdapter]) -> tuple[dict, list[str]]:
                     f"{pointer!r}"
                 )
             if pointer in multivalued:
+                if not isinstance(value, list):
+                    raise PathConflictError(
+                        f"Adapter {item.plugin_name!r} must contribute a list "
+                        f"for multivalued path {pointer!r}"
+                    )
                 arrays.setdefault(pointer, []).extend(value)
             else:
+                if pointer in scalars:
+                    raise PathConflictError(
+                        f"Adapter {item.plugin_name!r} contributed non-multivalued "
+                        f"path {pointer!r} more than once"
+                    )
                 scalars[pointer] = value
     document: dict[str, Any] = {}
     for pointer, value in scalars.items():

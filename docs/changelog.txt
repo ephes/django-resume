@@ -7,6 +7,10 @@ Unreleased
 
 Compatibility
 ^^^^^^^^^^^^^
+* Export adapter authors must contribute Python ``list`` values to declared
+  multivalued paths and emit each non-multivalued path only once. Tuples and
+  other iterables, and repeated non-multivalued writes (even equal values), now
+  raise ``PathConflictError`` instead of being silently coerced or overwritten.
 * Custom inline editor templates (including generated/database-stored plugins)
   must render ``form.edit_revision`` and its errors inside the form, or include
   ``django_resume/edit_revision.html``. Update templates before upgrading:
@@ -33,6 +37,10 @@ Security
 
 Fixes
 ^^^^^
+* Reject repeated non-multivalued export contributions, even for equal values,
+  and require lists for declared multivalued contributions. Adapter contract
+  errors now reach the controlled CLI/download error path before output is
+  published; valid list merging retains its order and empty lists.
 * Preserve the previous plugin and inline routes when a replacement fails.
   Bulk registration now rolls back the whole batch on failure, retains input
   order and clears URL resolver caches once after success or rollback.
