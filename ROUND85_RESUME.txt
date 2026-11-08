@@ -1,0 +1,63 @@
+Round 85 resume note — 2026-11-08
+================================
+
+Repository: ephes/django-resume
+Remote verified: git@github.com:ephes/django-resume.git
+Default branch/base: main, 73123227c40680bf5e309b01d0da3e13ff6ff496
+Work branch: fix/r85-restored-document-integrity
+Report: ~/workspaces/ws-work-planning/reviews/scout-round85.md
+Read the six full django-resume slices (54–59), validation notes and bundle
+cautions before resuming. All six gaps were present on this default branch;
+none were already fixed. No merge or default-branch push has occurred.
+
+B20 — implemented, tested, NOT reviewed
+--------------------------------------
+54. resume-token-required-strict-boolean
+55. resume-roundtrip-envelope-version-admission
+56. resume-unchanged-source-json-type-identity
+
+Minimal fixes, synthetic regressions, reference/developer docs and Unreleased
+notes are included. Before fixes, the new regression file had 26 failures and
+9 passes. After fixes, just check passed: Ruff, mypy (63 source files),
+1,172 tests passed / 2 skipped, coverage 89%. The existing preview oracle now
+expects the legacy-version report note. No frontend changes or theme installs.
+Supported legacy preserved_extensions behavior is retained in portable mode;
+unsupported-version private envelopes are discarded with an explicit note.
+
+Required review command ran with --model claude-opus-5-5 --effort high through
+~/projects/agent-stuff/codex/skills/claude-review-loop/bin/claude-review-loop.
+It exited 2, PROVIDER_ERROR / api_error, with:
+  Failed to authenticate: OAuth session expired and could not be refreshed
+No valid review occurred (zero findings is NOT a clean verdict).
+Local artifacts: ../reviews/b20-round1/result.json and review-bundle.md;
+context: ../b20-review-context.txt. No files skipped, truncated or redacted.
+Refresh Claude OAuth outside this task and run a fresh whole-bundle review
+before merging. The failed review does not count as a completed review round.
+
+B21 — reverified, NOT implemented
+---------------------------------
+57. resume-prepared-import-write-database-atomicity
+58. resume-page-registry-route-preflight
+59. resume-export-reserved-envelope-path
+
+Proceed in report bundle order after B20. The write importer still uses the
+default atomic transaction and unbound queryset/create; PageRegistry still
+publishes batches incrementally and accepts duplicate paths; export still
+allows adapters to collide with the generated /meta/django_resume namespace.
+Use two local synthetic database aliases for routing; tests/settings.py already
+provides default and other SQLite databases. No themes or platform-dependent
+fixtures are needed.
+
+Remaining workflow
+------------------
+Keep caches under the workspace .cache. Use UV_CACHE_DIR, UV_TOOL_DIR and
+PREK_HOME there (prek hook installed). Read AGENTS.md and README.rst.
+Before each merge fetch origin; rebase on moved origin/main and rerun checks.
+Use the required Opus review gate, fix/re-review while progressing, maximum
+4 completed rounds; stop on a recurring Critical/Warning. Merge clean bundles
+locally with --no-ff. Run full local checks again after merge before pushing
+main; verify the remote SHA with git ls-remote. Use [skip ci] in pushed commit
+messages to avoid paid Actions. No PRs, releases/tags, deploys, host access,
+work-app writes, remote-branch deletion, or writes under ~/projects.
+This feature-branch push is solely the explicitly authorized OAuth parking
+exception; do not resume feature-branch pushes as the ordinary workflow.

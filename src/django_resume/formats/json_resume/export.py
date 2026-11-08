@@ -1,3 +1,4 @@
+import json
 from dataclasses import dataclass
 from copy import deepcopy
 
@@ -48,6 +49,16 @@ def portable_document(document: dict) -> dict:
     return result
 
 
+def _same_json(left: object, right: object) -> bool:
+    """Compare JSON snapshots without Python's bool/int equality coercion."""
+    try:
+        return json.dumps(left, sort_keys=True, allow_nan=False) == json.dumps(
+            right, sort_keys=True, allow_nan=False
+        )
+    except (TypeError, ValueError):
+        return False
+
+
 def _source_document_for_unchanged_import(
     resume: Resume, document: dict
 ) -> dict | None:
@@ -64,11 +75,10 @@ def _source_document_for_unchanged_import(
         source_adapter_document, dict
     ):
         return None
-    if document != source_adapter_document:
+    if not _same_json(document, source_adapter_document):
         return None
-    if (
-        not isinstance(source_plugin_data, dict)
-        or resume.plugin_data != source_plugin_data
+    if not isinstance(source_plugin_data, dict) or not _same_json(
+        resume.plugin_data, source_plugin_data
     ):
         return None
     return deepcopy(source_document)

@@ -121,11 +121,19 @@ For django-resume round-trip exports, ``meta.django_resume.plugin_data`` is
 restored before portable adapters are used. This preserves plugin fields that do
 not have a standard JSON Resume representation. Restored plugin data is accepted
 only when the envelope is an object of plugin-name keys to object payloads.
+``meta.django_resume.version`` must be the integer ``1`` (not a boolean or
+string); a missing version is accepted as a legacy v1 envelope and reported.
+Unsupported versions reject restoration before writes. Portable-only import
+ignores an unsupported private envelope entirely, reports it, and still maps
+standard fields; its private data is not retained for re-export.
+When present, ``token.flat.token_required`` must be a boolean. A missing field
+keeps the legacy token-required default. For already persisted policies, only
+explicit ``false`` permits anonymous access; malformed values require a token.
 
 For imported JSON Resume documents, django-resume stores the parsed source
 document, the adapter-generated projection, and the imported plugin-data
 snapshot in resume integration state. If a later export sees the same projection
-and the same plugin data, it re-emits the parsed source document so unsupported
+and the same plugin data, including JSON value types, it re-emits the parsed source document so unsupported
 standard fields owned by no bundled plugin are not lost during an unchanged
 import/export check. Once plugin data changes, export uses the current plugin
 adapters and the normal django-resume extension envelope. Third-party ``meta``

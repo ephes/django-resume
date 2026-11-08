@@ -31,7 +31,11 @@ from ...interchange.pointer import get_pointer, has_pointer
 from ...interchange.report import ImportReport
 from ...models import Resume
 from ...plugins import plugin_registry
-from .export import SOURCE_DOCUMENT_META_KEYS, third_party_meta
+from .export import (
+    DJANGO_RESUME_META_VERSION,
+    SOURCE_DOCUMENT_META_KEYS,
+    third_party_meta,
+)
 from .mapping import unimported_item_fields
 from .validation import drop_empty_dates, validate_document
 
@@ -443,6 +447,16 @@ def _validate_restored_plugin_data(plugin_data: object) -> list[str]:
             errors.append(
                 f"meta.django_resume.plugin_data.{plugin_name}.flat must be an object"
             )
+        flat = payload.get("flat")
+        if (
+            plugin_name == "token"
+            and isinstance(flat, dict)
+            and "token_required" in flat
+            and type(flat["token_required"]) is not bool
+        ):
+            errors.append(
+                "meta.django_resume.plugin_data.token.flat.token_required must be a boolean"
+            )
         if "items" in payload:
             if not isinstance(payload["items"], list):
                 errors.append(
@@ -726,6 +740,25 @@ def _prepare_resume_import(
         django_resume_meta = django_resume_meta_value
     else:
         return _invalid_import(["meta.django_resume must be an object"])
+    envelope_notes = []
+    ignored_envelope = False
+    if "version" in django_resume_meta:
+        version = django_resume_meta["version"]
+        if type(version) is not int or version != DJANGO_RESUME_META_VERSION:
+            message = "meta.django_resume.version must be the supported integer 1"
+            if restore_django_resume_data:
+                return _invalid_import([message])
+            envelope_notes.append(
+                f"{message}; private envelope ignored in portable mode"
+            )
+            ignored_envelope = True
+    elif django_resume_meta and restore_django_resume_data:
+        envelope_notes.append(
+            "accepted legacy meta.django_resume envelope without version as v1"
+        )
+    if ignored_envelope:
+        # Portable mode must not retain private data for a later exact export.
+        django_resume_meta = {}
     restored_plugin_data = django_resume_meta.get("plugin_data")
     portable_sections = sorted(set(document) - {"$schema", "meta"})
     if restore_django_resume_data and "plugin_data" in django_resume_meta:
@@ -744,11 +777,13 @@ def _prepare_resume_import(
             section for section in portable_sections if section not in source_roots
         ]
 
-    report.notes[:0] = normalization_notes
+    report.notes[:0] = normalization_notes + envelope_notes
     resume_name = name or get_pointer(document, "/basics/name", "") or slug
     _validate_resume_metadata(slug=slug, name=resume_name)
     json_resume_state: dict[str, Any] = {"source_plugin_data": deepcopy(plugin_data)}
-    if restore_django_resume_data or "plugin_data" not in django_resume_meta:
+    if not ignored_envelope and (
+        restore_django_resume_data or "plugin_data" not in django_resume_meta
+    ):
         json_resume_state["source_document"] = deepcopy(document)
     else:
         report.notes.append(
