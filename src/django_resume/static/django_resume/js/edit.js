@@ -25,13 +25,16 @@ class EditableForm extends HTMLElement {
 
         // Built-in templates keep Save outside the hidden form. Give it native
         // form ownership so clicks use the same validation/submit path as keyboards.
+        // Read the attribute: item forms post a field named "id", which shadows form.id.
         if (submitButton && !submitButton.form) {
-            if (!formElement.id) {
+            let formId = formElement.getAttribute('id');
+            if (!formId) {
                 let index = 1;
                 while (document.getElementById(`editable-form-${index}`)) index++;
-                formElement.id = `editable-form-${index}`;
+                formId = `editable-form-${index}`;
+                formElement.setAttribute('id', formId);
             }
-            submitButton.setAttribute('form', formElement.id);
+            submitButton.setAttribute('form', formId);
         }
 
         // Capture runs before HTMX's bubbling listener serializes the form.

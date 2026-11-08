@@ -69,6 +69,8 @@ Fixes
 * Reuse the loaded Resume during built-in token-section permission checks,
   removing a duplicate owner CV query while preserving standalone plugin calls
   and third-party context signatures.
+* Restore inline item saves: Save buttons now target the form's ``id``
+  attribute, which a posted ``id`` field no longer shadows.
 * Synchronize inline editable fields on native form submission, including
   keyboard and ``requestSubmit()`` paths, before HTMX serializes them.
   Save buttons retain native constraint validation.

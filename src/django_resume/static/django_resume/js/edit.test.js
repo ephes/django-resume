@@ -171,6 +171,27 @@ describe('EditableForm', () => {
         expect(existing.id).toBe('editable-form-1');
     });
 
+    test('an external Save button owns a form whose fields include one named "id"', () => {
+        // Item forms post their item id as name="id", which shadows form.id.
+        component.remove();
+        const form = component.querySelector('form');
+        const idInput = document.createElement('input');
+        idInput.type = 'hidden';
+        idInput.name = 'id';
+        idInput.value = 'item-1';
+        form.append(idInput);
+        // Browsers let named controls override form properties; jsdom does not.
+        Object.defineProperty(form, 'id', {configurable: true, get: () => idInput});
+        component.querySelector('button').removeAttribute('form');
+        document.body.append(component);
+        const submitted = vi.fn((event) => event.preventDefault());
+        form.addEventListener('submit', submitted);
+        component.querySelector('button').click();
+        expect(component.querySelector('button').getAttribute('form')).toBe('form-test');
+        expect(component.querySelector('button').form).toBe(form);
+        expect(submitted).toHaveBeenCalledTimes(1);
+    });
+
     test.each(['click', 'native submit', 'requestSubmit'])(
         '%s synchronizes text and HTML before one submit reaches HTMX', (method) => {
             const form = component.querySelector('form');
