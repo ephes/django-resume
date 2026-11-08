@@ -10,6 +10,7 @@ from django.template.loader import get_template
 from django.urls import reverse
 
 from ..i18n import render_in_language, resume_language
+from ..theme_names import is_valid_theme_name
 from ..models import Resume
 from ..plugins import plugin_registry, TokenPlugin
 
@@ -125,13 +126,14 @@ def build_section_context(
 
 def page_template_name(theme: str, template_name: str) -> str:
     """The page template lookup path for a given theme (pure, no I/O)."""
+    theme = theme if is_valid_theme_name(theme) else "plain"
     return f"django_resume/pages/{theme}/{template_name}"
 
 
 def _template_exists(name: str) -> bool:
     try:
         get_template(name)
-    except TemplateDoesNotExist:
+    except (TemplateDoesNotExist, OSError, ValueError):
         return False
     return True
 

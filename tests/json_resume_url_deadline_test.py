@@ -234,3 +234,79 @@ def test_streamed_url_body_stops_at_size_limit(monkeypatch):
     assert exc.value.field == "source_url"
     assert received[0] == importer.MAX_INPUT_BYTES + 1
     assert max(read_sizes) <= 64 * 1024
+
+
+@pytest.mark.parametrize(
+    "protocol,headers",
+    [
+        ("HTTP/1.0", b"Content-Length: 26\r\n"),
+        ("HTTP/1.1", b"Connection: close\r\nContent-Length: 26\r\n"),
+        ("HTTP/1.1", b"Connection: close\r\nTransfer-Encoding: chunked\r\n"),
+    ],
+)
+def test_close_response_preserves_complete_body(monkeypatch, protocol, headers):
+    reader, writer = socket.socketpair()
+    body = b'{"basics":{"name":"Jane"}}'
+    if b"chunked" in headers:
+        wire_body = b"%x\r\n" % len(body) + body + b"\r\n0\r\n\r\n"
+    else:
+        wire_body = body
+    writer.sendall(protocol.encode() + b" 200 OK\r\n" + headers + b"\r\n" + wire_body)
+    writer.shutdown(socket.SHUT_WR)
+    connection = http.client.HTTPConnection("example.com")
+    monkeypatch.setattr(
+        connection, "connect", lambda: setattr(connection, "sock", reader)
+    )
+    monkeypatch.setattr(
+        importer,
+        "_validate_import_url",
+        lambda url: SimpleNamespace(
+            url=url, request_target="/resume", host_header="example.com"
+        ),
+    )
+    monkeypatch.setattr(importer, "_connection_for_url", lambda url: connection)
+    try:
+        assert importer.load_document_url("https://example.com/resume") == {
+            "basics": {"name": "Jane"}
+        }
+        assert reader.fileno() == -1
+    finally:
+        connection.close()
+        reader.close()
+        writer.close()
+
+
+def test_body_oserror_is_not_treated_as_eof(monkeypatch):
+    class Response:
+        status = 200
+        headers = {}
+        calls = 0
+
+        def read1(self, amount):
+            self.calls += 1
+            if self.calls == 1:
+                # A valid JSON prefix must not make a failed transport succeed.
+                return b'{"basics":{"name":"Jane"}}'
+            raise OSError("body transport failed")
+
+        def close(self):
+            pass
+
+    response = Response()
+    connection = SimpleNamespace(
+        sock=None,
+        connect=lambda: None,
+        request=lambda *a, **kw: None,
+        getresponse=lambda: response,
+        close=lambda: None,
+    )
+    monkeypatch.setattr(
+        importer,
+        "_validate_import_url",
+        lambda url: SimpleNamespace(
+            url=url, request_target="/resume", host_header="example.com"
+        ),
+    )
+    monkeypatch.setattr(importer, "_connection_for_url", lambda url: connection)
+    with pytest.raises(importer.JsonResumeImportError, match="body transport failed"):
+        importer.load_document_url("https://example.com/resume")

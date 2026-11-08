@@ -31,6 +31,7 @@ from django.db import router, transaction
 
 from ..images import ImageFormMixin
 from ..markdown import safe_link_url, textarea_input_to_markdown
+from ..theme_names import is_valid_theme_name
 from ..models import Resume
 
 # Deleting an item changes data, so it must never be reachable via GET (Django
@@ -427,7 +428,8 @@ class ThemedTemplates:
     def get_template_path(self, template_name: str) -> str:
         assert self.template_names is not None  # type guard
         template_name = self.template_names[template_name]
-        return f"django_resume/plugins/{self.plugin_name}/{self.theme}/{template_name}"
+        theme = self.theme if is_valid_theme_name(self.theme) else "plain"
+        return f"django_resume/plugins/{self.plugin_name}/{theme}/{template_name}"
 
     def set_plugin_name_and_theme(self, plugin_name: str, theme: str):
         self.plugin_name = plugin_name
@@ -498,7 +500,7 @@ def get_current_theme(resume: Resume) -> str:
 def _template_exists(name: str) -> bool:
     try:
         get_template(name)
-    except TemplateDoesNotExist:
+    except (TemplateDoesNotExist, OSError, ValueError):
         return False
     return True
 

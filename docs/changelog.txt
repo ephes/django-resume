@@ -19,6 +19,12 @@ Compatibility
 
 Security
 ^^^^^^^^
+* Validate restored theme names/language as safe single path segments and
+  About text as a string. Reject invalid theme names in the editor and fall
+  back to plain for invalid legacy names. Treat unreadable/invalid template
+  paths as missing, and tolerate legacy non-string About text.
+* Preserve complete URL-import bodies for HTTP/1.0 and HTTP/1.1 close-style
+  responses while retaining the total fetch deadline and transport errors.
 * Add real middleware CSRF regressions for file preview/confirmation, URL import,
   whole-resume deletion and inline simple/flat/item writes, including avatar
   storage and token policy. Valid application proof cannot replace CSRF proof.
