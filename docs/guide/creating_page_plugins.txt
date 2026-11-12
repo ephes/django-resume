@@ -56,7 +56,11 @@ The attributes are:
    The sub-segment appended to ``<slug:slug>/``. Use ``""`` for the default/root
    page. The bare ``<slug:slug>/`` catch-all is always emitted last, so more
    specific paths such as ``portfolio/`` never shadow it (and it never shadows
-   them).
+   them). Use slash-terminated segments of letters, digits, ``-`` and
+   ``_``; ``delete/`` and ``json-resume/`` are reserved, and two pages cannot
+   share a path. ``url_name`` must not reuse a fixed route name such as
+   ``delete`` or ``json-resume``. Invalid routes raise
+   ``PageRegistrationError`` at registration time.
 
 ``template_name``
    Resolved as ``django_resume/pages/{resume.current_theme}/{template_name}``.

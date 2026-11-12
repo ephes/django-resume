@@ -359,7 +359,7 @@ images within the budget retain their dimensions. Callers of
 omitting unavailable dimensions.
 
 Restoring JSON Resume plugin data
-================================
+=================================
 
 Imports that restore ``meta.django_resume.plugin_data`` reject invalid built-in
 values before saving: ``theme.name`` must match ``[A-Za-z0-9_-]+`` and

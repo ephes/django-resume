@@ -1285,7 +1285,13 @@ command, or selecting **Standard JSON Resume fields only** in the browser,
 ignores the envelope and maps standard JSON Resume sections through plugin-owned
 import adapters.
 The restored plugin-data envelope is validated before writing: it must be an
-object whose values are plugin payload objects. Import adapter source paths are
+object whose values are plugin payload objects. The private envelope version must
+be the integer ``1``; missing versions are accepted as legacy v1 (noted in restore mode).
+Other versions reject restoration. Portable-only mode ignores unsupported private
+envelopes with a report note and retains none of their private data.
+``token.flat.token_required``, when present, must be a boolean; only explicit
+``false`` disables the token gate, including for already stored policies.
+Import adapter source paths are
 checked for duplicate or overlapping claims before any adapter data is applied.
 If ``meta.django_resume.preserved_extensions`` is present, it is stored under
 ``integration_data["json_resume"]["preserved_extensions"]`` and emitted again
@@ -1293,7 +1299,8 @@ on later JSON Resume exports.
 All successful imports also store the parsed source document, the
 adapter-generated source projection, and the imported plugin-data snapshot under
 ``integration_data["json_resume"]``. If a later export's current adapter
-projection and full plugin data still match those stored values, export re-emits
+projection and full plugin data still match those stored values in both JSON
+values and types, export re-emits
 the parsed source document exactly. This gives third-party JSON Resume samples
 an exact unchanged import/render/export path without hiding later plugin-data
 edits; once plugin data changes, export regenerates the document from adapters
@@ -1537,8 +1544,25 @@ by slashes (for example ``/basics/name``). Root/empty pointers, empty keys and
 all ``~`` escapes are unsupported. Arrays are contributed whole at a leaf.
 Invalid export declarations raise ``PathConflictError`` before conflict
 detection or any adapter export call; invalid import ``source_paths`` raise
-``JsonResumeImportError`` before any adapter import call. Pointer lookup, writing and conflict checks share the
-same subset (low-level helpers raise ``ValueError``).
+``JsonResumeImportError`` before any adapter import call. Pointer lookup,
+writing and conflict checks share the same subset (low-level helpers raise
+``ValueError``).
+
+``/meta/django_resume`` is reserved for the private round-trip envelope that
+the exporter writes itself. Export adapters may not declare it, a path inside
+it, or an ancestor such as ``/meta``; JSON Resume export raises
+``PathConflictError`` before any adapter export call. Sibling keys such as
+``/meta/x-example`` remain available. ``build_document`` applies this check
+through its ``reserved_paths`` argument (empty by default for other formats).
+
+Import writes
+-------------
+
+``create_prepared_import`` asks ``router.db_for_write(Resume, instance=...)``
+once and uses that alias for the existing-slug check, the atomic block and the
+insert. A competing insert of the same slug becomes the usual
+``JsonResumeImportError`` on ``slug``; any other ``IntegrityError`` propagates
+unchanged instead of being reported as a slug conflict.
 
 Import parser limits
 --------------------

@@ -1,3 +1,4 @@
+import json
 from dataclasses import dataclass
 from copy import deepcopy
 
@@ -9,6 +10,9 @@ from .validation import validate_document
 
 FORMAT_ID = "json_resume"
 DJANGO_RESUME_META_VERSION = 1
+# The private round-trip envelope is written by the exporter itself. Adapters
+# may not declare it, anything inside it, or an ancestor such as ``/meta``.
+RESERVED_EXPORT_PATHS = ("/meta/django_resume",)
 # Schema-defined ``meta`` keys that describe one concrete document (its
 # location, version and modification time). They go stale once the resume is
 # edited, so only third-party ``meta`` keys are carried over to new exports.
@@ -48,6 +52,16 @@ def portable_document(document: dict) -> dict:
     return result
 
 
+def _same_json(left: object, right: object) -> bool:
+    """Compare JSON snapshots without Python's bool/int equality coercion."""
+    try:
+        return json.dumps(left, sort_keys=True, allow_nan=False) == json.dumps(
+            right, sort_keys=True, allow_nan=False
+        )
+    except (TypeError, ValueError):
+        return False
+
+
 def _source_document_for_unchanged_import(
     resume: Resume, document: dict
 ) -> dict | None:
@@ -64,11 +78,10 @@ def _source_document_for_unchanged_import(
         source_adapter_document, dict
     ):
         return None
-    if document != source_adapter_document:
+    if not _same_json(document, source_adapter_document):
         return None
-    if (
-        not isinstance(source_plugin_data, dict)
-        or resume.plugin_data != source_plugin_data
+    if not isinstance(source_plugin_data, dict) or not _same_json(
+        resume.plugin_data, source_plugin_data
     ):
         return None
     return deepcopy(source_document)
@@ -83,7 +96,7 @@ def export_resume(resume: Resume, *, registry=None) -> JsonResumeExport:
     registry = registry or plugin_registry
     plugins = registry.get_all_plugins()
     resolved, omitted = collect_adapters(plugins, resume, FORMAT_ID)
-    document, notes = build_document(resolved)
+    document, notes = build_document(resolved, reserved_paths=RESERVED_EXPORT_PATHS)
     source_document = _source_document_for_unchanged_import(resume, document)
     if source_document is not None:
         document = source_document

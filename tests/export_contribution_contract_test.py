@@ -135,3 +135,58 @@ def test_invalid_export_does_not_publish_cli_or_browser_artifacts(
     assert response.content == b"Adapter configuration error"
     assert response.headers["Content-Type"].startswith("text/plain")
     assert "Content-Disposition" not in response.headers
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "pointer, value",
+    [
+        ("/meta/django_resume", {"version": 1, "plugin_data": {"forged": {}}}),
+        ("/meta/django_resume/plugin_data", {"forged": {}}),
+        ("/meta", {"django_resume": {"forged": True}}),
+    ],
+)
+def test_export_adapters_cannot_claim_private_envelope(
+    pointer, value, user, resume, monkeypatch, mocker
+):
+    from django_resume.formats.json_resume.export import export_resume
+    from django_resume.formats.json_resume.importer import import_resume_document
+
+    adapter = ContributionAdapter(pointer, [value])
+
+    class SyntheticPlugin(SimplePlugin):
+        name = "synthetic"
+
+        def get_export_adapters(self):
+            return {"json_resume": adapter}
+
+    monkeypatch.setattr(plugin_registry, "get_all_plugins", lambda: [SyntheticPlugin()])
+    user.save()
+    resume.save()
+    export_call = mocker.spy(adapter, "export")
+    with pytest.raises(PathConflictError, match="overlaps reserved path"):
+        export_resume(resume)
+    export_call.assert_not_called()
+
+    # The import-time source snapshot uses the same contract and is skipped.
+    imported = import_resume_document(
+        {"basics": {"name": "Jane"}}, owner=user, slug="reserved-import"
+    )
+    state = imported.resume.integration_data["json_resume"]
+    assert "source_adapter_document" not in state
+    assert any("reserved path" in note for note in imported.report.notes)
+
+
+def test_build_document_without_reserved_paths_keeps_generic_behavior():
+    adapter = ContributionAdapter("/meta/django_resume", ["synthetic"])
+    document, _notes = build_document([ResolvedAdapter("synthetic", adapter, {})])
+    assert document == {"meta": {"django_resume": "synthetic"}}
+
+
+def test_meta_siblings_remain_available_to_export_adapters():
+    adapter = ContributionAdapter("/meta/x-synthetic", ["value"])
+    document, _notes = build_document(
+        [ResolvedAdapter("synthetic", adapter, {})],
+        reserved_paths=("/meta/django_resume",),
+    )
+    assert document == {"meta": {"x-synthetic": "value"}}
