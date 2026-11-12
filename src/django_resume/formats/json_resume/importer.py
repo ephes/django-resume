@@ -19,7 +19,7 @@ from urllib.parse import urljoin, urlparse
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_slug
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, router, transaction
 
 from ...interchange.coordinator import (
     PathConflictError,
@@ -35,6 +35,7 @@ from ...plugins import plugin_registry
 from ...plugins.tokens import TokenPlugin
 from .export import (
     DJANGO_RESUME_META_VERSION,
+    RESERVED_EXPORT_PATHS,
     SOURCE_DOCUMENT_META_KEYS,
     third_party_meta,
 )
@@ -627,7 +628,9 @@ def _build_source_adapter_document(
         resolved, _omitted = collect_adapters(
             registry.get_all_plugins(), shadow_resume, FORMAT_ID
         )
-        document, _notes = build_document(resolved)
+        document, _notes = build_document(
+            resolved, reserved_paths=RESERVED_EXPORT_PATHS
+        )
     except PathConflictError as exc:
         return None, [
             "source JSON Resume document was not stored for exact re-export "
@@ -907,20 +910,28 @@ def create_prepared_import(
     plan = prepared.plan
     if plan is None:
         return JsonResumeImport(resume=None, report=prepared.report)
-    if Resume.objects.filter(slug=plan.slug).exists():
+    resume = Resume(
+        name=plan.name,
+        slug=plan.slug,
+        owner=owner,
+        plugin_data=plan.plugin_data,
+        integration_data=plan.integration_data,
+    )
+    # Choose the write database once: the slug check, the atomic block and the
+    # insert all use it, so a routed import never splits across aliases.
+    alias = router.db_for_write(Resume, instance=resume)
+    resumes = Resume.objects.using(alias)
+    if resumes.filter(slug=plan.slug).exists():
         raise JsonResumeImportError(
             f"A resume with slug {plan.slug!r} already exists", field="slug"
         )
     try:
-        with transaction.atomic():
-            resume = Resume.objects.create(
-                name=plan.name,
-                slug=plan.slug,
-                owner=owner,
-                plugin_data=plan.plugin_data,
-                integration_data=plan.integration_data,
-            )
+        with transaction.atomic(using=alias):
+            resume.save(using=alias, force_insert=True)
     except IntegrityError as exc:
+        # Query after the savepoint has rolled back, on the writer database.
+        if not resumes.filter(slug=plan.slug).exists():
+            raise
         raise JsonResumeImportError(
             f"A resume with slug {plan.slug!r} already exists", field="slug"
         ) from exc

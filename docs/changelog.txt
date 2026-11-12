@@ -11,6 +11,15 @@ Compatibility
   multivalued paths and emit each non-multivalued path only once. Tuples and
   other iterables, and repeated non-multivalued writes (even equal values), now
   raise ``PathConflictError`` instead of being silently coerced or overwritten.
+* ``PageRegistry`` now validates routes and publishes ``register_page_list``
+  batches atomically. Page paths must be ``""`` or slash-terminated segments of
+  letters, digits, ``-`` and ``_``; ``delete/`` and ``json-resume/`` are
+  reserved, two pages cannot share a path, and ``url_name`` may not reuse a
+  fixed route name such as ``delete``. Violations raise
+  ``PageRegistrationError`` (a ``ValueError``) and change nothing.
+* JSON Resume export adapters may no longer declare ``/meta/django_resume``,
+  paths inside it or ancestors such as ``/meta``; export raises
+  ``PathConflictError`` instead of letting the private envelope be overwritten.
 * Custom inline editor templates (including generated/database-stored plugins)
   must render ``form.edit_revision`` and its errors inside the form, or include
   ``django_resume/edit_revision.html``. Update templates before upgrading:
@@ -45,6 +54,9 @@ Security
 
 Fixes
 ^^^^^
+* Write prepared JSON Resume imports through one router-selected database
+  alias (slug check, transaction and insert); unrelated integrity errors are no
+  longer reported as slug conflicts.
 * Retain the manual create form on competing slug inserts and bound stored-image
   dimension reads to 2 MiB without trusting storage size metadata.
 * Normalize oversized JSON integers and malformed URL authorities into bounded

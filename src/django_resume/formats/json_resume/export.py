@@ -10,6 +10,9 @@ from .validation import validate_document
 
 FORMAT_ID = "json_resume"
 DJANGO_RESUME_META_VERSION = 1
+# The private round-trip envelope is written by the exporter itself. Adapters
+# may not declare it, anything inside it, or an ancestor such as ``/meta``.
+RESERVED_EXPORT_PATHS = ("/meta/django_resume",)
 # Schema-defined ``meta`` keys that describe one concrete document (its
 # location, version and modification time). They go stale once the resume is
 # edited, so only third-party ``meta`` keys are carried over to new exports.
@@ -93,7 +96,7 @@ def export_resume(resume: Resume, *, registry=None) -> JsonResumeExport:
     registry = registry or plugin_registry
     plugins = registry.get_all_plugins()
     resolved, omitted = collect_adapters(plugins, resume, FORMAT_ID)
-    document, notes = build_document(resolved)
+    document, notes = build_document(resolved, reserved_paths=RESERVED_EXPORT_PATHS)
     source_document = _source_document_for_unchanged_import(resume, document)
     if source_document is not None:
         document = source_document

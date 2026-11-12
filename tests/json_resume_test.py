@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 from django.core.management import call_command
 from django.core.management.base import CommandError
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.urls import reverse
 
 import django_resume.formats.json_resume as json_resume_pkg
@@ -727,13 +727,23 @@ def test_import_resume_document_rejects_existing_slug(user):
 
 
 @pytest.mark.django_db
-def test_import_resume_document_wraps_slug_integrity_race(user, monkeypatch):
+def test_import_resume_document_wraps_slug_integrity_race(
+    user, django_user_model, monkeypatch
+):
+    from django.db.models.query import QuerySet
+
     user.save()
+    winner = django_user_model.objects.create_user(username="winner")
+    Resume.objects.create(name="Winner", slug="race-slug", owner=winner)
+    original_exists = QuerySet.exists
+    checks = []
 
-    def create_race(*args, **kwargs):
-        raise IntegrityError("UNIQUE constraint failed: django_resume_resume.slug")
+    def stale_first_check(self):
+        # The competing insert lands after the importer's pre-check.
+        checks.append(True)
+        return False if len(checks) == 1 else original_exists(self)
 
-    monkeypatch.setattr(Resume.objects, "create", create_race)
+    monkeypatch.setattr(QuerySet, "exists", stale_first_check)
 
     with pytest.raises(
         JsonResumeImportError,
@@ -744,6 +754,92 @@ def test_import_resume_document_wraps_slug_integrity_race(user, monkeypatch):
             owner=user,
             slug="race-slug",
         )
+    monkeypatch.undo()
+    assert Resume.objects.get(slug="race-slug").owner_id == winner.pk
+
+
+@pytest.mark.django_db
+def test_import_resume_document_propagates_unrelated_integrity_error(user, monkeypatch):
+    user.save()
+
+    def broken_save(*args, **kwargs):
+        raise IntegrityError("synthetic unrelated database failure")
+
+    monkeypatch.setattr(Resume, "save", broken_save)
+    with pytest.raises(IntegrityError, match="unrelated"):
+        import_resume_document(
+            {"basics": {"name": "Jane"}}, owner=user, slug="unrelated"
+        )
+    monkeypatch.undo()
+    assert not Resume.objects.filter(slug="unrelated").exists()
+
+
+@pytest.mark.django_db(databases=["default", "other"])
+@pytest.mark.parametrize("existing_on", [None, "other", "default"])
+def test_import_resume_document_writes_through_one_routed_alias(
+    settings, django_user_model, monkeypatch, existing_on
+):
+    from django.db import connections
+
+    owners = {
+        alias: django_user_model.objects.db_manager(alias).create_user(username="owner")
+        for alias in ("default", "other")
+    }
+    if existing_on is not None:
+        Resume.objects.using(existing_on).create(
+            name="Existing", slug="routed", owner=owners[existing_on]
+        )
+
+    class WriteRouter:
+        def db_for_write(self, model, **hints):
+            if model is Resume:
+                return "other"
+            return None
+
+    settings.DATABASE_ROUTERS = [WriteRouter()]
+    atomic_aliases = []
+    original_atomic = transaction.atomic
+
+    def recording_atomic(using=None, *args, **kwargs):
+        atomic_aliases.append(using)
+        return original_atomic(using, *args, **kwargs)
+
+    monkeypatch.setattr(transaction, "atomic", recording_atomic)
+    for alias in ("default", "other"):
+        connections[alias].queries_log.clear()
+        connections[alias].force_debug_cursor = True
+    try:
+        if existing_on == "other":
+            with pytest.raises(JsonResumeImportError, match="already exists"):
+                import_resume_document(
+                    {"basics": {"name": "Jane"}},
+                    owner=owners["other"],
+                    slug="routed",
+                )
+            assert atomic_aliases == []
+        else:
+            result = import_resume_document(
+                {"basics": {"name": "Jane"}},
+                owner=owners["other"],
+                slug="routed",
+            )
+            assert result.resume._state.db == "other"
+            assert atomic_aliases == ["other"]
+        default_resume_queries = [
+            query["sql"]
+            for query in connections["default"].queries
+            if "django_resume_resume" in query["sql"]
+        ]
+    finally:
+        for alias in ("default", "other"):
+            connections[alias].force_debug_cursor = False
+    assert default_resume_queries == []
+    assert Resume.objects.using("other").filter(slug="routed").count() == 1
+    expected_default = 1 if existing_on == "default" else 0
+    assert (
+        Resume.objects.using("default").filter(slug="routed").count()
+        == expected_default
+    )
 
 
 @pytest.mark.django_db

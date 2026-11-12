@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Any
 
-from .conflicts import detect_path_conflicts
+from .conflicts import detect_path_conflicts, is_ancestor_path
 from .pointer import set_pointer, validate_pointer
 from .protocols import AdapterExport, ExportAdapter
 
@@ -37,7 +37,9 @@ def collect_adapters(
     return resolved, omitted
 
 
-def _check_conflicts(resolved: list[ResolvedAdapter]) -> None:
+def _check_conflicts(
+    resolved: list[ResolvedAdapter], reserved_paths: tuple[str, ...] = ()
+) -> None:
     for item in resolved:
         for path in (*item.adapter.owned_paths, *item.adapter.multivalued_paths):
             try:
@@ -46,6 +48,12 @@ def _check_conflicts(resolved: list[ResolvedAdapter]) -> None:
                 raise PathConflictError(
                     f"Adapter {item.plugin_name!r} declares an unsupported object pointer"
                 ) from exc
+            for reserved in reserved_paths:
+                if is_ancestor_path(path, reserved) or is_ancestor_path(reserved, path):
+                    raise PathConflictError(
+                        f"Adapter {item.plugin_name!r} path {path!r} overlaps "
+                        f"reserved path {reserved!r}"
+                    )
     claims: dict[str, list[str]] = {}
     multivalued_claims: dict[str, list[bool]] = {}
     for item in resolved:
@@ -77,16 +85,19 @@ def _check_conflicts(resolved: list[ResolvedAdapter]) -> None:
             )
 
 
-def build_document(resolved: list[ResolvedAdapter]) -> tuple[dict, list[str]]:
+def build_document(
+    resolved: list[ResolvedAdapter], *, reserved_paths: tuple[str, ...] = ()
+) -> tuple[dict, list[str]]:
     """Assemble a document from adapter contributions.
 
-    Raises PathConflictError before assembly on identical non-multivalued claims
-    or ancestor/descendant path overlaps, and during assembly if an adapter
+    Raises PathConflictError before assembly on identical non-multivalued claims,
+    ancestor/descendant path overlaps, or a declared path equal to, inside or
+    containing one of ``reserved_paths``, and during assembly if an adapter
     contributes an undeclared pointer, repeats a non-multivalued contribution,
     or contributes a non-list to a multivalued path. Multivalued (array) paths
     claimed by several adapters are concatenated in order.
     """
-    _check_conflicts(resolved)
+    _check_conflicts(resolved, reserved_paths)
     notes: list[str] = []
     scalars: dict[str, Any] = {}
     arrays: dict[str, list] = {}

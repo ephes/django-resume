@@ -4,7 +4,7 @@ from django.utils.module_loading import autodiscover_modules
 
 from .base import ByCapability, ResumePage, by_capability
 from .builtins import register_builtin_pages
-from .registry import PageRegistry, page_registry
+from .registry import PageRegistrationError, PageRegistry, page_registry
 
 #: Entry-point group through which a separately distributed package registers
 #: its resume pages without being an installed Django app.
@@ -83,6 +83,7 @@ __all__ = [
     "ByCapability",
     "by_capability",
     "PageRegistry",
+    "PageRegistrationError",
     "page_registry",
     "register_builtin_pages",
     "autodiscover_pages",

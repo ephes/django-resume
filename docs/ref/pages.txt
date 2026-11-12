@@ -51,6 +51,13 @@ ResumePage
       last by :meth:`PageRegistry.get_urls`, so more specific paths never shadow
       it (and it never shadows them).
 
+      A nonempty path is one or more segments of letters, digits, ``-`` and
+      ``_``, each ending in ``/`` (for example ``portfolio/`` or
+      ``work/archive/``). Leading slashes, path converters and other syntax are
+      rejected. Paths starting with ``delete/`` or ``json-resume/`` are
+      reserved for the fixed resume routes, and each path may be served by
+      only one registered page.
+
    .. attribute:: template_name
 
       Resolved as ``django_resume/pages/{theme}/{template_name}`` where ``theme``
@@ -161,11 +168,18 @@ PageRegistry
 
       Instantiate ``page_class`` and store it under its
       :attr:`~ResumePage.url_name`. Re-registering the same ``url_name``
-      replaces the entry.
+      replaces the entry in place. Equivalent to
+      ``register_page_list([page_class])``.
 
    .. method:: register_page_list(page_classes)
 
-      Call :meth:`register` for each class in ``page_classes``.
+      Validate every class in ``page_classes`` against the registered pages
+      and the rest of the batch, then publish the batch at once. A missing
+      ``url_name`` or one used by a fixed resume route (such as ``delete`` or
+      ``json-resume``), an unsupported or reserved ``path``, or a ``path``
+      already served by another ``url_name`` raises
+      :class:`PageRegistrationError` and leaves the registry unchanged.
+
 
    .. method:: unregister(page_class)
 
@@ -192,6 +206,11 @@ PageRegistry
       page, with the bare ``<slug:slug>/`` (``path == ""``) catch-all emitted
       last by construction. ``django_resume.urls`` splices this into its
       ``urlpatterns``.
+
+.. exception:: PageRegistrationError
+
+   Subclass of ``ValueError`` raised by :class:`PageRegistry` registration for
+   an invalid or conflicting page route.
 
 .. data:: page_registry
 
