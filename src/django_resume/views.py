@@ -4,6 +4,7 @@ from urllib.parse import urlencode
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
+from django.db import IntegrityError, router, transaction
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import redirect, render, get_object_or_404
 from django.urls import reverse
@@ -85,8 +86,21 @@ def resume_list(request: HttpRequest) -> HttpResponse:
         if form.is_valid():
             resume = form.save(commit=False)
             resume.owner = request.user
-            resume.save()
-            context["new_resume"] = resume
+            alias = router.db_for_write(Resume, instance=resume)
+            try:
+                with transaction.atomic(using=alias):
+                    resume.save(using=alias)
+            except IntegrityError:
+                # Query after the savepoint has rolled back, on the writer database.
+                if not Resume.objects.using(alias).filter(slug=resume.slug).exists():
+                    raise
+                form.add_error(
+                    "slug", "This slug was just taken. Choose a different slug."
+                )
+            else:
+                context["new_resume"] = resume
+                # Clear the create inputs once the resume exists.
+                context["form"] = ResumeForm()
         return render(
             request, "django_resume/pages/plain/resume_list_main.html", context=context
         )

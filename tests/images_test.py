@@ -469,3 +469,85 @@ def test_actual_upload_size_boundary(in_memory_storage, extra):
         with default_storage.open(form.cleaned_data["avatar_img"]) as stored:
             assert stored.read() == content
         assert upload.consumed == 4  # both validation passes restart the source
+
+
+@pytest.mark.parametrize("size_hint", [0, 1, 10**12])
+def test_stored_metadata_read_is_bounded(monkeypatch, size_hint):
+    import io
+    from unittest.mock import Mock
+    from django_resume import images
+
+    class BoundedRead(io.BytesIO):
+        def read(self, size=-1):
+            assert 0 <= size <= 2 * 1024 * 1024 + 1
+            return super().read(size)
+
+    storage = Mock()
+    storage.open.return_value = BoundedRead(b"x" * (2 * 1024 * 1024 + 100))
+    storage.size.return_value = size_hint
+    monkeypatch.setattr(images, "default_storage", storage)
+    with pytest.raises(images.UnknownImageFormat, match="limit"):
+        images.get_image_dimensions_from_storage("synthetic")
+    storage.size.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "content",
+    [png_bytes(7, 3), gif_bytes(7, 3), jpeg_bytes(7, 3), webp_vp8x_bytes(7, 3)],
+)
+def test_stored_dimensions_ignore_unavailable_size_metadata(monkeypatch, content):
+    import io
+    from unittest.mock import Mock
+    from django_resume import images
+
+    storage = Mock()
+    storage.open.return_value = io.BytesIO(content)
+    storage.size.side_effect = AssertionError("storage metadata must not be trusted")
+    monkeypatch.setattr(images, "default_storage", storage)
+    assert images.get_image_dimensions_from_storage("synthetic") == (7, 3)
+
+
+def test_stored_jpeg_with_header_beyond_budget_is_unavailable(monkeypatch):
+    import io
+    from unittest.mock import Mock
+    from django_resume import images
+
+    # Legal APP marker segments place the frame header beyond the read budget.
+    content = (
+        b"\xff\xd8" + (b"\xff\xe0\xff\xff" + b"x" * 65533) * 33 + jpeg_bytes(7, 3)[2:]
+    )
+    storage = Mock()
+    storage.open.return_value = io.BytesIO(content)
+    monkeypatch.setattr(images, "default_storage", storage)
+    with pytest.raises(images.UnknownImageFormat, match="limit"):
+        images.get_image_dimensions_from_storage("synthetic")
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        # Segment length points past the admitted bytes; no frame header.
+        b"\xff\xd8\xff\xe0\xff\xff" + b"x" * 64,
+        # Frame header marker present but truncated before its fields.
+        b"\xff\xd8\xff\xc0\x00",
+    ],
+)
+def test_stored_truncated_jpeg_within_budget_is_unavailable(monkeypatch, content):
+    import io
+    from unittest.mock import Mock
+    from django_resume import images
+
+    reads = []
+
+    class CountingRead(io.BytesIO):
+        def read(self, size=-1):
+            reads.append(size)
+            return super().read(size)
+
+    storage = Mock()
+    storage.open.return_value = CountingRead(content)
+    monkeypatch.setattr(images, "default_storage", storage)
+    with pytest.raises(images.UnknownImageFormat):
+        images.get_image_dimensions_from_storage("synthetic")
+    assert storage.open.call_count == 1
+    assert reads == [images.MAX_STORED_IMAGE_METADATA_BYTES + 1]
