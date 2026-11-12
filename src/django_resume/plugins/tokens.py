@@ -189,8 +189,11 @@ class TokenPlugin(ListPlugin):
 
     @staticmethod
     def token_is_required(plugin_data: dict) -> bool:
-        return plugin_data.get("flat", {"token_required": True}).get(
-            "token_required", True
+        # Only an explicit JSON false disables access control. Malformed
+        # persisted policies (including 0/null) retain the secure default.
+        flat = plugin_data.get("flat", {})
+        return (
+            not isinstance(flat, dict) or flat.get("token_required", True) is not False
         )
 
     @staticmethod

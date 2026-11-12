@@ -1285,7 +1285,13 @@ command, or selecting **Standard JSON Resume fields only** in the browser,
 ignores the envelope and maps standard JSON Resume sections through plugin-owned
 import adapters.
 The restored plugin-data envelope is validated before writing: it must be an
-object whose values are plugin payload objects. Import adapter source paths are
+object whose values are plugin payload objects. The private envelope version must
+be the integer ``1``; missing versions are accepted as legacy v1 (noted in restore mode).
+Other versions reject restoration. Portable-only mode ignores unsupported private
+envelopes with a report note and retains none of their private data.
+``token.flat.token_required``, when present, must be a boolean; only explicit
+``false`` disables the token gate, including for already stored policies.
+Import adapter source paths are
 checked for duplicate or overlapping claims before any adapter data is applied.
 If ``meta.django_resume.preserved_extensions`` is present, it is stored under
 ``integration_data["json_resume"]["preserved_extensions"]`` and emitted again
@@ -1293,7 +1299,8 @@ on later JSON Resume exports.
 All successful imports also store the parsed source document, the
 adapter-generated source projection, and the imported plugin-data snapshot under
 ``integration_data["json_resume"]``. If a later export's current adapter
-projection and full plugin data still match those stored values, export re-emits
+projection and full plugin data still match those stored values in both JSON
+values and types, export re-emits
 the parsed source document exactly. This gives third-party JSON Resume samples
 an exact unchanged import/render/export path without hiding later plugin-data
 edits; once plugin data changes, export regenerates the document from adapters

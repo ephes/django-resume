@@ -190,7 +190,11 @@ def test_preview_creation_and_export_match_independent_loss_oracle(client, owner
     keeping_source = mode != "ignore-envelope"
     expected_plugins = RESTORED_PLUGINS if restoring else EXPECTED_MAPPED
     expected_notes = (
-        {"restored plugin data from meta.django_resume.plugin_data", PRESERVATION_NOTE}
+        {
+            "restored plugin data from meta.django_resume.plugin_data",
+            "accepted legacy meta.django_resume envelope without version as v1",
+            PRESERVATION_NOTE,
+        }
         if restoring
         else LOSS_NOTES
         | {PRESERVATION_NOTE if keeping_source else IGNORED_ENVELOPE_NOTE}

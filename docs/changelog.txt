@@ -25,6 +25,8 @@ Security
   paths as missing, and tolerate legacy non-string About text.
 * Preserve complete URL-import bodies for HTTP/1.0 and HTTP/1.1 close-style
   responses while retaining the total fetch deadline and transport errors.
+* Require a boolean restored token policy; only explicit false disables the CV
+  token gate for persisted policies. Missing fields retain the secure default.
 * Add real middleware CSRF regressions for file preview/confirmation, URL import,
   whole-resume deletion and inline simple/flat/item writes, including avatar
   storage and token policy. Valid application proof cannot replace CSRF proof.
@@ -52,6 +54,11 @@ Fixes
   subset.
 * Bind education migration reads and writes to the selected database and refuse
   lossy education rollback before changing any rows; document backup recovery.
+* Admit only integer v1 private round-trip envelopes (missing versions retain
+  legacy v1 compatibility). Portable-only imports report and discard unsupported
+  envelopes while mapping public fields.
+* Compare unchanged import snapshots with JSON type identity, so boolean/number
+  edits in opaque plugins or projections no longer re-export stale source data.
 * Reject repeated non-multivalued export contributions, even for equal values,
   and require lists for declared multivalued contributions. Adapter contract
   errors now reach the controlled CLI/download error path before output is
