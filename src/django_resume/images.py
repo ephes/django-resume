@@ -22,6 +22,7 @@ class UnknownImageFormat(Exception):
 
 
 MAX_IMAGE_UPLOAD_SIZE = 2 * 1024 * 1024
+MAX_STORED_IMAGE_METADATA_BYTES = 2 * 1024 * 1024
 
 # Raster formats accepted for uploads, mapped to the file extension used when
 # storing them. SVG, HTML and anything else that is not one of these is rejected.
@@ -179,9 +180,14 @@ def get_image_metadata_from_bytesio(input: IO[bytes], size: int) -> tuple[int, i
 
 def get_image_dimensions_from_storage(path):
     with default_storage.open(path, "rb") as file:
-        file_data = io.BytesIO(file.read())
-        size = default_storage.size(path)
-        return get_image_metadata_from_bytesio(file_data, size)
+        data = file.read(MAX_STORED_IMAGE_METADATA_BYTES + 1)
+    if len(data) > MAX_STORED_IMAGE_METADATA_BYTES:
+        raise UnknownImageFormat("Stored image exceeds metadata read limit")
+    # Decode only admitted bytes: JPEG segment traversal cannot reach storage.
+    try:
+        return get_image_metadata_from_bytesio(io.BytesIO(data), len(data))
+    except (struct.error, ValueError, IndexError) as exc:
+        raise UnknownImageFormat("Stored image metadata is unavailable") from exc
 
 
 class CustomFileObject:

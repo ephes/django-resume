@@ -1124,6 +1124,46 @@ def test_import_resume_document_rejects_overlapping_source_path_adapters(user):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("source_path", ["/", "/basics/", "/a~1b", "basics", ""])
+def test_import_resume_document_rejects_unsupported_source_path(user, source_path):
+    user.save()
+    called = []
+
+    class _Adapter:
+        source_paths = (source_path,)
+
+        def import_data(self, document):
+            called.append(True)
+            raise AssertionError("adapter must not run")
+
+    class _Plugin:
+        name = "broken"
+
+        @staticmethod
+        def get_import_adapters():
+            return {"json_resume": _Adapter()}
+
+    class _Registry:
+        @staticmethod
+        def get_all_plugins():
+            return [_Plugin()]
+
+    with pytest.raises(
+        JsonResumeImportError,
+        match="Import adapter for plugin 'broken' declares an unsupported source path",
+    ):
+        import_resume_document(
+            {"basics": {"name": "Jane"}},
+            owner=user,
+            slug="bad-pointer",
+            registry=_Registry(),
+            restore_django_resume_data=False,
+        )
+    assert called == []
+    assert not Resume.objects.filter(slug="bad-pointer").exists()
+
+
+@pytest.mark.django_db
 def test_import_resume_document_rejects_adapter_without_source_paths(user):
     user.save()
 
@@ -2410,7 +2450,9 @@ def test_load_document_url_rejects_non_http_url():
 
 
 def test_load_document_url_rejects_invalid_port():
-    with pytest.raises(JsonResumeImportError, match="Invalid JSON Resume URL port"):
+    with pytest.raises(
+        JsonResumeImportError, match="Invalid JSON Resume URL authority"
+    ):
         load_document_url("https://example.com:99999/resume.json")
 
 

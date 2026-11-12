@@ -343,6 +343,21 @@ configure read routing consistently for the editor GET requests. PostgreSQL
 serializes concurrent writes with row locks. SQLite retains its normal
 transaction/locking limitations.
 
+Create conflicts and stored images
+----------------------------------
+
+If another request claims a slug after the create form was validated, the form
+shows a slug conflict and retains your submitted name and slug. Choose another
+slug and retry; the winning resume and its owner are unchanged.
+
+Stored image dimension lookup admits at most 2 MiB plus one overflow byte and
+ignores storage size metadata. Oversized legacy/restored images raise
+``UnknownImageFormat`` as unavailable; resize and re-upload them to recover
+metadata. JPEG header scanning is confined to the admitted bytes. Supported
+images within the budget retain their dimensions. Callers of
+``get_image_dimensions_from_storage`` should handle ``UnknownImageFormat`` by
+omitting unavailable dimensions.
+
 Restoring JSON Resume plugin data
 ================================
 

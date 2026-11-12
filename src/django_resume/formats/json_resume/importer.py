@@ -27,7 +27,7 @@ from ...interchange.coordinator import (
     collect_adapters,
 )
 from ...interchange.conflicts import detect_path_conflicts
-from ...interchange.pointer import get_pointer, has_pointer
+from ...interchange.pointer import get_pointer, has_pointer, validate_pointer
 from ...interchange.report import ImportReport
 from ...models import Resume
 from ...theme_names import is_valid_theme_name
@@ -39,6 +39,7 @@ from .validation import drop_empty_dates, validate_document
 FORMAT_ID = "json_resume"
 MAX_INPUT_BYTES = 2 * 1024 * 1024
 MAX_NESTING_DEPTH = 64
+MAX_INTEGER_DIGITS = 4300
 URL_FETCH_TIMEOUT_SECONDS = 10
 URL_FETCH_TOTAL_SECONDS = 15
 MAX_URL_REDIRECTS = 5
@@ -106,6 +107,16 @@ def _finite_json_number(token: str) -> float:
     return value
 
 
+def _json_integer(token: str) -> int:
+    # A fixed ceiling also applies when the interpreter's digit limit is disabled.
+    if len(token.lstrip("-")) > MAX_INTEGER_DIGITS:
+        raise JsonResumeImportError("JSON integer exceeds supported limits")
+    try:
+        return int(token)
+    except ValueError as exc:
+        raise JsonResumeImportError("JSON integer exceeds supported limits") from exc
+
+
 def _check_nesting_depth(document: dict) -> None:
     """Count container levels iteratively, with the root object at depth one."""
     pending: list[tuple[dict | list, int]] = [(document, 1)]
@@ -128,6 +139,7 @@ def _loads_document(text: str) -> dict:
             object_pairs_hook=_reject_duplicate_keys,
             parse_constant=_finite_json_number,
             parse_float=_finite_json_number,
+            parse_int=_json_integer,
         )
     except RecursionError as exc:
         raise JsonResumeImportError("Input nesting exceeds supported limits") from exc
@@ -191,29 +203,30 @@ def _is_public_address(address: str) -> bool:
 
 
 def _validate_import_url(url: str) -> _ResolvedImportURL:
-    parsed = urlparse(url)
+    try:
+        parsed = urlparse(url)
+        username, password = parsed.username, parsed.password
+        hostname, port = parsed.hostname, parsed.port
+    except ValueError as exc:
+        raise JsonResumeImportError(
+            "Invalid JSON Resume URL authority", field="source_url"
+        ) from exc
     if parsed.scheme not in {"http", "https"}:
         raise JsonResumeImportError(
             "JSON Resume URL must use http or https", field="source_url"
         )
-    if parsed.username or parsed.password:
+    if username or password:
         raise JsonResumeImportError(
             "JSON Resume URL must not include credentials", field="source_url"
         )
-    if not parsed.hostname:
+    if not hostname:
         raise JsonResumeImportError(
             "JSON Resume URL must include a host", field="source_url"
         )
-    try:
-        port = parsed.port
-    except ValueError as exc:
-        raise JsonResumeImportError(
-            f"Invalid JSON Resume URL port: {exc}", field="source_url"
-        ) from exc
     if port is None:
         port = 443 if parsed.scheme == "https" else 80
     try:
-        resolved = socket.getaddrinfo(parsed.hostname, port, type=socket.SOCK_STREAM)
+        resolved = socket.getaddrinfo(hostname, port, type=socket.SOCK_STREAM)
     except OSError as exc:
         raise JsonResumeImportError(
             f"Could not resolve JSON Resume URL: {exc}", field="source_url"
@@ -232,7 +245,7 @@ def _validate_import_url(url: str) -> _ResolvedImportURL:
     request_target = parsed.path or "/"
     if parsed.query:
         request_target = f"{request_target}?{parsed.query}"
-    host_header = parsed.hostname
+    host_header = hostname
     if ":" in host_header and not host_header.startswith("["):
         host_header = f"[{host_header}]"
     default_port = 443 if parsed.scheme == "https" else 80
@@ -241,7 +254,7 @@ def _validate_import_url(url: str) -> _ResolvedImportURL:
     return _ResolvedImportURL(
         url=url,
         scheme=parsed.scheme,
-        hostname=parsed.hostname,
+        hostname=hostname,
         port=port,
         address=address,
         request_target=request_target,
@@ -517,6 +530,13 @@ def _collect_adapter_plugin_data(document: dict, registry) -> tuple[dict, Import
                 f"Import adapter for plugin {plugin_name!r} has no source_paths"
             )
         for path in source_paths:
+            try:
+                validate_pointer(path)
+            except ValueError as exc:
+                raise JsonResumeImportError(
+                    f"Import adapter for plugin {plugin_name!r} declares an "
+                    "unsupported source path"
+                ) from exc
             claims.setdefault(path, []).append(plugin_name)
     conflict = detect_path_conflicts(claims)
     if conflict is not None:

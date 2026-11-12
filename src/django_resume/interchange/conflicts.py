@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+from .pointer import validate_pointer
+
 
 @dataclass(frozen=True)
 class PathConflict:
@@ -17,6 +19,8 @@ def is_ancestor_path(ancestor: str, descendant: str) -> bool:
 
 def detect_path_conflicts(claims: dict[str, list[str]]) -> PathConflict | None:
     """Return the first duplicate or ancestor/descendant path conflict."""
+    for path in claims:
+        validate_pointer(path)
     for path, claimers in claims.items():
         if len(claimers) > 1:
             return PathConflict(kind="duplicate", path=path, claimers=claimers)

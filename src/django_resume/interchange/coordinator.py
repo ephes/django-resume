@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from .conflicts import detect_path_conflicts
-from .pointer import set_pointer
+from .pointer import set_pointer, validate_pointer
 from .protocols import AdapterExport, ExportAdapter
 
 
@@ -38,6 +38,14 @@ def collect_adapters(
 
 
 def _check_conflicts(resolved: list[ResolvedAdapter]) -> None:
+    for item in resolved:
+        for path in (*item.adapter.owned_paths, *item.adapter.multivalued_paths):
+            try:
+                validate_pointer(path)
+            except ValueError as exc:
+                raise PathConflictError(
+                    f"Adapter {item.plugin_name!r} declares an unsupported object pointer"
+                ) from exc
     claims: dict[str, list[str]] = {}
     multivalued_claims: dict[str, list[bool]] = {}
     for item in resolved:

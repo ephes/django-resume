@@ -71,3 +71,26 @@ and ``crossorigin="anonymous"``, matching the bundled page templates. The
 browser must be able to reach this CDN for admin plugin forms (save, add item,
 and delete item) to work; a script
 whose bytes do not match the pinned hash is rejected by the browser.
+
+Education data migrations
+-------------------------
+
+Migration 0003 reads and writes only the database alias selected by ``migrate
+--database``. Before migrating backwards, it checks every resume before changing
+any row. Legacy education can represent at most one item and only ``school_name``,
+``school_url``, ``start`` and ``end``. Nonempty degrees, extension fields and
+custom flat metadata refuse rollback with ``IrreversibleError``. Generated item
+IDs, positions and the default "Education" title are structural metadata.
+
+Before rollback, take a database-native backup of the selected database and
+export each resume's complete ``plugin_data`` (for example with Django
+``dumpdata django_resume.Resume --database ALIAS --output resumes.json``).
+Keep both files outside public media. To proceed, explicitly curate education to
+one legacy-compatible item, retaining the export for recovery, then retry.
+Restore the database backup to recover all original values if needed.
+
+Forward migration also preflights all legacy education mappings. Unknown fields
+whose values are neither null nor an empty string refuse the upgrade before any
+write, including extension-only mappings. Back up and export as above, then
+explicitly curate those values into the supported fields or retain them in the
+backup before retrying. Already-list-shaped data is unchanged.
