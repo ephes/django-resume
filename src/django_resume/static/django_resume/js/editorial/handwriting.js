@@ -75,13 +75,25 @@
       });
     }
 
-    var queue = [], playing = false, run = 0, lastRunAt = Date.now();
+    var queue = [], playing = false, active = null, run = 0, lastRunAt = Date.now();
+
+    function finish(svg) {
+      // Retired/off-document labels must retain readable final ink if reinserted.
+      svg.classList.remove("hw-armed", "hw-go");
+      svg.querySelectorAll(".hw-pen").forEach(function (p) { p.style.animation = "none"; });
+    }
 
     function pump() {
       if (playing || !queue.length) return;
-      playing = true;
-      var token = run;
       var svg = queue.shift();
+      while (svg && !svg.isConnected) {
+        finish(svg);
+        svg = queue.shift();
+      }
+      if (!svg) return;
+      playing = true;
+      active = svg;
+      var token = run;
       lastRunAt = Date.now();
       svg.classList.remove("hw-go");        // restart even if it already wrote
       svg.querySelectorAll(".hw-pen").forEach(function (p) { p.style.animation = "none"; });
@@ -92,6 +104,7 @@
       setTimeout(guarded(function () {
         if (token !== run) return;     // a replay superseded this sequence
         playing = false;
+        active = null;
         pump();
       }), (t + GAP) * 1000);
     }
@@ -108,6 +121,7 @@
     svgs.forEach(function (s) { io.observe(s); });
 
     function inView(svg) {
+      if (!svg.isConnected) return false;
       var r = svg.getBoundingClientRect();
       var vh = window.innerHeight || document.documentElement.clientHeight;
       return r.bottom > 0 && r.top < vh;
@@ -119,10 +133,20 @@
       var visible = order(svgs.filter(inView));
       if (!visible.length) return false;
 
+      if (active) finish(active);
+      queue.forEach(finish);
+      active = null;
       run++;                              // cancel any in-flight sequence
       playing = false;
       queue = visible;
-      visible.forEach(function (s) { s.classList.remove("hw-go"); });
+      visible.forEach(function (s) {
+        // Replay takes first-view ownership too: an already queued observer
+        // delivery must not append the same label to this generation again.
+        seen.add(s);
+        io.unobserve(s);
+        s.classList.add("hw-armed");
+        s.classList.remove("hw-go");
+      });
       pump();
       return true;
     }

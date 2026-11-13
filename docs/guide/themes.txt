@@ -119,7 +119,11 @@ shown fully written. If the script fails to load or fails while running, the
 labels are restored to their written state. Visible labels may write again when
 the visitor returns to the top of the page or to the tab, at most every 30
 seconds; set ``data-hw-replay-cooldown="<milliseconds>"`` on ``<html>`` to
-change that.
+change that. Replays order lead labels before rail labels, with document order
+within each group. A replay supersedes the current queue: its old timers cannot
+advance the new run, and a later first-view observer callback cannot enqueue the
+same label again. Superseded offscreen labels and removed queued labels keep
+fully written ink; removed labels do not delay the remaining queue.
 
 Languages
 ---------
