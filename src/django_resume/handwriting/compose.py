@@ -16,7 +16,7 @@ Rendering (verified pixel-identical to the real font via outline overlay):
 
 import os
 import json
-import hashlib
+from uuid import uuid4
 from functools import lru_cache
 
 _DATA_PATH = os.path.join(os.path.dirname(__file__), "glyph_data.json")
@@ -32,6 +32,10 @@ _MASK_COVER = 0.9
 # winding), so it grows the silhouette outward without closing narrow counters
 # (the 'l' loop, the 'e' eye). 0 disables it. Fine-tune to taste.
 _STEM_UNITS = 12.0
+
+# Count Unicode characters (including spaces) and source outline/skeleton points.
+MAX_LABEL_CHARS = 64
+MAX_LABEL_POINTS = 32_000
 
 
 @lru_cache(maxsize=1)
@@ -58,7 +62,6 @@ def is_supported(text):
     return all(ch == " " or ch in glyphs for ch in text)
 
 
-@lru_cache(maxsize=512)
 def compose_label(text, orientation="horizontal"):
     """Animated SVG markup for a fully-supported label, else None.
 
@@ -67,28 +70,39 @@ def compose_label(text, orientation="horizontal"):
     `em` (the composer knows the viewBox), so it drops cleanly into the rail's
     `auto` grid column.
     """
-    if not is_supported(text):
+    # Admission precedes contour expansion AND the geometry cache boundary.
+    if not text or len(text) > MAX_LABEL_CHARS or not is_supported(text):
         return None
     d = _data()
-    glyphs, units, GW, SPACE = d["glyphs"], d["units"], d["pen_width"], d["space"]
-    ligatures, lig_order = d.get("ligatures", {}), d.get("lig_order", [])
-    # Tokenize into glyph units, applying the default GSUB ligatures (a+l -> al,
-    # a+t -> at, ...) the browser also applies -> matching spacing and shape.
-    # Greedy longest-match (lig_order is longest-first) so 'alt'/'ath' beat 'al'/'at'.
-    units_list = []  # each: glyph/ligature data dict, or None for a space
-    i, n = 0, len(text)
-    while i < n:
+    glyphs, ligatures = d["glyphs"], d.get("ligatures", {})
+    lig_order = d.get("lig_order", [])
+    tokens = []
+    points = 0
+    i = 0
+    while i < len(text):
         if text[i] == " ":
-            units_list.append(None)
+            tokens.append(" ")
             i += 1
             continue
-        seq = next((s for s in lig_order if text.startswith(s, i)), None)
-        if seq is not None:
-            units_list.append(ligatures[seq])
-            i += len(seq)
-        else:
-            units_list.append(glyphs[text[i]])
-            i += 1
+        seq = next((s for s in lig_order if text.startswith(s, i)), text[i])
+        unit = ligatures[seq] if seq in ligatures else glyphs[seq]
+        points += sum(map(len, unit["outline"])) + sum(map(len, unit["strokes"]))
+        if points > MAX_LABEL_POINTS:
+            return None
+        tokens.append(seq)
+        i += len(seq)
+    geometry = _compose_label(
+        tuple(tokens), "vertical" if orientation == "vertical" else "horizontal"
+    )
+    return geometry.replace("__HW_MASK_ID__", "hw" + uuid4().hex)
+
+
+@lru_cache(maxsize=64)
+def _compose_label(tokens, orientation):
+    d = _data()
+    glyphs, units, GW, SPACE = d["glyphs"], d["units"], d["pen_width"], d["space"]
+    ligatures = d.get("ligatures", {})
+    units_list = [None if t == " " else ligatures.get(t, glyphs.get(t)) for t in tokens]
     penx = 0.0
     contours = []  # each: list of (x, -y) points
     pens = []  # (path_d, stroke_width)
@@ -119,7 +133,7 @@ def compose_label(text, orientation="horizontal"):
     od = " ".join(
         "M " + " L ".join(f"{x:.1f} {y:.1f}" for x, y in c) + " Z" for c in contours
     )
-    uid = "hw" + hashlib.md5(text.encode("utf-8")).hexdigest()[:8]
+    uid = "__HW_MASK_ID__"  # substituted per instance, never cached as a live ID
     pp = "".join(
         f'<path class="hw-pen" d="{dd}" style="stroke-width:{w:.1f}"/>'
         for dd, w in pens

@@ -415,3 +415,34 @@ def test_nonfinite_stroke_length_still_fails_open(page):
         page.locator(".hw-ink-group").evaluate("el => getComputedStyle(el).visibility")
         == "visible"
     )
+
+
+def test_repeated_labels_resolve_and_reveal_their_own_masks(page):
+    html = Template(
+        "{% load editorial_handwriting %}"
+        '{% handwriting_label "Education" %}'
+        '{% handwriting_label "Education" orientation="vertical" %}'
+        '{% handwriting_label "Education" %}'
+    ).render(Context())
+    page.set_viewport_size({"width": 1600, "height": 1600})
+    page.set_content(
+        '<body style="background:white;color:black;font-size:60px">' + html
+    )
+    page.add_style_tag(path=str(HANDWRITING_CSS))
+    assert page.locator(".hw-svg").evaluate_all("""svgs => svgs.every(svg => {
+      const mask = svg.querySelector('mask');
+      return document.getElementById(mask.id) === mask &&
+        svg.querySelector('.hw-ink-group').getAttribute('mask') === `url(#${mask.id})`;
+    })""")
+    # Reveal only one of three identical labels, then each other label in turn.
+    # A duplicate global ID would make a later label use the first label's mask.
+    _reveal_pens(page, "start")
+    for index in range(3):
+        svg = page.locator(".hw-svg").nth(index)
+        before = _dark_px(svg.screenshot())
+        svg.locator(".hw-pen").evaluate_all(
+            "pens => pens.forEach(p => p.style.strokeDashoffset = 0)"
+        )
+        written = _dark_px(svg.screenshot())
+        assert written > 300
+        assert before < 0.005 * written

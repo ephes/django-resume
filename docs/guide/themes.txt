@@ -103,12 +103,16 @@ ships only the result. The rules the renderer follows:
 - A mask of one stroke per traced skeleton stroke reveals the ink stroke by
   stroke. The mask pens use ``stroke-linecap: butt`` so a stroke that has just
   started does not reveal a dot ahead of the writing.
+- Each rendered SVG gets its own mask ID, including repeated horizontal and
+  vertical labels in the same document; only reusable geometry is cached.
 - The SVG is sized in ``em``, so a label matches the size of the font at the
   label's ``font-size``.
 - The label text stays in the page, visually hidden, for screen readers,
   selection and search. The SVG is ``aria-hidden``.
-- Text with characters the glyph data does not cover, and empty text, render
-  as plain text.
+- Empty or unsupported text and labels over 64 Unicode characters (including
+  spaces) or 32,000 source outline/skeleton points render as escaped plain text.
+  Limits are checked before contour expansion and cache admission, with default
+  ligatures included in the point count. At most 64 admitted geometries are cached.
 
 Without JavaScript, or with ``prefers-reduced-motion: reduce``, the labels are
 shown fully written. If the script fails to load or fails while running, the

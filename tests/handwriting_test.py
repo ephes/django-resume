@@ -37,12 +37,22 @@ def test_unsupported_char_falls_back_to_none():
 
 
 def test_empty_and_space_only_fall_back_to_none():
+    assert compose.compose_label(None) is None
     assert compose.compose_label("") is None
     assert compose.compose_label("   ") is None
 
 
-def test_deterministic_mask_id():
-    assert compose.compose_label("Education") == compose.compose_label("Education")
+def test_geometry_is_reused_but_instance_ids_are_fresh():
+    import re
+
+    compose._compose_label.cache_clear()
+    first = compose.compose_label("Education")
+    second = compose.compose_label("Education")
+    assert first != second
+    assert re.sub(r"hw[0-9a-f]{32}", "MASK", first) == re.sub(
+        r"hw[0-9a-f]{32}", "MASK", second
+    )
+    assert compose._compose_label.cache_info().hits == 1
 
 
 def test_umlaut_label_supported():
@@ -88,3 +98,54 @@ def test_tag_escapes_text():
 
 def test_tag_handles_none():
     assert "hw-fallback" in render(None)
+
+
+def test_oversize_label_falls_back_before_expansion_or_cache(mocker):
+    compose._compose_label.cache_clear()
+    expand = mocker.spy(compose, "_signed_area")
+    before = compose._compose_label.cache_info()
+    text = "W" * 10000
+    assert compose.compose_label(text) is None
+    assert render(text) == f'<span class="hw-label hw-fallback">{text}</span>'
+    assert not expand.called
+    assert compose._compose_label.cache_info() == before
+    assert "&lt;" in render(text + "<")
+
+
+def test_text_budget_includes_spaces_and_accepts_exact_boundary():
+    assert compose.compose_label("A" + " " * 63) is not None
+    assert compose.compose_label("A" + " " * 64) is None
+
+
+def test_geometry_budget_refuses_before_expansion(mocker):
+    compose._compose_label.cache_clear()
+    expand = mocker.spy(compose, "_signed_area")
+    # Supported, within 64 characters, but well above 32,000 traced points.
+    text = "W" * 64
+    assert compose.compose_label(text) is None
+    assert not expand.called
+    assert compose._compose_label.cache_info().currsize == 0
+
+
+def test_exact_geometry_budget_and_ligature_accounting(monkeypatch):
+    al = compose._data()["ligatures"]["al"]
+    points = sum(map(len, al["outline"])) + sum(map(len, al["strokes"]))
+    monkeypatch.setattr(compose, "MAX_LABEL_POINTS", points)
+    assert compose.compose_label("al") is not None
+    monkeypatch.setattr(compose, "MAX_LABEL_POINTS", points - 1)
+    assert compose.compose_label("al") is None
+
+
+def test_repeated_template_labels_have_instance_local_masks():
+    import re
+
+    html = Template(
+        "{% load editorial_handwriting %}"
+        '{% handwriting_label "Education" %}'
+        '{% handwriting_label "Education" orientation="vertical" %}'
+        '{% handwriting_label "Education" %}'
+    ).render(Context())
+    ids = re.findall(r'<mask id="([^"]+)"', html)
+    refs = re.findall(r'mask="url\(#([^)]+)\)"', html)
+    assert len(ids) == len(set(ids)) == 3
+    assert refs == ids

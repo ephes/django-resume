@@ -5,6 +5,12 @@ Changelog
 Unreleased
 ----------
 
+* Bound handwriting labels to 64 characters and 32,000 traced points before
+  expansion/cache admission; oversized labels use the escaped text fallback.
+  Limit the reusable geometry cache to 64 entries.
+* Give every handwriting SVG a fresh mask ID so repeated labels, including
+  horizontal/vertical copies, reveal their own ink independently.
+
 Compatibility
 ^^^^^^^^^^^^^
 * Export adapter authors must contribute Python ``list`` values to declared
