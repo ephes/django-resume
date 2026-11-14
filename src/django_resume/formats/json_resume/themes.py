@@ -169,24 +169,38 @@ _cache_authority: ContextVar[tuple[tuple[Path, int], ...]] = ContextVar(
 )
 
 
+# Ancestors only need search (execute) permission; O_SEARCH (macOS/BSD) and
+# O_PATH (Linux) open them without requiring read permission.
+_SEARCH_FLAG = getattr(os, "O_SEARCH", 0) or getattr(os, "O_PATH", 0) or os.O_RDONLY
+
+
 def _open_directory(path: Path, *, create: bool = False) -> int:
     """Walk an absolute path without following directory links."""
     if not hasattr(os, "O_DIRECTORY") or not hasattr(os, "O_NOFOLLOW"):
         raise JsonResumeThemeError(
             "Theme cache requires no-follow directory descriptors"
         )
-    descriptor = os.open(path.anchor, os.O_RDONLY | os.O_DIRECTORY)
+    parts = path.parts[1:]
+    descriptor = os.open(
+        path.anchor, (os.O_RDONLY if not parts else _SEARCH_FLAG) | os.O_DIRECTORY
+    )
     try:
         current_path = Path(path.anchor)
-        for part in path.parts[1:]:
-            if create:
+        for index, part in enumerate(parts):
+            access = os.O_RDONLY if index == len(parts) - 1 else _SEARCH_FLAG
+            flags = access | os.O_DIRECTORY | os.O_NOFOLLOW
+            try:
+                child = os.open(part, flags, dir_fd=descriptor)
+            except FileNotFoundError:
+                # Create only missing components: mkdir on an existing
+                # ancestor can fail with EPERM/EACCES under access control.
+                if not create:
+                    raise
                 try:
                     os.mkdir(part, mode=0o700, dir_fd=descriptor)
                 except FileExistsError:
                     pass
-            child = os.open(
-                part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=descriptor
-            )
+                child = os.open(part, flags, dir_fd=descriptor)
             os.close(descriptor)
             descriptor = child
             current_path /= part
@@ -961,6 +975,38 @@ def _byte_limit(name: str, default: int) -> int:
     return value
 
 
+def _trampoline_python() -> str:
+    """Interpreter that starts theme processes in the pinned working directory.
+
+    Embedded WSGI hosts (uWSGI, mod_wsgi) may report their own binary or an
+    empty string as ``sys.executable``; such deployments set
+    ``DJANGO_RESUME_JSON_RESUME_PYTHON`` to a real Python interpreter.
+    """
+    configured = getattr(settings, "DJANGO_RESUME_JSON_RESUME_PYTHON", None)
+    candidate = sys.executable if configured is None else configured
+    path = os.fspath(candidate) if isinstance(candidate, (str, os.PathLike)) else None
+    if (
+        not isinstance(path, str)
+        or not path
+        or not os.path.isabs(path)
+        or not os.path.isfile(path)
+        or not os.access(path, os.X_OK)
+    ):
+        raise JsonResumeThemeError(
+            "DJANGO_RESUME_JSON_RESUME_PYTHON must name an absolute, executable "
+            "Python interpreter (sys.executable is not usable here)"
+        )
+    # An explicit setting is trusted (e.g. /usr/libexec/platform-python); only
+    # the implicit sys.executable fallback is checked for a Python-like name.
+    name = os.path.basename(path).lower()
+    if configured is None and not name.startswith(("python", "pypy")):
+        raise JsonResumeThemeError(
+            "sys.executable is not a Python interpreter "
+            f"({name!r}); set DJANGO_RESUME_JSON_RESUME_PYTHON"
+        )
+    return path
+
+
 def _process_limits(timeout: float) -> tuple[float, int]:
     try:
         if isinstance(timeout, bool) or not isinstance(timeout, (int, float)):
@@ -972,6 +1018,8 @@ def _process_limits(timeout: float) -> tuple[float, int]:
         raise JsonResumeThemeError(
             "Command timeout must be positive, finite and bounded"
         ) from exc
+    # Fail before cache locks, staging copies or any child process.
+    _trampoline_python()
     return admitted, _byte_limit(
         "DJANGO_RESUME_JSON_RESUME_PROCESS_OUTPUT_MAX_BYTES", 200_000
     )
@@ -999,7 +1047,7 @@ def _run_process(command: list[str], *, cwd: Path, timeout: float):
             # A tiny exec trampoline uses public fchdir/pass_fds APIs. macOS
             # cannot chdir through /dev/fd; preexec_fn is unsafe with threads.
             launch = [
-                sys.executable,
+                _trampoline_python(),
                 "-c",
                 "import os,sys; fd=int(sys.argv[1]); os.fchdir(fd); "
                 "os.close(fd); os.execvpe(sys.argv[2], sys.argv[2:], os.environ)",

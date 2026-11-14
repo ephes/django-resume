@@ -81,3 +81,100 @@ def test_reader_failure_refuses_zero_exit_and_cleans_work(
     assert killed.called
     assert process.wait.called
     assert process.stdout.closed and process.stderr.closed
+
+
+@pytest.mark.parametrize("bad", ["", "relative/python", "/nonexistent/python3"])
+def test_unusable_trampoline_interpreter_starts_no_work(
+    tmp_path, settings, monkeypatch, bad
+):
+    settings.DJANGO_RESUME_JSON_RESUME_PYTHON = bad
+    popen = Mock()
+    monkeypatch.setattr(themes.subprocess, "Popen", popen)
+    with pytest.raises(
+        themes.JsonResumeThemeError, match="DJANGO_RESUME_JSON_RESUME_PYTHON"
+    ):
+        themes._run_process(["synthetic"], cwd=tmp_path, timeout=5)
+    popen.assert_not_called()
+
+
+def test_embedded_host_executable_is_not_used_as_python(tmp_path, monkeypatch):
+    # uWSGI/mod_wsgi report their own binary as sys.executable.
+    host = tmp_path / "uwsgi"
+    host.write_text("#!/bin/sh\nexit 0\n")
+    host.chmod(0o755)
+    monkeypatch.setattr(themes.sys, "executable", str(host))
+    popen = Mock()
+    monkeypatch.setattr(themes.subprocess, "Popen", popen)
+    with pytest.raises(themes.JsonResumeThemeError, match="Python interpreter"):
+        themes._run_process(["synthetic"], cwd=tmp_path, timeout=5)
+    popen.assert_not_called()
+
+
+def test_explicit_interpreter_setting_is_trusted_without_name_heuristic(
+    tmp_path, settings, monkeypatch
+):
+    import sys
+
+    # e.g. RHEL's /usr/libexec/platform-python
+    platform_python = tmp_path / "platform-python"
+    platform_python.symlink_to(sys.executable)
+    settings.DJANGO_RESUME_JSON_RESUME_PYTHON = str(platform_python)
+    monkeypatch.setattr(themes, "_check_cache_authority", lambda: None)
+    result = themes._run_process(["true"], cwd=tmp_path, timeout=10)
+    assert result.returncode == 0
+
+
+@pytest.mark.parametrize("operation", ["install", "render"])
+def test_bad_interpreter_fails_before_cache_work(tmp_path, settings, operation):
+    target = tmp_path / "absent-cache"
+    settings.DJANGO_RESUME_JSON_RESUME_THEME_DIR = target
+    settings.DJANGO_RESUME_JSON_RESUME_PYTHON = b"/usr/bin/python3"
+    with pytest.raises(
+        themes.JsonResumeThemeError, match="DJANGO_RESUME_JSON_RESUME_PYTHON"
+    ):
+        if operation == "install":
+            themes.install_catalog_theme("even", timeout=5)
+        else:
+            themes.render_theme(SimpleNamespace(), "jsonresume-theme-even", timeout=5)
+    assert not target.exists()
+
+
+def test_configured_interpreter_runs_process_in_pinned_directory(
+    tmp_path, settings, monkeypatch
+):
+    import sys
+
+    settings.DJANGO_RESUME_JSON_RESUME_PYTHON = sys.executable
+    monkeypatch.setattr(themes.sys, "executable", "")
+    monkeypatch.setattr(themes, "_check_cache_authority", lambda: None)
+    result = themes._run_process(["pwd"], cwd=tmp_path, timeout=10)
+    assert result.returncode == 0
+    assert result.stdout.strip() == str(tmp_path.resolve())
+
+
+def test_cache_ancestors_need_only_search_permission(tmp_path):
+    locked = tmp_path / "search-only"
+    locked.mkdir()
+    (locked / "cache").mkdir(mode=0o700)
+    locked.chmod(0o311)
+    try:
+        descriptor = themes._open_directory(locked / "cache" / "new", create=True)
+        themes.os.close(descriptor)
+        assert (locked / "cache" / "new").is_dir()
+    finally:
+        locked.chmod(0o700)
+
+
+def test_existing_ancestors_are_not_recreated(tmp_path, monkeypatch):
+    existing = tmp_path / "existing"
+    existing.mkdir()
+
+    def denied(*args, **kwargs):
+        # Mandatory access control can refuse mkdir on existing directories.
+        raise PermissionError("mkdir refused")
+
+    monkeypatch.setattr(themes.os, "mkdir", denied)
+    descriptor = themes._open_directory(existing, create=True)
+    themes.os.close(descriptor)
+    with pytest.raises(PermissionError):
+        themes._open_directory(existing / "missing", create=True)

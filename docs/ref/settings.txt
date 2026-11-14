@@ -90,6 +90,21 @@ Default: ``5000000``
 Maximum size, in bytes, of the HTML file produced by a JSON Resume theme render.
 Rendering fails if the output exceeds this limit.
 
+``DJANGO_RESUME_JSON_RESUME_PYTHON``
+====================================
+
+Default: ``None`` (use ``sys.executable``)
+
+Absolute path of the Python interpreter that starts ``npm install`` and theme
+renders inside their pinned working directory. Set it when the web server embeds
+Python and ``sys.executable`` names the server binary or is empty (for example
+some uWSGI or mod_wsgi deployments). Any absolute, executable interpreter path
+is accepted, for example ``/usr/libexec/platform-python``. Without the setting,
+``sys.executable`` is used only if its name looks like a Python interpreter
+(``python*`` or ``pypy*``). Theme installs and renders fail with
+``JsonResumeThemeError`` before taking the cache lock or starting any process if
+no usable interpreter is configured.
+
 ``DJANGO_RESUME_JSON_RESUME_PROCESS_OUTPUT_MAX_BYTES``
 ======================================================
 

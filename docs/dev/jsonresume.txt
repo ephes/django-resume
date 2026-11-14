@@ -1632,9 +1632,13 @@ are refused, including macOS aliases such as ``/tmp`` (use ``/private/tmp``).
 Cache roots and selected generations must belong to the running account and
 must not be writable by group/other users. The root is made owner-only.
 The shared cache lock retains directory descriptors and checks directory
-identity at metadata/process boundaries. Child processes enter the opened
-working directory using ``fchdir`` before exec, so renaming/replacing that
-pathname cannot redirect their working directory. Theme code still runs with
+identity at metadata/process boundaries. Ancestors of the cache path need only
+search (execute) permission, and only missing components are created. Child
+processes enter the opened working directory using ``fchdir`` before exec, so
+renaming/replacing that pathname cannot redirect their working directory. That
+step runs through a small Python trampoline started with ``sys.executable``;
+embedded WSGI hosts whose ``sys.executable`` is not a Python interpreter (some
+uWSGI or mod_wsgi setups) must set ``DJANGO_RESUME_JSON_RESUME_PYTHON``. Theme code still runs with
 the server account's permissions; this is not a same-user code sandbox.
 
 ``.current`` must be a regular, non-symlink ASCII file of at most 128 bytes,
