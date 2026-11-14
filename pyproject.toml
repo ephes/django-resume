@@ -82,6 +82,11 @@ postgres = [
 [tool.uv.sources]
 resume-entrypoint-demo = { path = "example/resume_entrypoint_demo", editable = true }
 
+# Soup Sieve 4's security fixes require this interpreter for documentation/dev.
+# Runtime-only installs retain the project's Python 3.10 support.
+[tool.uv.dependency-groups]
+dev = { requires-python = ">=3.11.5" }
+
 [project.scripts]
 count-lines-of-code = "django_resume.entrypoints.loc:count_lines_of_code"
 llm-content = "django_resume.entrypoints.llm_content:llm_content"

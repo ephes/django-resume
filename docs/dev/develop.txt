@@ -31,6 +31,21 @@ Install the Package using uv
 
     $ uv sync --dev
 
+The documentation/development group requires Python 3.11.5 or later for the
+Soup Sieve 4.1 security fixes (Beautiful Soup 4.15.0 is compatible). This does
+not change the published package's Python 3.10 runtime minimum; use
+``uv sync --no-dev`` for a runtime-only environment on older interpreters.
+Soup Sieve enters only through Furo's Beautiful Soup dependency; Tornado is
+not in this repository's lock.
+
+Soup Sieve 4 changes HTML ``template`` isolation and ``iframe`` selector
+semantics. Document-level selectors skip inert template contents; select on
+the template itself to inspect them. Iframe children are no longer separate
+documents. The selector compatibility tests cover template isolation and
+bounded selection on deeply nested input. See the
+`upstream changelog <https://facelessuser.github.io/soupsieve/about/changelog/>`_
+and `CVE-2026-126190 advisory <https://github.com/facelessuser/soupsieve/security/advisories/GHSA-mmhr-3c5m-f64f>`_.
+
 Repository Checks
 -----------------
 
