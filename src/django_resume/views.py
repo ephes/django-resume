@@ -315,11 +315,14 @@ def resume_delete(request: HttpRequest, slug: str) -> HttpResponse:
 
     Only the owner of the resume can delete it.
     """
-    resume = get_object_or_404(Resume, slug=slug)
-    if resume.owner != request.user:
-        return HttpResponse(status=403)
-
-    resume.delete()
+    database = router.db_for_write(Resume)
+    with transaction.atomic(using=database):
+        resume = get_object_or_404(
+            Resume.objects.using(database).select_for_update(), slug=slug
+        )
+        if resume.owner_id != request.user.pk:
+            return HttpResponse(status=403)
+        resume.delete(using=database)
     return HttpResponse(status=200)  # 200 instead of 204 for htmx compatibility
 
 

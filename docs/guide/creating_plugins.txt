@@ -189,3 +189,10 @@ use the usual umask-based permissions. Ordinary replacement failures restore pre
 remove newly installed files. Empty directories created during staging can
 remain after failure. The same crash, concurrency and recovery limitations as
 removal apply; errors identify retained backups when manual recovery is needed.
+
+
+Plugin-wide data removal streams only ``id`` and ``plugin_data`` with a
+noncaching iterator in batches of 100 database rows. It retains row locks and
+whole-snapshot conditional updates inside one transaction: a conflict rolls
+back all earlier removals. Model hydration is bounded independently of the
+resume inventory; each individual JSON payload still has its own size cost.

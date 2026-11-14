@@ -5,6 +5,26 @@ Changelog
 Unreleased
 ----------
 
+* Stream plugin-wide removal in noncaching 100-row database batches while
+  preserving locked/conditional updates and transaction-wide rollback.
+* Deny malformed persisted token roots/items through CV authorization with
+  private response headers; retain intentional owner/staff bypass.
+
+* Admit cache markers and package metadata through bounded regular descriptors;
+  refuse symlinked cache ancestors/generations, replaced directories, duplicate
+  JSON members and excessive metadata depth. Theme caches now require POSIX
+  no-follow directory descriptors; configure canonical paths on Linux/macOS.
+  Cache ancestors need only search permission, and only missing components
+  are created. Theme processes start through a validated Python interpreter
+  (``sys.executable`` or the new ``DJANGO_RESUME_JSON_RESUME_PYTHON`` setting
+  for embedded WSGI hosts).
+* Validate install/render resource limits before starting work and reject child
+  stream read failures even after a zero exit, with complete process cleanup.
+
+* Authorize resume deletion on the locked current owner in the write database.
+* Refuse image uploads above 16,384 pixels per axis or 67,108,864 total pixels
+  before storing any files or changing plugin data.
+
 * Install JSON Resume themes in staged cache generations, verify required
   manifests and renderer presence, and atomically select a complete generation.
   Failed or interrupted npm installs preserve the previous renderer; collect
