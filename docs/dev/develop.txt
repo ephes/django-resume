@@ -455,3 +455,15 @@ run::
 
     uv sync --frozen --group postgres
     DJANGO_SETTINGS_MODULE=tests.postgres_settings uv run --group postgres pytest -q tests/plugin_resume_mutation_test.py tests/plugin_stale_edit_test.py
+
+Handwriting runtime regression tests
+------------------------------------
+
+``npx vitest run`` executes the shipped handwriting JavaScript and CSS in an
+isolated jsdom document with synthetic stroke measurements and an observer.
+Fake time covers stale callbacks, replay/observer overlap, cooldown boundaries,
+lead/rail ordering, removed targets and failure recovery. No server or personal
+data is needed. Pixel-level SVG mask coverage (including repeated horizontal and
+vertical labels) remains a Chromium check::
+
+    uv run pytest --ds=e2e_tests.settings e2e_tests/editorial_handwriting_test.py

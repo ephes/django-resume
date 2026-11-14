@@ -103,19 +103,27 @@ ships only the result. The rules the renderer follows:
 - A mask of one stroke per traced skeleton stroke reveals the ink stroke by
   stroke. The mask pens use ``stroke-linecap: butt`` so a stroke that has just
   started does not reveal a dot ahead of the writing.
+- Each rendered SVG gets its own mask ID, including repeated horizontal and
+  vertical labels in the same document; only reusable geometry is cached.
 - The SVG is sized in ``em``, so a label matches the size of the font at the
   label's ``font-size``.
 - The label text stays in the page, visually hidden, for screen readers,
   selection and search. The SVG is ``aria-hidden``.
-- Text with characters the glyph data does not cover, and empty text, render
-  as plain text.
+- Empty or unsupported text and labels over 64 Unicode characters (including
+  spaces) or 32,000 source outline/skeleton points render as escaped plain text.
+  Limits are checked before contour expansion and cache admission, with default
+  ligatures included in the point count. At most 64 admitted geometries are cached.
 
 Without JavaScript, or with ``prefers-reduced-motion: reduce``, the labels are
 shown fully written. If the script fails to load or fails while running, the
 labels are restored to their written state. Visible labels may write again when
 the visitor returns to the top of the page or to the tab, at most every 30
 seconds; set ``data-hw-replay-cooldown="<milliseconds>"`` on ``<html>`` to
-change that.
+change that. Replays order lead labels before rail labels, with document order
+within each group. A replay supersedes the current queue: its old timers cannot
+advance the new run, and a later first-view observer callback cannot enqueue the
+same label again. Superseded offscreen labels and removed queued labels keep
+fully written ink; removed labels do not delay the remaining queue.
 
 Languages
 ---------
