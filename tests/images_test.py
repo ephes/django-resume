@@ -137,7 +137,7 @@ def test_valid_png_is_saved_under_generated_name(in_memory_storage):
     [
         (gif_bytes(3, 4), "gif", (3, 4)),
         (jpeg_bytes(640, 480), "jpg", (640, 480)),
-        (webp_vp8x_bytes(1000, 70000), "webp", (1000, 70000)),
+        (webp_vp8x_bytes(1000, 7000), "webp", (1000, 7000)),
     ],
 )
 def test_allowed_formats_use_detected_extension(
@@ -551,3 +551,82 @@ def test_stored_truncated_jpeg_within_budget_is_unavailable(monkeypatch, content
         images.get_image_dimensions_from_storage("synthetic")
     assert storage.open.call_count == 1
     assert reads == [images.MAX_STORED_IMAGE_METADATA_BYTES + 1]
+
+
+@pytest.mark.parametrize(
+    "width,height", [(16385, 1), (1, 16385), (8192, 8193), (2**32 - 1, 2**32 - 1)]
+)
+def test_upload_canvas_limits_leave_storage_empty(in_memory_storage, width, height):
+    upload = SimpleUploadedFile(
+        "canvas.png",
+        b"\x89PNG\r\n\x1a\n"
+        + b"\x00" * 4
+        + b"IHDR"
+        + struct.pack(">II", width, height),
+    )
+    form = OneImageForm(data={"clear_avatar": ""}, files={"avatar_img": upload})
+    assert not form.is_valid()
+    assert "dimensions" in str(form.errors)
+    assert stored_uploads() == []
+
+
+@pytest.mark.parametrize("width,height", [(16384, 1), (1, 16384), (8192, 8192)])
+def test_upload_canvas_exact_limits(in_memory_storage, width, height):
+    from django_resume.images import validate_image_upload
+
+    upload = SimpleUploadedFile(
+        "canvas.png",
+        b"\x89PNG\r\n\x1a\n"
+        + b"\x00" * 4
+        + b"IHDR"
+        + struct.pack(">II", width, height),
+    )
+    assert validate_image_upload(upload)[2:] == (width, height)
+
+
+@pytest.mark.parametrize(
+    "width,height", [(16385, 1), (1, 16385), (8192, 8193), (2**24, 2**24)]
+)
+def test_webp_canvas_limits_leave_storage_empty(in_memory_storage, width, height):
+    upload = SimpleUploadedFile("canvas.webp", webp_vp8x_bytes(width, height))
+    form = OneImageForm(data={}, files={"avatar_img": upload})
+    assert not form.is_valid()
+    assert "dimensions" in str(form.errors)
+    assert stored_uploads() == []
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("surface", ["admin", "inline"])
+def test_oversized_canvas_preserves_plugin_data(
+    client, resume, in_memory_storage, surface
+):
+    from django_resume.plugins import plugin_registry
+
+    resume.owner.is_staff = True
+    resume.owner.is_superuser = True
+    resume.owner.save()
+    original = {"identity": {"name": "Synthetic", "avatar_img": "uploads/previous.png"}}
+    resume.plugin_data = original
+    resume.save()
+    client.force_login(resume.owner)
+    plugin = plugin_registry.get_plugin("identity")
+    url = (
+        plugin.admin.get_change_post_url(resume.pk)
+        if surface == "admin"
+        else plugin.inline.get_post_url(resume.pk)
+    )
+    response = post_current_editor(
+        client,
+        url,
+        {
+            "name": "Changed",
+            "avatar_img": SimpleUploadedFile(
+                "canvas.webp", webp_vp8x_bytes(2**24, 2**24)
+            ),
+        },
+    )
+    assert response.status_code == 200
+    assert "dimensions" in response.content.decode()
+    resume.refresh_from_db()
+    assert resume.plugin_data == original
+    assert stored_uploads() == []

@@ -439,9 +439,12 @@ local disposable database named ``resume_test`` and the synthetic credentials
 in ``tests/postgres_settings.py``::
 
     uv sync --group postgres
-    DJANGO_SETTINGS_MODULE=tests.postgres_settings uv run --group postgres pytest -v tests/theme_selection_concurrency_test.py
+    DJANGO_SETTINGS_MODULE=tests.postgres_settings uv run --group postgres pytest -v tests/theme_selection_concurrency_test.py tests/resume_delete_authority_test.py
 
-The fixtures contain only synthetic data; no production database is used.
+The deletion suite holds an uncommitted owner transfer on a second connection:
+the current-owner DELETE lookup must wait, then deny the former owner without
+deleting the transferred resume. The fixtures contain only synthetic data;
+no production database is used.
 
 Routed editor transactions
 --------------------------

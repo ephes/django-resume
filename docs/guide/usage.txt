@@ -374,3 +374,16 @@ values before saving: ``theme.name`` must match ``[A-Za-z0-9_-]+`` and
 ``theme.language`` must use the same single-segment characters or be empty
 (to use the site language). ``about.text`` must be a string when present.
 Missing fields remain allowed. Portable-only imports ignore the restored data.
+
+
+Resume deletion and image admission
+-----------------------------------
+
+The DELETE endpoint authorizes the current owner on the write database inside
+one row-locked transaction. A completed ownership transfer denies the former
+owner with 403; a missing resume returns 404.
+
+Image uploads retain the 2 MiB compressed-byte limit and JPEG/PNG/GIF/WebP
+allowlist. Before storage, dimensions must be positive, at most 16,384 pixels
+per axis and at most 67,108,864 decoded pixels in total. Exact limits are
+accepted. A refused upload changes neither storage nor plugin data.

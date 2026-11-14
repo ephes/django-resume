@@ -21,6 +21,8 @@ class UnknownImageFormat(Exception):
     pass
 
 
+MAX_IMAGE_DIMENSION = 16_384
+MAX_IMAGE_PIXELS = 67_108_864
 MAX_IMAGE_UPLOAD_SIZE = 2 * 1024 * 1024
 MAX_STORED_IMAGE_METADATA_BYTES = 2 * 1024 * 1024
 
@@ -83,6 +85,14 @@ def validate_image_upload(upload: UploadedFile) -> tuple[bytes, str, int, int]:
     if width <= 0 or height <= 0:
         raise forms.ValidationError(
             "Upload a valid image. The file could not be read as an image."
+        )
+    if (
+        width > MAX_IMAGE_DIMENSION
+        or height > MAX_IMAGE_DIMENSION
+        or width > MAX_IMAGE_PIXELS // height
+    ):
+        raise forms.ValidationError(
+            "Image dimensions exceed 16384 pixels per axis or 67108864 total pixels."
         )
     return data, ALLOWED_IMAGE_FORMATS[image_format], width, height
 

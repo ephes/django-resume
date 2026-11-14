@@ -5,6 +5,10 @@ Changelog
 Unreleased
 ----------
 
+* Authorize resume deletion on the locked current owner in the write database.
+* Refuse image uploads above 16,384 pixels per axis or 67,108,864 total pixels
+  before storing any files or changing plugin data.
+
 * Install JSON Resume themes in staged cache generations, verify required
   manifests and renderer presence, and atomically select a complete generation.
   Failed or interrupted npm installs preserve the previous renderer; collect
