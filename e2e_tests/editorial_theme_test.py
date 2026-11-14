@@ -166,8 +166,15 @@ def test_handwriting_label_inserted_by_htmx_is_visible(
     page.wait_for_selector("#permission_denied form", state="detached")
     page.wait_for_selector("#permission_denied .editorial-403-title .hw-svg")
 
-    ink = page.locator("#permission_denied .hw-ink-group")
-    assert ink.evaluate("el => getComputedStyle(el).visibility") == "visible"
+    # The swapped-in label may be queued for its draw animation for a moment; it must
+    # end up visible rather than stay hidden (checking immediately raced the queue).
+    page.wait_for_function(
+        """() => {
+            const ink = document.querySelector("#permission_denied .hw-ink-group");
+            return ink && getComputedStyle(ink).visibility === "visible";
+        }""",
+        timeout=5000,
+    )
 
 
 def test_print_shows_lines_that_have_not_been_drawn_yet(
