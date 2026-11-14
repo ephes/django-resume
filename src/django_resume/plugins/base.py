@@ -146,15 +146,34 @@ class EditorTextField(forms.CharField):
         return text
 
 
+class StrictObjectJSONField(forms.JSONField):
+    def to_python(self, value: Any) -> Any:
+        # Import lazily: the importer also consults the plugin registry.
+        from ..formats.json_resume.importer import (
+            JsonResumeImportError,
+            MAX_INPUT_BYTES,
+            load_document_bytes,
+        )
+
+        try:
+            if not isinstance(value, str):
+                value = json.dumps(value, allow_nan=False)
+            # Check characters first to avoid encoding an arbitrarily large input.
+            if len(value) > MAX_INPUT_BYTES:
+                raise forms.ValidationError("JSON object exceeds 2097152 bytes.")
+            return load_document_bytes(value.encode("utf-8"))
+        except (JsonResumeImportError, ValueError, TypeError) as exc:
+            message = (
+                "Enter a valid JSON."
+                if str(exc).startswith("Invalid JSON:")
+                else str(exc)[:256]
+            )
+            raise forms.ValidationError(message) from exc
+
+
 class SimpleJsonForm(forms.Form):
     # Let {} reach object validation; missing/blank values are rejected there.
-    plugin_data = forms.JSONField(widget=forms.Textarea, required=False)
-
-    def clean_plugin_data(self) -> dict:
-        data = self.cleaned_data["plugin_data"]
-        if not isinstance(data, dict):
-            raise forms.ValidationError("Enter a JSON object.")
-        return data
+    plugin_data = StrictObjectJSONField(widget=forms.Textarea, required=False)
 
 
 EDIT_REVISION_FIELD = "edit_revision"
@@ -293,11 +312,12 @@ class SimpleAdmin(LockedResumeMutationMixin):
         """
         resume = self.get_resume_or_error(request, resume_id)
         plugin_data = self.data.get_data(resume)
-        if self.form_class == SimpleJsonForm:
-            # special case for the SimpleJsonForm which has a JSONField for the plugin data
-            form = self.form_class(initial={"plugin_data": plugin_data})
-        else:
-            form = self.form_class(initial=plugin_data)
+        initial = (
+            {"plugin_data": plugin_data}
+            if self.form_class == SimpleJsonForm
+            else plugin_data
+        )
+        form = self.form_class(initial=initial)
         set_edit_revision(form, resume, self.plugin_name, "simple", plugin_data)
         setattr(
             form, "post_url", self.get_change_post_url(resume.pk)

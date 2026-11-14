@@ -5,6 +5,12 @@ Changelog
 Unreleased
 ----------
 
+* Bound default plugin JSON forms to strict object JSON (2 MiB, 64 container
+  levels); reject duplicate members and non-finite numbers in admin and inline
+  editors while preserving extension fields.
+* Fence root admin document replacement with a signed revision and a routed
+  transactional conditional update; stale forms return recoverable errors.
+
 * Stream plugin-wide removal in noncaching 100-row database batches while
   preserving locked/conditional updates and transaction-wide rollback.
 * Deny malformed persisted token roots/items through CV authorization with

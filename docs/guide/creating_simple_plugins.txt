@@ -425,3 +425,13 @@ inside its ``<form>``. Include ``django_resume/edit_revision.html`` as shown
 above. Forms rendered with ``form.as_p`` already include both. Old templates
 must be updated before editing with this version; missing revisions are
 rejected and the editor asks the user to reload.
+
+Default JSON editor limits
+--------------------------
+
+Without a custom form, admin and inline editors accept only JSON objects,
+including empty objects and arbitrary extension fields. Input is limited to
+2,097,152 UTF-8 bytes and 64 nested container levels (root at level one).
+Duplicate object members, non-finite numbers (including overflowing exponents),
+and integers over 4,300 digits produce field errors before updating plugin data.
+Invalid submissions preserve the stored section and do not store files.

@@ -397,3 +397,97 @@ def test_default_simple_json_form_accepts_empty_object():
     form = SimpleJsonForm({"plugin_data": "{}"})
     assert form.is_valid(), form.errors
     assert form.cleaned_data["plugin_data"] == {}
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("editor", ["admin", "inline"])
+@pytest.mark.parametrize(
+    "submitted",
+    [
+        '{"x":1,"x":2}',
+        '{"x":NaN}',
+        '{"x":Infinity}',
+        '{"x":1e999}',
+        '{"x":' + "[" * 64 + "0" + "]" * 64 + "}",
+        '{"x":"' + "é" * (1024 * 1024) + '"}',
+    ],
+    ids=["duplicate", "nan", "infinity", "overflow", "depth", "bytes"],
+)
+def test_simple_json_resource_envelope(
+    admin_client,
+    resume,
+    plugin_registry,
+    editor,
+    submitted,
+    monkeypatch,
+    in_memory_storage,
+):
+    monkeypatch.setattr(
+        default_storage,
+        "save",
+        lambda *args, **kwargs: pytest.fail("Rejected JSON must not store files"),
+    )
+    resume.owner.is_staff = True
+    resume.owner.save()
+    plugin = plugin_registry.get_plugin(SimplePlugin.name)
+    plugin.data.set_data(resume, {"existing": "keep"})
+    resume.save()
+    admin_client.force_login(resume.owner)
+    url = (
+        plugin.admin.get_change_post_url(resume.pk)
+        if editor == "admin"
+        else plugin.inline.get_post_url(resume.pk)
+    )
+    response = post_current_editor(admin_client, url, {"plugin_data": submitted})
+    assert response.status_code == 200
+    assert "plugin_data" in response.context["form"].errors
+    resume.refresh_from_db()
+    assert plugin.get_data(resume) == {"existing": "keep"}
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("editor", ["admin", "inline"])
+@pytest.mark.parametrize(
+    "value", [{}, {"vendor": {"items": [1, True, "é"], "unknown": "kept"}}]
+)
+def test_simple_json_saves_object(admin_client, resume, plugin_registry, editor, value):
+    import json
+
+    resume.owner.is_staff = True
+    resume.owner.save()
+    resume.save()
+    admin_client.force_login(resume.owner)
+    plugin = plugin_registry.get_plugin(SimplePlugin.name)
+    view = plugin.admin if editor == "admin" else plugin.inline
+    get_url = (
+        view.get_change_url(resume.pk)
+        if editor == "admin"
+        else view.get_edit_url(resume.pk)
+    )
+    post_url = (
+        view.get_change_post_url(resume.pk)
+        if editor == "admin"
+        else view.get_post_url(resume.pk)
+    )
+    assert admin_client.get(get_url).status_code == 200
+    response = post_current_editor(
+        admin_client, post_url, {"plugin_data": json.dumps(value)}
+    )
+    assert response.status_code == 200
+    resume.refresh_from_db()
+    assert plugin.get_data(resume) == (
+        value if editor == "admin" else {"plugin_data": value}
+    )
+
+
+def test_simple_json_resource_boundaries():
+    from django_resume.plugins.base import SimpleJsonForm
+    from django_resume.formats.json_resume.importer import MAX_INPUT_BYTES
+
+    boundary = '{"x":"' + "a" * (MAX_INPUT_BYTES - 8) + '"}'
+    assert len(boundary.encode()) == MAX_INPUT_BYTES
+    form = SimpleJsonForm({"plugin_data": boundary})
+    assert form.is_valid(), form.errors
+    depth = '{"x":' + "[" * 63 + "0" + "]" * 63 + "}"
+    form = SimpleJsonForm({"plugin_data": depth})
+    assert form.is_valid(), form.errors
