@@ -5,6 +5,11 @@ Changelog
 Unreleased
 ----------
 
+* Project only the theme language during synchronous/asynchronous inline
+  language lookups, preserving site-language fallback and view authorization.
+* Stop JSON Resume schema diagnostics at 20 errors with bounded paths/messages
+  and an omission notice; avoid formatting invalid input values.
+
 * Bound default plugin JSON forms to strict object JSON (2 MiB, 64 container
   levels); reject duplicate members and non-finite numbers in admin and inline
   editors while preserving extension fields.

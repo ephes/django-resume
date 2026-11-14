@@ -1,9 +1,12 @@
 import json
+import re
+from itertools import islice
 from copy import deepcopy
 from functools import lru_cache
 from pathlib import Path
 
-from jsonschema.validators import validator_for
+from jsonschema import ValidationError
+from jsonschema.validators import extend, validator_for
 
 _SCHEMA_PATH = Path(__file__).parent / "schema" / "schema.json"
 
@@ -13,24 +16,78 @@ def _schema() -> dict:
     return json.loads(_SCHEMA_PATH.read_text(encoding="utf-8"))
 
 
-def validate_document(document: dict) -> list[str]:
-    """Validate ``document`` against the pinned schema.
+MAX_VALIDATION_ERRORS = 20
+MAX_LOCATION_LENGTH = 160
+MAX_MESSAGE_LENGTH = 256
 
-    Returns a list of human-readable error strings ([] if valid). Structural
-    validation only: ``format`` keywords (email, uri) are not enforced, so
-    relative media URLs and similar pass. ``pattern`` keywords (e.g. dates) are
-    enforced.
-    """
+
+def _type_errors(validator, types, instance, schema):
+    allowed = [types] if isinstance(types, str) else types
+    if not any(validator.is_type(instance, kind) for kind in allowed):
+        yield ValidationError(
+            f"Value is not of type {', '.join(repr(kind) for kind in allowed)}."
+        )
+
+
+def _pattern_errors(validator, pattern, instance, schema):
+    if validator.is_type(instance, "string") and not re.search(pattern, instance):
+        yield ValidationError("Value does not match the required pattern.")
+
+
+def _additional_property_errors(validator, allowed, instance, schema):
+    # The pinned schema uses boolean additionalProperties and no
+    # patternProperties. Avoid constructing/sorting a set of all extra names.
+    if allowed or not validator.is_type(instance, "object"):
+        return
+    properties = schema.get("properties", {})
+    for key in instance:
+        if key not in properties:
+            yield ValidationError("Additional property is not allowed.", path=[key])
+
+
+@lru_cache(maxsize=1)
+def _diagnostic_validator():
     schema = _schema()
-    validator_cls = validator_for(schema)
-    validator = validator_cls(schema)
-    errors = sorted(
-        validator.iter_errors(document), key=lambda e: list(map(str, e.path))
+    # These are the pinned schema's error-producing keywords. Keep the public
+    # jsonschema traversal/type semantics, but never format input values into
+    # ValidationError.message (the stock handlers do so before yielding).
+    validator_cls = extend(
+        validator_for(schema),
+        {
+            "type": _type_errors,
+            "pattern": _pattern_errors,
+            "additionalProperties": _additional_property_errors,
+        },
     )
-    messages: list[str] = []
-    for error in errors:
-        location = "/".join(str(part) for part in error.path) or "<root>"
-        messages.append(f"{location}: {error.message}")
+    return validator_cls(schema)
+
+
+def _error_location(path) -> str:
+    location = ""
+    for part in path:
+        component = str(part)[:MAX_LOCATION_LENGTH]
+        location += ("/" if location else "") + component
+        if len(location) > MAX_LOCATION_LENGTH:
+            return location[: MAX_LOCATION_LENGTH - 1] + "…"
+    return location or "<root>"
+
+
+def validate_document(document: dict) -> list[str]:
+    """Validate against the pinned schema, stopping at 20 errors.
+
+    Errors follow stable schema/input traversal order, with paths limited to
+    160 characters and messages to 256. Reaching the budget adds a conservative
+    omission notice without asking the validator to inspect another item.
+    Structural validation only: format keywords (email, uri) are not enforced.
+    """
+    messages = [
+        f"{_error_location(error.path)}: {error.message}"[:MAX_MESSAGE_LENGTH]
+        for error in islice(
+            _diagnostic_validator().iter_errors(document), MAX_VALIDATION_ERRORS
+        )
+    ]
+    if len(messages) == MAX_VALIDATION_ERRORS:
+        messages.append("Further validation errors may be omitted (limit 20).")
     return messages
 
 

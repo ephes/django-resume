@@ -75,7 +75,9 @@ def with_resume_language(view: Callable[..., Any]) -> Callable[..., Any]:
     views are both supported."""
 
     def query(resume_id: int | str):
-        return Resume.objects.filter(pk=resume_id).values_list("plugin_data", flat=True)
+        return Resume.objects.filter(pk=resume_id).values_list(
+            "plugin_data__theme__language", flat=True
+        )
 
     if iscoroutinefunction(view):
 
@@ -85,8 +87,7 @@ def with_resume_language(view: Callable[..., Any]) -> Callable[..., Any]:
         ) -> HttpResponse:
             language = ""
             if kwargs.get("resume_id") is not None:
-                plugin_data = await query(kwargs["resume_id"]).afirst()
-                language = Resume.language_from_plugin_data(plugin_data or {})
+                language = normalize_language(await query(kwargs["resume_id"]).afirst())
             with resume_language(language):
                 response = await view(request, *args, **kwargs)
             return render_in_language(response, language)
@@ -97,8 +98,7 @@ def with_resume_language(view: Callable[..., Any]) -> Callable[..., Any]:
     def wrapper(request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
         language = ""
         if kwargs.get("resume_id") is not None:
-            plugin_data = query(kwargs["resume_id"]).first()
-            language = Resume.language_from_plugin_data(plugin_data or {})
+            language = normalize_language(query(kwargs["resume_id"]).first())
         with resume_language(language):
             response = view(request, *args, **kwargs)
         return render_in_language(response, language)

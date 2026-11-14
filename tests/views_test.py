@@ -380,7 +380,7 @@ def test_import_json_resume_view_surfaces_schema_errors(client, django_user_mode
 
     assert response.status_code == 200
     assert not Resume.objects.filter(slug="schema-error").exists()
-    assert "work: &#x27;not an array&#x27; is not of type &#x27;array&#x27;" in (
+    assert "work: Value is not of type &#x27;array&#x27;." in (
         response.content.decode("utf-8")
     )
 
@@ -407,7 +407,7 @@ def test_import_json_resume_view_attaches_url_schema_errors_to_url_field(
     assert response.status_code == 200
     assert not Resume.objects.filter(slug="url-schema-error").exists()
     form = response.context["import_form"]
-    assert "work: 'not an array' is not of type 'array'" in form.errors["source_url"]
+    assert "work: Value is not of type 'array'." in form.errors["source_url"]
     assert "file" not in form.errors
 
 

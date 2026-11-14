@@ -174,3 +174,13 @@ Assets and licenses
   the django-resume license.
 - The side illustrations (``static/django_resume/img/editorial/``) are
   credited in ``CREDITS.txt`` next to them.
+
+Inline language lookups
+-----------------------
+
+Synchronous and asynchronous inline views read only the JSON path
+``plugin_data.theme.language`` before rendering the fragment. Unrelated plugin
+sections are not selected or decoded by that lookup. Missing resumes and
+missing, malformed or unsupported theme languages retain the active site
+language; the view still performs its normal authorization and missing-row
+handling.
