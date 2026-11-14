@@ -46,10 +46,10 @@ def _cache_worker(
         if action == "install":
             if fail:
                 raise themes.JsonResumeThemeError("synthetic install failure")
-            themes._resumed_bin(Path(target)).unlink()
+            themes._resumed_bin(cwd).unlink()
             if not release.wait(5):
                 raise RuntimeError("test did not release install")
-            _seed_cache(Path(target))
+            _seed_cache(cwd)
         else:
             Path(command[command.index("--output") + 1]).write_text("<p>complete</p>")
         return SimpleNamespace(returncode=0)

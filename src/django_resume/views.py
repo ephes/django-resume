@@ -37,6 +37,7 @@ from .formats.json_resume.themes import (
     CatalogThemeNotInstalled,
     JsonResumeThemeError,
     ThemeCatalogEntry,
+    ThemeOwnershipChanged,
     UnknownThemeCatalogKey,
     catalog_theme,
     catalog_theme_install_allowed,
@@ -397,7 +398,9 @@ def install_json_resume_theme(request: HttpRequest, slug: str) -> HttpResponse:
     query = request.POST.get("q", "")
     try:
         install_theme(package_name)
-        set_selected_theme(resume, package_name)
+        set_selected_theme(resume, package_name, expected_owner_id=request.user.pk)
+    except ThemeOwnershipChanged:
+        return HttpResponse(status=404)
     except JsonResumeThemeError as exc:
         results = []
         try:
@@ -485,7 +488,9 @@ def use_json_resume_catalog_theme(
     try:
         entry = catalog_theme(key)
         _ensure_catalog_theme(entry)
-        set_selected_catalog_theme(resume, entry.key)
+        set_selected_catalog_theme(resume, entry.key, expected_owner_id=request.user.pk)
+    except ThemeOwnershipChanged:
+        return HttpResponse(status=404)
     except UnknownThemeCatalogKey as exc:
         raise Http404 from exc
     except JsonResumeThemeError as exc:

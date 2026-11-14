@@ -205,7 +205,15 @@ the ``resumed`` renderer to an exact version and pass ``--ignore-scripts``, so
 npm lifecycle scripts do not run, but rendering still executes theme JavaScript
 on the server. Rendering itself uses
 the local cache and does not fetch schemas, renderers, or themes from the
-network. django-resume does not install themes for anonymous visitors, and
+network. Installs prepare and verify a separate cache generation before
+switching to it atomically, so failed or killed installs preserve a working
+previous generation. A theme selection rechecks current ownership when saving;
+if the resume was transferred during installation, selection returns 404 and
+the new owner's settings survive. Rendered HTML is read from a checked regular
+file descriptor within the configured output size limit. See the developer
+JSON Resume guide for cache disk-space and recovery details.
+
+django-resume does not install themes for anonymous visitors, and
 public CV pages or token-protected CV links do not imply permission to install
 or render JSON Resume themes.
 
