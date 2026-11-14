@@ -107,12 +107,17 @@ def test_root_admin_uses_routed_writer_and_cas(
     # Resume writes go to other; auth and admin logging stay on default.
     from django.contrib.auth import get_user_model
 
-    owner = get_user_model().objects.db_manager("other").create(username="synthetic")
+    # Same pk on both aliases: the admin validates the owner choice on default
+    # (only Resume is routed), while the routed row's FK lives on other.
+    owner = (
+        get_user_model()
+        .objects.db_manager("other")
+        .create(pk=resume.owner.pk, username="synthetic")
+    )
     from django_resume.models import Resume
 
     row = Resume.objects.using("other").create(name="Other", slug="other", owner=owner)
     url = reverse("admin:django_resume_resume_change", args=[row.pk])
-    data = root_data(admin_client.get(url).context["adminform"].form)
 
     class Router:
         def db_for_read(self, model, **hints):

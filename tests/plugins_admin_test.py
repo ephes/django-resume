@@ -5,7 +5,7 @@ import pytest
 from django import forms
 from django.conf import settings
 from django.contrib import admin
-from django.core.files.storage import default_storage
+from django.core.files.storage import Storage, default_storage
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import RequestFactory
 from django.urls import clear_url_caches, reverse
@@ -422,8 +422,10 @@ def test_simple_json_resource_envelope(
     monkeypatch,
     in_memory_storage,
 ):
+    # Patch the class, not the default_storage proxy: the settings fixture
+    # swaps the wrapped storage before monkeypatch undoes its changes.
     monkeypatch.setattr(
-        default_storage,
+        Storage,
         "save",
         lambda *args, **kwargs: pytest.fail("Rejected JSON must not store files"),
     )
