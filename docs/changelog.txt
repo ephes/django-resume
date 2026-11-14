@@ -5,6 +5,13 @@ Changelog
 Unreleased
 ----------
 
+* Admit cache markers and package metadata through bounded regular descriptors;
+  refuse symlinked cache ancestors/generations, replaced directories, duplicate
+  JSON members and excessive metadata depth. Theme caches now require POSIX
+  no-follow directory descriptors; configure canonical paths on Linux/macOS.
+* Validate install/render resource limits before starting work and reject child
+  stream read failures even after a zero exit, with complete process cleanup.
+
 * Authorize resume deletion on the locked current owner in the write database.
 * Refuse image uploads above 16,384 pixels per axis or 67,108,864 total pixels
   before storing any files or changing plugin data.

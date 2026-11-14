@@ -1,4 +1,6 @@
 import json
+import math
+import sys
 import os
 import re
 import signal
@@ -7,7 +9,8 @@ import stat
 import subprocess
 import tempfile
 import threading
-from contextlib import contextmanager
+from contextlib import contextmanager, ExitStack
+from contextvars import ContextVar
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -159,6 +162,130 @@ class _CapturedProcess:
 
 
 _READER_JOIN_TIMEOUT = 1.0
+_METADATA_MAX_BYTES = 1024 * 1024
+_METADATA_MAX_DEPTH = 64
+_cache_authority: ContextVar[tuple[tuple[Path, int], ...]] = ContextVar(
+    "theme_cache_authority", default=()
+)
+
+
+def _open_directory(path: Path, *, create: bool = False) -> int:
+    """Walk an absolute path without following directory links."""
+    if not hasattr(os, "O_DIRECTORY") or not hasattr(os, "O_NOFOLLOW"):
+        raise JsonResumeThemeError(
+            "Theme cache requires no-follow directory descriptors"
+        )
+    descriptor = os.open(path.anchor, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        current_path = Path(path.anchor)
+        for part in path.parts[1:]:
+            if create:
+                try:
+                    os.mkdir(part, mode=0o700, dir_fd=descriptor)
+                except FileExistsError:
+                    pass
+            child = os.open(
+                part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=descriptor
+            )
+            os.close(descriptor)
+            descriptor = child
+            current_path /= part
+            for trusted_path, held in _cache_authority.get():
+                if current_path == trusted_path:
+                    expected, opened = os.fstat(held), os.fstat(descriptor)
+                    if (expected.st_dev, expected.st_ino) != (
+                        opened.st_dev,
+                        opened.st_ino,
+                    ):
+                        raise JsonResumeThemeError(
+                            "JSON Resume cache directory changed"
+                        )
+        return descriptor
+    except BaseException:
+        os.close(descriptor)
+        raise
+
+
+def _check_cache_authority() -> None:
+    for path, held in _cache_authority.get():
+        try:
+            opened = _open_directory(path)
+            try:
+                expected, current = os.fstat(held), os.fstat(opened)
+                if expected.st_uid != os.getuid() or expected.st_mode & 0o022:
+                    raise JsonResumeThemeError(
+                        "JSON Resume cache directory must be privately owned"
+                    )
+                if (expected.st_dev, expected.st_ino) != (
+                    current.st_dev,
+                    current.st_ino,
+                ):
+                    raise JsonResumeThemeError("JSON Resume cache directory changed")
+            finally:
+                os.close(opened)
+        except OSError as exc:
+            raise JsonResumeThemeError("JSON Resume cache directory changed") from exc
+
+
+def _read_regular(path: Path, limit: int) -> bytes:
+    _check_cache_authority()
+    parent = _open_directory(path.parent)
+    try:
+        descriptor = os.open(
+            path.name, os.O_RDONLY | os.O_NONBLOCK | os.O_NOFOLLOW, dir_fd=parent
+        )
+        try:
+            info = os.fstat(descriptor)
+            if not stat.S_ISREG(info.st_mode) or info.st_size > limit:
+                raise JsonResumeThemeError(
+                    "Invalid or oversized JSON Resume cache file"
+                )
+            data = bytearray()
+            while len(data) <= limit:
+                chunk = os.read(descriptor, min(65536, limit + 1 - len(data)))
+                if not chunk:
+                    break
+                data.extend(chunk)
+            if len(data) > limit:
+                raise JsonResumeThemeError("Oversized JSON Resume cache file")
+            return bytes(data)
+        finally:
+            os.close(descriptor)
+    finally:
+        os.close(parent)
+
+
+def _read_manifest(path: Path) -> dict | None:
+    def unique(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError("duplicate member")
+            result[key] = value
+        return result
+
+    try:
+        raw = _read_regular(path, _METADATA_MAX_BYTES)
+        data = json.loads(raw.decode("utf-8"), object_pairs_hook=unique)
+        if not isinstance(data, dict):
+            raise ValueError("manifest must be an object")
+        pending: list[tuple[dict | list, int]] = [(data, 1)]
+        while pending:
+            value, depth = pending.pop()
+            if depth > _METADATA_MAX_DEPTH:
+                raise ValueError("manifest too deep")
+            children = value.values() if isinstance(value, dict) else value
+            if isinstance(value, (dict, list)):
+                pending.extend(
+                    (child, depth + 1)
+                    for child in children
+                    if isinstance(child, (dict, list))
+                )
+        return data
+    except FileNotFoundError:
+        return None
+    except (OSError, ValueError, RecursionError) as exc:
+        raise JsonResumeThemeError("Invalid JSON Resume cache manifest") from exc
 
 
 def is_theme_package_name(value: str) -> bool:
@@ -211,11 +338,8 @@ def _catalog_theme_installed(target: Path, entry: ThemeCatalogEntry) -> bool:
 
 def _installed_package_version(target: Path, package_name: str) -> str | None:
     manifest = target / "node_modules" / Path(*package_name.split("/")) / "package.json"
-    try:
-        data = json.loads(manifest.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return None
-    version = data.get("version") if isinstance(data, dict) else None
+    data = _read_manifest(manifest)
+    version = data.get("version") if data is not None else None
     return version if isinstance(version, str) else None
 
 
@@ -241,9 +365,12 @@ def _cache_path() -> Path:
 
 
 def cache_dir() -> Path:
-    path = _cache_path().resolve()
-    path.mkdir(mode=0o700, parents=True, exist_ok=True)
-    _chmod_owner_only(path, directory=True)
+    path = _cache_path().absolute()
+    descriptor = _open_directory(path, create=True)
+    try:
+        os.fchmod(descriptor, 0o700)
+    finally:
+        os.close(descriptor)
     return path
 
 
@@ -260,8 +387,20 @@ def _theme_cache_lock():
         ) from exc
     try:
         target = cache_dir()
-        with FileLock(target / ".cache.lock", timeout=timeout, mode=0o600):
-            yield _active_generation(target)
+        with ExitStack() as stack:
+            held = _open_directory(target)
+            stack.callback(os.close, held)
+            token = _cache_authority.set(((target, held),))
+            stack.callback(_cache_authority.reset, token)
+            with FileLock(target / ".cache.lock", timeout=timeout, mode=0o600):
+                _check_cache_authority()
+                active = _active_generation(target)
+                if active != target:
+                    generation = _open_directory(active)
+                    stack.callback(os.close, generation)
+                    _cache_authority.set(((target, held), (active, generation)))
+                _check_cache_authority()
+                yield active
     except Timeout as exc:
         raise JsonResumeThemeError(
             "JSON Resume theme cache is busy; retry the operation"
@@ -408,27 +547,41 @@ def install_catalog_themes(
 
 def _active_generation(root: Path) -> Path:
     try:
-        name = (root / ".current").read_text(encoding="ascii")
+        name = _read_regular(root / ".current", 128).decode("ascii")
     except FileNotFoundError:
         return root  # Existing caches remain usable until their first install.
+    except (OSError, UnicodeError) as exc:
+        raise JsonResumeThemeError(
+            "Invalid JSON Resume cache generation marker"
+        ) from exc
     if not re.fullmatch(r"generation-[a-z0-9_]+", name):
         raise JsonResumeThemeError("Invalid JSON Resume cache generation")
     target = root / name
-    if not target.is_dir():
-        raise JsonResumeThemeError("JSON Resume cache generation is missing")
+    try:
+        descriptor = _open_directory(target)
+        os.close(descriptor)
+    except OSError as exc:
+        raise JsonResumeThemeError(
+            "JSON Resume cache generation is missing or redirected"
+        ) from exc
     return target
 
 
 def _generation_requirements(target: Path) -> dict[str, str | None]:
     manifest = target / "package.json"
-    if not manifest.exists():
+    data = _read_manifest(manifest)
+    if data is None:
         return {}
     try:
-        dependencies = json.loads(manifest.read_text(encoding="utf-8")).get(
-            "dependencies", {}
-        )
+        dependencies = data.get("dependencies", {})
         if not isinstance(dependencies, dict):
             raise ValueError("invalid dependencies")
+        if any(
+            not isinstance(name, str)
+            or not re.fullmatch(r"(?:@[a-z0-9._-]+/)?[a-z0-9][a-z0-9._-]*", name)
+            for name in dependencies
+        ):
+            raise ValueError("invalid package name")
         return {name: _installed_package_version(target, name) for name in dependencies}
     except (ValueError, AttributeError) as exc:
         raise JsonResumeThemeError("Invalid JSON Resume cache manifest") from exc
@@ -446,18 +599,24 @@ def _verify_generation(target: Path, required: dict[str, str | None]) -> None:
 
 
 def _install_theme_packages(packages: list[str], *, timeout: float) -> None:
+    _process_limits(timeout)
     npm = shutil.which("npm")
     if npm is None:
         raise JsonResumeThemeError("npm is required to install JSON Resume themes")
     with _theme_cache_lock() as current:
         root = cache_dir()
         required = _generation_requirements(current)
+        _check_cache_authority()
         for spec in [f"resumed@{resumed_version()}", *packages]:
             name, separator, version = spec.rpartition("@")
             if not separator or not name:
                 name, version = spec, ""
             required[name] = version or None
         staged = Path(tempfile.mkdtemp(prefix="generation-", dir=root))
+        staged_fd = _open_directory(staged)
+        authority_token = _cache_authority.set(
+            (*_cache_authority.get(), (staged, staged_fd))
+        )
         pointer = root / ".current-next"
         published = False
         try:
@@ -469,6 +628,8 @@ def _install_theme_packages(packages: list[str], *, timeout: float) -> None:
                 "npm-shrinkwrap.json",
             ):
                 source = current / name
+                if source.is_symlink():
+                    raise JsonResumeThemeError("Redirected JSON Resume cache source")
                 if source.is_dir():
                     shutil.copytree(source, staged / name, symlinks=True)
                 elif source.is_file():
@@ -487,6 +648,7 @@ def _install_theme_packages(packages: list[str], *, timeout: float) -> None:
                 f"resumed@{resumed_version()}",
                 *packages,
             ]
+            _check_cache_authority()
             completed = _run_process(command, cwd=staged, timeout=timeout)
             if completed.returncode != 0:
                 raise JsonResumeThemeError(
@@ -503,6 +665,8 @@ def _install_theme_packages(packages: list[str], *, timeout: float) -> None:
                 if retired != staged and retired.is_dir():
                     shutil.rmtree(retired, ignore_errors=True)
         finally:
+            _cache_authority.reset(authority_token)
+            os.close(staged_fd)
             if not published:
                 # Even an interrupt between replace and the flag must retain the
                 # now-authoritative generation.
@@ -512,6 +676,7 @@ def _install_theme_packages(packages: list[str], *, timeout: float) -> None:
 
 
 def render_selected_theme(resume: Resume, *, timeout: float = 30.0) -> RenderedTheme:
+    _render_limits(timeout)
     key = selected_catalog_theme_key(resume)
     if key is not None:
         return render_catalog_theme(resume, key, timeout=timeout)
@@ -524,6 +689,7 @@ def render_selected_theme(resume: Resume, *, timeout: float = 30.0) -> RenderedT
 def render_theme(
     resume: Resume, theme_name: str, *, timeout: float = 30.0
 ) -> RenderedTheme:
+    _render_limits(timeout)
     with _theme_cache_lock() as target:
         return _render_theme(resume, theme_name, target=target, timeout=timeout)
 
@@ -531,12 +697,14 @@ def render_theme(
 def _render_theme(
     resume: Resume, theme_name: str, *, target: Path, timeout: float
 ) -> RenderedTheme:
+    max_bytes = _render_limits(timeout)
     _validate_theme_name(theme_name)
     exported = export_resume(resume)
     if not exported.report.valid:
         errors = "; ".join(exported.report.validation_errors)
         raise JsonResumeThemeError(f"JSON Resume export is invalid: {errors}")
     document = _theme_document(portable_document(exported.document))
+    _check_cache_authority()
     resumed = _resumed_bin(target)
     if not resumed.exists():
         raise JsonResumeThemeError(
@@ -564,9 +732,6 @@ def _render_theme(
         completed = _run_process(command, cwd=target, timeout=timeout)
         if completed.returncode != 0:
             raise JsonResumeThemeError(_bounded_error("Theme render failed", completed))
-        max_bytes = int(
-            getattr(settings, "DJANGO_RESUME_JSON_RESUME_RENDER_MAX_BYTES", 5_000_000)
-        )
         try:
             output_stat = output_path.lstat()
             if not stat.S_ISREG(output_stat.st_mode):
@@ -630,6 +795,7 @@ def _render_theme(
 def render_catalog_theme(
     resume: Resume, key: str, *, timeout: float = 30.0
 ) -> RenderedTheme:
+    _render_limits(timeout)
     entry = catalog_theme(key)
     with _theme_cache_lock() as target:
         if not _catalog_theme_installed(target, entry):
@@ -788,24 +954,68 @@ def _resumed_bin(target: Path) -> Path:
     return target / "node_modules" / ".bin" / f"resumed{suffix}"
 
 
-def _run_process(command: list[str], *, cwd: Path, timeout: float):
-    env = _minimal_env()
-    max_output_bytes = int(
-        getattr(settings, "DJANGO_RESUME_JSON_RESUME_PROCESS_OUTPUT_MAX_BYTES", 200_000)
-    )
-    if max_output_bytes < 1:
-        raise JsonResumeThemeError(
-            "DJANGO_RESUME_JSON_RESUME_PROCESS_OUTPUT_MAX_BYTES must be positive"
-        )
+def _byte_limit(name: str, default: int) -> int:
+    value = getattr(settings, name, default)
+    if type(value) is not int or not 1 <= value <= sys.maxsize:
+        raise JsonResumeThemeError(f"{name} must be a positive bounded integer")
+    return value
+
+
+def _process_limits(timeout: float) -> tuple[float, int]:
     try:
-        process = subprocess.Popen(
-            command,
-            cwd=cwd,
-            env=env,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            **_process_group_kwargs(),
-        )
+        if isinstance(timeout, bool) or not isinstance(timeout, (int, float)):
+            raise ValueError("invalid timeout")
+        admitted = float(timeout)
+        if not math.isfinite(admitted) or not 0 < admitted <= threading.TIMEOUT_MAX:
+            raise ValueError("invalid timeout")
+    except (ValueError, TypeError, OverflowError) as exc:
+        raise JsonResumeThemeError(
+            "Command timeout must be positive, finite and bounded"
+        ) from exc
+    return admitted, _byte_limit(
+        "DJANGO_RESUME_JSON_RESUME_PROCESS_OUTPUT_MAX_BYTES", 200_000
+    )
+
+
+def _render_limits(timeout: float) -> int:
+    _process_limits(timeout)
+    return _byte_limit("DJANGO_RESUME_JSON_RESUME_RENDER_MAX_BYTES", 5_000_000)
+
+
+def _run_process(command: list[str], *, cwd: Path, timeout: float):
+    _check_cache_authority()
+    env = _minimal_env()
+    timeout, max_output_bytes = _process_limits(timeout)
+    try:
+        directory = _open_directory(cwd.absolute())
+        try:
+            _check_cache_authority()
+            pinned_command = [
+                "." + arg[len(str(cwd)) :]
+                if arg == str(cwd) or arg.startswith(str(cwd) + os.sep)
+                else arg
+                for arg in command
+            ]
+            # A tiny exec trampoline uses public fchdir/pass_fds APIs. macOS
+            # cannot chdir through /dev/fd; preexec_fn is unsafe with threads.
+            launch = [
+                sys.executable,
+                "-c",
+                "import os,sys; fd=int(sys.argv[1]); os.fchdir(fd); "
+                "os.close(fd); os.execvpe(sys.argv[2], sys.argv[2:], os.environ)",
+                str(directory),
+                *pinned_command,
+            ]
+            process = subprocess.Popen(
+                launch,
+                pass_fds=(directory,),
+                env=env,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                **_process_group_kwargs(),
+            )
+        finally:
+            os.close(directory)
         started_threads: list[threading.Thread] = []
         try:
             assert process.stdout is not None
@@ -813,17 +1023,26 @@ def _run_process(command: list[str], *, cwd: Path, timeout: float):
             stdout = bytearray()
             stderr = bytearray()
             output_error: list[_OutputLimitExceeded] = []
+            reader_errors: list[str] = []
 
             def read_stream(stream, buffer: bytearray, stream_name: str) -> None:
-                while True:
-                    chunk = stream.read(8192)
-                    if not chunk:
-                        return
-                    buffer.extend(chunk)
-                    if len(buffer) > max_output_bytes:
-                        output_error.append(_OutputLimitExceeded(stream_name))
+                try:
+                    while True:
+                        chunk = stream.read(8192)
+                        if not chunk:
+                            return
+                        buffer.extend(chunk)
+                        if len(buffer) > max_output_bytes:
+                            output_error.append(_OutputLimitExceeded(stream_name))
+                            _terminate_process_tree(process)
+                            return
+                except Exception:
+                    # Never expose stream content or accept truncated evidence.
+                    reader_errors.append(stream_name)
+                    try:
                         _terminate_process_tree(process)
-                        return
+                    except OSError:
+                        pass
 
             threads = [
                 threading.Thread(
@@ -845,6 +1064,8 @@ def _run_process(command: list[str], *, cwd: Path, timeout: float):
                 raise JsonResumeThemeError(
                     "Command output streams did not close after child process exited"
                 )
+            if reader_errors:
+                raise JsonResumeThemeError("Command output could not be read")
             if output_error:
                 stream_name = output_error[0].stream_name
                 raise JsonResumeThemeError(

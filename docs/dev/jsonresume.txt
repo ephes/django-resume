@@ -1621,3 +1621,48 @@ Malformed URL authorities (including brackets, normalization and ports) raise
 ``JsonResumeImportError`` with ``field="source_url"`` and the bounded message
 "Invalid JSON Resume URL authority" before DNS or HTTP. Valid public IPv6 URLs
 retain DNS pinning and public-address checks.
+
+
+Cache file and directory admission
+----------------------------------
+
+Theme caches require POSIX no-follow directory descriptors (Linux/macOS).
+Configure a real canonical directory: links in the cache path or its ancestors
+are refused, including macOS aliases such as ``/tmp`` (use ``/private/tmp``).
+Cache roots and selected generations must belong to the running account and
+must not be writable by group/other users. The root is made owner-only.
+The shared cache lock retains directory descriptors and checks directory
+identity at metadata/process boundaries. Child processes enter the opened
+working directory using ``fchdir`` before exec, so renaming/replacing that
+pathname cannot redirect their working directory. Theme code still runs with
+the server account's permissions; this is not a same-user code sandbox.
+
+``.current`` must be a regular, non-symlink ASCII file of at most 128 bytes,
+naming a real contained ``generation-*`` directory. Legacy real-directory
+caches remain usable. Refused cache entries raise ``JsonResumeThemeError``;
+operators should stop workers and repair/restore the cache before retrying.
+
+Root and installed-package ``package.json`` files are opened without following
+links, admitted as regular files and read from the same descriptor with a
+1 MiB cap (including growth detection). Duplicate JSON members, non-object
+roots, invalid encoding and nesting beyond 64 container levels are refused.
+Absent manifests remain distinguishable from corrupted manifests: missing
+packages are unavailable, whereas corrupted metadata raises
+``JsonResumeThemeError``. No install or render starts from uncertain metadata;
+a failed staged install retains the last published generation.
+
+Process resource and reader failures
+------------------------------------
+
+Install/render timeout arguments must be finite positive Python numbers
+(excluding booleans), bounded by ``threading.TIMEOUT_MAX``. Both
+``DJANGO_RESUME_JSON_RESUME_PROCESS_OUTPUT_MAX_BYTES`` (default 200,000 per
+stream) and ``DJANGO_RESUME_JSON_RESUME_RENDER_MAX_BYTES`` (default 5,000,000)
+must be positive Python integers no larger than ``sys.maxsize``; strings,
+booleans and floats are refused. Validation occurs before cache mutation and
+process startup; invalid policy raises ``JsonResumeThemeError``.
+
+A failure reading either child stream invalidates the command even when the
+child exits zero. The error contains no stream content. Owned processes are
+terminated/reaped, readers settled and streams closed; partial output never
+counts as successful install or render evidence.
