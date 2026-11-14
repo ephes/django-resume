@@ -1670,3 +1670,15 @@ A failure reading either child stream invalidates the command even when the
 child exits zero. The error contains no stream content. Owned processes are
 terminated/reaped, readers settled and streams closed; partial output never
 counts as successful install or render evidence.
+
+Bounded schema diagnostics
+--------------------------
+
+Import preview and the import command collect at most 20 schema errors, in
+stable schema/input traversal order. At the limit they append a notice that
+further errors may be omitted, without probing for another error. Locations
+are limited to 160 characters and complete messages to 256 characters.
+Type, pattern and unexpected-property diagnostics identify the location and
+constraint without rendering the invalid value. This avoids constructing
+large value representations before truncation. Schema validity and supported
+extension fields are unchanged; rejected imports create no resume.

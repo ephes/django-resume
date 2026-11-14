@@ -45,3 +45,15 @@ Click the image to view the complete, interactive resume on my website.
 .. image:: images/wersdoerfer-de-resume-queen-cleo-cover.png
    :alt: Preview of the Resume
    :target: https://wersdoerfer.de/resume/queen-cleo/
+
+Editor safety
+-------------
+
+Default plugin JSON editors accept strict JSON objects up to 2 MiB and 64
+container levels. Duplicate members and non-finite numbers are rejected.
+Root admin forms carry a signed document revision: if any stored field changes,
+reload the form and reapply the edit. Fresh raw JSON edits remain supported.
+
+Inline language selection projects only the stored theme language, keeping
+unrelated sections out of that lookup. JSON Resume schema diagnostics stop at
+20 errors and use bounded locations/messages without echoing invalid values.

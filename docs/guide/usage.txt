@@ -397,3 +397,17 @@ present. Null/scalar/list roots and null/scalar ``items`` deny anonymous and
 unrelated users, even when a malformed container also claims token access is
 optional. Denials retain private/no-store, no-referrer and noindex headers.
 Owner/staff bypass is intentional; missing token data keeps the secure default.
+
+Concurrent root admin edits
+---------------------------
+
+The main Django admin resume form includes a signed revision covering every
+stored field, including plugin and integration JSON. A missing, modified or
+stale revision refuses the submission. Reload the form and reapply your changes;
+the submitted values remain visible on the error form. Fresh metadata and raw
+JSON edits remain editable with the existing Django admin permissions.
+
+POSTs load and lock the current row in the routed write database, inside the
+admin writer transaction. A conditional update also checks the loaded snapshot
+on backends without row locks. Conflicts roll back the writer transaction and
+return a form error, preserving newer data.
