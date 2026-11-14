@@ -5,6 +5,11 @@ Changelog
 Unreleased
 ----------
 
+* Stream plugin-wide removal in noncaching 100-row database batches while
+  preserving locked/conditional updates and transaction-wide rollback.
+* Deny malformed persisted token roots/items through CV authorization with
+  private response headers; retain intentional owner/staff bypass.
+
 * Admit cache markers and package metadata through bounded regular descriptors;
   refuse symlinked cache ancestors/generations, replaced directories, duplicate
   JSON members and excessive metadata depth. Theme caches now require POSIX

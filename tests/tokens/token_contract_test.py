@@ -98,3 +98,30 @@ def test_expiry_boundary_and_extremes_do_not_extend_expired_credentials():
     )
     assert is_token_expired({"created": "0001-01-01T00:00:00+00:00"}, now=now)
     assert not is_token_expired({"created": "9999-12-31T23:59:59+00:00"}, now=now)
+
+
+@pytest.mark.parametrize("token_data", [None, [], 1, {"items": None}, {"items": 1}])
+@pytest.mark.parametrize("bypass", ["owner", "staff"])
+@pytest.mark.django_db
+def test_malformed_containers_retain_owner_staff_bypass(
+    resume, client, django_user_model, token_data, bypass
+):
+    from django.urls import reverse
+    from django_resume.models import Resume
+    from django_resume.plugins import plugin_registry
+
+    resume.owner.save()
+    resume.save()
+    Resume.objects.filter(pk=resume.pk).update(plugin_data={"token": token_data})
+    plugin_registry.register(TokenPlugin)
+    user = (
+        resume.owner
+        if bypass == "owner"
+        else django_user_model.objects.create(username="synthetic-staff", is_staff=True)
+    )
+    client.force_login(user)
+    response = client.get(reverse("resume:cv", kwargs={"slug": resume.slug}))
+    assert response.status_code == 200
+    assert "private" in response["Cache-Control"]
+    assert "no-store" in response["Cache-Control"]
+    assert response["Referrer-Policy"] == "no-referrer"

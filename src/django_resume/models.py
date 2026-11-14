@@ -11,7 +11,11 @@ class ResumeManager(models.Manager["Resume"]):
         database = self._db or router.db_for_write(self.model, **hints)
         resumes = self.using(database)
         with transaction.atomic(using=database):
-            for resume in resumes.select_for_update().only("id", "plugin_data"):
+            for resume in (
+                resumes.select_for_update()
+                .only("id", "plugin_data")
+                .iterator(chunk_size=100)
+            ):
                 original = resume.plugin_data
                 if plugin_name not in original:
                     continue

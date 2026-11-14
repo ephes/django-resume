@@ -188,7 +188,11 @@ class TokenPlugin(ListPlugin):
         return {"item": TokenItemForm, "flat": TokenForm}
 
     @staticmethod
-    def token_is_required(plugin_data: dict) -> bool:
+    def token_is_required(plugin_data: object) -> bool:
+        if not isinstance(plugin_data, dict) or not isinstance(
+            plugin_data.get("items", []), list
+        ):
+            return True
         # Only an explicit JSON false disables access control. Malformed
         # persisted policies (including 0/null) retain the secure default.
         flat = plugin_data.get("flat", {})
@@ -213,11 +217,15 @@ class TokenPlugin(ListPlugin):
 
     @staticmethod
     def check_permissions(
-        request: HttpRequest, plugin_data: dict, resume: Resume | None = None
+        request: HttpRequest, plugin_data: object, resume: Resume | None = None
     ) -> None:
         token_required = TokenPlugin.token_is_required(plugin_data)
         if not token_required or TokenPlugin.user_can_bypass_token(request, resume):
             return None
+        if not isinstance(plugin_data, dict) or not isinstance(
+            plugin_data.get("items", []), list
+        ):
+            raise PermissionDenied("Invalid token policy.")
         form = TokenViaGetForm(request.GET)
         if not form.is_valid():
             raise PermissionDenied("Token required to access this page.")

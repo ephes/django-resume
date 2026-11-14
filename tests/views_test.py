@@ -787,3 +787,29 @@ def test_import_json_resume_upload_rejects_nonfinite_metadata(
     assert Resume.objects.count() == 1
     existing.refresh_from_db()
     assert existing.plugin_data == {"identity": {"name": "Keep"}}
+
+
+@pytest.mark.parametrize(
+    "token_data",
+    [
+        None,
+        [],
+        "invalid",
+        1,
+        {"items": None},
+        {"items": 1},
+        {"items": "invalid"},
+        {"flat": {"token_required": False}, "items": None},
+    ],
+)
+@pytest.mark.django_db
+def test_cv_malformed_token_container_denies_privately(client, resume, token_data):
+    plugin_registry.register(TokenPlugin)
+    resume.owner.save()
+    resume.save()
+    Resume.objects.filter(pk=resume.pk).update(plugin_data={"token": token_data})
+    response = client.get(
+        reverse("resume:cv", kwargs={"slug": resume.slug}), {"token": "synthetic"}
+    )
+    assert response.status_code == 403
+    _assert_private_cv_headers(response)

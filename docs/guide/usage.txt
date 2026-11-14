@@ -387,3 +387,13 @@ Image uploads retain the 2 MiB compressed-byte limit and JPEG/PNG/GIF/WebP
 allowlist. Before storage, dimensions must be positive, at most 16,384 pixels
 per axis and at most 67,108,864 decoded pixels in total. Exact limits are
 accepted. A refused upload changes neither storage nor plugin data.
+
+
+Malformed persisted token policy
+--------------------------------
+
+A token plugin root must be an object and its ``items`` must be a list when
+present. Null/scalar/list roots and null/scalar ``items`` deny anonymous and
+unrelated users, even when a malformed container also claims token access is
+optional. Denials retain private/no-store, no-referrer and noindex headers.
+Owner/staff bypass is intentional; missing token data keeps the secure default.

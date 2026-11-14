@@ -36,11 +36,11 @@ def test_removal_reports_concurrent_sqlite_edit_without_losing_data(
         plugin_data={"about": {"title": "old"}, "skills": {"items": ["old"]}},
     )
     edited = {"about": {"title": "old"}, "skills": {"items": ["new"]}}
-    original_iter = QuerySet.__iter__
+    original_iter = QuerySet.iterator
     edits = []
 
-    def edit_after_read(queryset):
-        rows = list(original_iter(queryset))
+    def edit_after_read(queryset, *args, **kwargs):
+        rows = list(original_iter(queryset, *args, **kwargs))
         if queryset.model is Resume and not edits:
             with sqlite3.connect(file_database, timeout=0) as writer:
                 writer.execute(
@@ -50,7 +50,7 @@ def test_removal_reports_concurrent_sqlite_edit_without_losing_data(
             edits.append(True)
         return iter(rows)
 
-    monkeypatch.setattr(QuerySet, "__iter__", edit_after_read)
+    monkeypatch.setattr(QuerySet, "iterator", edit_after_read)
     with pytest.raises(DatabaseError):
         Resume.objects.remove_plugin_data_by_name("about")
     assert edits == [True]
@@ -164,3 +164,44 @@ def test_removal_passes_manager_hints_to_the_write_router(user, settings):
     settings.DATABASE_ROUTERS = []
     resume.refresh_from_db()
     assert resume.plugin_data == {"skills": {"items": ["keep"]}}
+
+
+@pytest.mark.django_db
+def test_removal_hydrates_bounded_models(user, monkeypatch):
+    import weakref
+
+    user.save()
+    count = 251
+    data = {"about": {"text": "synthetic" * 1024}, "skills": {"items": ["keep"]}}
+    Resume.objects.bulk_create(
+        [
+            Resume(
+                name=f"Synthetic {index}",
+                slug=f"bounded-{index}",
+                owner=user,
+                plugin_data=data,
+            )
+            for index in range(count)
+        ]
+    )
+    live = weakref.WeakSet()
+    peak = 0
+    original = Resume.from_db
+
+    def from_db(cls, db, fields, values):
+        nonlocal peak
+        row = original(db, fields, values)
+        live.add(row)
+        peak = max(peak, len(live))
+        assert set(fields) == {"id", "plugin_data"}
+        return row
+
+    with monkeypatch.context() as patch:
+        patch.setattr(Resume, "from_db", classmethod(from_db))
+        Resume.objects.remove_plugin_data_by_name("about")
+    assert peak <= 2
+    assert Resume.objects.count() == count
+    assert all(
+        row.plugin_data == {"skills": {"items": ["keep"]}}
+        for row in Resume.objects.all()
+    )
