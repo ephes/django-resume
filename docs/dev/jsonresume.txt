@@ -1501,6 +1501,44 @@ under the same lock. Missing or stale renderer manifests require an explicit
 operator cache refresh when browser installs are disabled; readiness never
 installs packages itself.
 
+Installs copy the active npm tree and lockfiles into a private
+``generation-*`` directory. npm only mutates that copy. Before publication,
+every previously declared direct dependency must retain its installed version
+unless explicitly replaced, requested pinned packages must match, and the
+renderer file must exist. An incomplete or failed install leaves the active
+cache untouched. This verifies package manifests and renderer presence; it is
+not a JavaScript sandbox or a guarantee that trusted theme code is correct.
+
+A complete generation becomes current through one atomic replacement of the
+``.current`` pointer file under the cache lock. A killed installer therefore
+leaves either the previous complete generation or the new complete generation
+active; ordinary rendering ignores unreferenced directories and never attempts
+an automatic reinstall. This covers process death, not power-loss durability.
+The next successful install removes retired and incomplete ``generation-*``
+directories while holding the lock, after all previous renders have finished.
+Allow disk space for a complete additional npm tree and crash leftovers.
+
+Legacy caches with ``node_modules`` directly in the cache root remain readable
+until the first successful generation install. That install copies the legacy
+tree without modifying it. The legacy root files are retained for operator
+recovery; they may be removed during offline maintenance after confirming a
+working ``.current`` generation. Never remove or edit ``.current``, an active
+generation, or ``.cache.lock`` while workers are running. Deploy all cache
+consumers together: older code does not understand the generation pointer.
+
+Rendered HTML admission
+-----------------------
+
+The HTML output must be a regular UTF-8 file within
+``DJANGO_RESUME_JSON_RESUME_RENDER_MAX_BYTES`` (default 5,000,000 bytes).
+After preliminary metadata checks, rendering opens the file with no-follow and
+nonblocking flags where the platform provides them, checks the opened file's
+type, identity and size, and reads only that descriptor. A replacement, symlink,
+FIFO, oversized file or growth beyond the cap is refused as
+``JsonResumeThemeError``; temporary output is cleaned up. Platforms without
+those open flags still require matching regular-file descriptor identity before
+any read. Theme code remains trusted server-side code.
+
 Theme selection and concurrent integration edits
 ------------------------------------------------
 
@@ -1508,9 +1546,14 @@ Theme selection reloads the current resume on its routed write database inside
 an atomic transaction, locks the row where supported, and updates only the
 ``json_resume.theme`` subtree. Unrelated integration keys and sibling JSON
 Resume metadata from already committed imports/editors are preserved. A
-conditional update compares the complete integration snapshot; SQLite snapshot
-write conflicts and concurrent changes become ``JsonResumeThemeError`` with a
-retry instruction. Failed selections leave the caller's state unchanged.
+conditional update compares the complete integration snapshot and expected
+owner; SQLite snapshot write conflicts and concurrent changes become
+``JsonResumeThemeError`` with a retry instruction. The locked row must still belong to the selecting owner,
+including after a slow installation; owner transfers reject the POST with 404.
+The setters accept ``expected_owner_id`` (defaulting to the supplied resume's
+owner ID), and views pass the authenticated user's ID. A rejected selection
+leaves any completed shared-cache install available and preserves the new
+owner's integration state. Failed selections leave the caller's state unchanged.
 
 On SQLite the conditional snapshot comparison uses the JSON field's serialized
 text. Integration metadata should be written through the Django ORM. Raw SQL

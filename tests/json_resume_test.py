@@ -1451,7 +1451,9 @@ def test_install_theme_runs_npm_install_in_configured_cache(
 
     def fake_run(command, *, cwd, timeout):
         commands.append((command, cwd, timeout))
-        return json_resume_themes.subprocess.CompletedProcess(command, 0, "", "")
+        from .theme_generation_test import fake_npm
+
+        return fake_npm(command, cwd=cwd, timeout=timeout)
 
     monkeypatch.setattr(json_resume_themes, "_run_process", fake_run)
 
@@ -1464,7 +1466,8 @@ def test_install_theme_runs_npm_install_in_configured_cache(
     assert f"resumed@{json_resume_themes.RESUMED_VERSION}" in command
     assert "resumed" not in command
     assert "jsonresume-theme-even" in command
-    assert cwd == tmp_path / "themes"
+    assert cwd.parent == tmp_path / "themes"
+    assert cwd.name.startswith("generation-")
     assert timeout == 90.0
 
 
@@ -1478,7 +1481,9 @@ def test_install_catalog_theme_uses_pinned_package_version(
 
     def fake_run(command, *, cwd, timeout):
         commands.append(command)
-        return json_resume_themes.subprocess.CompletedProcess(command, 0, "", "")
+        from .theme_generation_test import fake_npm
+
+        return fake_npm(command, cwd=cwd, timeout=timeout)
 
     monkeypatch.setattr(json_resume_themes, "_run_process", fake_run)
 
@@ -1502,7 +1507,9 @@ def test_install_uses_configured_exact_resumed_version(tmp_path, settings, monke
 
     def fake_run(command, *, cwd, timeout):
         commands.append(command)
-        return json_resume_themes.subprocess.CompletedProcess(command, 0, "", "")
+        from .theme_generation_test import fake_npm
+
+        return fake_npm(command, cwd=cwd, timeout=timeout)
 
     monkeypatch.setattr(json_resume_themes, "_run_process", fake_run)
 
@@ -1538,7 +1545,9 @@ def test_install_catalog_themes_installs_enabled_entries_in_one_command(
 
     def fake_run(command, *, cwd, timeout):
         commands.append(command)
-        return json_resume_themes.subprocess.CompletedProcess(command, 0, "", "")
+        from .theme_generation_test import fake_npm
+
+        return fake_npm(command, cwd=cwd, timeout=timeout)
 
     monkeypatch.setattr(json_resume_themes, "_run_process", fake_run)
     out = StringIO()
@@ -2242,7 +2251,6 @@ def test_render_json_resume_theme_output_contract(
     output_paths = []
     faults = []
     original_lstat = Path.lstat
-    original_open = Path.open
     original_stat = Path.stat
 
     def fake_run(command, *, cwd, timeout):
@@ -2274,20 +2282,16 @@ def test_render_json_resume_theme_output_contract(
             raise OSError("private renderer path and content")
         return original_stat(path, *args, **kwargs)
 
-    def failing_open(path, *args, **kwargs):
-        if path in output_paths and "r" in (
-            args[0] if args else kwargs.get("mode", "r")
-        ):
-            faults.append("read")
-            raise PermissionError("private renderer path and content")
-        return original_open(path, *args, **kwargs)
+    def failing_read(descriptor, size):
+        faults.append("read")
+        raise PermissionError("private renderer path and content")
 
     monkeypatch.setattr(json_resume_themes, "_run_process", fake_run)
     if output_kind == "stat_error":
         monkeypatch.setattr(Path, "lstat", failing_lstat)
         monkeypatch.setattr(Path, "stat", failing_stat)
     if output_kind == "read_error":
-        monkeypatch.setattr(Path, "open", failing_open)
+        monkeypatch.setattr(json_resume_themes.os, "read", failing_read)
 
     response = client.get(
         reverse("django_resume:json-resume-rendered", kwargs={"slug": resume.slug})

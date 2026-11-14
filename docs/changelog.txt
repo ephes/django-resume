@@ -5,6 +5,18 @@ Changelog
 Unreleased
 ----------
 
+* Install JSON Resume themes in staged cache generations, verify required
+  manifests and renderer presence, and atomically select a complete generation.
+  Failed or interrupted npm installs preserve the previous renderer; collect
+  retired generations only after renderers release the shared cache lock.
+* Exercise real installer process termination before and after cache publication,
+  fresh-process recovery, and a counterfactual unsafe in-place mutation oracle.
+* Bind theme HTML checks and bounded reads to the same opened regular-file
+  descriptor; reject symlink/FIFO replacements, changed identities and growth.
+* Recheck the selecting owner's authority on the locked current resume and in
+  the conditional write. Ownership transfers during installation return 404
+  without changing the new owner's integration data or undoing cache installs.
+
 * Bound handwriting labels to 64 characters and 32,000 traced points before
   expansion/cache admission; oversized labels use the escaped text fallback.
   Limit the reusable geometry cache to 64 entries.

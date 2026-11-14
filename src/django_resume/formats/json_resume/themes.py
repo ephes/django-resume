@@ -106,6 +106,10 @@ class JsonResumeThemeError(RuntimeError):
     """Raised when theme discovery, installation, or rendering fails."""
 
 
+class ThemeOwnershipChanged(JsonResumeThemeError):
+    """Raised when the selecting owner no longer owns the current resume."""
+
+
 class UnknownThemeCatalogKey(JsonResumeThemeError):
     """Raised when a requested catalog key is unknown or disabled."""
 
@@ -237,7 +241,7 @@ def _cache_path() -> Path:
 
 
 def cache_dir() -> Path:
-    path = _cache_path()
+    path = _cache_path().resolve()
     path.mkdir(mode=0o700, parents=True, exist_ok=True)
     _chmod_owner_only(path, directory=True)
     return path
@@ -257,7 +261,7 @@ def _theme_cache_lock():
     try:
         target = cache_dir()
         with FileLock(target / ".cache.lock", timeout=timeout, mode=0o600):
-            yield target
+            yield _active_generation(target)
     except Timeout as exc:
         raise JsonResumeThemeError(
             "JSON Resume theme cache is busy; retry the operation"
@@ -293,12 +297,18 @@ def selected_catalog_theme_key(resume: Resume) -> str | None:
     return None
 
 
-def set_selected_theme(resume: Resume, package_name: str) -> None:
+def set_selected_theme(
+    resume: Resume, package_name: str, *, expected_owner_id: Any = None
+) -> None:
     _validate_theme_name(package_name)
-    _set_theme_state(resume, {"package": package_name})
+    _set_theme_state(
+        resume, {"package": package_name}, expected_owner_id=expected_owner_id
+    )
 
 
-def set_selected_catalog_theme(resume: Resume, key: str) -> None:
+def set_selected_catalog_theme(
+    resume: Resume, key: str, *, expected_owner_id: Any = None
+) -> None:
     entry = catalog_theme(key)
     _set_theme_state(
         resume,
@@ -307,10 +317,15 @@ def set_selected_catalog_theme(resume: Resume, key: str) -> None:
             "package": entry.package,
             "version": entry.version,
         },
+        expected_owner_id=expected_owner_id,
     )
 
 
-def _set_theme_state(resume: Resume, theme_state: dict[str, str]) -> None:
+def _set_theme_state(
+    resume: Resume, theme_state: dict[str, str], *, expected_owner_id: Any
+) -> None:
+    if expected_owner_id is None:
+        expected_owner_id = resume.owner_id
     database = router.db_for_write(Resume, instance=resume)
     resumes = Resume.objects.using(database)
     conflict = (
@@ -319,6 +334,10 @@ def _set_theme_state(resume: Resume, theme_state: dict[str, str]) -> None:
     try:
         with transaction.atomic(using=database):
             current = resumes.select_for_update().get(pk=resume.pk)
+            if current.owner_id != expected_owner_id:
+                raise ThemeOwnershipChanged(
+                    "Resume owner changed during theme selection"
+                )
             original = current.integration_data
             integration_data = deepcopy(original) if isinstance(original, dict) else {}
             json_resume_state = integration_data.get("json_resume")
@@ -328,9 +347,9 @@ def _set_theme_state(resume: Resume, theme_state: dict[str, str]) -> None:
             integration_data["json_resume"] = json_resume_state
             # Row locks protect supported locking backends. The comparison also
             # prevents silent lost updates on backends such as SQLite.
-            changed = resumes.filter(pk=resume.pk, integration_data=original).update(
-                integration_data=integration_data
-            )
+            changed = resumes.filter(
+                pk=resume.pk, owner_id=expected_owner_id, integration_data=original
+            ).update(integration_data=integration_data)
             if changed != 1:
                 raise JsonResumeThemeError(conflict)
     except (DatabaseError, Resume.DoesNotExist) as exc:
@@ -387,30 +406,109 @@ def install_catalog_themes(
     return entries
 
 
+def _active_generation(root: Path) -> Path:
+    try:
+        name = (root / ".current").read_text(encoding="ascii")
+    except FileNotFoundError:
+        return root  # Existing caches remain usable until their first install.
+    if not re.fullmatch(r"generation-[a-z0-9_]+", name):
+        raise JsonResumeThemeError("Invalid JSON Resume cache generation")
+    target = root / name
+    if not target.is_dir():
+        raise JsonResumeThemeError("JSON Resume cache generation is missing")
+    return target
+
+
+def _generation_requirements(target: Path) -> dict[str, str | None]:
+    manifest = target / "package.json"
+    if not manifest.exists():
+        return {}
+    try:
+        dependencies = json.loads(manifest.read_text(encoding="utf-8")).get(
+            "dependencies", {}
+        )
+        if not isinstance(dependencies, dict):
+            raise ValueError("invalid dependencies")
+        return {name: _installed_package_version(target, name) for name in dependencies}
+    except (ValueError, AttributeError) as exc:
+        raise JsonResumeThemeError("Invalid JSON Resume cache manifest") from exc
+
+
+def _verify_generation(target: Path, required: dict[str, str | None]) -> None:
+    if not _resumed_bin(target).is_file():
+        raise JsonResumeThemeError("Installed generation has no resumed renderer")
+    for name, expected in required.items():
+        actual = _installed_package_version(target, name)
+        if actual is None or (expected is not None and actual != expected):
+            raise JsonResumeThemeError(
+                "Installed generation has missing or mismatched package manifests"
+            )
+
+
 def _install_theme_packages(packages: list[str], *, timeout: float) -> None:
     npm = shutil.which("npm")
     if npm is None:
         raise JsonResumeThemeError("npm is required to install JSON Resume themes")
-    with _theme_cache_lock() as target:
-        # --ignore-scripts: never run npm lifecycle scripts (preinstall, install,
-        # postinstall, prepare) of a theme or any transitive dependency as the web
-        # server user. Rendering still executes theme JavaScript.
-        command = [
-            npm,
-            "install",
-            "--prefix",
-            str(target),
-            "--no-audit",
-            "--no-fund",
-            "--ignore-scripts",
-            "--save",
-            "--save-exact",
-            f"resumed@{resumed_version()}",
-            *packages,
-        ]
-        completed = _run_process(command, cwd=target, timeout=timeout)
-        if completed.returncode != 0:
-            raise JsonResumeThemeError(_bounded_error("npm install failed", completed))
+    with _theme_cache_lock() as current:
+        root = cache_dir()
+        required = _generation_requirements(current)
+        for spec in [f"resumed@{resumed_version()}", *packages]:
+            name, separator, version = spec.rpartition("@")
+            if not separator or not name:
+                name, version = spec, ""
+            required[name] = version or None
+        staged = Path(tempfile.mkdtemp(prefix="generation-", dir=root))
+        pointer = root / ".current-next"
+        published = False
+        try:
+            # Copy, never hard-link: npm may mutate any file in its prefix.
+            for name in (
+                "node_modules",
+                "package.json",
+                "package-lock.json",
+                "npm-shrinkwrap.json",
+            ):
+                source = current / name
+                if source.is_dir():
+                    shutil.copytree(source, staged / name, symlinks=True)
+                elif source.is_file():
+                    shutil.copy2(source, staged / name)
+            # Never run npm lifecycle scripts as the web server user.
+            command = [
+                npm,
+                "install",
+                "--prefix",
+                str(staged),
+                "--no-audit",
+                "--no-fund",
+                "--ignore-scripts",
+                "--save",
+                "--save-exact",
+                f"resumed@{resumed_version()}",
+                *packages,
+            ]
+            completed = _run_process(command, cwd=staged, timeout=timeout)
+            if completed.returncode != 0:
+                raise JsonResumeThemeError(
+                    _bounded_error("npm install failed", completed)
+                )
+            _verify_generation(staged, required)
+            pointer.write_text(staged.name, encoding="ascii")
+            _chmod_owner_only(pointer)
+            os.replace(pointer, root / ".current")
+            published = True
+            # All renders hold the same lock through output reading; no retired
+            # generation can still be in use here. Also collect crash leftovers.
+            for retired in root.glob("generation-*"):
+                if retired != staged and retired.is_dir():
+                    shutil.rmtree(retired, ignore_errors=True)
+        finally:
+            if not published:
+                # Even an interrupt between replace and the flag must retain the
+                # now-authoritative generation.
+                if _active_generation(root) != staged:
+                    shutil.rmtree(staged, ignore_errors=True)
+            pointer.unlink(missing_ok=True)
 
 
 def render_selected_theme(resume: Resume, *, timeout: float = 30.0) -> RenderedTheme:
@@ -426,18 +524,19 @@ def render_selected_theme(resume: Resume, *, timeout: float = 30.0) -> RenderedT
 def render_theme(
     resume: Resume, theme_name: str, *, timeout: float = 30.0
 ) -> RenderedTheme:
-    with _theme_cache_lock():
-        return _render_theme(resume, theme_name, timeout=timeout)
+    with _theme_cache_lock() as target:
+        return _render_theme(resume, theme_name, target=target, timeout=timeout)
 
 
-def _render_theme(resume: Resume, theme_name: str, *, timeout: float) -> RenderedTheme:
+def _render_theme(
+    resume: Resume, theme_name: str, *, target: Path, timeout: float
+) -> RenderedTheme:
     _validate_theme_name(theme_name)
     exported = export_resume(resume)
     if not exported.report.valid:
         errors = "; ".join(exported.report.validation_errors)
         raise JsonResumeThemeError(f"JSON Resume export is invalid: {errors}")
     document = _theme_document(portable_document(exported.document))
-    target = cache_dir()
     resumed = _resumed_bin(target)
     if not resumed.exists():
         raise JsonResumeThemeError(
@@ -476,8 +575,37 @@ def _render_theme(resume: Resume, theme_name: str, *, timeout: float) -> Rendere
                 raise JsonResumeThemeError(
                     f"Theme render output exceeds maximum size of {max_bytes} bytes"
                 )
-            with output_path.open("rb") as output:
-                content = output.read(max_bytes + 1)
+            flags = (
+                os.O_RDONLY
+                | getattr(os, "O_NONBLOCK", 0)
+                | getattr(os, "O_NOFOLLOW", 0)
+                | getattr(os, "O_BINARY", 0)
+            )
+            descriptor = os.open(output_path, flags)
+            try:
+                opened = os.fstat(descriptor)
+                if not stat.S_ISREG(opened.st_mode) or (
+                    opened.st_dev,
+                    opened.st_ino,
+                ) != (output_stat.st_dev, output_stat.st_ino):
+                    raise JsonResumeThemeError(
+                        "Theme render output changed or is not a regular file"
+                    )
+                if opened.st_size > max_bytes:
+                    raise JsonResumeThemeError(
+                        f"Theme render output exceeds maximum size of {max_bytes} bytes"
+                    )
+                # Read only this admitted descriptor; bound growth after fstat too.
+                content = bytearray()
+                while len(content) <= max_bytes:
+                    chunk = os.read(
+                        descriptor, min(65536, max_bytes + 1 - len(content))
+                    )
+                    if not chunk:
+                        break
+                    content.extend(chunk)
+            finally:
+                os.close(descriptor)
             if len(content) > max_bytes:
                 raise JsonResumeThemeError(
                     f"Theme render output exceeds maximum size of {max_bytes} bytes"
@@ -508,7 +636,7 @@ def render_catalog_theme(
             raise CatalogThemeNotInstalled(
                 "The pinned theme and renderer must be installed in the cache by the operator"
             )
-        return _render_theme(resume, entry.package, timeout=timeout)
+        return _render_theme(resume, entry.package, target=target, timeout=timeout)
 
 
 def _catalog_entries(raw_catalog) -> list[ThemeCatalogEntry]:
