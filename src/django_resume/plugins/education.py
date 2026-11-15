@@ -1,3 +1,4 @@
+from copy import deepcopy
 from typing import Any, Type, cast
 
 from django import forms
@@ -32,10 +33,17 @@ def normalize_education_data(data: dict) -> dict:
     """
     if not data or "items" in data or "flat" in data:
         return data
-    if not any(data.get(field) for field in LEGACY_EDUCATION_FIELDS):
+    if not any(value not in (None, "") for value in data.values()):
         return {}
-    item = {field: data.get(field, "") for field in LEGACY_EDUCATION_FIELDS}
-    item.update({"id": "education-1", "degree": "", "position": 0})
+    # Legacy exports can contain degrees and extension metadata too. Carry
+    # every field into the item, detached from the stored record; editor
+    # updates merge their known fields into this lossless normalized item.
+    item = deepcopy(data)
+    for field in LEGACY_EDUCATION_FIELDS:
+        item.setdefault(field, "")
+    item.setdefault("id", "education-1")
+    item.setdefault("degree", "")
+    item.setdefault("position", 0)
     return {"flat": {"title": "Education"}, "items": [item]}
 
 

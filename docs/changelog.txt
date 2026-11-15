@@ -5,6 +5,18 @@ Changelog
 Unreleased
 ----------
 
+* Preserve degrees and extension metadata when runtime legacy education data
+  is read and later saved through either editor, without writes on read.
+* Render permission-denied pages without resolving storage URLs for absent,
+  blank or invalid optional avatar references; configured storage failures
+  still propagate.
+
+* Refuse portable imports whose prepared education, language or skill values
+  exceed editor limits, before creating a resume; retain mapping/loss notes
+  and report the affected field without truncating the source.
+* Validate skills as bounded string lists in admin and inline editors;
+  normalize legacy display/export values without modifying stored JSON.
+
 * Apply Django's private never-cache policy to owner artifact/theme routes and
   all registered inline plugin responses, including returned validation errors,
   diagnostics and login redirects; preserve public page cache behavior.

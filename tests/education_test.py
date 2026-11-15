@@ -1,4 +1,9 @@
+from copy import deepcopy
+
+import pytest
+
 from django_resume.plugins import plugin_registry
+from tests.editor_helpers import post_current_editor
 from django_resume.plugins.base import ListPlugin
 from django_resume.plugins.education import (
     EducationItemForm,
@@ -68,3 +73,58 @@ def test_reading_legacy_education_data_does_not_change_stored_data(resume):
 
     # Then the stored plugin data is left untouched
     assert resume.plugin_data == {"education": legacy}
+
+
+@pytest.mark.parametrize(
+    "legacy",
+    [
+        {"school_name": "Uni", "degree": "BSc", "vendor": {"labels": ["synthetic"]}},
+        {"degree": "BSc", "vendor": {"labels": ["synthetic"]}},
+        {"school_name": "Uni", "id": "kept-id", "position": 3},
+    ],
+)
+def test_legacy_normalization_preserves_all_fields_without_aliasing(legacy):
+    original = deepcopy(legacy)
+    normalized = normalize_education_data(legacy)
+    [item] = normalized["items"]
+    assert {key: item[key] for key in legacy} == legacy
+    if "vendor" in item:
+        item["vendor"]["labels"].append("changed copy")
+    assert legacy == original
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("view", ["inline", "admin"])
+def test_legacy_education_unchanged_editor_save_preserves_extensions(
+    client, resume, view
+):
+    resume.owner.is_staff = True
+    resume.owner.save()
+    legacy = {
+        "school_name": "Synthetic University",
+        "school_url": "https://university.example",
+        "degree": "BSc Synthetic Studies",
+        "start": "2010",
+        "end": "2014",
+        "vendor": {"labels": ["synthetic"], "code": 42},
+    }
+    resume.plugin_data = {"education": deepcopy(legacy)}
+    resume.save()
+    plugin = EducationPlugin()
+    [item] = plugin.get_data(resume)["items"]
+    # The read path must not normalize the database or share nested extensions.
+    assert resume.plugin_data == {"education": legacy}
+    client.force_login(resume.owner)
+    post_url = (
+        plugin.inline.get_post_item_url(resume.pk)
+        if view == "inline"
+        else plugin.admin.get_change_item_post_url(resume.pk)
+    )
+    form_data = {name: item.get(name, "") for name in EducationItemForm.base_fields}
+    response = post_current_editor(client, post_url, form_data)
+    assert response.status_code == 200
+    resume.refresh_from_db()
+    [stored] = resume.plugin_data["education"]["items"]
+    assert {key: stored[key] for key in legacy} == legacy
+    assert stored["id"] == "education-1"
+    assert stored["position"] == 0

@@ -1610,6 +1610,18 @@ unchanged instead of being reported as a slug conflict.
 Import parser limits
 --------------------
 
+Prepared adapter values must fit the built-in editor limits before any resume
+is created: education institution/school name allows 100 characters, degree
+(including a merged studyType and area) allows 200, and language fluency/note
+allows 50. Skills allow at most 1,024 string badges, each at most 1,024
+characters, after keyword deduplication. Oversized values are refused rather
+than truncated. Preview and command reports identify the plugin/item/field,
+retain mapping and loss notes, and create no resume. The caller's source
+document is unchanged; correct it and preview again. Valid imports retain the
+existing source-document and report behavior for unchanged re-export.
+These checks apply to portable adapter output; private round-trip payloads
+retain their existing structural validation and opaque extension support.
+
 All byte/file/URL loaders and browser preview/create imports reject decimal
 integer tokens longer than 4,300 digits (excluding the sign), even if Python's
 own digit limit is disabled. A stricter interpreter limit is also honored.

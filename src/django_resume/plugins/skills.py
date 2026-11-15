@@ -8,13 +8,50 @@ from ..interchange.protocols import AdapterExport, AdapterImport
 from ..formats.json_resume.mapping import unimported_item_fields
 
 SKILL_IMPORTED_KEYS = ("name", "level", "keywords")
+MAX_SKILL_BADGES = 1024
+MAX_SKILL_BADGE_LENGTH = 1024
+
+
+def validate_skill_badges(badges: object) -> None:
+    """The editor/import domain: a bounded list containing only strings."""
+    if not isinstance(badges, list) or any(
+        not isinstance(badge, str) for badge in badges
+    ):
+        raise forms.ValidationError("Skills must be a list of strings.")
+    if len(badges) > MAX_SKILL_BADGES:
+        raise forms.ValidationError(f"Skills allow at most {MAX_SKILL_BADGES} badges.")
+    if any(len(badge) > MAX_SKILL_BADGE_LENGTH for badge in badges):
+        raise forms.ValidationError(
+            f"Each skill allows at most {MAX_SKILL_BADGE_LENGTH} characters."
+        )
+
+
+def display_badges(value: object) -> list[str]:
+    """Read legacy JSON strings safely; never rewrite stored plugin data."""
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except (ValueError, RecursionError):
+            return []
+    if not isinstance(value, list):
+        return []
+    return [
+        badge
+        for badge in value[:MAX_SKILL_BADGES]
+        if isinstance(badge, str) and len(badge) <= MAX_SKILL_BADGE_LENGTH
+    ]
 
 
 class SkillsForm(forms.Form):
     initial_badges = ["Some Skill", "Another Skill"]
-    badges = forms.JSONField(
-        label="Skills", max_length=1024, required=False, initial=initial_badges
-    )
+    badges = forms.JSONField(label="Skills", required=False, initial=initial_badges)
+
+    def clean_badges(self) -> list[str]:
+        badges = self.cleaned_data["badges"]
+        if badges is None and not self.data.get(self.add_prefix("badges")):
+            return []
+        validate_skill_badges(badges)
+        return badges
 
     def badges_as_json(self) -> str:
         """
@@ -23,7 +60,7 @@ class SkillsForm(forms.Form):
         """
         existing_badges = self.initial.get("badges")
         if existing_badges is not None:
-            return json.dumps(existing_badges)
+            return json.dumps(display_badges(existing_badges))
         return json.dumps(self.initial_badges)
 
 
@@ -121,15 +158,12 @@ class SkillsPlugin(SimplePlugin):
 
     def get_structured_data(self, resume) -> dict:
         data = self.get_data(resume)
-        badges = data.get("badges") or []
-        if isinstance(badges, str):
-            try:
-                badges = json.loads(badges)
-            except (ValueError, TypeError):
-                badges = []
-        if not isinstance(badges, list):
-            badges = []
-        return {"skills": list(badges)}
+        return {"skills": display_badges(data.get("badges"))}
+
+    def get_context(self, *args, **kwargs) -> dict:
+        context = super().get_context(*args, **kwargs)
+        context["badges"] = display_badges(context.get("badges"))
+        return context
 
     def get_export_adapters(self) -> dict:
         return {"json_resume": SkillsJsonResumeAdapter()}
