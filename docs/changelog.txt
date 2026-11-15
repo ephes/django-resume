@@ -5,6 +5,12 @@ Changelog
 Unreleased
 ----------
 
+* Refresh the documentation/development lock to Beautiful Soup 4.15.0 and
+  Soup Sieve 4.1, fixing CVE-2026-126190 and related selector denial-of-service
+  advisories. The dev group now needs Python 3.11.5 or later; runtime-only
+  package installs still support Python 3.10. Selectors no longer descend
+  into inert HTML templates unless called on the template itself.
+
 * Project only the theme language during synchronous/asynchronous inline
   language lookups, preserving site-language fallback and view authorization.
 * Stop JSON Resume schema diagnostics at 20 errors with bounded paths/messages
