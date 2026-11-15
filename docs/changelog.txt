@@ -5,6 +5,12 @@ Changelog
 Unreleased
 ----------
 
+* Fence item deletion with signed current-item revisions in admin and inline
+  controls; stale or missing revisions return 409 without deleting newer data.
+
+* Preserve the signed add form's proposed item identity, rejecting successful
+  request replays before storing uploads or appending duplicate list items.
+
 * Require actual booleans for dynamic/catalog theme installation and theme
   scripts; invalid settings fail closed with a configuration error.
 * Preserve the original query on legacy CV redirects and prevent redirect

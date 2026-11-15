@@ -79,3 +79,16 @@ explicitly in your settings module.
 Legacy ``/cv/<slug>/`` links redirect to the canonical CV path with their
 original query string, including escaped tokens and repeated parameters.
 Redirects are private, never stored, and send ``Referrer-Policy: no-referrer``.
+
+Each rendered add-item form proposes a stable item UUID, bound into its signed
+absence revision. Retrying an accepted add form returns a recoverable conflict
+without creating another item or storing another upload. Open a fresh form to
+add another item. Admin and inline editors share this contract.
+
+Rendered item delete URLs carry a signed revision of the original stored item.
+Both admin and inline POST/DELETE endpoints compare it under the writer
+transaction; missing, altered or stale revisions return HTTP 409 and keep the
+item. Reload the page to inspect the current item before deleting again.
+Custom renderers must pass the original item as ``item=`` to
+``get_delete_item_url(resume_id, item_id, item=item)``; display transformations
+must happen after signing. CSRF and owner checks still apply.
