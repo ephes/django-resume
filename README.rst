@@ -57,3 +57,10 @@ reload the form and reapply the edit. Fresh raw JSON edits remain supported.
 Inline language selection projects only the stored theme language, keeping
 unrelated sections out of that lookup. JSON Resume schema diagnostics stop at
 20 errors and use bounded locations/messages without echoing invalid values.
+
+Browser JSON Resume imports read at most the input byte limit plus one byte,
+checking actual bytes before parsing, signing a preview or creating a resume.
+Read failures return a file-field diagnostic. Custom image forms may supply a
+one-shot ``image_fields`` iterable: each form snapshots it before field setup,
+preflights every upload before storing any, and tracks only its own new files
+for failure cleanup.

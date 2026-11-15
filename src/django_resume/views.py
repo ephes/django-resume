@@ -121,7 +121,15 @@ def _read_uploaded_import(uploaded_file) -> bytes:
         raise JsonResumeImportError(
             f"Input exceeds maximum size of {MAX_INPUT_BYTES} bytes"
         )
-    return uploaded_file.read()
+    try:
+        data = uploaded_file.read(MAX_INPUT_BYTES + 1)
+    except OSError as exc:
+        raise JsonResumeImportError("Could not read uploaded file") from exc
+    if len(data) > MAX_INPUT_BYTES:
+        raise JsonResumeImportError(
+            f"Input exceeds maximum size of {MAX_INPUT_BYTES} bytes"
+        )
+    return data
 
 
 def _prepare_uploaded_import(

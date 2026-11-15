@@ -5,6 +5,10 @@ Changelog
 Unreleased
 ----------
 
+* Bound browser import reads using actual bytes and report upload read errors.
+* Snapshot image-field iterables per form so all uploads are admitted and
+  stored consistently, including one-shot custom inventories.
+
 * Keep list rendering defaults, sanitized links and editor URLs in detached
   display contexts, preserving source JSON for later export and save.
 * Render cover, project and timeline Markdown on those display records,
