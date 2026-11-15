@@ -1539,19 +1539,23 @@ class ListPlugin:
         edit: bool = False,
         theme: str = "plain",
     ) -> ContextDict:
-        if plugin_data.get("flat", {}) == {}:
+        # Rendering receives live stored JSON. Keep defaults and display-only
+        # transformations in detached projections, including nested extensions.
+        flat = copy.deepcopy(plugin_data.get("flat", {}))
+        if flat == {}:
             # no flat data yet, use initial data from inline form
             form = self.get_flat_form_class()()
             initial_values = {
                 field_name: form.get_initial_for_field(field, field_name)
                 for field_name, field in form.fields.items()
             }
-            plugin_data["flat"] = initial_values
+            flat = initial_values
         # add flat data to context
-        context.update(plugin_data["flat"])
+        context.update(flat)
 
         ordered_entries = self.items_ordered_by_position(
-            plugin_data.get("items", []), reverse=self.sort_by_reverse_position
+            copy.deepcopy(plugin_data.get("items", [])),
+            reverse=self.sort_by_reverse_position,
         )
         for entry in ordered_entries:
             for field_name in self.link_fields:

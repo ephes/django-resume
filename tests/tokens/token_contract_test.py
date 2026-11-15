@@ -1,11 +1,17 @@
 from datetime import datetime, timedelta, timezone as datetime_timezone
+import json
 from urllib.parse import parse_qs, urlsplit
 
 import pytest
 from django.contrib.auth.models import AnonymousUser
 from django.core.exceptions import PermissionDenied
+from django.db import connection
 
 from django_resume.plugins.tokens import TokenItemForm, TokenPlugin, is_token_expired
+from django_resume.formats.json_resume.importer import (
+    import_resume_document,
+    load_document_bytes,
+)
 
 
 @pytest.mark.parametrize(
@@ -125,3 +131,56 @@ def test_malformed_containers_retain_owner_staff_bypass(
     assert "private" in response["Cache-Control"]
     assert "no-store" in response["Cache-Control"]
     assert response["Referrer-Policy"] == "no-referrer"
+
+
+@pytest.mark.django_db
+@pytest.mark.skipif(
+    connection.vendor != "sqlite",
+    reason="PostgreSQL jsonb refuses lone surrogates, so this stored state is SQLite-only",
+)
+@pytest.mark.parametrize("surrogate", ["\ud800", "\udfff"])
+@pytest.mark.parametrize("valid_sibling", [False, True])
+@pytest.mark.parametrize("reverse_items", [False, True])
+def test_imported_unencodable_secret_does_not_break_protected_requests(
+    user, client, caplog, surrogate, valid_sibling, reverse_items
+):
+    from django.urls import reverse
+
+    malformed = "synthetic-secret-" + surrogate
+    valid = "synthetic-valid-ünicode"
+    items = [{"id": "malformed", "token": malformed}]
+    if valid_sibling:
+        items.append({"id": "valid", "token": valid})
+    if reverse_items:
+        items.reverse()
+    document = {
+        "basics": {"name": "Synthetic"},
+        "meta": {"django_resume": {"plugin_data": {"token": {"items": items}}}},
+    }
+    # Take the raw escaped-JSON import path, then reload the persisted document.
+    wire = json.dumps(document, ensure_ascii=True).encode("ascii")
+    user.save()
+    imported = import_resume_document(
+        load_document_bytes(wire), owner=user, slug="synthetic-surrogate"
+    )
+    assert imported.report.valid
+    row = imported.resume
+    row.refresh_from_db()
+    assert any(item["token"] == malformed for item in row.plugin_data["token"]["items"])
+    url = reverse("resume:cv", kwargs={"slug": row.slug})
+    for query, status in [
+        ({}, 403),
+        ({"token": "synthetic-wrong"}, 403),
+        ({"token": valid}, 200 if valid_sibling else 403),
+    ]:
+        response = client.get(url, query)
+        assert response.status_code == status
+        assert "private" in response["Cache-Control"]
+        assert "no-store" in response["Cache-Control"]
+        assert response["Referrer-Policy"] == "no-referrer"
+        assert b"synthetic-secret-" not in response.content
+        assert valid.encode("utf-8") not in response.content
+        assert b"Traceback" not in response.content
+    assert "synthetic-secret-" not in caplog.text
+    assert valid not in caplog.text
+    assert "Traceback" not in caplog.text

@@ -4,9 +4,15 @@ JSON Resume imports store item data without running the item forms, so the
 forms' URL validation cannot be relied on at render time.
 """
 
+from copy import deepcopy
+
 import pytest
+from django.contrib.auth.models import AnonymousUser
 from django.urls import reverse
 
+from django_resume.formats.json_resume.export import export_resume
+from django_resume.pages.base import build_base_context
+from django_resume.pages.builtins import CvPage
 from django_resume.plugins.education import EducationItemForm
 from django_resume.plugins.projects import ProjectItemForm
 from django_resume.plugins.timelines import TimelineItemForm
@@ -162,3 +168,92 @@ def test_item_context_drops_dangerous_link_schemes(
     context = form.set_context(item, {"edit_url": "#", "delete_url": "#"})
 
     assert context[context_key][field_name] == ""
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("theme", THEMES)
+@pytest.mark.parametrize("edit", [False, True])
+@pytest.mark.parametrize("flat_state", ["missing", "empty", "stored"])
+def test_cv_render_keeps_source_data_for_export_and_save(
+    cv_resume, rf, theme, edit, flat_state
+):
+    cv_resume.plugin_data["theme"] = {"name": theme}
+    projects = cv_resume.plugin_data["projects"]
+    if flat_state == "missing":
+        projects.pop("flat")
+    elif flat_state == "empty":
+        projects["flat"] = {}
+    else:
+        projects["flat"]["extension"] = {"labels": ["synthetic"]}
+    before = deepcopy(cv_resume.plugin_data)
+    request = rf.get("/cv/", {"edit": "true"} if edit else {})
+    request.user = cv_resume.owner if edit else AnonymousUser()
+    page = CvPage()
+
+    # Reuse the same in-memory instance across contexts and full template renders.
+    for _ in range(2):
+        context = page.get_context(
+            request, cv_resume, base_context=build_base_context(request, cv_resume)
+        )
+        entries = context["projects"]["ordered_entries"]
+        assert next(item for item in entries if item["id"] == "p1")["url"] == ""
+        assert all(("edit_url" in item) is edit for item in entries)
+        assert context["projects"]["title"]
+        response = page.serve(
+            request, cv_resume, build_base_context(request, cv_resume)
+        )
+        assert response.status_code == 200
+        assert b"javascript:" not in response.content.lower()
+        assert cv_resume.plugin_data == before
+
+    # Nested extension values in display projections must also be detached.
+    if flat_state == "stored":
+        context["projects"]["extension"]["labels"].append("display-only")
+    entries[0]["badges"].append("display-only")
+    assert cv_resume.plugin_data == before
+    exported = export_resume(cv_resume)
+    assert exported.document["meta"]["django_resume"]["plugin_data"] == before
+    cv_resume.save()
+    cv_resume.refresh_from_db()
+    assert cv_resume.plugin_data == before
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("theme", THEMES)
+@pytest.mark.parametrize("edit", [False, True])
+def test_cv_render_converts_and_sanitizes_display_descriptions_only(
+    cv_resume, rf, theme, edit
+):
+    unsafe_markdown = "**synthetic-bold** <img src=x onerror=synthetic_xss_marker()>"
+    cv_resume.plugin_data["theme"] = {"name": theme}
+    cv_resume.plugin_data["projects"]["items"][0]["description"] = unsafe_markdown
+    cv_resume.plugin_data["employed_timeline"]["items"][0]["description"] = (
+        unsafe_markdown
+    )
+    before = deepcopy(cv_resume.plugin_data)
+    request = rf.get("/cv/", {"edit": "true"} if edit else {})
+    request.user = cv_resume.owner if edit else AnonymousUser()
+    page = CvPage()
+
+    for _ in range(2):
+        context = page.get_context(
+            request, cv_resume, base_context=build_base_context(request, cv_resume)
+        )
+        for key, item_id in [("projects", "p1"), ("employed_timeline", "w1")]:
+            entry = next(
+                item
+                for item in context[key]["ordered_entries"]
+                if item["id"] == item_id
+            )
+            assert "<strong>synthetic-bold</strong>" in entry["description"]
+            assert "synthetic_xss_marker" not in entry["description"]
+        response = page.serve(
+            request, cv_resume, build_base_context(request, cv_resume)
+        )
+        assert response.status_code == 200
+        content = response.content.decode()
+        # Some themes omit one of the two sections; each rendered one is converted.
+        assert "<strong>synthetic-bold</strong>" in content
+        assert "**synthetic-bold**" not in content
+        assert "synthetic_xss_marker" not in content
+        assert cv_resume.plugin_data == before

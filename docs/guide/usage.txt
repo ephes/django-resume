@@ -398,6 +398,11 @@ unrelated users, even when a malformed container also claims token access is
 optional. Denials retain private/no-store, no-referrer and noindex headers.
 Owner/staff bypass is intentional; missing token data keeps the secure default.
 
+Individual stored secrets that cannot be encoded as UTF-8 (for example, lone
+surrogates restored from escaped JSON) are ignored as invalid tokens. They do
+not grant access or prevent a valid sibling token from opening the protected
+CV. Encodable secrets still use constant-time comparison.
+
 Concurrent root admin edits
 ---------------------------
 

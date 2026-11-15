@@ -101,9 +101,20 @@ Internally delegates to :meth:`ListData.get_data`.
 **get_context(_request, plugin_data, resume_pk, *, context, edit=False, theme="plain")**
 
 Builds the plugin context for display on the website (inline editing). For example,
-if no ``"flat"`` data exists, it populates it with initial form data. It updates
+if no ``"flat"`` data exists, it uses initial form data for display. It updates
 the context with ordered items (using :meth:`items_ordered_by_position`) and adds
 edit or delete URLs if editing is enabled.
+
+Flat values and ordered items are detached copies, including nested extension
+data. Defaults, safe link targets and edit/delete URLs affect only the display
+context; rendering leaves ``Resume.plugin_data`` unchanged for later export or
+save. Subclasses should transform ``context["ordered_entries"]`` rather than
+the source ``plugin_data`` when preparing item display values.
+
+The built-in cover, projects and timeline plugins follow this boundary for
+Markdown-to-HTML rendering.
+Repeated public or editable renders keep the author's Markdown unchanged. Its
+``first_item`` references the first displayed entry for the avatar layout.
 
 - **_request**: The current ``HttpRequest``. Typically unused here.
 - **plugin_data** (dict): Data from the resume’s ``plugin_data`` for this plugin.

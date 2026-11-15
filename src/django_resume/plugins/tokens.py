@@ -242,10 +242,16 @@ class TokenPlugin(ListPlugin):
             stored_token = item.get("token")
             if not isinstance(stored_token, str):
                 continue
+            try:
+                stored_token_bytes = stored_token.encode("utf-8")
+            except UnicodeEncodeError:
+                # Restored JSON may contain lone surrogates. Ignore invalid
+                # secrets without preventing valid sibling tokens from working.
+                continue
             # Compare bytes: compare_digest raises TypeError for str values
             # with non-ASCII characters, which would turn a bad token into a 500.
             token_matches = hmac.compare_digest(
-                token.encode("utf-8"), stored_token.encode("utf-8")
+                token.encode("utf-8"), stored_token_bytes
             )
             token_is_unexpired = not is_token_expired(item, now=now, ttl=ttl)
             matched_token |= token_matches
