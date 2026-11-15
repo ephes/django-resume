@@ -180,8 +180,8 @@ class CoverPlugin(ListPlugin):
         context = super().get_context(
             _request, plugin_data, resume_pk, context=context, edit=edit, theme=theme
         )
-        # convert markdown to html for rendering
-        items = plugin_data.get("items", [])
+        # Convert only the detached display records, preserving source Markdown.
+        items = context["ordered_entries"]
         for item in items:
             item["text"] = markdown_to_html(
                 item["text"], handlers={"link": underlined_link_handler}

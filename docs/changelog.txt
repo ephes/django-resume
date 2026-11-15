@@ -5,6 +5,13 @@ Changelog
 Unreleased
 ----------
 
+* Keep list rendering defaults, sanitized links and editor URLs in detached
+  display contexts, preserving source JSON for later export and save.
+* Render cover Markdown on those display records, preserving the author's text
+  across repeated renders, exports and saves, including the first-item layout.
+* Ignore unencodable stored token secrets without exposing them or failing
+  protected CV requests; valid sibling tokens retain access.
+
 * Refresh the documentation/development lock to Beautiful Soup 4.15.0 and
   Soup Sieve 4.1, fixing CVE-2026-126190 and related selector denial-of-service
   advisories. The dev group now needs Python 3.11.5 or later; runtime-only

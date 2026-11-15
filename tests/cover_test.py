@@ -1,8 +1,13 @@
 from tests.editor_helpers import post_current_editor
+from copy import deepcopy
 import re
 import pytest
+from django.contrib.auth.models import AnonymousUser
 from django.core.files.uploadedfile import SimpleUploadedFile
 
+from django_resume.formats.json_resume.export import export_resume
+from django_resume.pages.base import build_base_context
+from django_resume.pages.builtins import CoverLetterPage
 from django_resume.plugins import plugin_registry
 from django_resume.plugins.cover import CoverFlatForm
 
@@ -37,6 +42,63 @@ def test_cover_flat_form_context_carries_letter_details():
 
 def test_cover_flat_form_defaults_closing():
     assert CoverFlatForm().fields["closing"].initial == "Kind regards"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("theme", ["plain", "headwind", "editorial"])
+@pytest.mark.parametrize("edit", [False, True])
+def test_repeated_cover_render_preserves_markdown_for_export_and_save(
+    resume, rf, theme, edit
+):
+    resume.owner.save()
+    resume.plugin_data = {
+        "theme": {"name": theme},
+        "cover": {
+            "flat": dict(LETTER_DETAILS),
+            "items": [
+                {
+                    "id": "first",
+                    "title": "First paragraph",
+                    "text": "**Synthetic emphasis** and [a link](https://example.org/)",
+                },
+                {
+                    "id": "second",
+                    "title": "Second paragraph",
+                    "text": "Literal <strong>markup</strong> and *more emphasis*.",
+                },
+            ],
+        },
+    }
+    resume.save()
+    before = deepcopy(resume.plugin_data)
+    request = rf.get("/cover/", {"edit": "true"} if edit else {})
+    request.user = resume.owner if edit else AnonymousUser()
+    page = CoverLetterPage()
+    rendered = []
+    for _ in range(2):
+        context = page.get_context(
+            request, resume, base_context=build_base_context(request, resume)
+        )["cover"]
+        assert resume.plugin_data == before
+        entries = context["ordered_entries"]
+        assert context["first_item"] is entries[0]
+        assert "<strong>Synthetic emphasis</strong>" in entries[0]["text"]
+        assert 'href="https://example.org/"' in entries[0]["text"]
+        assert "<em>more emphasis</em>" in entries[1]["text"]
+        assert all(("edit_url" in item) is edit for item in entries)
+        response = page.serve(request, resume, build_base_context(request, resume))
+        assert response.status_code == 200
+        assert b"<em>more emphasis</em>" in response.content
+        # Page frames include fresh CSRF masks; compare rendered paragraph HTML.
+        rendered.append([item["text"] for item in entries])
+        assert resume.plugin_data == before
+
+    assert rendered[0] == rendered[1]
+    exported = export_resume(resume)
+    assert exported.document["meta"]["django_resume"]["plugin_data"] == before
+    resume.save()
+    resume.refresh_from_db()
+    assert resume.plugin_data == before
 
 
 @pytest.mark.django_db
