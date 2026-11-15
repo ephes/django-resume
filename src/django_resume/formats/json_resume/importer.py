@@ -17,6 +17,7 @@ from typing import Any, cast
 from urllib.parse import urljoin, urlparse
 
 from django.contrib.auth import get_user_model
+from django.forms import CharField
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_slug
 from django.db import IntegrityError, router, transaction
@@ -33,6 +34,9 @@ from ...models import Resume
 from ...theme_names import is_valid_theme_name
 from ...plugins import plugin_registry
 from ...plugins.tokens import TokenPlugin
+from ...plugins.education import EducationItemForm
+from ...plugins.languages import LanguagesItemForm
+from ...plugins.skills import validate_skill_badges
 from .export import (
     DJANGO_RESUME_META_VERSION,
     RESERVED_EXPORT_PATHS,
@@ -526,6 +530,35 @@ def _validate_restored_plugin_data(plugin_data: object) -> list[str]:
     return errors
 
 
+def _adapter_editor_errors(plugin_name: str, payload: dict) -> list[str]:
+    """Check prepared built-in values against their editor's length limits.
+
+    Validate after mapping (including merged degree/area), without trimming or
+    otherwise changing source values. Opaque extension payloads stay untouched.
+    """
+    errors = []
+    fields = {
+        "education": (EducationItemForm, ("school_name", "degree")),
+        "languages": (LanguagesItemForm, ("note",)),
+    }
+    if plugin_name in fields:
+        form_class, names = fields[plugin_name]
+        for index, item in enumerate(payload.get("items", [])):
+            for name in names:
+                limit = cast(CharField, form_class.base_fields[name]).max_length
+                if limit is not None and len(item.get(name, "")) > limit:
+                    errors.append(
+                        f"{plugin_name}.items[{index}].{name} exceeds editor "
+                        f"maximum length of {limit} characters"
+                    )
+    if plugin_name == "skills" and "badges" in payload:
+        try:
+            validate_skill_badges(payload["badges"])
+        except ValidationError as exc:
+            errors.extend(f"skills.badges: {message}" for message in exc.messages)
+    return errors
+
+
 def _collect_adapter_plugin_data(document: dict, registry) -> tuple[dict, ImportReport]:
     plugin_data = {}
     report = ImportReport()
@@ -574,6 +607,9 @@ def _collect_adapter_plugin_data(document: dict, registry) -> tuple[dict, Import
         result = adapter.import_data(document)
         report.notes.extend(result.notes)
         if result.plugin_data:
+            report.validation_errors.extend(
+                _adapter_editor_errors(plugin_name, result.plugin_data)
+            )
             plugin_data[plugin_name] = result.plugin_data
             report.mapped_plugins.append(plugin_name)
         else:
@@ -826,6 +862,9 @@ def _prepare_resume_import(
         ]
 
     report.notes[:0] = normalization_notes + envelope_notes
+    if report.validation_errors:
+        report.valid = False
+        return PreparedJsonResumeImport(plan=None, report=report)
     resume_name = name or get_pointer(document, "/basics/name", "") or slug
     _validate_resume_metadata(slug=slug, name=resume_name)
     json_resume_state: dict[str, Any] = {"source_plugin_data": deepcopy(plugin_data)}

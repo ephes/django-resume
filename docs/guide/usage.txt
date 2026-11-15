@@ -28,6 +28,14 @@ This is the list of built-in plugins that come with django-resume:
 - **Permission Denied**: The page that is shown when you try to access a part of the resume you need a token for.
 - **Projects**: A list of projects you have worked on.
 - **Skills**: A list of skills you have.
+
+  Skills editors accept a JSON list of at most 1,024 strings, each at most
+  1,024 characters. Unicode text and badge order are preserved. Blank input
+  clears the list; objects, nested lists, numbers, booleans and null members
+  are refused without saving. Legacy JSON-encoded lists remain readable.
+  Display and structured export consider the first 1,024 stored entries and
+  omit non-string or overlong entries. Reading never changes stored data;
+  saving the editor replaces it with the displayed, validated string list.
 - **Page Theme**: The django-resume theme used for built-in pages, editing UI,
   cover letters, and plugin templates (``plain``, ``headwind`` or
   ``editorial``, see :doc:`themes`) and the optional resume language.
