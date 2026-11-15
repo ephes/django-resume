@@ -144,3 +144,29 @@ def test_delete_revision_ignores_other_items_but_rejects_other_targets(
     assert [item["id"] for item in editor_resume.plugin_data["education"]["items"]] == [
         "other"
     ]
+
+
+@pytest.mark.django_db
+def test_admin_delete_survives_htmx_appending_enclosing_form_fields(
+    client, editor_resume
+):
+    """htmx sends the enclosing form's inputs as DELETE query parameters.
+
+    The admin item form renders its own item-scope ``edit_revision`` hidden
+    field around the Delete link, so the delete-scope token must not share
+    that parameter name.
+    """
+    from urllib.parse import urlencode
+
+    plugin = plugin_registry.get_plugin("education")
+    response = client.get(plugin.admin.get_change_url(editor_resume.pk))
+    form = response.context["item_forms"][0]
+    fields = {
+        name: form[name].value() if form[name].value() is not None else ""
+        for name in form.fields
+    }
+    assert fields["edit_revision"]
+    url = form.delete_url + "&" + urlencode({"csrfmiddlewaretoken": "x", **fields})
+    assert client.delete(url).status_code == 200
+    editor_resume.refresh_from_db()
+    assert editor_resume.plugin_data["education"]["items"] == []

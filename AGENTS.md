@@ -30,5 +30,7 @@
 - New item forms keep their signed proposed identity on create. Item delete
   controls sign original stored data before adding display fields; compare
   that revision under the existing writer transaction and return 409 on conflict.
+  Delete URLs use their own `delete_revision` query parameter (htmx appends
+  the enclosing form's `edit_revision` to DELETE query strings).
 - Owner artifact and inline responses must explicitly disable shared caching.
 - Regression fixtures use synthetic resumes and temporary/in-memory storage.

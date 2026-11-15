@@ -20,7 +20,8 @@ def revision_data(view, resume, data, scope="simple"):
         state = view.data.get_item_by_id(resume, scope.split(":", 1)[1])
     form = forms.Form()
     set_edit_revision(form, resume, view.plugin_name, scope, state)
-    return {**data, "edit_revision": form["edit_revision"].value()}
+    key = "delete_revision" if scope.startswith("delete-item:") else "edit_revision"
+    return {**data, key: form["edit_revision"].value()}
 
 
 def post_current_editor(client, url, data=None, **kwargs):

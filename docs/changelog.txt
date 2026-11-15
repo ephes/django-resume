@@ -11,6 +11,9 @@ Unreleased
 
 * Fence item deletion with signed current-item revisions in admin and inline
   controls; stale or missing revisions return 409 without deleting newer data.
+  Delete URLs carry the token as ``delete_revision`` so the enclosing form's
+  ``edit_revision`` field, which htmx appends to DELETE requests, cannot
+  shadow it.
 
 * Preserve the signed add form's proposed item identity, rejecting successful
   request replays before storing uploads or appending duplicate list items.

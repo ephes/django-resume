@@ -178,6 +178,10 @@ class SimpleJsonForm(forms.Form):
 
 
 EDIT_REVISION_FIELD = "edit_revision"
+# Delete URLs carry their own revision parameter: htmx appends the enclosing
+# form's fields (including its ``edit_revision``) to DELETE query strings, and a
+# shared name would let the item-scope token shadow the delete-scope token.
+DELETE_REVISION_FIELD = "delete_revision"
 
 
 def edit_revision_claims(
@@ -196,7 +200,7 @@ def signed_item_delete_url(
         resume_id, plugin_name, "delete-item:" + item["id"], item
     )
     token = signing.dumps(claims, salt="django_resume.edit")
-    return url + "?" + urlencode({EDIT_REVISION_FIELD: token})
+    return url + "?" + urlencode({DELETE_REVISION_FIELD: token})
 
 
 def item_delete_is_current(
@@ -204,8 +208,8 @@ def item_delete_is_current(
 ) -> bool:
     if item is None:
         return False
-    value = request.GET.get(EDIT_REVISION_FIELD) or request.POST.get(
-        EDIT_REVISION_FIELD, ""
+    value = request.GET.get(DELETE_REVISION_FIELD) or request.POST.get(
+        DELETE_REVISION_FIELD, ""
     )
     form = forms.Form({EDIT_REVISION_FIELD: value})
     set_edit_revision(form, resume, plugin_name, "delete-item:" + item["id"], item)
