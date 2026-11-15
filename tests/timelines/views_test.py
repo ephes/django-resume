@@ -113,9 +113,9 @@ def test_create_item(client, resume, timeline_item_data):
     assert item["company_name"] == timeline_item_data["company_name"]
 
     # And the delete and edit urls should be in the context
-    assert r.context["entry"]["delete_url"] == plugin.inline.get_delete_item_url(
-        resume.pk, item["id"]
-    )
+    assert r.context["entry"]["delete_url"].split("?")[
+        0
+    ] == plugin.inline.get_delete_item_url(resume.pk, item["id"])
     assert r.context["entry"]["edit_url"] == plugin.inline.get_edit_item_url(
         resume.pk, item["id"]
     )
@@ -142,9 +142,9 @@ def test_update_item(client, resume_with_timeline_item, timeline_item_data):
     assert updated_item["company_name"] == timeline_item_data["company_name"]
 
     # And the delete and edit urls should be in the context
-    assert r.context["entry"]["delete_url"] == plugin.inline.get_delete_item_url(
-        resume.pk, item["id"]
-    )
+    assert r.context["entry"]["delete_url"].split("?")[
+        0
+    ] == plugin.inline.get_delete_item_url(resume.pk, item["id"])
     assert r.context["entry"]["edit_url"] == plugin.inline.get_edit_item_url(
         resume.pk, item["id"]
     )

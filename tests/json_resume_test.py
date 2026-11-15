@@ -924,7 +924,10 @@ def test_imported_official_schema_sample_renders_and_reexports_identically(
         export_response.headers["Content-Disposition"]
         == 'attachment; filename="jsonresume-schema-sample.json"'
     )
-    assert export_response.headers["Cache-Control"] == "private, no-store"
+    assert (
+        export_response.headers["Cache-Control"]
+        == "private, no-store, max-age=0, no-cache, must-revalidate"
+    )
     assert json.loads(export_response.content) == document
 
     exported = export_resume(result.resume)
@@ -1988,7 +1991,10 @@ def test_preview_catalog_theme_renders_without_persisting_selection(
 
     assert response.status_code == 200
     assert response.content == b"<html><body>even preview</body></html>"
-    assert response.headers["Cache-Control"] == "private, no-store"
+    assert (
+        response.headers["Cache-Control"]
+        == "private, no-store, max-age=0, no-cache, must-revalidate"
+    )
     csp = response.headers["Content-Security-Policy"]
     assert "script-src" not in csp
     assert "https://fonts.googleapis.com" not in csp
@@ -2204,7 +2210,10 @@ def test_render_json_resume_theme_view_returns_theme_html(client, user, monkeypa
 
     assert response.status_code == 200
     assert response.content == b"<html><body>Themed Jane</body></html>"
-    assert response.headers["Cache-Control"] == "private, no-store"
+    assert (
+        response.headers["Cache-Control"]
+        == "private, no-store, max-age=0, no-cache, must-revalidate"
+    )
     assert "Content-Security-Policy" in response.headers
     csp = response.headers["Content-Security-Policy"]
     assert "img-src 'self' data: https:" in csp
@@ -2302,7 +2311,10 @@ def test_render_json_resume_theme_output_contract(
     if output_kind == "valid":
         assert response.status_code == 200
         assert response.content == b"<html>Jane</html>"
-        assert response.headers["Cache-Control"] == "private, no-store"
+        assert (
+            response.headers["Cache-Control"]
+            == "private, no-store, max-age=0, no-cache, must-revalidate"
+        )
         assert "default-src 'none'" in response.headers["Content-Security-Policy"]
         assert response.headers["X-Frame-Options"] == "SAMEORIGIN"
     else:

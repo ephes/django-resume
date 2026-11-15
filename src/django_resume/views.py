@@ -2,13 +2,13 @@ import json
 from typing import Any
 from urllib.parse import urlencode
 
-from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.db import IntegrityError, router, transaction
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import redirect, render, get_object_or_404
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods
+from django.views.decorators.cache import never_cache
 
 from .formats.json_resume.export import export_resume
 from .formats.json_resume.import_preview import (
@@ -43,6 +43,7 @@ from .formats.json_resume.themes import (
     catalog_theme_install_allowed,
     catalog_theme_installed,
     dynamic_theme_install_allowed,
+    execution_flag,
     install_catalog_theme,
     install_theme,
     render_catalog_theme,
@@ -121,7 +122,15 @@ def _read_uploaded_import(uploaded_file) -> bytes:
         raise JsonResumeImportError(
             f"Input exceeds maximum size of {MAX_INPUT_BYTES} bytes"
         )
-    return uploaded_file.read()
+    try:
+        data = uploaded_file.read(MAX_INPUT_BYTES + 1)
+    except OSError as exc:
+        raise JsonResumeImportError("Could not read uploaded file") from exc
+    if len(data) > MAX_INPUT_BYTES:
+        raise JsonResumeImportError(
+            f"Input exceeds maximum size of {MAX_INPUT_BYTES} bytes"
+        )
+    return data
 
 
 def _prepare_uploaded_import(
@@ -326,6 +335,7 @@ def resume_delete(request: HttpRequest, slug: str) -> HttpResponse:
     return HttpResponse(status=200)  # 200 instead of 204 for htmx compatibility
 
 
+@never_cache
 @login_required
 @require_http_methods(["GET"])
 def export_json_resume(request: HttpRequest, slug: str) -> HttpResponse:
@@ -354,6 +364,7 @@ def export_json_resume(request: HttpRequest, slug: str) -> HttpResponse:
     return response
 
 
+@never_cache
 @login_required
 @require_http_methods(["GET"])
 def json_resume_theme_selector(request: HttpRequest, slug: str) -> HttpResponse:
@@ -388,6 +399,7 @@ def json_resume_theme_selector(request: HttpRequest, slug: str) -> HttpResponse:
     )
 
 
+@never_cache
 @login_required
 @require_http_methods(["POST"])
 def install_json_resume_theme(request: HttpRequest, slug: str) -> HttpResponse:
@@ -449,6 +461,7 @@ def _ensure_catalog_theme(entry: ThemeCatalogEntry) -> None:
         )
 
 
+@never_cache
 @login_required
 @require_http_methods(["POST"])
 def preview_json_resume_catalog_theme(
@@ -479,6 +492,7 @@ def preview_json_resume_catalog_theme(
     return _theme_html_response(rendered.html)
 
 
+@never_cache
 @login_required
 @require_http_methods(["POST"])
 def use_json_resume_catalog_theme(
@@ -518,6 +532,7 @@ def use_json_resume_catalog_theme(
     return redirect("django_resume:json-resume-themes", slug=resume.slug)
 
 
+@never_cache
 @login_required
 @require_http_methods(["GET"])
 def render_json_resume_theme(request: HttpRequest, slug: str) -> HttpResponse:
@@ -547,7 +562,7 @@ def _theme_html_response(html: str) -> HttpResponse:
 def _theme_content_security_policy() -> str:
     style_src = "style-src 'unsafe-inline'"
     script_src = ""
-    if getattr(settings, "DJANGO_RESUME_JSON_RESUME_ALLOW_THEME_SCRIPTS", False):
+    if execution_flag("DJANGO_RESUME_JSON_RESUME_ALLOW_THEME_SCRIPTS"):
         style_src = "style-src 'unsafe-inline' https://fonts.googleapis.com"
         script_src = " script-src 'unsafe-inline';"
     return (

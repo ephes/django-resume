@@ -1,16 +1,22 @@
-from django.urls import path, reverse
+from django.urls import path
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import never_cache
 from django.views.generic import RedirectView
 
 from . import views
 from .pages import page_registry
 
 
+@method_decorator(never_cache, name="dispatch")
 class CvRedirectView(RedirectView):
     permanent = True
+    pattern_name = "django_resume:cv"
+    query_string = True
 
-    def get_redirect_url(self, *args, **kwargs) -> str:
-        slug = kwargs["slug"]
-        return reverse("django_resume:cv", kwargs={"slug": slug})
+    def get(self, request, *args, **kwargs):
+        response = super().get(request, *args, **kwargs)
+        response["Referrer-Policy"] = "no-referrer"
+        return response
 
 
 app_name = "django_resume"

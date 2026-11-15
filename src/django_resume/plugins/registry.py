@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, Union
 
 from django.urls import URLPattern, clear_url_caches
+from django.views.decorators.cache import never_cache
 
 if TYPE_CHECKING:
     from .base import Plugin
@@ -43,7 +44,7 @@ class PluginRegistry:
         inline_urls = [
             URLPattern(
                 pattern.pattern,
-                with_resume_language(pattern.callback),
+                never_cache(with_resume_language(pattern.callback)),
                 pattern.default_args,
                 pattern.name,
             )

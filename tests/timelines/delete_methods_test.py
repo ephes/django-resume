@@ -19,7 +19,11 @@ def test_inline_delete_rejects_other_methods(client, resume_with_timeline_item, 
     # Given the owner is logged in and has a timeline item
     resume = resume_with_timeline_item
     client.force_login(resume.owner)
-    url = EmployedTimelinePlugin().inline.get_delete_item_url(resume.pk, "123")
+    url = EmployedTimelinePlugin().inline.get_delete_item_url(
+        resume.pk,
+        "123",
+        item=EmployedTimelinePlugin().data.get_item_by_id(resume, "123"),
+    )
 
     # When the delete URL is requested with a method other than POST or DELETE
     r = getattr(client, method)(url)
@@ -34,7 +38,11 @@ def test_inline_delete_rejects_other_methods(client, resume_with_timeline_item, 
 def test_inline_delete_by_owner(client, resume_with_timeline_item, method):
     resume = resume_with_timeline_item
     client.force_login(resume.owner)
-    url = EmployedTimelinePlugin().inline.get_delete_item_url(resume.pk, "123")
+    url = EmployedTimelinePlugin().inline.get_delete_item_url(
+        resume.pk,
+        "123",
+        item=EmployedTimelinePlugin().data.get_item_by_id(resume, "123"),
+    )
 
     r = getattr(client, method)(url)
 
@@ -48,7 +56,11 @@ def test_inline_delete_by_other_user_is_forbidden(client, resume_with_timeline_i
     resume = resume_with_timeline_item
     other = User.objects.create_user(username="mallory", password="x")
     client.force_login(other)
-    url = EmployedTimelinePlugin().inline.get_delete_item_url(resume.pk, "123")
+    url = EmployedTimelinePlugin().inline.get_delete_item_url(
+        resume.pk,
+        "123",
+        item=EmployedTimelinePlugin().data.get_item_by_id(resume, "123"),
+    )
 
     # When they try to delete the owner's item
     r = client.delete(url)
@@ -64,7 +76,11 @@ def test_inline_delete_requires_csrf_token(resume_with_timeline_item):
     resume = resume_with_timeline_item
     client = Client(enforce_csrf_checks=True)
     client.force_login(resume.owner)
-    url = EmployedTimelinePlugin().inline.get_delete_item_url(resume.pk, "123")
+    url = EmployedTimelinePlugin().inline.get_delete_item_url(
+        resume.pk,
+        "123",
+        item=EmployedTimelinePlugin().data.get_item_by_id(resume, "123"),
+    )
 
     # When the DELETE is sent without a CSRF token, it is rejected
     r = client.delete(url)
@@ -86,7 +102,11 @@ def test_admin_delete_rejects_other_methods(
 ):
     resume = resume_with_timeline_item
     admin_client.force_login(resume.owner)
-    url = EmployedTimelinePlugin().admin.get_delete_item_url(resume.pk, "123")
+    url = EmployedTimelinePlugin().admin.get_delete_item_url(
+        resume.pk,
+        "123",
+        item=EmployedTimelinePlugin().data.get_item_by_id(resume, "123"),
+    )
 
     r = getattr(admin_client, method)(url)
 
@@ -98,7 +118,11 @@ def test_admin_delete_rejects_other_methods(
 def test_admin_delete_with_delete_method(admin_client, resume_with_timeline_item):
     resume = resume_with_timeline_item
     admin_client.force_login(resume.owner)
-    url = EmployedTimelinePlugin().admin.get_delete_item_url(resume.pk, "123")
+    url = EmployedTimelinePlugin().admin.get_delete_item_url(
+        resume.pk,
+        "123",
+        item=EmployedTimelinePlugin().data.get_item_by_id(resume, "123"),
+    )
 
     r = admin_client.delete(url)
 

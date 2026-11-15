@@ -234,6 +234,7 @@ class ImageFormMixin:
     image_fields: Iterable[tuple[str, str]] = []  # [("image_field", "clear_field")]
 
     def __init__(self, *args, **kwargs) -> None:
+        self.image_fields = tuple(self.image_fields)
         self.new_image_uploads: list[str] = []
         super().__init__(*args, **kwargs)
         initial = cast(dict[str, Any], self.initial)  # type: ignore

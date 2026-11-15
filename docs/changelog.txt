@@ -5,6 +5,28 @@ Changelog
 Unreleased
 ----------
 
+* Apply Django's private never-cache policy to owner artifact/theme routes and
+  all registered inline plugin responses, including returned validation errors,
+  diagnostics and login redirects; preserve public page cache behavior.
+
+* Fence item deletion with signed current-item revisions in admin and inline
+  controls; stale or missing revisions return 409 without deleting newer data.
+  Delete URLs carry the token as ``delete_revision`` so the enclosing form's
+  ``edit_revision`` field, which htmx appends to DELETE requests, cannot
+  shadow it.
+
+* Preserve the signed add form's proposed item identity, rejecting successful
+  request replays before storing uploads or appending duplicate list items.
+
+* Require actual booleans for dynamic/catalog theme installation and theme
+  scripts; invalid settings fail closed with a configuration error.
+* Preserve the original query on legacy CV redirects and prevent redirect
+  caching and referrer disclosure.
+
+* Bound browser import reads using actual bytes and report upload read errors.
+* Snapshot image-field iterables per form so all uploads are admitted and
+  stored consistently, including one-shot custom inventories.
+
 * Keep list rendering defaults, sanitized links and editor URLs in detached
   display contexts, preserving source JSON for later export and save.
 * Render cover, project and timeline Markdown on those display records,

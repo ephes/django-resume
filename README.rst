@@ -57,3 +57,49 @@ reload the form and reapply the edit. Fresh raw JSON edits remain supported.
 Inline language selection projects only the stored theme language, keeping
 unrelated sections out of that lookup. JSON Resume schema diagnostics stop at
 20 errors and use bounded locations/messages without echoing invalid values.
+
+Browser JSON Resume imports read at most the input byte limit plus one byte,
+checking actual bytes before parsing, signing a preview or creating a resume.
+Read failures return a file-field diagnostic. Custom image forms may supply a
+one-shot ``image_fields`` iterable: each form snapshots it before field setup,
+preflights every upload before storing any, and tracks only its own new files
+for failure cleanup.
+
+Theme execution policy
+----------------------
+
+``DJANGO_RESUME_JSON_RESUME_ALLOW_DYNAMIC_THEME_INSTALL``,
+``DJANGO_RESUME_JSON_RESUME_ALLOW_CATALOG_THEME_INSTALL`` and
+``DJANGO_RESUME_JSON_RESUME_ALLOW_THEME_SCRIPTS`` default to ``False``.
+Set them to Python ``True`` or ``False`` in Django settings; strings such as
+``"false"``, numbers and containers raise ``ImproperlyConfigured`` before the
+corresponding execution privilege is granted. Convert environment variables
+explicitly in your settings module.
+
+Legacy ``/cv/<slug>/`` links redirect to the canonical CV path with their
+original query string, including escaped tokens and repeated parameters.
+Redirects are private, never stored, and send ``Referrer-Policy: no-referrer``.
+
+Each rendered add-item form proposes a stable item UUID, bound into its signed
+absence revision. Retrying an accepted add form returns a recoverable conflict
+without creating another item or storing another upload. Open a fresh form to
+add another item. Admin and inline editors share this contract.
+
+Rendered item delete URLs carry a signed revision of the original stored item.
+Both admin and inline POST/DELETE endpoints compare it under the writer
+transaction; missing, altered or stale revisions return HTTP 409 and keep the
+item. Reload the page to inspect the current item before deleting again.
+Custom renderers must pass the original item as ``item=`` to
+``get_delete_item_url(resume_id, item_id, item=item)``; display transformations
+must happen after signing. CSRF and owner checks still apply.
+
+Owner response caching
+----------------------
+
+JSON Resume exports, theme selection/installation/preview/render responses,
+and registered inline plugin responses explicitly send ``private, no-store``
+using Django's never-cache policy. This includes returned validation errors,
+rendering diagnostics and login redirects. An integrator's site cache
+middleware must never replay these owner responses to another session or
+reuse signed editor forms after a mutation. Public page cache behavior is
+unchanged. Standard Django admin forms retain their admin cache policy.

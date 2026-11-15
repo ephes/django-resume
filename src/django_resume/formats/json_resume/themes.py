@@ -22,6 +22,7 @@ from filelock import FileLock, Timeout
 from copy import deepcopy
 
 from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
 from django.db import DatabaseError, router, transaction
 
 from ...models import Resume
@@ -306,20 +307,20 @@ def is_theme_package_name(value: str) -> bool:
     return bool(THEME_PACKAGE_RE.fullmatch(value))
 
 
+def execution_flag(name: str) -> bool:
+    """Execution privileges require typed Django settings, never truthiness."""
+    value = getattr(settings, name, False)
+    if type(value) is not bool:
+        raise ImproperlyConfigured(f"{name} must be a boolean (True or False)")
+    return value
+
+
 def dynamic_theme_install_allowed() -> bool:
-    return bool(
-        getattr(
-            settings, "DJANGO_RESUME_JSON_RESUME_ALLOW_DYNAMIC_THEME_INSTALL", False
-        )
-    )
+    return execution_flag("DJANGO_RESUME_JSON_RESUME_ALLOW_DYNAMIC_THEME_INSTALL")
 
 
 def catalog_theme_install_allowed() -> bool:
-    return bool(
-        getattr(
-            settings, "DJANGO_RESUME_JSON_RESUME_ALLOW_CATALOG_THEME_INSTALL", False
-        )
-    )
+    return execution_flag("DJANGO_RESUME_JSON_RESUME_ALLOW_CATALOG_THEME_INSTALL")
 
 
 def resumed_version() -> str:

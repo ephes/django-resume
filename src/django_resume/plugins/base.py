@@ -4,6 +4,7 @@ import json
 from contextlib import contextmanager
 from collections.abc import Iterator
 from uuid import uuid4
+from urllib.parse import urlencode
 
 from typing import (
     Protocol,
@@ -177,6 +178,42 @@ class SimpleJsonForm(forms.Form):
 
 
 EDIT_REVISION_FIELD = "edit_revision"
+# Delete URLs carry their own revision parameter: htmx appends the enclosing
+# form's fields (including its ``edit_revision``) to DELETE query strings, and a
+# shared name would let the item-scope token shadow the delete-scope token.
+DELETE_REVISION_FIELD = "delete_revision"
+
+
+def edit_revision_claims(
+    resume_id: int, plugin_name: str, scope: str, state: Any
+) -> list:
+    fingerprint = hashlib.sha256(
+        json.dumps(state, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+    return [resume_id, plugin_name, scope, fingerprint]
+
+
+def signed_item_delete_url(
+    url: str, resume_id: int, plugin_name: str, item: dict
+) -> str:
+    claims = edit_revision_claims(
+        resume_id, plugin_name, "delete-item:" + item["id"], item
+    )
+    token = signing.dumps(claims, salt="django_resume.edit")
+    return url + "?" + urlencode({DELETE_REVISION_FIELD: token})
+
+
+def item_delete_is_current(
+    request: HttpRequest, resume: Resume, plugin_name: str, item: dict | None
+) -> bool:
+    if item is None:
+        return False
+    value = request.GET.get(DELETE_REVISION_FIELD) or request.POST.get(
+        DELETE_REVISION_FIELD, ""
+    )
+    form = forms.Form({EDIT_REVISION_FIELD: value})
+    set_edit_revision(form, resume, plugin_name, "delete-item:" + item["id"], item)
+    return form.is_valid()
 
 
 def set_edit_revision(
@@ -189,10 +226,7 @@ def set_edit_revision(
     refresh: bool = False,
 ) -> None:
     """Bind a form to just the section/item it can replace, before cleaning uploads."""
-    fingerprint = hashlib.sha256(
-        json.dumps(state, sort_keys=True, separators=(",", ":")).encode()
-    ).hexdigest()
-    expected = [resume.pk, plugin_name, scope, fingerprint]
+    expected = edit_revision_claims(resume.pk, plugin_name, scope, state)
 
     def validate_revision(value: str) -> None:
         try:
@@ -964,11 +998,18 @@ class ListAdmin(LockedResumeMutationMixin):
             f"admin:{self.plugin_name}-admin-item-post", kwargs={"resume_id": resume_id}
         )
 
-    def get_delete_item_url(self, resume_id: int, item_id: str) -> str:
-        """Used for delete item."""
-        return reverse(
+    def get_delete_item_url(
+        self, resume_id: int, item_id: str, *, item: dict | None = None
+    ) -> str:
+        """Supply the rendered item state to authorize deleting that revision."""
+        url = reverse(
             f"admin:{self.plugin_name}-admin-item-delete",
             kwargs={"resume_id": resume_id, "item_id": item_id},
+        )
+        return (
+            signed_item_delete_url(url, resume_id, self.plugin_name, item)
+            if item is not None
+            else url
         )
 
     def get_item_add_form_url(self, resume_id: int) -> str:
@@ -1056,7 +1097,7 @@ class ListAdmin(LockedResumeMutationMixin):
             )
             form.post_url = post_url
             form.delete_url = self.get_delete_item_url(
-                resume.id, initial_item_data["id"]
+                resume.id, initial_item_data["id"], item=initial_item_data
             )
             item_forms.append(form)
         context["add_item_form_url"] = self.get_item_add_form_url(resume.id)
@@ -1102,7 +1143,7 @@ class ListAdmin(LockedResumeMutationMixin):
                 else:
                     # create new item
                     data = form.cleaned_data
-                    item_id = str(uuid4())
+                    item_id = data.get("id") or str(uuid4())
                     data["id"] = item_id
                     resume = self.data.create(resume, data)
                     # weird hack to make the form look like it is for an existing item
@@ -1118,7 +1159,9 @@ class ListAdmin(LockedResumeMutationMixin):
                     self.data.get_item_by_id(resume, item_id),
                     refresh=True,
                 )
-                form.delete_url = self.get_delete_item_url(resume.id, item_id)
+                form.delete_url = self.get_delete_item_url(
+                    resume.id, item_id, item=self.data.get_item_by_id(resume, item_id)
+                )
             return render(request, self.admin_item_change_form_template, context)
 
     def post_flat_view(self, request: HttpRequest, resume_id: int) -> HttpResponse:
@@ -1158,6 +1201,12 @@ class ListAdmin(LockedResumeMutationMixin):
     ) -> HttpResponse:
         """Delete an item from the items list of this plugin."""
         with self.locked_resume(request, resume_id) as resume:
+            item = self.data.get_item_by_id(resume, item_id)
+            if not item_delete_is_current(request, resume, self.plugin_name, item):
+                return HttpResponse(
+                    "This item changed since you opened it. Reload the page before deleting it.",
+                    status=409,
+                )
             resume = self.data.delete(resume, {"id": item_id})
             self.save_plugin_data(resume)
         return HttpResponse(status=200)
@@ -1253,10 +1302,18 @@ class ListInline(LockedResumeMutationMixin):
             kwargs={"resume_id": resume_id},
         )
 
-    def get_delete_item_url(self, resume_id: int, item_id: str) -> str:
-        return reverse(
+    def get_delete_item_url(
+        self, resume_id: int, item_id: str, *, item: dict | None = None
+    ) -> str:
+        """Supply the rendered item state to authorize deleting that revision."""
+        url = reverse(
             f"django_resume:{self.plugin_name}-delete-item",
             kwargs={"resume_id": resume_id, "item_id": item_id},
+        )
+        return (
+            signed_item_delete_url(url, resume_id, self.plugin_name, item)
+            if item is not None
+            else url
         )
 
     def template_path(self, resume: Resume, template_name: str) -> str:
@@ -1399,7 +1456,7 @@ class ListInline(LockedResumeMutationMixin):
                 else:
                     # create new item
                     data = form.cleaned_data
-                    item_id = str(uuid4())
+                    item_id = data.get("id") or str(uuid4())
                     data["id"] = item_id
                     resume = self.data.create(resume, data)
                     # weird hack to make the form look like it is for an existing item
@@ -1411,7 +1468,9 @@ class ListInline(LockedResumeMutationMixin):
                 # populate entry because it's used in the standard item template,
                 # and we are no longer rendering a form when the form was valid
                 context["edit_url"] = self.get_edit_item_url(resume.id, item_id)
-                context["delete_url"] = self.get_delete_item_url(resume.id, item_id)
+                context["delete_url"] = self.get_delete_item_url(
+                    resume.id, item_id, item=item
+                )
                 form.set_context(item, context)
                 context["show_edit_button"] = True
                 context["plugin_name"] = self.plugin_name  # for javascript
@@ -1425,6 +1484,12 @@ class ListInline(LockedResumeMutationMixin):
     ) -> HttpResponse:
         """Delete an item from the items list of this plugin."""
         with self.locked_resume(request, resume_id) as resume:
+            item = self.data.get_item_by_id(resume, item_id)
+            if not item_delete_is_current(request, resume, self.plugin_name, item):
+                return HttpResponse(
+                    "This item changed since you opened it. Reload the page before deleting it.",
+                    status=409,
+                )
             resume = self.data.delete(resume, {"id": item_id})
             self.save_plugin_data(resume)
         return HttpResponse(status=200)
@@ -1558,6 +1623,10 @@ class ListPlugin:
             reverse=self.sort_by_reverse_position,
         )
         for entry in ordered_entries:
+            if edit:
+                entry["delete_url"] = self.inline.get_delete_item_url(
+                    resume_pk, item_id=entry["id"], item=entry
+                )
             for field_name in self.link_fields:
                 if field_name in entry:
                     entry[field_name] = safe_link_url(str(entry[field_name] or ""))
@@ -1566,9 +1635,6 @@ class ListPlugin:
             context["show_edit_button"] = True
             for entry in ordered_entries:
                 entry["edit_url"] = self.inline.get_edit_item_url(
-                    resume_pk, item_id=entry["id"]
-                )
-                entry["delete_url"] = self.inline.get_delete_item_url(
                     resume_pk, item_id=entry["id"]
                 )
         context.update(
