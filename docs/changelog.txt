@@ -5,6 +5,12 @@ Changelog
 Unreleased
 ----------
 
+* Preserve degrees and extension metadata when runtime legacy education data
+  is read and later saved through either editor, without writes on read.
+* Render permission-denied pages without resolving storage URLs for absent,
+  blank or invalid optional avatar references; configured storage failures
+  still propagate.
+
 * Refuse portable imports whose prepared education, language or skill values
   exceed editor limits, before creating a resume; retain mapping/loss notes
   and report the affected field without truncating the source.

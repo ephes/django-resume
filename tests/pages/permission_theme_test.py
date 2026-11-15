@@ -4,6 +4,7 @@ from tests.editor_helpers import post_current_editor
 
 
 from copy import deepcopy
+from unittest.mock import patch
 
 import pytest
 from django.urls import reverse
@@ -133,3 +134,46 @@ def test_plain_denial_avatar_uses_its_own_dimensions(client, protected_resume):
     assert 'width="120"' in html
     assert 'height="80"' in html
     assert 'width="999"' not in html
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("avatar", [..., None, "", "   ", False, {}])
+def test_denied_page_without_optional_avatar_skips_storage(
+    client, protected_resume, avatar
+):
+    resume = protected_resume
+    resume.plugin_data["theme"]["name"] = "plain"
+    if avatar is not ...:
+        resume.plugin_data["permission_denied"]["avatar_img"] = avatar
+    resume.save()
+    with patch(
+        "django_resume.plugins.permission_denied.default_storage.url",
+        side_effect=ValueError("storage refuses empty or invalid keys"),
+    ) as storage_url:
+        response = client.get(reverse("resume:cv", kwargs={"slug": resume.slug}))
+    assert response.status_code == 403
+    assert "CV access request" in response.content.decode()
+    storage_url.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_denied_page_resolves_configured_avatar_once(client, protected_resume):
+    resume = protected_resume
+    resume.plugin_data["theme"]["name"] = "plain"
+    resume.plugin_data["permission_denied"]["avatar_img"] = "synthetic.png"
+    resume.save()
+    with patch(
+        "django_resume.plugins.permission_denied.default_storage.url",
+        return_value="/synthetic-storage/synthetic.png",
+    ) as storage_url:
+        response = client.get(reverse("resume:cv", kwargs={"slug": resume.slug}))
+    assert response.status_code == 403
+    assert "/synthetic-storage/synthetic.png" in response.content.decode()
+    storage_url.assert_called_once_with("synthetic.png")
+
+    with patch(
+        "django_resume.plugins.permission_denied.default_storage.url",
+        side_effect=OSError("synthetic storage outage"),
+    ):
+        with pytest.raises(OSError, match="synthetic storage outage"):
+            client.get(reverse("resume:cv", kwargs={"slug": resume.slug}))

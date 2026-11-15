@@ -52,6 +52,24 @@ This is the list of built-in plugins that come with django-resume:
   stored token, including punctuation and Unicode, so editable credentials
   containing ``+``, ``&``, ``=`` or ``#`` remain redeemable.
 
+Legacy education and optional denial avatars
+--------------------------------------------
+
+Older single-entry education payloads (for example, restored backups) are read
+as a one-item list. Every legacy field, including an existing degree and
+extension metadata, is copied into the item. Missing standard fields receive
+defaults; existing IDs and positions are preserved. Reads do not write or share
+nested extension objects with the stored payload. Saving through the inline
+or admin item editor keeps extension fields while updating the known fields.
+Empty legacy data stays empty; modern list data is unchanged. This runtime
+fallback does not change migration 0003's explicit refusal of unsupported
+extension values: back up and explicitly convert such rows before that upgrade.
+
+Permission-denied avatars are optional. Missing, blank and non-string stored
+references use the normal no-avatar presentation without calling storage.
+A nonblank string is resolved exactly once, using its original storage key.
+Errors resolving a configured avatar still propagate as storage errors.
+
 Inline Editing
 --------------
 

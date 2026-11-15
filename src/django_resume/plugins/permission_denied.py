@@ -134,8 +134,11 @@ class PermissionDeniedPlugin(SimplePlugin):
         context = super().get_context(
             _request, plugin_data, resume_pk, context=context, edit=edit, theme=theme
         )
-        context["avatar_img_url"] = default_storage.url(
-            plugin_data.get("avatar_img", "")
+        avatar = plugin_data.get("avatar_img")
+        context["avatar_img_url"] = (
+            default_storage.url(avatar)
+            if isinstance(avatar, str) and avatar.strip()
+            else ""
         )
         context["text"] = markdown_to_html(
             plugin_data.get("text", ""), handlers={"link": underlined_link_handler}
