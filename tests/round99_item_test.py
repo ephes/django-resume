@@ -9,7 +9,9 @@ from django_resume.images import ImageFormMixin
 from django_resume.plugins import plugin_registry
 from django_resume.plugins.education import EducationItemForm
 from tests.conftest import png_bytes
-from tests.plugin_stale_edit_test import editor_resume, loaded_data  # noqa: F401
+from tests.plugin_stale_edit_test import editor_resume as _editor_resume, loaded_data
+
+editor_resume = _editor_resume
 
 
 @pytest.mark.django_db

@@ -5,6 +5,10 @@ Changelog
 Unreleased
 ----------
 
+* Apply Django's private never-cache policy to owner artifact/theme routes and
+  all registered inline plugin responses, including returned validation errors,
+  diagnostics and login redirects; preserve public page cache behavior.
+
 * Fence item deletion with signed current-item revisions in admin and inline
   controls; stale or missing revisions return 409 without deleting newer data.
 

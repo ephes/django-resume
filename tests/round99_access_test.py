@@ -59,3 +59,68 @@ def test_legacy_cv_redirect_preserves_literal_query(client, query):
     assert "no-store" in response["Cache-Control"]
     assert "private" in response["Cache-Control"]
     assert response["Referrer-Policy"] == "no-referrer"
+
+
+@pytest.mark.django_db
+def test_legacy_token_link_still_opens_private_cv(client, django_user_model):
+    from django_resume.models import Resume
+
+    owner = django_user_model.objects.create_user(username="invented-cv-owner")
+    credential = "invented+&/=?%"
+    resume = Resume.objects.create(
+        name="Invented CV",
+        slug="invented-private",
+        owner=owner,
+        plugin_data={
+            "identity": {"name": "Invented CV"},
+            "token": {
+                "flat": {"token_required": True},
+                "items": [{"id": "invented", "token": credential}],
+            },
+        },
+    )
+    url = reverse("django_resume:cv-redirect", kwargs={"slug": resume.slug})
+    response = client.get(
+        url
+        + "?"
+        + urlencode([("token", credential), ("label", "one"), ("label", "two")]),
+        follow=True,
+    )
+    assert response.status_code == 200
+    assert b"Invented CV" in response.content
+    assert response.wsgi_request.GET["token"] == credential
+    assert response.wsgi_request.GET.getlist("label") == ["one", "two"]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("catalog", [False, True])
+def test_invalid_install_flag_cannot_invoke_install(
+    client, django_user_model, settings, mocker, catalog, tmp_path
+):
+    from django_resume.models import Resume
+
+    settings.DJANGO_RESUME_JSON_RESUME_THEME_DIR = tmp_path / "themes"
+    owner = django_user_model.objects.create_user(username="invented-theme-owner")
+    resume = Resume.objects.create(name="Invented", slug="invented-theme", owner=owner)
+    client.force_login(owner)
+    flag = (
+        "DJANGO_RESUME_JSON_RESUME_ALLOW_"
+        + ("CATALOG" if catalog else "DYNAMIC")
+        + "_THEME_INSTALL"
+    )
+    setattr(settings, flag, "false")
+    install = mocker.patch.object(
+        views, "install_catalog_theme" if catalog else "install_theme"
+    )
+    kwargs = {"slug": resume.slug}
+    if catalog:
+        kwargs["key"] = "even"
+    url = reverse(
+        "django_resume:json-resume-theme-preview"
+        if catalog
+        else "django_resume:json-resume-theme-install",
+        kwargs=kwargs,
+    )
+    with pytest.raises(ImproperlyConfigured, match=flag):
+        client.post(url, {"package": "jsonresume-theme-even"})
+    install.assert_not_called()

@@ -92,3 +92,14 @@ item. Reload the page to inspect the current item before deleting again.
 Custom renderers must pass the original item as ``item=`` to
 ``get_delete_item_url(resume_id, item_id, item=item)``; display transformations
 must happen after signing. CSRF and owner checks still apply.
+
+Owner response caching
+----------------------
+
+JSON Resume exports, theme selection/installation/preview/render responses,
+and registered inline plugin responses explicitly send ``private, no-store``
+using Django's never-cache policy. This includes returned validation errors,
+rendering diagnostics and login redirects. An integrator's site cache
+middleware must never replay these owner responses to another session or
+reuse signed editor forms after a mutation. Public page cache behavior is
+unchanged. Standard Django admin forms retain their admin cache policy.

@@ -8,6 +8,7 @@ from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import redirect, render, get_object_or_404
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods
+from django.views.decorators.cache import never_cache
 
 from .formats.json_resume.export import export_resume
 from .formats.json_resume.import_preview import (
@@ -334,6 +335,7 @@ def resume_delete(request: HttpRequest, slug: str) -> HttpResponse:
     return HttpResponse(status=200)  # 200 instead of 204 for htmx compatibility
 
 
+@never_cache
 @login_required
 @require_http_methods(["GET"])
 def export_json_resume(request: HttpRequest, slug: str) -> HttpResponse:
@@ -362,6 +364,7 @@ def export_json_resume(request: HttpRequest, slug: str) -> HttpResponse:
     return response
 
 
+@never_cache
 @login_required
 @require_http_methods(["GET"])
 def json_resume_theme_selector(request: HttpRequest, slug: str) -> HttpResponse:
@@ -396,6 +399,7 @@ def json_resume_theme_selector(request: HttpRequest, slug: str) -> HttpResponse:
     )
 
 
+@never_cache
 @login_required
 @require_http_methods(["POST"])
 def install_json_resume_theme(request: HttpRequest, slug: str) -> HttpResponse:
@@ -457,6 +461,7 @@ def _ensure_catalog_theme(entry: ThemeCatalogEntry) -> None:
         )
 
 
+@never_cache
 @login_required
 @require_http_methods(["POST"])
 def preview_json_resume_catalog_theme(
@@ -487,6 +492,7 @@ def preview_json_resume_catalog_theme(
     return _theme_html_response(rendered.html)
 
 
+@never_cache
 @login_required
 @require_http_methods(["POST"])
 def use_json_resume_catalog_theme(
@@ -526,6 +532,7 @@ def use_json_resume_catalog_theme(
     return redirect("django_resume:json-resume-themes", slug=resume.slug)
 
 
+@never_cache
 @login_required
 @require_http_methods(["GET"])
 def render_json_resume_theme(request: HttpRequest, slug: str) -> HttpResponse:

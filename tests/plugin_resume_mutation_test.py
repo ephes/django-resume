@@ -78,6 +78,14 @@ def test_editor_uses_one_routed_transaction(
         "callback": (DummyMutationView(), "mutate_resume_plugin_data"),
     }
     view, method = targets[editor]
+    if editor.startswith("delete"):
+        row = Resume.objects.using("other").get(pk=1)
+        row.plugin_data["education"] = {
+            "items": [{"id": "school", "school_name": "Invented"}]
+        }
+        row.save(using="other", update_fields=["plugin_data"])
+        request.POST = revision_data(view, row, {}, "delete-item:school")
+    before = Resume.objects.using("other").get(pk=1).plugin_data
     if editor not in ("callback", "delete-inline", "delete-admin"):
         scope = (
             "flat"
@@ -107,7 +115,7 @@ def test_editor_uses_one_routed_transaction(
             monkeypatch.setattr(view, name, lambda *a, **kw: "/synthetic/")
     args = [request, 1]
     if editor.startswith("delete"):
-        args.append("missing")
+        args.append("school")
     elif editor == "callback":
         args.append(lambda row: row.plugin_data.update({"changed": True}))
     if fail:
@@ -123,7 +131,7 @@ def test_editor_uses_one_routed_transaction(
     result = Resume.objects.using("other").get(pk=1)
     assert result.plugin_data["sentinel"] == "other"
     if fail:
-        assert result.plugin_data == {"sentinel": "other"}
+        assert result.plugin_data == before
 
 
 @pytest.mark.django_db(databases=["default", "other"], transaction=True)

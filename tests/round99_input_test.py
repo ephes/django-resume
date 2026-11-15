@@ -72,3 +72,39 @@ def test_one_shot_image_inventory(in_memory_storage, invalid):
         )
         form.cleanup_new_image_uploads()
         assert stored_uploads() == []
+
+
+def test_generator_inventory_storage_failure_cleans_only_owned_files(
+    in_memory_storage, monkeypatch
+):
+    from django.core.files.base import ContentFile
+    from django.core.files.storage import default_storage
+
+    old = default_storage.save("uploads/preexisting.png", ContentFile(png_bytes(1, 1)))
+    original_save = default_storage.save
+    calls = []
+
+    def fail_second(name, content):
+        calls.append(name)
+        if len(calls) == 2:
+            raise OSError("synthetic storage failure")
+        return original_save(name, content)
+
+    class GeneratorForm(TwoImageForm):
+        def __init__(self, *args, **kwargs):
+            self.image_fields = iter(TwoImageForm.image_fields)
+            super().__init__(*args, **kwargs)
+
+    monkeypatch.setattr(default_storage, "save", fail_second)
+    form = GeneratorForm(
+        data={},
+        files={
+            "avatar_img": SimpleUploadedFile("invented.png", png_bytes(1, 1)),
+            "signature_img": SimpleUploadedFile("invented.png", png_bytes(2, 2)),
+        },
+    )
+    with pytest.raises(OSError, match="synthetic storage failure"):
+        form.is_valid()
+    assert len(calls) == 2
+    assert stored_uploads() == ["preexisting.png"]
+    assert default_storage.exists(old)
