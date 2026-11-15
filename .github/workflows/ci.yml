@@ -6,8 +6,6 @@ name: CI
 # The remaining live-server Playwright suite is separate. No secrets are needed.
 
 on:
-  push:
-  pull_request:
   workflow_dispatch:
 
 permissions:
