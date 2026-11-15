@@ -5,6 +5,11 @@ Changelog
 Unreleased
 ----------
 
+* Require actual booleans for dynamic/catalog theme installation and theme
+  scripts; invalid settings fail closed with a configuration error.
+* Preserve the original query on legacy CV redirects and prevent redirect
+  caching and referrer disclosure.
+
 * Bound browser import reads using actual bytes and report upload read errors.
 * Snapshot image-field iterables per form so all uploads are admitted and
   stored consistently, including one-shot custom inventories.

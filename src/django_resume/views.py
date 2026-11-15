@@ -2,7 +2,6 @@ import json
 from typing import Any
 from urllib.parse import urlencode
 
-from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.db import IntegrityError, router, transaction
 from django.http import Http404, HttpRequest, HttpResponse
@@ -43,6 +42,7 @@ from .formats.json_resume.themes import (
     catalog_theme_install_allowed,
     catalog_theme_installed,
     dynamic_theme_install_allowed,
+    execution_flag,
     install_catalog_theme,
     install_theme,
     render_catalog_theme,
@@ -555,7 +555,7 @@ def _theme_html_response(html: str) -> HttpResponse:
 def _theme_content_security_policy() -> str:
     style_src = "style-src 'unsafe-inline'"
     script_src = ""
-    if getattr(settings, "DJANGO_RESUME_JSON_RESUME_ALLOW_THEME_SCRIPTS", False):
+    if execution_flag("DJANGO_RESUME_JSON_RESUME_ALLOW_THEME_SCRIPTS"):
         style_src = "style-src 'unsafe-inline' https://fonts.googleapis.com"
         script_src = " script-src 'unsafe-inline';"
     return (

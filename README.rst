@@ -64,3 +64,18 @@ Read failures return a file-field diagnostic. Custom image forms may supply a
 one-shot ``image_fields`` iterable: each form snapshots it before field setup,
 preflights every upload before storing any, and tracks only its own new files
 for failure cleanup.
+
+Theme execution policy
+----------------------
+
+``DJANGO_RESUME_JSON_RESUME_ALLOW_DYNAMIC_THEME_INSTALL``,
+``DJANGO_RESUME_JSON_RESUME_ALLOW_CATALOG_THEME_INSTALL`` and
+``DJANGO_RESUME_JSON_RESUME_ALLOW_THEME_SCRIPTS`` default to ``False``.
+Set them to Python ``True`` or ``False`` in Django settings; strings such as
+``"false"``, numbers and containers raise ``ImproperlyConfigured`` before the
+corresponding execution privilege is granted. Convert environment variables
+explicitly in your settings module.
+
+Legacy ``/cv/<slug>/`` links redirect to the canonical CV path with their
+original query string, including escaped tokens and repeated parameters.
+Redirects are private, never stored, and send ``Referrer-Policy: no-referrer``.
