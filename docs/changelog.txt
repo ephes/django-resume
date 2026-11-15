@@ -7,8 +7,9 @@ Unreleased
 
 * Keep list rendering defaults, sanitized links and editor URLs in detached
   display contexts, preserving source JSON for later export and save.
-* Render cover Markdown on those display records, preserving the author's text
-  across repeated renders, exports and saves, including the first-item layout.
+* Render cover, project and timeline Markdown on those display records,
+  preserving the author's text across repeated renders, exports and saves,
+  including the cover's first-item layout.
 * Ignore unencodable stored token secrets without exposing them or failing
   protected CV requests; valid sibling tokens retain access.
 

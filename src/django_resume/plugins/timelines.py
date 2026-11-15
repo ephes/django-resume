@@ -279,9 +279,8 @@ class TimelineMixin:
             edit=edit,
             theme=theme,
         )
-        # convert markdown to html for rendering
-        items = plugin_data.get("items", [])
-        for item in items:
+        # Convert only the detached display records, preserving source Markdown.
+        for item in context["ordered_entries"]:
             item["description"] = markdown_to_html(
                 item["description"], handlers={"link": underlined_link_handler}
             )

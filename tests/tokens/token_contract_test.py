@@ -5,6 +5,7 @@ from urllib.parse import parse_qs, urlsplit
 import pytest
 from django.contrib.auth.models import AnonymousUser
 from django.core.exceptions import PermissionDenied
+from django.db import connection
 
 from django_resume.plugins.tokens import TokenItemForm, TokenPlugin, is_token_expired
 from django_resume.formats.json_resume.importer import (
@@ -133,6 +134,10 @@ def test_malformed_containers_retain_owner_staff_bypass(
 
 
 @pytest.mark.django_db
+@pytest.mark.skipif(
+    connection.vendor != "sqlite",
+    reason="PostgreSQL jsonb refuses lone surrogates, so this stored state is SQLite-only",
+)
 @pytest.mark.parametrize("surrogate", ["\ud800", "\udfff"])
 @pytest.mark.parametrize("valid_sibling", [False, True])
 @pytest.mark.parametrize("reverse_items", [False, True])

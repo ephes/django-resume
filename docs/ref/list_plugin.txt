@@ -111,7 +111,8 @@ context; rendering leaves ``Resume.plugin_data`` unchanged for later export or
 save. Subclasses should transform ``context["ordered_entries"]`` rather than
 the source ``plugin_data`` when preparing item display values.
 
-The built-in cover plugin follows this boundary for Markdown-to-HTML rendering.
+The built-in cover, projects and timeline plugins follow this boundary for
+Markdown-to-HTML rendering.
 Repeated public or editable renders keep the author's Markdown unchanged. Its
 ``first_item`` references the first displayed entry for the avatar layout.
 

@@ -216,3 +216,44 @@ def test_cv_render_keeps_source_data_for_export_and_save(
     cv_resume.save()
     cv_resume.refresh_from_db()
     assert cv_resume.plugin_data == before
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("theme", THEMES)
+@pytest.mark.parametrize("edit", [False, True])
+def test_cv_render_converts_and_sanitizes_display_descriptions_only(
+    cv_resume, rf, theme, edit
+):
+    unsafe_markdown = "**synthetic-bold** <img src=x onerror=synthetic_xss_marker()>"
+    cv_resume.plugin_data["theme"] = {"name": theme}
+    cv_resume.plugin_data["projects"]["items"][0]["description"] = unsafe_markdown
+    cv_resume.plugin_data["employed_timeline"]["items"][0]["description"] = (
+        unsafe_markdown
+    )
+    before = deepcopy(cv_resume.plugin_data)
+    request = rf.get("/cv/", {"edit": "true"} if edit else {})
+    request.user = cv_resume.owner if edit else AnonymousUser()
+    page = CvPage()
+
+    for _ in range(2):
+        context = page.get_context(
+            request, cv_resume, base_context=build_base_context(request, cv_resume)
+        )
+        for key, item_id in [("projects", "p1"), ("employed_timeline", "w1")]:
+            entry = next(
+                item
+                for item in context[key]["ordered_entries"]
+                if item["id"] == item_id
+            )
+            assert "<strong>synthetic-bold</strong>" in entry["description"]
+            assert "synthetic_xss_marker" not in entry["description"]
+        response = page.serve(
+            request, cv_resume, build_base_context(request, cv_resume)
+        )
+        assert response.status_code == 200
+        content = response.content.decode()
+        # Some themes omit one of the two sections; each rendered one is converted.
+        assert "<strong>synthetic-bold</strong>" in content
+        assert "**synthetic-bold**" not in content
+        assert "synthetic_xss_marker" not in content
+        assert cv_resume.plugin_data == before
