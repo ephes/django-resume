@@ -220,8 +220,10 @@ strings, each at most 1,024 Unicode code points, with at most 65,536 code points
 across the list. Server validation, imports and browser hydration enforce these
 limits. Browser hydration validates the complete list before replacing editing
 DOM. An invalid/oversized stored list remains unchanged in its hidden field and
-shows a recoverable error; correct that data through a validated editor before
-using the inline control. Public display/export includes only a bounded prefix
+shows an error that blocks saving the owning form, so it is never silently
+rewritten. Correct that data through a validated editor, or use the editor's
+explicit "Clear badges" action to replace it with an empty list and save the
+rest of the form. Public display/export includes only a bounded prefix
 of valid badges and never rewrites the stored source. Bound form errors retain
 the submitted badge payload rather than replacing it with the old list.
 

@@ -60,7 +60,11 @@ def render_in_language(response: ResponseT, language: str) -> ResponseT:
         # Use Django's public content/close interfaces: it retains ownership of
         # registered source closers, including FileResponse resources.
         response.close = close_with_language  # type: ignore[method-assign]
-        if response.is_async:
+        # Raw file bytes do not depend on the language; leave FileResponse
+        # content alone so Django keeps its wsgi.file_wrapper/sendfile path.
+        if getattr(response, "file_to_stream", None) is not None:
+            pass
+        elif response.is_async:
 
             async def async_content():
                 iterator = aiter(content)

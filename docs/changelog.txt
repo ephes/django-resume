@@ -7,7 +7,8 @@ Unreleased
 
 * Preserve the resume language during synchronous/asynchronous streaming steps
   and Django's response-close lifecycle, restoring ambient language between
-  chunks and after failures/cancellation.
+  chunks and after failures/cancellation. FileResponse keeps its file-wrapper
+  fast path.
 * Preserve block/BR newlines and literal markup in plain contenteditable fields
   through every native submit path; HTML fields retain their existing behavior.
 
@@ -15,7 +16,8 @@ Unreleased
   visibly without losing text. Admit badge hydration before DOM construction
   and share the server's 1,024 badge / 1,024 character limits plus a 65,536
   Unicode code point aggregate budget. Keep refused stored/submitted editor
-  data intact; display/export stays bounded without rewriting the source.
+  data intact until the user chooses the explicit "Clear badges" recovery;
+  display/export stays bounded without rewriting the source.
 
 * Bind badge editors to a unique hidden target in their own editable form.
   Refuse invalid targets visibly. Project every named/data-field checkbox

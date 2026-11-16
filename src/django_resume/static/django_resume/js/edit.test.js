@@ -620,8 +620,28 @@ describe('badge drafts', () => {
             owner.querySelector('form').addEventListener('submit', serialized);
             owner.querySelector('form').requestSubmit();
             expect(serialized).not.toHaveBeenCalled();
+            const clear = owner.querySelector('badge-editor .badge-clear-button');
+            expect(owner.querySelectorAll('badge-editor .badge-clear-button')).toHaveLength(1);
+            clear.click();
+            expect(owner.querySelector('[name="badges"]').value).toBe('[]');
+            expect(owner.querySelector('badge-editor .badge-clear-button')).toBeNull();
+            owner.querySelector('badge-editor input').value = 'Fresh';
+            owner.querySelector('form').requestSubmit();
+            expect(serialized).toHaveBeenCalledTimes(1);
+            expect(owner.querySelector('[name="badges"]').value).toBe('["Fresh"]');
         }
     );
+
+    test('a non-JSON legacy value offers the same explicit clear recovery', () => {
+        const owner = badgeForm([]);
+        owner.remove();
+        owner.querySelector('[name="badges"]').value = 'Python, Django';
+        document.body.append(owner);
+        expect(owner.querySelector('[name="badges"]').value).toBe('Python, Django');
+        owner.querySelector('badge-editor .badge-clear-button').click();
+        expect(owner.querySelector('[name="badges"]').value).toBe('[]');
+        expect(owner.querySelector('badge-editor input.small-input')).not.toBeNull();
+    });
 
     test('an admitted list cannot grow beyond the count or text budget', () => {
         for (const badges of [Array(1024).fill('x'), Array(64).fill('x'.repeat(1024))]) {

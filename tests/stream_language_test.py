@@ -4,7 +4,7 @@ import asyncio
 
 import pytest
 from asgiref.sync import async_to_sync
-from django.http import StreamingHttpResponse
+from django.http import FileResponse, StreamingHttpResponse
 from django.utils import translation
 
 from django_resume.i18n import render_in_language
@@ -142,3 +142,21 @@ def test_page_and_inline_streams_use_selected_language(rf, resume):
             assert b"".join(streamed) == b"de"
             streamed.close()
             assert translation.get_language() == "en"
+
+
+@pytest.mark.django_db
+def test_file_response_keeps_file_wrapper_and_closes_in_language(tmp_path):
+    path = tmp_path / "synthetic.txt"
+    path.write_bytes(b"synthetic")
+    closed = []
+    with translation.override("en"):
+        response = FileResponse(path.open("rb"))
+        response._resource_closers.append(
+            lambda: closed.append(translation.get_language())
+        )
+        response = render_in_language(response, "de")
+        assert response.file_to_stream is not None
+        assert b"".join(response) == b"synthetic"
+        response.close()
+        assert closed == ["de"]
+        assert translation.get_language() == "en"

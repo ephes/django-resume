@@ -294,7 +294,21 @@ class BadgeEditor extends HTMLElement {
             badges = JSON.parse(hidden.value);
             if (!validBadges(badges)) throw new Error('Invalid badges');
         } catch {
-            this.showError('Badges exceed the list/text limits or are invalid. Correct the data before editing.');
+            this.showError('Stored badges exceed the list/text limits or are invalid. '
+                + 'Correct them elsewhere, or clear them to save this form.');
+            // Explicit recovery: never discard stored data without a user action,
+            // but do not leave the owning form permanently unsavable.
+            this.querySelector('button.badge-clear-button')?.remove();
+            const clear = document.createElement('button');
+            clear.type = 'button';
+            clear.className = 'badge-clear-button';
+            clear.textContent = 'Clear badges';
+            clear.addEventListener('click', event => {
+                event.preventDefault();
+                hidden.value = '[]';
+                this.render();
+            }, options);
+            this.append(clear);
             return;
         }
         // Admission happens before replacing any existing editing DOM.
