@@ -99,3 +99,40 @@ def test_drop_preview_matches_the_submitted_file(editor, failure):
         expect(editor.locator("img")).to_have_attribute(
             "src", "data:image/png;base64,bmV3"
         )
+
+
+def test_controls_stay_with_their_form(editor):
+    result = editor.evaluate("""() => {
+        document.body.replaceChildren();
+        function make(label) {
+            const owner = document.createElement('editable-form');
+            owner.innerHTML = `<form><input id="badges" type="hidden" name="badges" value='["${label}"]'>
+              <input name="one" data-field="one" type="hidden" value="on">
+              <input name="two" type="hidden" value="on">
+              <input name="edit_revision" type="hidden" value="${label}"></form>
+              <input type="checkbox" data-field="one"><input type="checkbox" name="two">
+              <badge-editor input-field-id="badges"></badge-editor><button type="submit">Save</button>`;
+            document.body.append(owner);
+            return owner;
+        }
+        const first = make('first'), second = make('second');
+        for (let i = 0; i < 3; i++) {second.remove(); document.body.append(second);}
+        const badge = second.querySelector('badge-editor');
+        badge.querySelector('input').value = 'local';
+        badge.querySelector('li:last-child button').click();
+        badge.querySelector('.badge-delete-button').click();
+        const form = second.querySelector('form');
+        let submitted;
+        form.addEventListener('submit', e => {e.preventDefault(); submitted = Object.fromEntries(new FormData(form));});
+        form.requestSubmit();
+        return {submitted, first: first.querySelector('[name=badges]').value};
+    }""")
+    assert result == {
+        "submitted": {
+            "badges": '["local"]',
+            "one": "",
+            "two": "",
+            "edit_revision": "second",
+        },
+        "first": '["first"]',
+    }

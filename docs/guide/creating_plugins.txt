@@ -200,3 +200,14 @@ noncaching iterator in batches of 100 database rows. It retains row locks and
 whole-snapshot conditional updates inside one transaction: a conflict rolls
 back all earlier removals. Model hydration is bounded independently of the
 resume inventory; each individual JSON payload still has its own size cost.
+
+Inline control ownership
+------------------------
+
+Place each ``badge-editor`` within its owning ``editable-form`` and point
+``input-field-id`` at exactly one hidden input inside that component's form.
+Repeated fragment IDs in other components are safe; missing, non-hidden or
+ambiguous local targets show an error without installing editing handlers.
+Each checkbox with ``data-field`` (or a name fallback) updates the matching
+hidden input's ``data-field``/name on change and immediately before submit.
+Reconnects retire the old listeners before rebinding controls.

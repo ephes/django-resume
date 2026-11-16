@@ -5,6 +5,10 @@ Changelog
 Unreleased
 ----------
 
+* Bind badge editors to a unique hidden target in their own editable form.
+  Refuse invalid targets visibly. Project every named/data-field checkbox
+  on change and native submit, including after component reconnection.
+
 * Restore page registry entries when an entry-point callback fails, allowing
   clean retries. Generated page routes now accept HEAD with GET access,
   language and finalization behavior; other methods still return 405.

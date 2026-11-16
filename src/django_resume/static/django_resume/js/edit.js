@@ -10,18 +10,17 @@ class EditableForm extends HTMLElement {
         // Access elements within the component
         const formElement = this.querySelector('form');
         const submitButton = this.querySelector('button[type="submit"]');
-        const checkbox = this.querySelector('input[type="checkbox"]');
-
-        // Handle checkbox separately since it's a special case
-        if (checkbox) {
-            checkbox.addEventListener('change', (e) => {
-                const hiddenInput = formElement.querySelector(`input[type="hidden"][data-field="${checkbox.dataset.field}"]`);
-                if (hiddenInput) {
-                    // Use "on" when checked, which is what Django expects from checkbox inputs
-                    hiddenInput.value = checkbox.checked ? "on" : "";
-                }
-            }, options);
-        }
+        const checkboxes = this.querySelectorAll('input[type="checkbox"]');
+        const syncCheckbox = (checkbox) => {
+            const field = checkbox.dataset.field || checkbox.name;
+            if (!field) return;
+            const hiddenInput = Array.from(formElement.querySelectorAll('input[type="hidden"]'))
+                .find(input => (input.dataset.field || input.name) === field);
+            if (hiddenInput) hiddenInput.value = checkbox.checked ? "on" : "";
+        };
+        checkboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', () => syncCheckbox(checkbox), options);
+        });
 
         // Built-in templates keep Save outside the hidden form. Give it native
         // form ownership so clicks use the same validation/submit path as keyboards.
@@ -39,6 +38,7 @@ class EditableForm extends HTMLElement {
 
         // Capture runs before HTMX's bubbling listener serializes the form.
         formElement.addEventListener('submit', () => {
+            checkboxes.forEach(syncCheckbox);
             // Collect data from contenteditable elements
             this.querySelectorAll('[contenteditable="true"]').forEach((field) => {
                 const fieldName = field.dataset.field;
@@ -217,7 +217,17 @@ class BadgeEditor extends HTMLElement {
     constructor() {
         super();
         this.render = () => {
-            const badges = this.badges;
+            if (!this.isConnected) return;
+            const owner = this.closest('editable-form');
+            const form = owner?.querySelector('form');
+            const targets = form ? Array.from(form.querySelectorAll('input'))
+                .filter(input => input.id === this.inputFieldId) : [];
+            if (targets.length !== 1 || targets[0].type !== 'hidden') {
+                this.innerHTML = '<p role="alert">Badge target is missing or ambiguous. Reload this form.</p>';
+                return;
+            }
+            const hiddenBadgesList = targets[0];
+            const badges = JSON.parse(hiddenBadgesList.value);
             this.innerHTML = `
                 <ul class="cluster cluster-list">
                     <!-- Badges will be inserted here -->
@@ -230,7 +240,6 @@ class BadgeEditor extends HTMLElement {
             const newBadgeInput = this.querySelector('input');
             const badgesList = this.querySelector('ul');
             if (this.ulClass) badgesList.classList.add(this.ulClass);
-            const hiddenBadgesList = document.getElementById(this.inputFieldId);
 
             // add event listener to add badge button
             this.addBadgeButtonHandler = (e) => {
@@ -322,14 +331,6 @@ class BadgeEditor extends HTMLElement {
 
     set spanClass(val) {
         return this.setAttribute('span-class', val);
-    }
-
-    get badges() {
-        if (this.inputFieldId) {
-            return JSON.parse(document.getElementById(this.inputFieldId).value);
-        } else {
-            return [];
-        }
     }
 
     getBadgeLi(badge) {

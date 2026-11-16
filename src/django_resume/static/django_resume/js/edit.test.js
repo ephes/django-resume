@@ -10,8 +10,9 @@ describe('BadgeEditor', () => {
 
     beforeEach(() => {
         document.body.innerHTML = `
-            <input type="hidden" id="badge-hidden-input" value='["Python", "Django"]' />
-            <badge-editor input-field-id="badge-hidden-input"></badge-editor>
+            <editable-form><form>
+              <input type="hidden" id="badge-hidden-input" value='["Python", "Django"]' />
+            </form><badge-editor input-field-id="badge-hidden-input"></badge-editor></editable-form>
         `;
 
         component = document.querySelector('badge-editor');
@@ -273,7 +274,7 @@ describe('EditableForm', () => {
         fireEvent.click(preview);
         fireEvent.change(fileInput);
         expect(titleWrite).toHaveBeenCalledTimes(1);
-        expect(toggleWrite).toHaveBeenCalledTimes(1);
+        expect(toggleWrite).toHaveBeenCalledTimes(2);
         expect(enabled.value).toBe('on');
         expect(picker).toHaveBeenCalledTimes(1);
         expect(read).toHaveBeenCalledTimes(1);
@@ -283,7 +284,7 @@ describe('EditableForm', () => {
         fireEvent.click(preview);
         fireEvent.change(fileInput);
         expect(titleWrite).toHaveBeenCalledTimes(1);
-        expect(toggleWrite).toHaveBeenCalledTimes(1);
+        expect(toggleWrite).toHaveBeenCalledTimes(2);
         expect(picker).toHaveBeenCalledTimes(1);
         expect(read).toHaveBeenCalledTimes(1);
     });
@@ -492,5 +493,69 @@ describe('EditableForm', () => {
         component.remove();
         fireEvent.click(replacement);
         expect(picker).toHaveBeenCalledTimes(1);
+    });
+});
+
+function badgeForm(value, revision = 'revision') {
+    const owner = document.createElement('editable-form');
+    owner.innerHTML = `<form><input type="hidden" id="shared-badges" name="badges">
+        <input type="hidden" name="edit_revision" value="${revision}"></form>
+        <badge-editor input-field-id="shared-badges"></badge-editor><button type="submit">Save</button>`;
+    owner.querySelector('[name="badges"]').value = JSON.stringify(value);
+    document.body.append(owner);
+    return owner;
+}
+
+describe('form ownership', () => {
+    afterEach(() => {document.body.replaceChildren(); vi.restoreAllMocks();});
+
+    test('badge additions and deletions stay in the owning form despite duplicate fragment ids', () => {
+        const first = badgeForm(['First'], 'first-revision');
+        const second = badgeForm(['Second'], 'second-revision');
+        const badge = second.querySelector('badge-editor');
+        expect(badge.querySelector('.badge-name').textContent).toBe('Second');
+        badge.querySelector('input').value = 'Local';
+        badge.querySelector('li:last-child button').click();
+        badge.querySelector('.badge-delete-button').click();
+        expect(new FormData(second.querySelector('form')).get('badges')).toBe('["Local"]');
+        expect(new FormData(second.querySelector('form')).get('edit_revision')).toBe('second-revision');
+        expect(first.querySelector('[name="badges"]').value).toBe('["First"]');
+    });
+
+    test.each(['missing', 'ambiguous', 'text'])('invalid %s badge target refuses edits visibly', (kind) => {
+        const owner = badgeForm(['Stored']);
+        owner.remove();
+        const hidden = owner.querySelector('[name="badges"]');
+        if (kind === 'missing') hidden.removeAttribute('id');
+        if (kind === 'ambiguous') hidden.after(hidden.cloneNode());
+        if (kind === 'text') hidden.type = 'text';
+        document.body.append(owner);
+        expect(owner.querySelector('badge-editor [role="alert"]').textContent).toMatch(/target/i);
+        expect(owner.querySelector('badge-editor .badge-delete-button')).toBeNull();
+        expect(hidden.value).toBe('["Stored"]');
+    });
+
+    test('all named or data-field checkboxes project at change and before submit after reconnect', () => {
+        const owner = document.createElement('editable-form');
+        owner.innerHTML = `<form><input type="hidden" name="one" data-field="one" value="on">
+          <input type="hidden" name="two" value="on"></form>
+          <input type="checkbox" data-field="one"><input type="checkbox" name="two">
+          <button type="submit">Save</button>`;
+        document.body.append(owner);
+        for (let i = 0; i < 3; i++) {owner.remove(); document.body.append(owner);}
+        const checks = owner.querySelectorAll('[type="checkbox"]');
+        const hiddens = owner.querySelectorAll('[type="hidden"]');
+        const write = vi.spyOn(hiddens[1], 'value', 'set');
+        fireEvent.change(checks[1], {target: {checked: true}});
+        expect(write).toHaveBeenCalledTimes(1);
+        expect(hiddens[1].value).toBe('on');
+        checks[1].checked = false; // No change event, as with programmatic updates.
+        const form = owner.querySelector('form');
+        const submissions = [];
+        form.addEventListener('submit', event => {
+            event.preventDefault(); submissions.push(Object.fromEntries(new FormData(form)));
+        });
+        form.requestSubmit();
+        expect(submissions).toEqual([{one: '', two: ''}]);
     });
 });
