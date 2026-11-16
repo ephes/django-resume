@@ -716,7 +716,13 @@ def _sync_directory(path: Path) -> None:
 def _sync_generation(target: Path) -> None:
     # Sync file content before directory entries, bottom up. npm symlinks do
     # not own their targets; their directory entries are synced with the parent.
-    for directory, _, files in os.walk(target, topdown=False, followlinks=False):
+    def fail(error: OSError) -> None:
+        # os.walk skips unreadable directories by default; never publish them unsynced.
+        raise error
+
+    for directory, _, files in os.walk(
+        target, topdown=False, onerror=fail, followlinks=False
+    ):
         for name in files:
             path = Path(directory) / name
             if path.is_symlink():
@@ -1289,8 +1295,7 @@ def _wait_process_exit(process, timeout: float, stop: threading.Event) -> None:
         return
     deadline = time.monotonic() + timeout
     while not stop.is_set():
-        # WNOWAIT observes exit without releasing the process-group identity.
-        if os.waitid(os.P_PID, process.pid, os.WEXITED | os.WNOWAIT | os.WNOHANG):
+        if _leader_exited(process):
             return
         remaining = deadline - time.monotonic()
         if remaining <= 0:
@@ -1315,16 +1320,26 @@ def _terminate_process_tree(process) -> None:
         return
     except PermissionError:
         # Darwin killpg1 excludes zombies, returning EPERM when no signalable
-        # live member remains. Only accept it after observing our unreaped
-        # leader's exit; never poll/reap here or hide a live leader's failure.
+        # live member remains. Only accept it after observing our leader's exit
+        # (unreaped via waitid; poll() reaps it on macOS without os.waitid), and
+        # never hide a live leader's failure.
         # https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/kern_sig.c
-        if (
-            sys.platform == "darwin"
-            and os.waitid(os.P_PID, process.pid, os.WEXITED | os.WNOWAIT | os.WNOHANG)
-            is not None
-        ):
+        if sys.platform == "darwin" and _leader_exited(process):
             return
         raise
+
+
+def _leader_exited(process) -> bool:
+    waitid = getattr(os, "waitid", None)
+    if waitid is None:
+        # CPython before 3.13 on macOS lacks os.waitid. Fall back to poll(),
+        # which reaps the leader; the group ID stays reserved while any member
+        # remains, so the following group SIGKILL still targets owned work.
+        return process.poll() is not None
+    # WNOWAIT observes exit without releasing the process-group identity.
+    return (
+        waitid(os.P_PID, process.pid, os.WEXITED | os.WNOWAIT | os.WNOHANG) is not None
+    )
 
 
 def _wait_after_terminate(process) -> None:

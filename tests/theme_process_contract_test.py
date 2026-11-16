@@ -264,3 +264,47 @@ def test_group_permission_error_only_accepts_darwin_completed_leader(
     else:
         with pytest.raises(PermissionError):
             themes._terminate_process_tree(process)
+
+
+@pytest.mark.parametrize("exited,allowed", [(True, True), (False, False)])
+def test_darwin_group_permission_error_without_waitid_uses_poll(
+    monkeypatch, exited, allowed
+):
+    # CPython before 3.13 on macOS has no os.waitid.
+    monkeypatch.delattr(themes.os, "waitid", raising=False)
+    monkeypatch.setattr(themes.sys, "platform", "darwin")
+    monkeypatch.setattr(themes.os, "killpg", Mock(side_effect=PermissionError))
+    process = SimpleNamespace(pid=123, poll=Mock(return_value=0 if exited else None))
+    if allowed:
+        themes._terminate_process_tree(process)
+    else:
+        with pytest.raises(PermissionError):
+            themes._terminate_process_tree(process)
+    process.poll.assert_called_once_with()
+
+
+@pytest.mark.parametrize("exit_code", [0, 7])
+def test_command_completion_without_waitid_retires_group(
+    tmp_path, monkeypatch, exit_code
+):
+    import os
+    import sys
+
+    monkeypatch.delattr(themes.os, "waitid", raising=False)
+    killed = []
+    killpg = os.killpg
+
+    def record(pgid, sig):
+        killed.append(pgid)
+        return killpg(pgid, sig)
+
+    monkeypatch.setattr(themes.os, "killpg", record)
+    monkeypatch.setattr(themes, "_check_cache_authority", lambda: None)
+    result = themes._run_process(
+        [sys.executable, "-c", f"print('done'); raise SystemExit({exit_code})"],
+        cwd=tmp_path,
+        timeout=10,
+    )
+    assert result.returncode == exit_code
+    assert result.stdout.strip() == "done"
+    assert len(killed) == 1

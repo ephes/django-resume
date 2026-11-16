@@ -452,3 +452,35 @@ def test_copy_byte_budget_accounts_growth_after_preflight(cache, monkeypatch):
     npm.assert_not_called()
     assert themes._active_generation(cache) == cache
     assert not list(cache.glob("generation-*"))
+
+
+def test_unreadable_generation_directory_fails_publication_closed(cache, monkeypatch):
+    import os
+    from django_resume.formats.json_resume import themes
+
+    monkeypatch.setattr(themes, "_run_process", fake_npm)
+    themes.install_catalog_theme("even")
+    previous = themes._active_generation(cache)
+    syncing = []
+    original_sync, original_scandir = themes._sync_generation, os.scandir
+
+    def sync(target):
+        syncing.append(True)
+        return original_sync(target)
+
+    def scandir(path="."):
+        # os.walk skips directories it cannot scan unless onerror re-raises.
+        named = isinstance(path, (str, os.PathLike))
+        if syncing and named and Path(path).name == "jsonresume-theme-flat":
+            raise PermissionError("synthetic unreadable directory")
+        return original_scandir(path)
+
+    monkeypatch.setattr(themes, "_sync_generation", sync)
+    monkeypatch.setattr(os, "scandir", scandir)
+    with pytest.raises(themes.JsonResumeThemeError, match="staging/publication"):
+        themes.install_catalog_theme("flat")
+    monkeypatch.setattr(os, "scandir", original_scandir)
+    assert syncing == [True]
+    assert themes._active_generation(cache) == previous
+    assert list(cache.glob("generation-*")) == [previous]
+    assert_renders(monkeypatch)

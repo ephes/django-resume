@@ -18,6 +18,10 @@ Unreleased
 
 * Retire owned renderer/npm process groups before reaping completed leaders,
   including successful exits with pipe-detached descendants.
+  macOS interpreters without ``os.waitid`` (CPython before 3.13) fall back to
+  ``poll()`` instead of failing every theme command.
+* Fail theme publication closed when a staged generation directory cannot be
+  scanned for syncing, instead of skipping it.
 * Refuse HTML modified in place, truncated or replaced during output reading by
   checking final descriptor metadata and consumed bytes.
 

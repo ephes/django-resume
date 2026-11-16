@@ -1522,8 +1522,8 @@ active; ordinary rendering ignores unreferenced directories and never attempts
 an automatic reinstall. Before replacing the pointer, all staged regular files and directories are
 synced bottom up, followed by the cache root and the flushed pointer file.
 The root is synced again after replacement, before any old generation is
-retired. A sync failure before replacement leaves the previous generation
-active. A failure after replacement raises ``ThemePublicationUncertain``:
+retired. A sync failure before replacement, including a staged directory
+that cannot be scanned, leaves the previous generation active. A failure after replacement raises ``ThemePublicationUncertain``:
 the new generation is visible, its durability is uncertain, and both old and
 new complete generations are retained. Inspect them during offline recovery
 or retry installation; do not interpret this diagnostic as an uninstalled theme.
@@ -1728,3 +1728,10 @@ including a zombie-only group. Cleanup accepts that result only after observing
 the owned leader's unreaped exit. Running-leader permission failures still fail
 closed. Commands must retain the service account's credentials and remain in
 their owned process group.
+
+CPython before 3.13 on macOS has no ``os.waitid``. There, completion falls back
+to ``poll()``, which reaps the leader before the group SIGKILL; the process
+group ID stays reserved while any owned member remains, so descendants are
+still retired. Darwin ``EPERM`` is then accepted only once ``poll()`` reports
+the leader's exit. Use Python 3.13 or newer on macOS for the unreaped-leader
+guarantee described above.
