@@ -46,6 +46,40 @@ bounded selection on deeply nested input. See the
 `upstream changelog <https://facelessuser.github.io/soupsieve/about/changelog/>`_
 and `CVE-2026-126190 advisory <https://github.com/facelessuser/soupsieve/security/advisories/GHSA-mmhr-3c5m-f64f>`_.
 
+LLM context sources
+-------------------
+
+``uv run llm-content`` exports selected code/documentation files. Automatic
+selection requires this module's ``src/django_resume/entrypoints`` checkout
+layout plus ``.git``, ``pyproject.toml`` and ``README.rst`` markers. An installed
+wheel refuses discovery before traversal/output. Use
+``uv run llm-content --root /path/to/project`` to select an existing directory
+explicitly (including projects without repository metadata). Directory
+symlinks are not traversed; matching file symlinks and non-regular files cause
+an explicit nonzero refusal without reporting their target contents. Content
+opens are anchored to the selected root and refuse replacement symlinks in
+both directory components and filenames. ``--paths-only`` checks the inventory
+without opening file contents. The source tree must be trusted: hard links
+and concurrent edits to regular files are not a filesystem snapshot boundary.
+
+The inventory streams directory entries and admits at most 20,000 encountered
+entries (including excluded names in visited directories), 64 directory levels,
+and 16 MiB of retained relative-path UTF-8 bytes. Excluded subtrees, including
+``.cache``, are not visited. Each content read admits at most 1 MiB of actual
+bytes, including files that grow after inventory. Files must decode as UTF-8;
+newlines retain the prior universal-newline behavior. The complete output,
+including paths, delimiters and normalized content, is limited to 16 MiB of
+UTF-8. Paths-only has the same inventory/output limits but never reads source
+contents. Results are sorted by relative path. The complete export is staged
+in a temporary spool before stdout: admission/read failures exit nonzero and
+emit no partial stdout. An output-device failure can still interrupt delivery;
+only exit status zero denotes a complete export.
+
+The tool needs POSIX directory-relative opens (``O_NOFOLLOW``, ``O_DIRECTORY``,
+``dir_fd``); it runs on Linux and macOS, not on Windows. A failure while
+writing to stdout (for example a closed pipe) is also reported with the
+generic refusal message and a nonzero exit.
+
 Repository Checks
 -----------------
 

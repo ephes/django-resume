@@ -5,6 +5,20 @@ Changelog
 Unreleased
 ----------
 
+* Replace repeated Markdown-link scans with linear matching while retaining
+  the supported labels/URL punctuation. Rendering refuses inputs above 262,144
+  characters explicitly instead of truncating them.
+
+* Bound context inventory entries/depth/path bytes, actual per-file reads and
+  total UTF-8 output. Sort exports deterministically and stage them before stdout
+  so source admission failures emit no partial dump.
+
+* Add explicit ``llm-content --root`` selection and refuse ambiguous automatic
+  root discovery from installed environments before traversing/outputting files.
+
+* Refuse symlink/non-regular context sources and anchor content opens to the
+  selected root, including replacement symlinks; paths-only never reads content.
+
 * Preserve degrees and extension metadata when runtime legacy education data
   is read and later saved through either editor, without writes on read.
 * Render permission-denied pages without resolving storage URLs for absent,

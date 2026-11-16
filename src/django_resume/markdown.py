@@ -6,6 +6,9 @@ from typing import Callable
 import nh3
 
 
+MAX_MARKDOWN_CHARS = 256 * 1024
+
+
 ALLOWED_TAGS = {
     "a",
     "br",
@@ -122,12 +125,59 @@ def markdown_to_plain_text(text: str) -> str:
     return text.strip()
 
 
+def _replace_links(text: str, render: Callable[[str, str], str]) -> str:
+    """Match the existing label + URL subset in two linear passes.
+
+    Labels cannot cross newlines. URLs allow flat parenthesized groups but
+    no deeper nesting. Precompute each suffix's closing URL delimiter so a
+    failed candidate never rescans the remaining text.
+    """
+    ends = [-1] * (len(text) + 1)
+    next_paren = len(text)
+    for index in range(len(text) - 1, -1, -1):
+        char = text[index]
+        if char == ")":
+            ends[index] = index
+            next_paren = index
+        elif char == "(":
+            if next_paren < len(text) and text[next_paren] == ")":
+                ends[index] = ends[next_paren + 1]
+            next_paren = index
+        else:
+            ends[index] = ends[index + 1]
+
+    pieces = []
+    start = None
+    cursor = 0
+    index = 0
+    while index < len(text):
+        char = text[index]
+        if char == "\n":
+            start = None
+        elif char == "[" and start is None:
+            start = index
+        elif start is not None and text.startswith("](", index):
+            end = ends[index + 2]
+            if end != -1:
+                pieces.append(text[cursor:start])
+                pieces.append(render(text[start + 1 : index], text[index + 2 : end]))
+                cursor = end + 1
+                index = cursor
+                start = None
+                continue
+        index += 1
+    pieces.append(text[cursor:])
+    return "".join(pieces)
+
+
 def markdown_to_html(text: str, handlers: dict[str, Callable] | None = None) -> str:
     """
     Really simple markdown to HTML converter.
 
     You can pass a dictionary of handlers to customize the output.
     """
+    if len(text) > MAX_MARKDOWN_CHARS:
+        raise ValueError("Markdown input exceeds 262144 character limit")
     if handlers is None:
         handlers = {}
 
@@ -176,15 +226,13 @@ def markdown_to_html(text: str, handlers: dict[str, Callable] | None = None) -> 
     text = re.sub(r"\*(.*?)\*", render_italic, text)
 
     # Links
-    def render_link(m):
-        link_text = m.group(1)
-        url = m.group(2)
+    def render_link(link_text, url):
         if "link" in handlers:
             return handlers["link"](link_text, url)
         else:
             return f'<a href="{url}">{link_text}</a>'
 
-    text = re.sub(r"\[(.*?)\]\(((?:[^()]|\([^()]*\))*)\)", render_link, text)
+    text = _replace_links(text, render_link)
 
     # Group consecutive marker lines (-, *, •) into real <ul><li> lists; the
     # remaining lines keep the simple newline -> <br> behaviour. Adjacent text

@@ -343,3 +343,65 @@ def test_editor_text_field_keeps_required_and_structure_only_behaviour():
     form = AboutForm(data={"title": "About", "text": "<div><br></div>"})
     assert form.is_valid(), form.errors
     assert form.cleaned_data["text"] == ""
+
+
+def test_markdown_unmatched_link_work_is_bounded():
+    import subprocess
+    import sys
+
+    # A generous process deadline avoids machine-sensitive ratio assertions.
+    # Both failed labels and failed nested URL candidates must finish linearly.
+    subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            (
+                "from django_resume.markdown import markdown_to_html; "
+                "inputs = ['[' * 100000, '[' * 80000 + '](' + '(' * 80000]; "
+                "assert all(markdown_to_html(text) == text for text in inputs)"
+            ),
+        ],
+        timeout=5,
+        check=True,
+        capture_output=True,
+    )
+
+
+def test_markdown_render_input_ceiling(monkeypatch):
+    from django_resume import markdown
+
+    monkeypatch.setattr(markdown, "MAX_MARKDOWN_CHARS", 8, raising=False)
+    assert markdown.markdown_to_html("é" * 8) == "é" * 8
+    with pytest.raises(ValueError, match="Markdown input"):
+        markdown.markdown_to_html("é" * 9)
+    with pytest.raises(ValueError, match="Markdown input"):
+        markdown.markdown_to_plain_text("x" * 9)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "[label](https://example.com/path_(part)?x=1&y=2)",
+        "[outer [inner]](https://example.com/a(b)c(d))",
+        r"\[escaped](https://example.com/a%20b#anchor)",
+        "[**bold** *italic*](mailto:synthetic@example.com)",
+        "[empty]() [next](relative/path)",
+        "[bad](a(b(c))) [good](https://example.com)",
+        "[first\nsecond](https://example.com)",
+        "[label](url\nnext)",
+        "[bad](broken( [label](ok)",
+    ],
+)
+def test_markdown_link_subset_compatibility(text):
+    import re
+    from django_resume.markdown import sanitize_html
+
+    # Compatibility oracle for this project's deliberately small link syntax.
+    formatted = re.sub(r"\*\*(.*?)\*\*", r"<strong>\1</strong>", text)
+    formatted = re.sub(r"\*(.*?)\*", r"<em>\1</em>", formatted)
+    expected = re.sub(
+        r"\[(.*?)\]\(((?:[^()]|\([^()]*\))*)\)",
+        lambda match: f'<a href="{match[2]}">{match[1]}</a>',
+        formatted,
+    ).replace("\n", "<br>")
+    assert markdown_to_html(text) == sanitize_html(expected)
