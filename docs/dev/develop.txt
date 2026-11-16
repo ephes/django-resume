@@ -49,7 +49,12 @@ and `CVE-2026-126190 advisory <https://github.com/facelessuser/soupsieve/securit
 LLM context sources
 -------------------
 
-``uv run llm-content`` exports selected code/documentation files. Directory
+``uv run llm-content`` exports selected code/documentation files. Automatic
+selection requires this module's ``src/django_resume/entrypoints`` checkout
+layout plus ``.git``, ``pyproject.toml`` and ``README.rst`` markers. An installed
+wheel refuses discovery before traversal/output. Use
+``uv run llm-content --root /path/to/project`` to select an existing directory
+explicitly (including projects without repository metadata). Directory
 symlinks are not traversed; matching file symlinks and non-regular files cause
 an explicit nonzero refusal without reporting their target contents. Content
 opens are anchored to the selected root and refuse replacement symlinks in

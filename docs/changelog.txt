@@ -5,6 +5,9 @@ Changelog
 Unreleased
 ----------
 
+* Add explicit ``llm-content --root`` selection and refuse ambiguous automatic
+  root discovery from installed environments before traversing/outputting files.
+
 * Refuse symlink/non-regular context sources and anchor content opens to the
   selected root, including replacement symlinks; paths-only never reads content.
 

@@ -10,8 +10,17 @@ from pathlib import Path
 
 
 def get_project_root():
-    # Since the script is now in src/django_resume/entrypoints/, we need to navigate up
-    return Path(__file__).parent.parent.parent.parent.resolve()
+    """Automatically select only this module's recognizable source checkout."""
+    module = Path(__file__).resolve()
+    root = module.parents[3]
+    if not (
+        (root / ".git").exists()
+        and (root / "pyproject.toml").is_file()
+        and (root / "README.rst").is_file()
+        and root / "src/django_resume/entrypoints/llm_content.py" == module
+    ):
+        raise ValueError("cannot identify checkout; pass --root PROJECT_DIRECTORY")
+    return root
 
 
 def llm_content():
@@ -28,9 +37,21 @@ def llm_content():
         action="store_true",
         help="Only show file paths without their contents",
     )
+    parser.add_argument(
+        "--root",
+        type=Path,
+        help="Explicit project directory (required outside a source checkout)",
+    )
     args = parser.parse_args()
 
-    project_root = Path(get_project_root())
+    try:
+        project_root = (
+            args.root if args.root is not None else get_project_root()
+        ).resolve(strict=True)
+        if not project_root.is_dir():
+            raise ValueError("root must be a directory; pass --root PROJECT_DIRECTORY")
+    except (OSError, ValueError):
+        parser.error("cannot select project directory; pass --root PROJECT_DIRECTORY")
     # Exclude files and directories. This is tuned to make the project fit into the
     # 200k token limit of the claude 3 models.
     exclude_files = {
