@@ -51,7 +51,14 @@ def load_entry_point_pages() -> None:
                 )
             page_registry.register(target)
         elif callable(target):
-            target()
+            before = dict(page_registry.pages)
+            try:
+                target()
+            except BaseException:
+                # A callback may replace or unregister existing pages as well
+                # as add new ones. Retry must start from the complete old set.
+                page_registry.pages = before
+                raise
         else:
             raise TypeError(
                 f"Entry point {entry_point.name!r} in group {ENTRY_POINT_GROUP!r} "

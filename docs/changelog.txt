@@ -5,6 +5,10 @@ Changelog
 Unreleased
 ----------
 
+* Restore page registry entries when an entry-point callback fails, allowing
+  clean retries. Generated page routes now accept HEAD with GET access,
+  language and finalization behavior; other methods still return 405.
+
 * Use one routed Resume write alias for filesystem plugin removal and its
   bound data manager. Restore files outside that transaction on failure,
   including a selected-database commit failure; do not require default access.

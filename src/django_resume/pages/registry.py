@@ -5,7 +5,7 @@ from collections.abc import Callable
 
 from django.http import HttpRequest, HttpResponse
 from django.urls import URLPattern, path
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_safe
 
 from .base import ResumePage, dispatch_page
 
@@ -106,7 +106,7 @@ class PageRegistry:
 
     def get_urls(self) -> list[URLPattern]:
         def make_view(page: ResumePage) -> Callable[[HttpRequest, str], HttpResponse]:
-            @require_http_methods(["GET"])
+            @require_safe
             def view(request: HttpRequest, slug: str) -> HttpResponse:
                 return dispatch_page(request, slug, page)
 

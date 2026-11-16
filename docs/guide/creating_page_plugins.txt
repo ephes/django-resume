@@ -325,3 +325,15 @@ find templates inside it. Either add your template directory to the project's
 The bundled ``example/resume_entrypoint_demo`` distribution is exactly this: it
 is installed but not a Django app, and its ``ContactPage`` is reachable at
 ``<slug>/contact/`` purely through the entry point.
+
+Registration failure and safe requests
+--------------------------------------
+
+Entry-point callbacks publish their loaded marker only after success. If a
+callback raises, the page registry is restored to its pre-callback entries,
+including replaced or removed entries; startup can retry the callback. External
+side effects performed by a callback remain the package's responsibility.
+
+Generated page routes accept GET and HEAD. Both run access checks, resume
+language selection and response finalization; Django removes the HEAD body.
+Other methods return 405 with ``Allow: GET, HEAD``.

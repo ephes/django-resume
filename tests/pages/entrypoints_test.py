@@ -121,3 +121,43 @@ def test_autodiscover_runs_modules_then_entry_points(monkeypatch):
     pages_pkg.autodiscover_pages()
 
     assert seen == [("modules", "resume_pages"), ("entry_points",)]
+
+
+@pytest.mark.parametrize("failure", [ValueError, KeyboardInterrupt])
+def test_failed_callback_restores_registry_and_can_retry(monkeypatch, failure):
+    from django_resume.pages import PageRegistry
+
+    registry = PageRegistry()
+    monkeypatch.setattr(pages_pkg, "page_registry", registry)
+
+    class Original(ResumePage):
+        url_name = "original"
+        path = "original/"
+
+    class Replacement(Original):
+        path = "replacement/"
+
+    class Partial(ResumePage):
+        url_name = "partial"
+        path = "partial/"
+
+    registry.register(Original)
+    original = registry.get_page("original")
+    attempts = []
+
+    def callback():
+        registry.register_page_list([Replacement, Partial])
+        attempts.append(True)
+        if len(attempts) == 1:
+            raise failure("synthetic callback failure")
+
+    _patch_entry_points(monkeypatch, [_FakeEntryPoint(callback)])
+    with pytest.raises(failure):
+        load_entry_point_pages()
+    assert registry.pages == {"original": original}
+    assert not pages_pkg._loaded_entry_points
+    load_entry_point_pages()
+    load_entry_point_pages()
+    assert list(registry.pages) == ["original", "partial"]
+    assert isinstance(registry.get_page("original"), Replacement)
+    assert attempts == [True, True]
