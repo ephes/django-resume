@@ -1638,7 +1638,8 @@ existing source-document and report behavior for unchanged re-export.
 Project keywords and project/employed/freelance timeline badge lists share the
 1,024-string / 1,024-character limits. These badge checks also apply to private
 round-trip imports when a badge field is present; an absent field remains
-supported. Other private payloads retain their existing structural validation
+supported, and the legacy stored shapes ``null`` and a JSON-encoded string
+list within the limits re-import unchanged. Other private payloads retain their existing structural validation
 and opaque extension support. Legacy reads accept JSON-encoded lists and
 consider only the first 1,024 entries, omitting non-string and overlong badges
 with value-free export notes. Reads never rewrite plugin data, and the private

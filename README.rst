@@ -53,7 +53,8 @@ Project and timeline badges use the Skills contract: a JSON list of at most
 1,024 strings with at most 1,024 characters each. Blank input clears the list.
 Admin/inline editors and imports reject other values before saving. Portable
 project keywords and private project/timeline badge payloads share these limits.
-Legacy JSON-encoded lists remain readable; export considers the first 1,024
+Legacy ``null`` and JSON-encoded valid lists remain readable and re-import
+unchanged; export considers the first 1,024
 entries and omits invalid/overlong badges with value-free report notes. Export
 never rewrites stored data; the private round-trip envelope retains the source.
 

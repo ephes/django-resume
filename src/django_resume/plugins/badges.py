@@ -21,10 +21,27 @@ def validate_badges(badges: object) -> None:
         )
 
 
+def validate_stored_badges(badges: object) -> None:
+    """Private round-trip payloads: also accept the legacy stored shapes that
+    ``display_badges`` reads without a note (``None`` and a JSON-encoded valid
+    list), so an unchanged export re-imports."""
+    if badges is None:
+        return
+    if isinstance(badges, str):
+        try:
+            badges = json.loads(badges)
+        except (ValueError, RecursionError):
+            raise forms.ValidationError("Badges must be a list of strings.") from None
+    validate_badges(badges)
+
+
 def display_badges(
     value: object, *, notes: list[str] | None = None, field: str = "badges"
 ) -> list[str]:
     """Omit invalid legacy values without exposing or changing the source."""
+    if value is None:
+        # Blank legacy JSONField input was stored as null: an empty list.
+        return []
     if isinstance(value, str):
         try:
             value = json.loads(value)

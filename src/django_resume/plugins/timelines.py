@@ -303,7 +303,7 @@ class TimelineMixin:
             badges = display_badges(
                 item.get("badges", []),
                 notes=notes,
-                field=f"timelines.items[{index}].badges",
+                field=f"{list_plugin.name}.items[{index}].badges",
             )
             work.append(
                 {

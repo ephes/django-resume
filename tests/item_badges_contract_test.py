@@ -164,7 +164,7 @@ def test_legacy_export_omits_invalid_values_with_safe_diagnostics(
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("plugin_class", PLUGINS)
-@pytest.mark.parametrize("badges", INVALID)
+@pytest.mark.parametrize("badges", [value for value in INVALID if value != "null"])
 def test_private_import_refuses_invalid_badges_before_creation(
     user, plugin_class, badges
 ):
@@ -197,3 +197,70 @@ def test_portable_project_import_refuses_editor_limits(user, badges):
         "projects.items[0].badges" in error for error in result.report.validation_errors
     )
     assert not Resume.objects.exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("plugin_class", PLUGINS)
+@pytest.mark.parametrize(
+    "stored, portable",
+    [('["a", "b"]', ["a", "b"]), (None, []), ([], [])],
+)
+def test_valid_legacy_badge_shapes_round_trip_unchanged(
+    user, plugin_class, stored, portable
+):
+    user.save()
+    plugin = plugin_class()
+    resume = Resume.objects.create(name="Legacy", slug="legacy", owner=user)
+    resume.plugin_data = {plugin.name: {"items": [item_data(stored)]}}
+    resume.save()
+    exported = export_resume(resume)
+    assert exported.report.valid, exported.report.validation_errors
+    assert not any("badges" in note for note in exported.report.notes)
+    section, field = (
+        ("projects", "keywords")
+        if plugin.name == "projects"
+        else ("work", "highlights")
+    )
+    assert exported.document[section][0].get(field, []) == portable
+
+    result = import_resume_document(
+        exported.document, owner=user, slug="legacy-roundtrip"
+    )
+    assert result.resume is not None, result.report.validation_errors
+    imported = Resume.objects.get(slug="legacy-roundtrip")
+    assert imported.plugin_data[plugin.name] == resume.plugin_data[plugin.name]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("stored", ["not json", '["a", false]', "[1]"])
+def test_private_import_refuses_invalid_legacy_badge_strings(user, stored):
+    user.save()
+    document = {
+        "meta": {
+            "django_resume": {
+                "plugin_data": {"projects": {"items": [item_data(stored)]}}
+            }
+        }
+    }
+    result = import_resume_document(document, owner=user, slug="rejected")
+    assert result.resume is None
+    assert any(
+        "projects.items[0].badges" in error for error in result.report.validation_errors
+    )
+    assert not Resume.objects.exists()
+
+
+def test_timeline_badge_notes_name_their_plugin(resume):
+    resume.plugin_data = {
+        EmployedTimelinePlugin.name: {"items": [item_data([1])]},
+        FreelanceTimelinePlugin.name: {"items": [item_data([2])]},
+    }
+    notes = export_resume(resume).report.notes
+    assert any(
+        note.startswith(f"{EmployedTimelinePlugin.name}.items[0].badges")
+        for note in notes
+    )
+    assert any(
+        note.startswith(f"{FreelanceTimelinePlugin.name}.items[0].badges")
+        for note in notes
+    )
