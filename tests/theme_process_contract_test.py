@@ -245,3 +245,22 @@ def test_completed_command_retires_pipe_detached_child_before_reaping(
             except (ProcessLookupError, PermissionError):
                 pass
             process.wait()
+
+
+@pytest.mark.parametrize(
+    "platform,exited,allowed",
+    [("darwin", True, True), ("darwin", False, False), ("linux", True, False)],
+)
+def test_group_permission_error_only_accepts_darwin_completed_leader(
+    monkeypatch, platform, exited, allowed
+):
+    monkeypatch.setattr(themes.sys, "platform", platform)
+    monkeypatch.setattr(themes.os, "killpg", Mock(side_effect=PermissionError))
+    waitid = Mock(return_value=SimpleNamespace(si_pid=123) if exited else None)
+    monkeypatch.setattr(themes.os, "waitid", waitid)
+    process = SimpleNamespace(pid=123)
+    if allowed:
+        themes._terminate_process_tree(process)
+    else:
+        with pytest.raises(PermissionError):
+            themes._terminate_process_tree(process)

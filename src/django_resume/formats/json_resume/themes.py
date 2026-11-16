@@ -1313,6 +1313,18 @@ def _terminate_process_tree(process) -> None:
         os.killpg(process.pid, signal.SIGKILL)
     except ProcessLookupError:
         return
+    except PermissionError:
+        # Darwin killpg1 excludes zombies, returning EPERM when no signalable
+        # live member remains. Only accept it after observing our unreaped
+        # leader's exit; never poll/reap here or hide a live leader's failure.
+        # https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/kern_sig.c
+        if (
+            sys.platform == "darwin"
+            and os.waitid(os.P_PID, process.pid, os.WEXITED | os.WNOWAIT | os.WNOHANG)
+            is not None
+        ):
+            return
+        raise
 
 
 def _wait_after_terminate(process) -> None:

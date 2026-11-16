@@ -1722,3 +1722,9 @@ closed stdout/stderr. Only then is the leader reaped and output admitted.
 Stream errors and interrupts use the same cleanup ownership; cleanup never
 signals a process group after its leader has been reaped. Theme code must not
 escape the owned session/process group; this is not a sandbox for hostile code.
+
+Darwin reports ``EPERM`` for a process group with no signalable live members,
+including a zombie-only group. Cleanup accepts that result only after observing
+the owned leader's unreaped exit. Running-leader permission failures still fail
+closed. Commands must retain the service account's credentials and remain in
+their owned process group.
