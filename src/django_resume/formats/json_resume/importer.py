@@ -13,7 +13,7 @@ from threading import Event, Timer
 from copy import deepcopy
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Callable, cast
 from urllib.parse import urljoin, urlparse
 
 from django.contrib.auth import get_user_model
@@ -37,6 +37,7 @@ from ...plugins.tokens import TokenPlugin
 from ...plugins.education import EducationItemForm
 from ...plugins.languages import LanguagesItemForm
 from ...plugins.skills import validate_skill_badges
+from ...plugins.badges import validate_badges, validate_stored_badges
 from .export import (
     DJANGO_RESUME_META_VERSION,
     RESERVED_EXPORT_PATHS,
@@ -527,6 +528,38 @@ def _validate_restored_plugin_data(plugin_data: object) -> list[str]:
                     seen.add(item_id)
                 if "position" in item and type(item["position"]) is not int:
                     errors.append(f"{field}.position must be an integer when present")
+        errors.extend(
+            _item_badge_errors(
+                plugin_name,
+                payload,
+                prefix="meta.django_resume.plugin_data.",
+                validate=validate_stored_badges,
+            )
+        )
+    return errors
+
+
+def _item_badge_errors(
+    plugin_name: str,
+    payload: dict,
+    *,
+    prefix: str = "",
+    validate: Callable[[object], None] = validate_badges,
+) -> list[str]:
+    errors: list[str] = []
+    if plugin_name in {"projects", "employed_timeline", "freelance_timeline"}:
+        items = payload.get("items", [])
+        if isinstance(items, list):
+            for index, item in enumerate(items):
+                if not isinstance(item, dict) or "badges" not in item:
+                    continue
+                try:
+                    validate(item["badges"])
+                except ValidationError as exc:
+                    errors.extend(
+                        f"{prefix}{plugin_name}.items[{index}].badges: {message}"
+                        for message in exc.messages
+                    )
     return errors
 
 
@@ -551,6 +584,7 @@ def _adapter_editor_errors(plugin_name: str, payload: dict) -> list[str]:
                         f"{plugin_name}.items[{index}].{name} exceeds editor "
                         f"maximum length of {limit} characters"
                     )
+    errors.extend(_item_badge_errors(plugin_name, payload))
     if plugin_name == "skills" and "badges" in payload:
         try:
             validate_skill_badges(payload["badges"])

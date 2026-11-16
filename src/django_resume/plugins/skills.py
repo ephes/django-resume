@@ -3,43 +3,19 @@ import json
 from django import forms
 
 from .base import SimplePlugin
+from .badges import (
+    MAX_BADGES,
+    MAX_BADGE_LENGTH,
+    display_badges,
+    validate_badges as validate_skill_badges,
+)
 from ..interchange.pointer import get_pointer
 from ..interchange.protocols import AdapterExport, AdapterImport
 from ..formats.json_resume.mapping import unimported_item_fields
 
 SKILL_IMPORTED_KEYS = ("name", "level", "keywords")
-MAX_SKILL_BADGES = 1024
-MAX_SKILL_BADGE_LENGTH = 1024
-
-
-def validate_skill_badges(badges: object) -> None:
-    """The editor/import domain: a bounded list containing only strings."""
-    if not isinstance(badges, list) or any(
-        not isinstance(badge, str) for badge in badges
-    ):
-        raise forms.ValidationError("Skills must be a list of strings.")
-    if len(badges) > MAX_SKILL_BADGES:
-        raise forms.ValidationError(f"Skills allow at most {MAX_SKILL_BADGES} badges.")
-    if any(len(badge) > MAX_SKILL_BADGE_LENGTH for badge in badges):
-        raise forms.ValidationError(
-            f"Each skill allows at most {MAX_SKILL_BADGE_LENGTH} characters."
-        )
-
-
-def display_badges(value: object) -> list[str]:
-    """Read legacy JSON strings safely; never rewrite stored plugin data."""
-    if isinstance(value, str):
-        try:
-            value = json.loads(value)
-        except (ValueError, RecursionError):
-            return []
-    if not isinstance(value, list):
-        return []
-    return [
-        badge
-        for badge in value[:MAX_SKILL_BADGES]
-        if isinstance(badge, str) and len(badge) <= MAX_SKILL_BADGE_LENGTH
-    ]
+MAX_SKILL_BADGES = MAX_BADGES
+MAX_SKILL_BADGE_LENGTH = MAX_BADGE_LENGTH
 
 
 class SkillsForm(forms.Form):

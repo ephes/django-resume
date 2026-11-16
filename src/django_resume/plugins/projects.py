@@ -5,6 +5,8 @@ from typing import Type, cast, Any
 from django import forms
 from django.http import HttpRequest
 
+from .badges import BadgesField, display_badges
+
 from .base import (
     EditorTextField,
     ListPlugin,
@@ -35,7 +37,7 @@ class ProjectItemForm(ListItemFormMixin, forms.Form):
     url = forms.URLField(widget=forms.URLInput(), required=False, assume_scheme="https")
     description = EditorTextField()
     initial_badges = ["Some Badge", "Another Badge"]
-    badges = forms.JSONField(
+    badges = BadgesField(
         widget=forms.TextInput(), required=False, initial=initial_badges
     )
     position = forms.IntegerField(widget=forms.NumberInput(), required=False)
@@ -60,7 +62,7 @@ class ProjectItemForm(ListItemFormMixin, forms.Form):
         """
         existing_badges = self.initial.get("badges")
         if existing_badges is not None:
-            return json.dumps(existing_badges)
+            return json.dumps(display_badges(existing_badges))
         return json.dumps(self.initial_badges)
 
     @staticmethod
@@ -141,6 +143,7 @@ class ProjectsJsonResumeAdapter:
 
     def export(self, facts: dict) -> AdapterExport:
         out: list[dict] = []
+        notes = list(facts.get("badge_notes", []))
         for item in facts.get("projects", []):
             entry: dict[str, object] = {}
             if item.get("title"):
@@ -149,13 +152,19 @@ class ProjectsJsonResumeAdapter:
                 entry["url"] = item["url"]
             if item.get("description"):
                 entry["description"] = item["description"]
-            keywords = [keyword for keyword in item.get("keywords", []) if keyword]
+            keywords = [
+                keyword
+                for keyword in display_badges(
+                    item.get("keywords", []), notes=notes, field="projects.keywords"
+                )
+                if keyword
+            ]
             if keywords:
                 entry["keywords"] = keywords
             if entry:
                 out.append(entry)
         contributions = [("/projects", out)] if out else []
-        return AdapterExport(contributions=contributions)
+        return AdapterExport(contributions=contributions, notes=notes)
 
     source_paths = ("/projects",)
 
@@ -245,15 +254,13 @@ class ProjectsPlugin(ListPlugin):
     def get_structured_data(self, resume) -> dict:
         data = self.get_data(resume)
         projects: list[dict] = []
-        for item in data.get("items", []):
-            badges = item.get("badges") or []
-            if isinstance(badges, str):
-                try:
-                    badges = json.loads(badges)
-                except (ValueError, TypeError):
-                    badges = []
-            if not isinstance(badges, list):
-                badges = []
+        notes: list[str] = []
+        for index, item in enumerate(data.get("items", [])):
+            badges = display_badges(
+                item.get("badges", []),
+                notes=notes,
+                field=f"projects.items[{index}].badges",
+            )
             projects.append(
                 {
                     "title": item.get("title", ""),
@@ -264,7 +271,10 @@ class ProjectsPlugin(ListPlugin):
                 }
             )
         projects.sort(key=lambda entry: entry["position"])
-        return {"projects": projects}
+        facts: dict = {"projects": projects}
+        if notes:
+            facts["badge_notes"] = notes
+        return facts
 
     def get_export_adapters(self) -> dict:
         return {"json_resume": ProjectsJsonResumeAdapter()}

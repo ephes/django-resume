@@ -26,7 +26,10 @@ This is the list of built-in plugins that come with django-resume:
 - **Languages**: A list of languages with a 0-100 level and an optional note,
   shown as a bar. The CV pages show them like the awards.
 - **Permission Denied**: The page that is shown when you try to access a part of the resume you need a token for.
-- **Projects**: A list of projects you have worked on.
+- **Projects**: A list of projects you have worked on. Badges follow the
+  Skills string-list limits below, in both editors and imports. Portable export
+  maps them to project keywords; invalid legacy badges are omitted with
+  value-free report notes without changing stored data.
 - **Skills**: A list of skills you have.
 
   Skills editors accept a JSON list of at most 1,024 strings, each at most
@@ -39,7 +42,11 @@ This is the list of built-in plugins that come with django-resume:
 - **Page Theme**: The django-resume theme used for built-in pages, editing UI,
   cover letters, and plugin templates (``plain``, ``headwind`` or
   ``editorial``, see :doc:`themes`) and the optional resume language.
-- **Timeline**: A timeline of your work experience.
+- **Timeline**: A timeline of your work experience. Both employed and freelance
+  badges follow the Skills string-list limits. Portable export maps them to
+  work highlights with the same legacy omission diagnostics as Projects.
+  Portable work imports continue to append highlights to the description;
+  private round-trip imports validate the stored badge lists.
 - **Tokens**: A token that you can use to access parts of the resume that are protected.
   The owner-only token flat-edit endpoint returns the saved requirement as a
   fragment. Bundled pages do not expose this editor; integrations can embed its

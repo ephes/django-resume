@@ -4,6 +4,8 @@ from typing import Type, Any, cast
 from django import forms
 from django.http import HttpRequest
 
+from .badges import BadgesField, display_badges
+
 from .base import (
     EditorTextField,
     ListPlugin,
@@ -47,7 +49,7 @@ class TimelineJsonResumeAdapter:
 
     def export(self, facts: dict) -> AdapterExport:
         work: list[dict] = []
-        notes: list[str] = []
+        notes = list(facts.get("badge_notes", []))
         for item in facts.get("work", []):
             entry: dict[str, object] = {}
             if item.get("company_name"):
@@ -58,7 +60,13 @@ class TimelineJsonResumeAdapter:
                 entry["position"] = item["role"]
             if item.get("description"):
                 entry["summary"] = item["description"]
-            highlights = [badge for badge in item.get("badges", []) if badge]
+            highlights = [
+                badge
+                for badge in display_badges(
+                    item.get("badges", []), notes=notes, field="work.badges"
+                )
+                if badge
+            ]
             if highlights:
                 entry["highlights"] = highlights
             for json_key, fact_key, label in (
@@ -150,7 +158,7 @@ class TimelineItemForm(ListItemFormMixin, forms.Form):
     initial_badges = [
         "Some Badge",
     ]
-    badges = forms.JSONField(
+    badges = BadgesField(
         widget=forms.TextInput(), required=False, initial=initial_badges
     )
     position = forms.IntegerField(widget=forms.NumberInput(), required=False)
@@ -176,7 +184,7 @@ class TimelineItemForm(ListItemFormMixin, forms.Form):
         """
         existing_badges = self.initial.get("badges")
         if existing_badges is not None:
-            return json.dumps(existing_badges)
+            return json.dumps(display_badges(existing_badges))
         return json.dumps(self.initial_badges)
 
     @staticmethod
@@ -290,15 +298,13 @@ class TimelineMixin:
         list_plugin = cast(ListPlugin, self)
         data = list_plugin.get_data(resume)
         work: list[dict] = []
-        for item in data.get("items", []):
-            badges = item.get("badges") or []
-            if isinstance(badges, str):
-                try:
-                    badges = json.loads(badges)
-                except (ValueError, TypeError):
-                    badges = []
-            if not isinstance(badges, list):
-                badges = []
+        notes: list[str] = []
+        for index, item in enumerate(data.get("items", [])):
+            badges = display_badges(
+                item.get("badges", []),
+                notes=notes,
+                field=f"{list_plugin.name}.items[{index}].badges",
+            )
             work.append(
                 {
                     "company_name": item.get("company_name", ""),
@@ -312,7 +318,10 @@ class TimelineMixin:
                 }
             )
         work.sort(key=lambda entry: entry["position"])
-        return {"work": work}
+        facts: dict = {"work": work}
+        if notes:
+            facts["badge_notes"] = notes
+        return facts
 
     def get_export_adapters(self) -> dict:
         return {"json_resume": TimelineJsonResumeAdapter()}
