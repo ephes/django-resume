@@ -57,6 +57,13 @@ Legacy JSON-encoded lists remain readable; export considers the first 1,024
 entries and omits invalid/overlong badges with value-free report notes. Export
 never rewrites stored data; the private round-trip envelope retains the source.
 
+``python manage.py remove_plugin_by_name NAME`` removes filesystem plugin code,
+templates and stored data using the Resume write database selected once by the
+Django router. It needs no connection to ``default`` when routed elsewhere.
+Files are backed up before removal and restored after the selected transaction
+rolls back on failure, including commit failure. See the plugin creation guide
+for locking and manual recovery details.
+
 Default plugin JSON editors accept strict JSON objects up to 2 MiB and 64
 container levels. Duplicate members and non-finite numbers are rejected.
 Root admin forms carry a signed document revision: if any stored field changes,

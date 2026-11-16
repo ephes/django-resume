@@ -5,6 +5,10 @@ Changelog
 Unreleased
 ----------
 
+* Use one routed Resume write alias for filesystem plugin removal and its
+  bound data manager. Restore files outside that transaction on failure,
+  including a selected-database commit failure; do not require default access.
+
 * Validate project and timeline badges as bounded string lists in both editors
   and at import boundaries. Portable exports omit invalid legacy badges with
   value-free diagnostics without changing stored plugin data.

@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from django.core.management.base import BaseCommand, CommandError
-from django.db import DatabaseError, transaction
+from django.db import DatabaseError, router, transaction
 
 from ...models import Resume
 from ._file_rollback import backup_files
@@ -33,12 +33,15 @@ class Command(BaseCommand):
         ]
         if len(set(paths)) != len(paths):
             raise CommandError("Plugin targets must resolve to distinct files")
+        database = router.db_for_write(Resume)
         try:
             with backup_files(paths):
-                with transaction.atomic():
+                with transaction.atomic(using=database):
                     for path in paths:
                         path.unlink(missing_ok=True)
-                    Resume.objects.remove_plugin_data_by_name(plugin_name)
+                    Resume.objects.db_manager(database).remove_plugin_data_by_name(
+                        plugin_name
+                    )
         except (OSError, DatabaseError) as error:
             raise CommandError(f"Could not remove plugin: {error}") from error
 
