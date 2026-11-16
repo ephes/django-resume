@@ -9,6 +9,7 @@ import stat
 import subprocess
 import tempfile
 import threading
+import time
 from contextlib import contextmanager, ExitStack
 from contextvars import ContextVar
 from dataclasses import dataclass
@@ -784,6 +785,16 @@ def _render_theme(
                     if not chunk:
                         break
                     content.extend(chunk)
+                final = os.fstat(descriptor)
+                if (
+                    opened.st_size != final.st_size
+                    or opened.st_mtime_ns != final.st_mtime_ns
+                    or opened.st_ctime_ns != final.st_ctime_ns
+                    or len(content) != final.st_size
+                ):
+                    raise JsonResumeThemeError(
+                        "Theme render output changed during read"
+                    )
             finally:
                 os.close(descriptor)
             if len(content) > max_bytes:
@@ -1066,6 +1077,8 @@ def _run_process(command: list[str], *, cwd: Path, timeout: float):
         finally:
             os.close(directory)
         started_threads: list[threading.Thread] = []
+        reaped = False
+        stop = threading.Event()
         try:
             assert process.stdout is not None
             assert process.stderr is not None
@@ -1083,15 +1096,12 @@ def _run_process(command: list[str], *, cwd: Path, timeout: float):
                         buffer.extend(chunk)
                         if len(buffer) > max_output_bytes:
                             output_error.append(_OutputLimitExceeded(stream_name))
-                            _terminate_process_tree(process)
+                            stop.set()
                             return
                 except Exception:
                     # Never expose stream content or accept truncated evidence.
                     reader_errors.append(stream_name)
-                    try:
-                        _terminate_process_tree(process)
-                    except OSError:
-                        pass
+                    stop.set()
 
             threads = [
                 threading.Thread(
@@ -1108,7 +1118,11 @@ def _run_process(command: list[str], *, cwd: Path, timeout: float):
             for thread in threads:
                 thread.start()
                 started_threads.append(thread)
-            returncode = process.wait(timeout=timeout)
+            _wait_process_exit(process, timeout, stop)
+            # Reserve the leader PID/group identity until all owned work is killed.
+            _terminate_process_tree(process)
+            returncode = process.wait(timeout=_READER_JOIN_TIMEOUT)
+            reaped = True
             if not _join_reader_threads(threads):
                 raise JsonResumeThemeError(
                     "Command output streams did not close after child process exited"
@@ -1131,8 +1145,8 @@ def _run_process(command: list[str], *, cwd: Path, timeout: float):
             # Ownership starts at Popen, including partial reader startup and
             # interruptions. Attempt every cleanup step, preserving the cause.
             for cleanup in (
-                lambda: _terminate_process_tree(process),
-                lambda: _wait_after_terminate(process),
+                lambda: None if reaped else _terminate_process_tree(process),
+                lambda: None if reaped else _wait_after_terminate(process),
                 lambda: _close_process_streams(process),
                 lambda: _join_reader_threads(started_threads),
             ):
@@ -1147,6 +1161,21 @@ def _run_process(command: list[str], *, cwd: Path, timeout: float):
         ) from exc
     except OSError as exc:
         raise JsonResumeThemeError(f"Could not run command: {exc}") from exc
+
+
+def _wait_process_exit(process, timeout: float, stop: threading.Event) -> None:
+    if os.name == "nt":
+        process.wait(timeout=timeout)
+        return
+    deadline = time.monotonic() + timeout
+    while not stop.is_set():
+        # WNOWAIT observes exit without releasing the process-group identity.
+        if os.waitid(os.P_PID, process.pid, os.WEXITED | os.WNOWAIT | os.WNOHANG):
+            return
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise subprocess.TimeoutExpired(process.args, timeout)
+        time.sleep(min(0.01, remaining))
 
 
 def _process_group_kwargs() -> dict:
@@ -1164,9 +1193,6 @@ def _terminate_process_tree(process) -> None:
         os.killpg(process.pid, signal.SIGKILL)
     except ProcessLookupError:
         return
-    except OSError:
-        if process.poll() is None:
-            process.kill()
 
 
 def _wait_after_terminate(process) -> None:

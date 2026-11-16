@@ -103,3 +103,8 @@ rendering diagnostics and login redirects. An integrator's site cache
 middleware must never replay these owner responses to another session or
 reuse signed editor forms after a mutation. Public page cache behavior is
 unchanged. Standard Django admin forms retain their admin cache policy.
+
+Theme command completion retires the owned POSIX process group before reaping
+its leader and admitting output, even after a successful exit. HTML descriptor
+size, modification/change metadata and consumed bytes must remain stable during
+the bounded read; concurrent changes return a rendering error.

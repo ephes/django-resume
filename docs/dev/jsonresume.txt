@@ -1537,7 +1537,10 @@ type, identity and size, and reads only that descriptor. A replacement, symlink,
 FIFO, oversized file or growth beyond the cap is refused as
 ``JsonResumeThemeError``; temporary output is cleaned up. Platforms without
 those open flags still require matching regular-file descriptor identity before
-any read. Theme code remains trusted server-side code.
+any read. After reading, descriptor size, mtime, ctime and consumed bytes must
+still match. In-place writes, truncation and atomic pathname replacement during
+the read are refused (replacement unlinks the admitted inode and changes ctime).
+A stable opened file succeeds. Theme code remains trusted server-side code.
 
 Theme selection and concurrent integration edits
 ------------------------------------------------
@@ -1694,3 +1697,15 @@ Type, pattern and unexpected-property diagnostics identify the location and
 constraint without rendering the invalid value. This avoids constructing
 large value representations before truncation. Schema validity and supported
 extension fields are unchanged; rejected imports create no resume.
+
+
+Command completion ownership
+-----------------------------
+
+On POSIX, command completion observes the leader with ``waitid(WNOWAIT)``;
+the leader remains unreaped while the owned process group receives SIGKILL.
+This applies to successful and nonzero exits, including descendants that have
+closed stdout/stderr. Only then is the leader reaped and output admitted.
+Stream errors and interrupts use the same cleanup ownership; cleanup never
+signals a process group after its leader has been reaped. Theme code must not
+escape the owned session/process group; this is not a sandbox for hostile code.

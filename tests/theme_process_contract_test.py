@@ -72,6 +72,7 @@ def test_reader_failure_refuses_zero_exit_and_cleans_work(
         pid=12345,
     )
     setattr(process, stream_name, Broken(b"{}"))
+    monkeypatch.setattr(themes, "_wait_process_exit", Mock())
     killed = Mock()
     monkeypatch.setattr(themes, "_terminate_process_tree", killed)
     monkeypatch.setattr(themes.subprocess, "Popen", Mock(return_value=process))
@@ -178,3 +179,69 @@ def test_existing_ancestors_are_not_recreated(tmp_path, monkeypatch):
     themes.os.close(descriptor)
     with pytest.raises(PermissionError):
         themes._open_directory(existing / "missing", create=True)
+
+
+@pytest.mark.parametrize("exit_code", [0, 7])
+def test_completed_command_retires_pipe_detached_child_before_reaping(
+    tmp_path, monkeypatch, exit_code
+):
+    import fcntl
+    import os
+    import signal
+    import sys
+
+    lock = tmp_path / "child.lock"
+    ready = tmp_path / "ready"
+    child = (
+        "import fcntl,time,pathlib; "
+        f"f=open({str(lock)!r},'w'); fcntl.flock(f,fcntl.LOCK_EX); "
+        f"pathlib.Path({str(ready)!r}).touch(); time.sleep(2)"
+    )
+    script = (
+        "import subprocess,sys,time,pathlib; "
+        f"subprocess.Popen([sys.executable,'-c',{child!r}], "
+        "stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL); "
+        f"p=pathlib.Path({str(ready)!r}); "
+        "\nwhile not p.exists(): time.sleep(.01)\n"
+        f"sys.exit({exit_code})"
+    )
+    processes = []
+    popen = themes.subprocess.Popen
+    terminate = themes._terminate_process_tree
+    retired_unreaped = []
+
+    def launch(*args, **kwargs):
+        process = popen(*args, **kwargs)
+        processes.append(process)
+        return process
+
+    def retire(process):
+        retired_unreaped.append(process.returncode is None)
+        terminate(process)
+
+    monkeypatch.setattr(themes.subprocess, "Popen", launch)
+    monkeypatch.setattr(themes, "_terminate_process_tree", retire)
+    try:
+        result = themes._run_process(
+            [sys.executable, "-c", script], cwd=tmp_path, timeout=5
+        )
+        assert result.returncode == exit_code
+        assert retired_unreaped == [True]
+        import time
+
+        with lock.open() as stream:
+            deadline = time.monotonic() + 1
+            while True:
+                try:
+                    fcntl.flock(stream, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    break
+                except BlockingIOError:
+                    assert time.monotonic() < deadline
+                    time.sleep(0.01)
+    finally:
+        for process in processes:
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except (ProcessLookupError, PermissionError):
+                pass
+            process.wait()

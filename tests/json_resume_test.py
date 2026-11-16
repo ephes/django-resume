@@ -1628,7 +1628,12 @@ def test_run_process_cleans_owned_process_on_interruption(
         KeyboardInterrupt() if failure_at == "wait" else RuntimeError("start failed")
     )
     process = Mock(stdout=BytesIO(), stderr=BytesIO())
-    process.wait.side_effect = [primary, 0] if failure_at == "wait" else [0]
+    process.wait.return_value = 0
+    monkeypatch.setattr(
+        json_resume_themes,
+        "_wait_process_exit",
+        Mock(side_effect=primary if failure_at == "wait" else None),
+    )
     threads = [Mock(), Mock()]
     for thread in threads:
         thread.is_alive.return_value = False
