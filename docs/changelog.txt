@@ -5,6 +5,10 @@ Changelog
 Unreleased
 ----------
 
+* Bound context inventory entries/depth/path bytes, actual per-file reads and
+  total UTF-8 output. Sort exports deterministically and stage them before stdout
+  so source admission failures emit no partial dump.
+
 * Add explicit ``llm-content --root`` selection and refuse ambiguous automatic
   root discovery from installed environments before traversing/outputting files.
 

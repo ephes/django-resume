@@ -99,3 +99,76 @@ def test_explicit_root_must_be_directory(monkeypatch, tmp_path, capsys, root):
         cli.llm_content()
     assert error.value.code != 0
     assert capsys.readouterr().out == ""
+
+
+def test_context_per_file_limit_checks_actual_reads(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(cli, "MAX_FILE_BYTES", 8, raising=False)
+    (tmp_path / "large.py").write_text("x" * 9)
+    assert run_cli(monkeypatch, tmp_path) != 0
+    result = capsys.readouterr()
+    assert result.out == ""
+    assert "limit" in result.err
+
+
+def test_context_growth_after_inventory_is_bounded(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(cli, "MAX_FILE_BYTES", 8, raising=False)
+    source = tmp_path / "grow.py"
+    source.write_text("x")
+    real_open = os.open
+
+    def grow_before_open(path, flags, *args, **kwargs):
+        if path == "grow.py":
+            source.write_text("x" * 9)
+        return real_open(path, flags, *args, **kwargs)
+
+    monkeypatch.setattr(os, "open", grow_before_open)
+    assert run_cli(monkeypatch, tmp_path) != 0
+    assert capsys.readouterr().out == ""
+
+
+def test_context_aggregate_limit_counts_headers_and_utf8(monkeypatch, tmp_path, capsys):
+    for name in ("a.py", "z.py"):
+        (tmp_path / name).write_text("é" * 4, encoding="utf-8")
+    expected = "".join(
+        f"{tmp_path / name}\n{name}\n---\néééé\n---\n" for name in ("a.py", "z.py")
+    )
+    monkeypatch.setattr(
+        cli, "MAX_EXPORT_BYTES", len(expected.encode("utf-8")), raising=False
+    )
+    assert run_cli(monkeypatch, tmp_path) == 0
+    assert capsys.readouterr().out == expected
+    monkeypatch.setattr(cli, "MAX_EXPORT_BYTES", len(expected.encode("utf-8")) - 1)
+    assert run_cli(monkeypatch, tmp_path) != 0
+    assert capsys.readouterr().out == ""
+
+
+@pytest.mark.parametrize("matched", [True, False])
+def test_context_tree_entry_limit(monkeypatch, tmp_path, capsys, matched):
+    monkeypatch.setattr(cli, "MAX_TREE_ENTRIES", 2, raising=False)
+    suffix = "py" if matched else "dat"
+    for i in range(3):
+        (tmp_path / f"{i}.{suffix}").write_text("small")
+    assert run_cli(monkeypatch, tmp_path, "--paths-only") != 0
+    assert capsys.readouterr().out == ""
+
+
+def test_context_paths_only_never_opens_contents(monkeypatch, tmp_path, capsys):
+    (tmp_path / "z.py").write_bytes(b"\xff")
+    (tmp_path / "a.py").write_text("x" * 20)
+    monkeypatch.setattr(cli, "MAX_FILE_BYTES", 1, raising=False)
+    real_open = os.open
+
+    def no_content_open(path, flags, *args, **kwargs):
+        assert path not in ("a.py", "z.py")
+        return real_open(path, flags, *args, **kwargs)
+
+    monkeypatch.setattr(os, "open", no_content_open)
+    assert run_cli(monkeypatch, tmp_path, "--paths-only") == 0
+    assert capsys.readouterr().out == "a.py\nz.py\n"
+
+
+def test_context_rejects_non_utf8_without_partial_stdout(monkeypatch, tmp_path, capsys):
+    (tmp_path / "a.py").write_text("valid")
+    (tmp_path / "z.py").write_bytes(b"\xff")
+    assert run_cli(monkeypatch, tmp_path) != 0
+    assert capsys.readouterr().out == ""

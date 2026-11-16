@@ -7,6 +7,13 @@ import sys
 import stat
 from contextlib import contextmanager
 from pathlib import Path
+from tempfile import SpooledTemporaryFile
+
+
+MAX_TREE_ENTRIES = 20_000
+MAX_TREE_DEPTH = 64
+MAX_FILE_BYTES = 1024 * 1024
+MAX_EXPORT_BYTES = 16 * 1024 * 1024
 
 
 def get_project_root():
@@ -61,6 +68,7 @@ def llm_content():
     }
     exclude_dirs = {
         ".venv",
+        ".cache",
         ".git",
         ".idea",
         ".mypy_cache",
@@ -78,47 +86,82 @@ def llm_content():
     }
     patterns = ["*.py", "*.rst", "*.js", "*.ts", "*.html"]
     try:
-        with open_directory(project_root) as root_fd:
-            all_files = []
-            for directory, dirs, files, directory_fd in os.fwalk(
-                ".",
-                dir_fd=root_fd,
-                follow_symlinks=False,
-                onerror=raise_walk_error,
-            ):
-                dirs[:] = sorted(d for d in dirs if d not in exclude_dirs)
-                for filename in sorted(files):
-                    if filename in exclude_files or not any(
-                        fnmatch.fnmatch(filename, pattern) for pattern in patterns
-                    ):
-                        continue
-                    if not stat.S_ISREG(
-                        os.stat(
-                            filename, dir_fd=directory_fd, follow_symlinks=False
-                        ).st_mode
-                    ):
-                        raise ValueError("unsafe source entry")
-                    all_files.append(Path(directory) / filename)
-
+        with (
+            open_directory(project_root) as root_fd,
+            SpooledTemporaryFile(
+                mode="w+",
+                encoding="utf-8",
+                newline="\n",
+                max_size=1024 * 1024,
+            ) as output,
+        ):
+            all_files = collect_sources(root_fd, exclude_dirs, exclude_files, patterns)
+            total = 0
             for relative_path in sorted(all_files):
                 if args.paths_only:
-                    print(relative_path)
+                    chunk = f"{relative_path}\n"
                 else:
                     with open_source(root_fd, relative_path) as source:
-                        content = source.read().decode("utf-8")
-                    print(project_root / relative_path)
-                    print(relative_path)
-                    print("---")
-                    print(content)
-                    print("---")
+                        raw = source.read(MAX_FILE_BYTES + 1)
+                    if len(raw) > MAX_FILE_BYTES:
+                        raise ValueError("per-file byte limit exceeded")
+                    content = (
+                        raw.decode("utf-8").replace("\r\n", "\n").replace("\r", "\n")
+                    )
+                    chunk = f"{project_root / relative_path}\n{relative_path}\n---\n{content}\n---\n"
+                total += len(chunk.encode("utf-8"))
+                if total > MAX_EXPORT_BYTES:
+                    raise ValueError("total export byte limit exceeded")
+                output.write(chunk)
+
+            # Nothing reaches stdout until the entire export passes admission.
+            output.seek(0)
+            while chunk := output.read(64 * 1024):
+                sys.stdout.write(chunk)
     except (OSError, ValueError):
-        print("llm-content: refused unsafe or unreadable source entry", file=sys.stderr)
+        print(
+            "llm-content: refused unsafe/unreadable source or export limit exceeded; "
+            "no complete export produced",
+            file=sys.stderr,
+        )
         return 1
     return 0
 
 
-def raise_walk_error(error):
-    raise error
+def collect_sources(root_fd, exclude_dirs, exclude_files, patterns):
+    """Stream directory entries; bound retained inventory before sorting it."""
+    files = []
+    entries = 0
+    path_bytes = 0
+
+    def visit(directory_fd, relative, depth):
+        nonlocal entries, path_bytes
+        if depth > MAX_TREE_DEPTH:
+            raise ValueError("directory depth limit exceeded")
+        with os.scandir(directory_fd) as inventory:
+            for entry in inventory:
+                entries += 1
+                if entries > MAX_TREE_ENTRIES:
+                    raise ValueError("tree entry limit exceeded")
+                path = relative / entry.name
+                if entry.is_dir(follow_symlinks=False):
+                    if entry.name not in exclude_dirs:
+                        with open_directory(
+                            entry.name, dir_fd=directory_fd
+                        ) as child_fd:
+                            visit(child_fd, path, depth + 1)
+                elif entry.name not in exclude_files and any(
+                    fnmatch.fnmatch(entry.name, pattern) for pattern in patterns
+                ):
+                    if not stat.S_ISREG(entry.stat(follow_symlinks=False).st_mode):
+                        raise ValueError("unsafe source entry")
+                    path_bytes += len(str(path).encode("utf-8"))
+                    if path_bytes > MAX_EXPORT_BYTES:
+                        raise ValueError("inventory path byte limit exceeded")
+                    files.append(path)
+
+    visit(root_fd, Path(), 0)
+    return files
 
 
 @contextmanager
