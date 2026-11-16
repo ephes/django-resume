@@ -5,25 +5,75 @@ from django.urls import reverse
 
 from django_resume.pages.builtins import CvPage, render_cv_403
 from django_resume.plugins import plugin_registry, TokenPlugin
+from django_resume.plugins.registry import PluginRegistry
 
 
 @pytest.mark.django_db
-def test_cv_check_access_allows_when_token_unregistered(resume):
+@pytest.mark.parametrize("denial_renderer", [True, False])
+@pytest.mark.parametrize(
+    "visitor,token,public,status",
+    [
+        ("anonymous", None, False, 403),
+        ("anonymous", "invalid", False, 403),
+        ("anonymous", "valid", False, 200),
+        ("other", None, False, 403),
+        ("owner", None, False, 200),
+        ("staff", None, False, 200),
+        ("anonymous", None, True, 200),
+    ],
+)
+def test_cv_policy_without_token_renderer(
+    client,
+    resume,
+    django_user_model,
+    monkeypatch,
+    denial_renderer,
+    visitor,
+    token,
+    public,
+    status,
+):
     resume.owner.save()
+    resume.plugin_data = {
+        "token": {
+            "flat": {"token_required": not public},
+            "items": [{"token": "valid"}],
+        },
+        "education": {
+            "items": [{"id": "school", "school_name": "Private synthetic school"}]
+        },
+        "permission_denied": {"title": "Synthetic access request"},
+    }
     resume.save()
-    # Do not assume registration state (other tests mutate the global registry);
-    # restore it on exit so collection order cannot leak.
-    token_registered = plugin_registry.get_plugin(TokenPlugin.name) is not None
-    if token_registered:
-        plugin_registry.unregister(TokenPlugin)
-    try:
-        request = RequestFactory().get("/john-doe/cv/")
-        request.user = AnonymousUser()
-
-        assert CvPage().check_access(request, resume) is None
-    finally:
-        if token_registered:
-            plugin_registry.register(TokenPlugin)
+    isolated = PluginRegistry()
+    isolated.plugins = {
+        name: plugin
+        for name, plugin in plugin_registry.plugins.items()
+        if name != "token" and (denial_renderer or name != "permission_denied")
+    }
+    monkeypatch.setattr(plugin_registry, "plugins", isolated.plugins)
+    if visitor == "owner":
+        client.force_login(resume.owner)
+    elif visitor != "anonymous":
+        user = django_user_model.objects.create_user(
+            username=visitor, is_staff=visitor == "staff"
+        )
+        client.force_login(user)
+    response = client.get(
+        reverse("resume:cv", kwargs={"slug": resume.slug}),
+        {"token": token} if token else {},
+    )
+    expected_status = 404 if status == 403 and not denial_renderer else status
+    assert response.status_code == expected_status
+    if status == 200:
+        assert b"Private synthetic school" in response.content
+    else:
+        assert b"Private synthetic school" not in response.content
+        if denial_renderer:
+            assert b"Synthetic access request" in response.content
+    if not public:
+        assert response["Referrer-Policy"] == "no-referrer"
+        assert response["Cache-Control"] == "private, no-store"
 
 
 @pytest.mark.django_db

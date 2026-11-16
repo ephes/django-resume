@@ -7,7 +7,6 @@ from django.shortcuts import render
 from django.utils.cache import patch_cache_control
 
 from ..models import Resume
-from ..plugins import plugin_registry
 from ..plugins.tokens import TokenPlugin
 from .base import (
     ResumePage,
@@ -59,9 +58,6 @@ class CvPage(ResumePage):
     nav_group = "Resume"
 
     def check_access(self, request: HttpRequest, resume: Resume) -> HttpResponse | None:
-        token_plugin = plugin_registry.get_plugin(TokenPlugin.name)
-        if token_plugin is None:
-            return None
         try:
             TokenPlugin.check_permissions(
                 request, resume.plugin_data.get(TokenPlugin.name, {}), resume
