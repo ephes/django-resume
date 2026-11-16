@@ -229,3 +229,17 @@ Add and Enter commit pending text through the same validation. Saving the owning
 form also commits a valid pending badge before HTMX serializes it. Duplicates or
 exceeded limits show an inline error and stop submission, retaining the typed
 text and existing badges. Correct or clear the pending text and save again.
+
+Plain editable text uses structural line breaks: ``br`` inserts a newline and
+block elements such as ``div``, ``p`` and ``li`` separate lines. Blank lines
+inside the value survive all native submission paths, and literal angle brackets
+remain text. ``data-type="html"`` editors retain their HTML projection.
+
+Streaming plugin responses iterate in the selected resume language. Each
+sync/async iteration step restores the caller's language before yielding bytes;
+exceptions and cancellation also restore it. Django's synchronous
+``response.close()`` and its registered resource closers run in that language.
+For early cleanup, async streaming sources must provide the synchronous
+``close()`` hook supported by Django's response lifecycle; Django does not call
+an async source's ``aclose()`` on response close. Generators still clean up in
+their iteration language when exhausted, failed or cancelled during a step.

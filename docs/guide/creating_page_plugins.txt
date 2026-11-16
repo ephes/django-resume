@@ -337,3 +337,8 @@ side effects performed by a callback remain the package's responsibility.
 Generated page routes accept GET and HEAD. Both run access checks, resume
 language selection and response finalization; Django removes the HEAD body.
 Other methods return 405 with ``Allow: GET, HEAD``.
+
+Streaming page responses use the same language contract as inline plugins:
+iteration steps and Django's registered ``close()`` cleanup run in the resume
+language, restoring ambient language between chunks. See the streaming lifecycle
+notes in the plugin creation guide for async source cleanup.

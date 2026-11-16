@@ -1,3 +1,24 @@
+// Preserve browser-created lines without interpreting literal markup as HTML.
+const PLAIN_BLOCKS = new Set(['DIV', 'P', 'LI', 'UL', 'OL', 'BLOCKQUOTE', 'PRE',
+    'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'SECTION', 'ARTICLE', 'HEADER', 'FOOTER']);
+function plainEditorText(node) {
+    if (node.nodeType === Node.TEXT_NODE) return node.textContent;
+    if (node.nodeType !== Node.ELEMENT_NODE) return '';
+    if (node.tagName === 'BR') return '\n';
+    let text = '';
+    let previousBlock = false;
+    for (const child of node.childNodes) {
+        // Formatting whitespace between pasted blocks is not an extra line.
+        if (child.nodeType === Node.TEXT_NODE && !child.textContent.trim()
+            && (previousBlock || PLAIN_BLOCKS.has(child.nextSibling?.nodeName))) continue;
+        const block = PLAIN_BLOCKS.has(child.nodeName);
+        if ((block || previousBlock) && text && !text.endsWith('\n')) text += '\n';
+        text += plainEditorText(child);
+        previousBlock = block;
+    }
+    return text;
+}
+
 class EditableForm extends HTMLElement {
     constructor() {
         super();
@@ -48,7 +69,7 @@ class EditableForm extends HTMLElement {
                 if (fieldType === "html") {
                     fieldValue = field.innerHTML.trim();
                 } else {
-                    fieldValue = field.textContent.trim();
+                    fieldValue = plainEditorText(field).trim();
                 }
 
                 // Update the corresponding hidden input field

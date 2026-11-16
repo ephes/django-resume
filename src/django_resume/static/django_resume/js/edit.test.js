@@ -635,3 +635,33 @@ describe('badge drafts', () => {
         }
     });
 });
+
+describe('plain editor line breaks', () => {
+    afterEach(() => document.body.replaceChildren());
+    test.each([
+        ['First<div>Second</div><div>Third</div>', 'First\nSecond\nThird'],
+        ['<p>First</p><p>Second</p>', 'First\nSecond'],
+        ['<p>First</p>\n  <p>Second</p>', 'First\nSecond'],
+        ['First<br>Second<br><br>Fourth', 'First\nSecond\n\nFourth'],
+        ['<div>First</div><div><br></div><div>Third</div>', 'First\n\nThird'],
+        ['<div>First<br></div><div>Second</div>tail', 'First\nSecond\ntail'],
+        ['&lt;widget&gt;<div>&lt;/widget&gt; &amp; text</div>', '<widget>\n</widget> & text'],
+        ['<div><div>Nested</div><div>lines</div></div><p>End</p>', 'Nested\nlines\nEnd'],
+    ])('projects structural plain text through every submit path: %s', (html, expected) => {
+        for (const method of ['click', 'requestSubmit', 'submit']) {
+            const owner = document.createElement('editable-form');
+            owner.innerHTML = `<form><input type="hidden" name="text" data-field="text"></form>
+                <div contenteditable="true" data-field="text"></div><button type="submit">Save</button>`;
+            owner.querySelector('[contenteditable]').innerHTML = html;
+            document.body.append(owner);
+            const form = owner.querySelector('form');
+            let submitted;
+            form.addEventListener('submit', e => {e.preventDefault(); submitted = new FormData(form).get('text');});
+            if (method === 'click') owner.querySelector('button').click();
+            if (method === 'requestSubmit') form.requestSubmit();
+            if (method === 'submit') fireEvent.submit(form);
+            expect(submitted).toBe(expected);
+            owner.remove();
+        }
+    });
+});

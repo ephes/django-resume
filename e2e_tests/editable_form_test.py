@@ -185,3 +185,32 @@ def test_badge_hydration_budget_preserves_the_source(editor):
     }""")
     assert result == {"preserved": True, "count": 0}
     expect(editor.get_by_role("alert")).to_contain_text("limits")
+
+
+@pytest.mark.parametrize(
+    "html,expected",
+    [
+        ("First<div>Second</div><div>Third</div>", "First\nSecond\nThird"),
+        ("<p>First</p><p>Second</p>", "First\nSecond"),
+        ("First<br>Second<br><br>Fourth", "First\nSecond\n\nFourth"),
+        ("&lt;widget&gt;<div>&lt;/widget&gt;</div>", "<widget>\n</widget>"),
+    ],
+)
+def test_plain_editor_structural_lines_reach_submission(editor, html, expected):
+    editor.locator('[name="trigger"]').fill("synthetic")
+    editor.locator("[contenteditable]").evaluate(
+        "(field, html) => field.innerHTML = html", html
+    )
+    editor.locator("form").evaluate("form => form.requestSubmit()")
+    assert editor.evaluate("submissions") == [expected]
+
+
+def test_plain_editor_keyboard_enter_reaches_submission(editor):
+    editor.locator('[name="trigger"]').fill("synthetic")
+    field = editor.locator("[contenteditable]")
+    field.fill("First")
+    field.press("End")
+    field.press("Enter")
+    field.press_sequentially("<literal> Second")
+    editor.get_by_role("button", name="Save").click()
+    assert editor.evaluate("submissions") == ["First\n<literal> Second"]
