@@ -75,6 +75,11 @@ in a temporary spool before stdout: admission/read failures exit nonzero and
 emit no partial stdout. An output-device failure can still interrupt delivery;
 only exit status zero denotes a complete export.
 
+The tool needs POSIX directory-relative opens (``O_NOFOLLOW``, ``O_DIRECTORY``,
+``dir_fd``); it runs on Linux and macOS, not on Windows. A failure while
+writing to stdout (for example a closed pipe) is also reported with the
+generic refusal message and a nonzero exit.
+
 Repository Checks
 -----------------
 
