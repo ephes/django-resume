@@ -5,6 +5,11 @@ Changelog
 Unreleased
 ----------
 
+* Allow navigation tags to accept an optional request and retain a validated
+  capability only on the built-in protected CV link. Omit invalid/expired
+  tokens and keep public, owner/staff and custom destinations token-free;
+  existing tag callers and custom page URL hooks remain compatible.
+
 * Enforce the built-in CV's stored token policy independently of token renderer
   registration, retaining explicit public CVs and owner/staff access. Missing
   denial renderers return a content-free 404 without exposing CV sections.
