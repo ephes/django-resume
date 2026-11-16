@@ -172,3 +172,56 @@ def test_context_rejects_non_utf8_without_partial_stdout(monkeypatch, tmp_path, 
     (tmp_path / "z.py").write_bytes(b"\xff")
     assert run_cli(monkeypatch, tmp_path) != 0
     assert capsys.readouterr().out == ""
+
+
+def test_directory_replacement_symlink_cannot_escape(monkeypatch, tmp_path, capsys):
+    root = tmp_path / "project"
+    directory = root / "nested"
+    directory.mkdir(parents=True)
+    (directory / "source.py").write_text("inside")
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "source.py").write_text("OUTSIDE_SENTINEL")
+    real_open = os.open
+    directory_opens = 0
+
+    def swap_directory(path, flags, *args, **kwargs):
+        nonlocal directory_opens
+        if path == "nested":
+            directory_opens += 1
+            if directory_opens == 2:  # after inventory, before content traversal
+                directory.rename(root / "retired")
+                directory.symlink_to(outside, target_is_directory=True)
+        return real_open(path, flags, *args, **kwargs)
+
+    monkeypatch.setattr(os, "open", swap_directory)
+    assert run_cli(monkeypatch, root) != 0
+    result = capsys.readouterr()
+    assert result.out == ""
+    assert "OUTSIDE_SENTINEL" not in result.err
+
+
+def test_context_fifo_is_refused_without_open(monkeypatch, tmp_path, capsys):
+    os.mkfifo(tmp_path / "pipe.py")
+    assert run_cli(monkeypatch, tmp_path) != 0
+    assert capsys.readouterr().out == ""
+
+
+def test_context_depth_and_inventory_path_limits(monkeypatch, tmp_path, capsys):
+    directory = tmp_path / "nested"
+    directory.mkdir()
+    (directory / "source.py").write_text("inside")
+    monkeypatch.setattr(cli, "MAX_TREE_DEPTH", 0)
+    assert run_cli(monkeypatch, tmp_path, "--paths-only") != 0
+    assert capsys.readouterr().out == ""
+    monkeypatch.setattr(cli, "MAX_TREE_DEPTH", 1)
+    monkeypatch.setattr(cli, "MAX_EXPORT_BYTES", len("nested/source.py".encode()) - 1)
+    assert run_cli(monkeypatch, tmp_path, "--paths-only") != 0
+    assert capsys.readouterr().out == ""
+
+
+def test_context_per_file_exact_boundary(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(cli, "MAX_FILE_BYTES", 8)
+    (tmp_path / "source.py").write_text("é" * 4, encoding="utf-8")
+    assert run_cli(monkeypatch, tmp_path) == 0
+    assert "éééé" in capsys.readouterr().out
