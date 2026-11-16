@@ -1,5 +1,3 @@
-import json
-
 from django import forms
 
 from .base import SimplePlugin
@@ -7,6 +5,7 @@ from .badges import (
     MAX_BADGES,
     MAX_BADGE_LENGTH,
     display_badges,
+    editor_badges_json,
     validate_badges as validate_skill_badges,
 )
 from ..interchange.pointer import get_pointer
@@ -30,14 +29,7 @@ class SkillsForm(forms.Form):
         return badges
 
     def badges_as_json(self) -> str:
-        """
-        Return the initial badges which should already be a normal list of strings
-        or the initial_badged list for the first render of the form encoded as json.
-        """
-        existing_badges = self.initial.get("badges")
-        if existing_badges is not None:
-            return json.dumps(display_badges(existing_badges))
-        return json.dumps(self.initial_badges)
+        return editor_badges_json(self)
 
 
 class SkillsJsonResumeAdapter:

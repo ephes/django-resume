@@ -1630,18 +1630,20 @@ Prepared adapter values must fit the built-in editor limits before any resume
 is created: education institution/school name allows 100 characters, degree
 (including a merged studyType and area) allows 200, and language fluency/note
 allows 50. Skills allow at most 1,024 string badges, each at most 1,024
-characters, after keyword deduplication. Oversized values are refused rather
+Unicode code points, with at most 65,536 code points across the list after
+keyword deduplication. Oversized values are refused rather
 than truncated. Preview and command reports identify the plugin/item/field,
 retain mapping and loss notes, and create no resume. The caller's source
 document is unchanged; correct it and preview again. Valid imports retain the
 existing source-document and report behavior for unchanged re-export.
 Project keywords and project/employed/freelance timeline badge lists share the
-1,024-string / 1,024-character limits. These badge checks also apply to private
+1,024-string / 1,024-code-point per-string / 65,536-code-point aggregate limits. These badge checks also apply to private
 round-trip imports when a badge field is present; an absent field remains
 supported, and the legacy stored shapes ``null`` and a JSON-encoded string
 list within the limits re-import unchanged. Other private payloads retain their existing structural validation
 and opaque extension support. Legacy reads accept JSON-encoded lists and
-consider only the first 1,024 entries, omitting non-string and overlong badges
+consider only the first 1,024 entries within the aggregate text budget,
+omitting non-string and overlong badges
 with value-free export notes. Reads never rewrite plugin data, and the private
 export envelope retains the original values. Correct invalid private badge
 payloads before re-importing, or choose portable-only import.

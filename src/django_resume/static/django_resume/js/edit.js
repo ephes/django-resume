@@ -1,3 +1,24 @@
+// Preserve browser-created lines without interpreting literal markup as HTML.
+const PLAIN_BLOCKS = new Set(['DIV', 'P', 'LI', 'UL', 'OL', 'BLOCKQUOTE', 'PRE',
+    'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'SECTION', 'ARTICLE', 'HEADER', 'FOOTER']);
+function plainEditorText(node) {
+    if (node.nodeType === Node.TEXT_NODE) return node.textContent;
+    if (node.nodeType !== Node.ELEMENT_NODE) return '';
+    if (node.tagName === 'BR') return '\n';
+    let text = '';
+    let previousBlock = false;
+    for (const child of node.childNodes) {
+        // Formatting whitespace between pasted blocks is not an extra line.
+        if (child.nodeType === Node.TEXT_NODE && !child.textContent.trim()
+            && (previousBlock || PLAIN_BLOCKS.has(child.nextSibling?.nodeName))) continue;
+        const block = PLAIN_BLOCKS.has(child.nodeName);
+        if ((block || previousBlock) && text && !text.endsWith('\n')) text += '\n';
+        text += plainEditorText(child);
+        previousBlock = block;
+    }
+    return text;
+}
+
 class EditableForm extends HTMLElement {
     constructor() {
         super();
@@ -10,18 +31,17 @@ class EditableForm extends HTMLElement {
         // Access elements within the component
         const formElement = this.querySelector('form');
         const submitButton = this.querySelector('button[type="submit"]');
-        const checkbox = this.querySelector('input[type="checkbox"]');
-
-        // Handle checkbox separately since it's a special case
-        if (checkbox) {
-            checkbox.addEventListener('change', (e) => {
-                const hiddenInput = formElement.querySelector(`input[type="hidden"][data-field="${checkbox.dataset.field}"]`);
-                if (hiddenInput) {
-                    // Use "on" when checked, which is what Django expects from checkbox inputs
-                    hiddenInput.value = checkbox.checked ? "on" : "";
-                }
-            }, options);
-        }
+        const checkboxes = this.querySelectorAll('input[type="checkbox"]');
+        const syncCheckbox = (checkbox) => {
+            const field = checkbox.dataset.field || checkbox.name;
+            if (!field) return;
+            const hiddenInput = Array.from(formElement.querySelectorAll('input[type="hidden"]'))
+                .find(input => (input.dataset.field || input.name) === field);
+            if (hiddenInput) hiddenInput.value = checkbox.checked ? "on" : "";
+        };
+        checkboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', () => syncCheckbox(checkbox), options);
+        });
 
         // Built-in templates keep Save outside the hidden form. Give it native
         // form ownership so clicks use the same validation/submit path as keyboards.
@@ -39,6 +59,7 @@ class EditableForm extends HTMLElement {
 
         // Capture runs before HTMX's bubbling listener serializes the form.
         formElement.addEventListener('submit', () => {
+            checkboxes.forEach(syncCheckbox);
             // Collect data from contenteditable elements
             this.querySelectorAll('[contenteditable="true"]').forEach((field) => {
                 const fieldName = field.dataset.field;
@@ -48,7 +69,7 @@ class EditableForm extends HTMLElement {
                 if (fieldType === "html") {
                     fieldValue = field.innerHTML.trim();
                 } else {
-                    fieldValue = field.textContent.trim();
+                    fieldValue = plainEditorText(field).trim();
                 }
 
                 // Update the corresponding hidden input field
@@ -213,72 +234,141 @@ customElements.define('editable-form', EditableForm);
  * @property {string} li-class='' A class name that will be added to each badge list item
  * @property {string} span-class='' A class name that will be added to each badge name span
  */
+// Keep in sync with plugins/badges.py: Unicode code points, not UTF-16 units.
+const BADGE_LIMITS = {count: 1024, length: 1024, text: 65536};
+function validBadges(badges) {
+    if (!Array.isArray(badges) || badges.length > BADGE_LIMITS.count) return false;
+    let total = 0;
+    for (const badge of badges) {
+        if (typeof badge !== 'string') return false;
+        // Count with early refusal rather than allocating a code-point array.
+        let length = 0;
+        for (const point of badge) {
+            if (++length > BADGE_LIMITS.length || ++total > BADGE_LIMITS.text) return false;
+        }
+    }
+    return true;
+}
+
 class BadgeEditor extends HTMLElement {
     constructor() {
         super();
-        this.render = () => {
-            const badges = this.badges;
-            this.innerHTML = `
-                <ul class="cluster cluster-list">
-                    <!-- Badges will be inserted here -->
-                    <li>
-                        <input type="text" class="small-input" placeholder="Add badge">
-                        <button type="button">Add</button>
-                    </li>        
-                </ul>
-            `;
-            const newBadgeInput = this.querySelector('input');
-            const badgesList = this.querySelector('ul');
-            if (this.ulClass) badgesList.classList.add(this.ulClass);
-            const hiddenBadgesList = document.getElementById(this.inputFieldId);
-
-            // add event listener to add badge button
-            this.addBadgeButtonHandler = (e) => {
-                e.preventDefault();
-                const badge = newBadgeInput.value.trim();
-                if (badge) {
-                    const existingBadges = Array.from(badgesList.querySelectorAll('.badge-name'))
-                        .map(el => el.textContent.trim());
-                    if (existingBadges.includes(badge)) {
-                        alert('Badge already exists.');
-                    } else {
-                        const li = this.getBadgeLi(badge);
-                        badgesList.insertBefore(li, badgesList.lastElementChild);
-                        newBadgeInput.value = '';
-                        this.updateHiddenBadgesList(badgesList, hiddenBadgesList);
-                    }
-                }
-            };
-            const addBadgeButton = this.querySelector('button');
-            addBadgeButton.addEventListener('click', this.addBadgeButtonHandler);
-
-            // Delete badge handler
-            this.badgesListClickHandler = (e) => {
-                const deleteButton = e.target.closest('.badge-delete-button');
-                if (deleteButton) {
-                    e.preventDefault();
-                    const li = deleteButton.closest('li');
-                    if (li && badgesList.contains(li)) {
-                        badgesList.removeChild(li);
-                        this.updateHiddenBadgesList(badgesList, hiddenBadgesList);
-                    }
-                }
-            };
-            badgesList.addEventListener('click', this.badgesListClickHandler);
-
-            if (badges.length > 0) {
-                this.renderBadgesList(badges);
-            }
-        }
     }
 
-    updateHiddenBadgesList(badgesList, hiddenBadgesList) {
-        const badgeNames = Array.from(badgesList.querySelectorAll('.badge-name'))
-            .map(el => el.textContent.trim());
+    showError(message) {
+        let status = this.querySelector('[role="alert"]');
+        if (!status) {
+            status = document.createElement('p');
+            status.setAttribute('role', 'alert');
+            this.append(status);
+        }
+        status.textContent = message;
+    }
 
-        hiddenBadgesList.value = JSON.stringify(badgeNames);
-    };
+    render() {
+        if (!this.isConnected) return;
+        const pending = this.querySelector('input.small-input')?.value || '';
+        this.listeners?.abort();
+        this.listeners = new AbortController();
+        const options = {signal: this.listeners.signal};
+        const owner = this.closest('editable-form');
+        const form = owner?.querySelector('form');
+        const targets = form ? Array.from(form.querySelectorAll('input'))
+            .filter(input => input.id === this.inputFieldId) : [];
+        let ready = false;
+        // Capture precedes HTMX serialization, including listeners installed
+        // before custom-element upgrade. A refused draft stays on screen.
+        form?.addEventListener('submit', event => {
+            if (!ready || !this.commitPending()) {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+            }
+        }, {...options, capture: true});
+        if (targets.length !== 1 || targets[0].type !== 'hidden') {
+            this.showError('Badge target is missing or ambiguous. Reload this form.');
+            return;
+        }
+        const hidden = targets[0];
+        let badges;
+        try {
+            badges = JSON.parse(hidden.value);
+            if (!validBadges(badges)) throw new Error('Invalid badges');
+        } catch {
+            this.showError('Stored badges exceed the list/text limits or are invalid. '
+                + 'Correct them elsewhere, or clear them to save this form.');
+            // Explicit recovery: never discard stored data without a user action,
+            // but do not leave the owning form permanently unsavable.
+            this.querySelector('button.badge-clear-button')?.remove();
+            const clear = document.createElement('button');
+            clear.type = 'button';
+            clear.className = 'badge-clear-button';
+            clear.textContent = 'Clear badges';
+            clear.addEventListener('click', event => {
+                event.preventDefault();
+                hidden.value = '[]';
+                this.render();
+            }, options);
+            this.append(clear);
+            return;
+        }
+        // Admission happens before replacing any existing editing DOM.
+        this.innerHTML = `
+            <ul class="cluster cluster-list">
+                <li><input type="text" class="small-input" placeholder="Add badge">
+                    <button type="button">Add</button></li>
+            </ul><p role="alert"></p>`;
+        const input = this.querySelector('input');
+        input.value = pending;
+        const list = this.querySelector('ul');
+        if (this.ulClass) list.classList.add(this.ulClass);
+        this.renderBadgesList(badges);
+        this.commitPending = () => {
+            const badge = input.value.trim();
+            if (!badge) return true;
+            if (badges.includes(badge)) {
+                this.showError('Badge already exists.');
+                return false;
+            }
+            const proposed = [...badges, badge];
+            if (!validBadges(proposed)) {
+                this.showError('Badge count or text limit exceeded. Shorten or remove badges.');
+                return false;
+            }
+            badges = proposed;
+            list.insertBefore(this.getBadgeLi(badge), list.lastElementChild);
+            hidden.value = JSON.stringify(badges);
+            input.value = '';
+            this.showError('');
+            return true;
+        };
+        this.querySelector('li:last-child button').addEventListener('click', event => {
+            event.preventDefault();
+            this.commitPending();
+        }, options);
+        input.addEventListener('keydown', event => {
+            if (event.key === 'Enter' && !event.isComposing) {
+                event.preventDefault();
+                this.commitPending();
+            }
+        }, options);
+        input.addEventListener('input', () => this.showError(''), options);
+        list.addEventListener('click', event => {
+            const button = event.target.closest('.badge-delete-button');
+            if (!button || !list.contains(button)) return;
+            event.preventDefault();
+            const li = button.closest('li');
+            const index = Array.from(list.children).indexOf(li);
+            badges.splice(index, 1);
+            li.remove();
+            hidden.value = JSON.stringify(badges);
+            this.showError('');
+        }, options);
+        ready = true;
+    }
 
+    disconnectedCallback() {
+        this.listeners?.abort();
+    }
 
     get inputFieldId() {
         return this.getAttribute('input-field-id') || null;
@@ -322,14 +412,6 @@ class BadgeEditor extends HTMLElement {
 
     set spanClass(val) {
         return this.setAttribute('span-class', val);
-    }
-
-    get badges() {
-        if (this.inputFieldId) {
-            return JSON.parse(document.getElementById(this.inputFieldId).value);
-        } else {
-            return [];
-        }
     }
 
     getBadgeLi(badge) {

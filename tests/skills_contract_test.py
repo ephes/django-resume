@@ -26,6 +26,7 @@ INVALID_BADGES = [
     "[null]",
     json.dumps(["x"] * 1025),
     json.dumps(["x" * 1025]),
+    json.dumps(["x" * 1024] * 65),
 ]
 
 
@@ -71,8 +72,8 @@ def test_legacy_badges_display_only_strings_without_writing(resume, stored):
         RequestFactory().get("/"), plugin.get_data(resume), 1, context={}
     )
     assert context["badges"] == expected
-    assert (
-        json.loads(SkillsForm(initial={"badges": stored}).badges_as_json()) == expected
+    assert json.loads(SkillsForm(initial={"badges": stored}).badges_as_json()) == (
+        json.loads(stored) if isinstance(stored, str) else stored
     )
     assert resume.plugin_data == original
     assert validate_document(export_resume(resume).document) == []

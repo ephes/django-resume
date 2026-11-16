@@ -200,3 +200,48 @@ noncaching iterator in batches of 100 database rows. It retains row locks and
 whole-snapshot conditional updates inside one transaction: a conflict rolls
 back all earlier removals. Model hydration is bounded independently of the
 resume inventory; each individual JSON payload still has its own size cost.
+
+Inline control ownership
+------------------------
+
+Place each ``badge-editor`` within its owning ``editable-form`` and point
+``input-field-id`` at exactly one hidden input inside that component's form.
+Repeated fragment IDs in other components are safe; missing, non-hidden or
+ambiguous local targets show an error without installing editing handlers.
+Each checkbox with ``data-field`` (or a name fallback) updates the matching
+hidden input's ``data-field``/name on change and immediately before submit.
+Reconnects retire the old listeners before rebinding controls.
+
+Badge drafts and budgets
+------------------------
+
+Skills, project and timeline forms share the same badge domain: at most 1,024
+strings, each at most 1,024 Unicode code points, with at most 65,536 code points
+across the list. Server validation, imports and browser hydration enforce these
+limits. Browser hydration validates the complete list before replacing editing
+DOM. An invalid/oversized stored list remains unchanged in its hidden field and
+shows an error that blocks saving the owning form, so it is never silently
+rewritten. Correct that data through a validated editor, or use the editor's
+explicit "Clear badges" action to replace it with an empty list and save the
+rest of the form. Public display/export includes only a bounded prefix
+of valid badges and never rewrites the stored source. Bound form errors retain
+the submitted badge payload rather than replacing it with the old list.
+
+Add and Enter commit pending text through the same validation. Saving the owning
+form also commits a valid pending badge before HTMX serializes it. Duplicates or
+exceeded limits show an inline error and stop submission, retaining the typed
+text and existing badges. Correct or clear the pending text and save again.
+
+Plain editable text uses structural line breaks: ``br`` inserts a newline and
+block elements such as ``div``, ``p`` and ``li`` separate lines. Blank lines
+inside the value survive all native submission paths, and literal angle brackets
+remain text. ``data-type="html"`` editors retain their HTML projection.
+
+Streaming plugin responses iterate in the selected resume language. Each
+sync/async iteration step restores the caller's language before yielding bytes;
+exceptions and cancellation also restore it. Django's synchronous
+``response.close()`` and its registered resource closers run in that language.
+For early cleanup, async streaming sources must provide the synchronous
+``close()`` hook supported by Django's response lifecycle; Django does not call
+an async source's ``aclose()`` on response close. Generators still clean up in
+their iteration language when exhausted, failed or cancelled during a step.

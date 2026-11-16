@@ -3,11 +3,12 @@
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager, nullcontext
 from functools import wraps
-from typing import Any
+from typing import Any, TypeVar
 
 from django.conf import settings
 from asgiref.sync import iscoroutinefunction
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpRequest, HttpResponse, StreamingHttpResponse
+from django.http.response import HttpResponseBase
 from django.template.response import SimpleTemplateResponse
 from django.utils import translation
 
@@ -36,8 +37,11 @@ def resume_language(language: str) -> Iterator[None]:
         yield
 
 
-def render_in_language(response: HttpResponse, language: str) -> HttpResponse:
-    """Make a deferred (template) response render in ``language``.
+ResponseT = TypeVar("ResponseT", bound=HttpResponseBase)
+
+
+def render_in_language(response: ResponseT, language: str) -> ResponseT:
+    """Render deferred templates and streaming operations in ``language``.
 
     Django renders a TemplateResponse after the view returned (and after the
     process_template_response middleware), when the view's language override
@@ -45,6 +49,48 @@ def render_in_language(response: HttpResponse, language: str) -> HttpResponse:
     charge of when and how it renders (including sync_to_async for async views)
     while the resume language is active during rendering."""
     language = normalize_language(language)
+    if language and isinstance(response, StreamingHttpResponse):
+        content = response.streaming_content
+        close = response.close
+
+        def close_with_language() -> None:
+            with resume_language(language):
+                close()
+
+        # Use Django's public content/close interfaces: it retains ownership of
+        # registered source closers, including FileResponse resources.
+        response.close = close_with_language  # type: ignore[method-assign]
+        # Raw file bytes do not depend on the language; leave FileResponse
+        # content alone so Django keeps its wsgi.file_wrapper/sendfile path.
+        if getattr(response, "file_to_stream", None) is not None:
+            pass
+        elif response.is_async:
+
+            async def async_content():
+                iterator = aiter(content)
+                while True:
+                    with resume_language(language):
+                        try:
+                            part = await anext(iterator)
+                        except StopAsyncIteration:
+                            return
+                    # Never hold an override across a yield to the caller.
+                    yield part
+
+            response.streaming_content = async_content()
+        else:
+
+            def sync_content():
+                iterator = iter(content)
+                while True:
+                    with resume_language(language):
+                        try:
+                            part = next(iterator)
+                        except StopIteration:
+                            return
+                    yield part
+
+            response.streaming_content = sync_content()
     if (
         language
         and isinstance(response, SimpleTemplateResponse)

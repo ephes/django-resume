@@ -10,8 +10,9 @@ describe('BadgeEditor', () => {
 
     beforeEach(() => {
         document.body.innerHTML = `
-            <input type="hidden" id="badge-hidden-input" value='["Python", "Django"]' />
-            <badge-editor input-field-id="badge-hidden-input"></badge-editor>
+            <editable-form><form>
+              <input type="hidden" id="badge-hidden-input" value='["Python", "Django"]' />
+            </form><badge-editor input-field-id="badge-hidden-input"></badge-editor></editable-form>
         `;
 
         component = document.querySelector('badge-editor');
@@ -47,7 +48,7 @@ describe('BadgeEditor', () => {
         fireEvent.click(addButton);
 
         // Check for an alert
-        expect(window.alert).toHaveBeenCalledWith('Badge already exists.');
+        expect(component.querySelector('[role="alert"]').textContent).toBe('Badge already exists.');
     });
 
     test('should update hidden input field when badge is added', () => {
@@ -273,7 +274,7 @@ describe('EditableForm', () => {
         fireEvent.click(preview);
         fireEvent.change(fileInput);
         expect(titleWrite).toHaveBeenCalledTimes(1);
-        expect(toggleWrite).toHaveBeenCalledTimes(1);
+        expect(toggleWrite).toHaveBeenCalledTimes(2);
         expect(enabled.value).toBe('on');
         expect(picker).toHaveBeenCalledTimes(1);
         expect(read).toHaveBeenCalledTimes(1);
@@ -283,7 +284,7 @@ describe('EditableForm', () => {
         fireEvent.click(preview);
         fireEvent.change(fileInput);
         expect(titleWrite).toHaveBeenCalledTimes(1);
-        expect(toggleWrite).toHaveBeenCalledTimes(1);
+        expect(toggleWrite).toHaveBeenCalledTimes(2);
         expect(picker).toHaveBeenCalledTimes(1);
         expect(read).toHaveBeenCalledTimes(1);
     });
@@ -492,5 +493,195 @@ describe('EditableForm', () => {
         component.remove();
         fireEvent.click(replacement);
         expect(picker).toHaveBeenCalledTimes(1);
+    });
+});
+
+function badgeForm(value, revision = 'revision') {
+    const owner = document.createElement('editable-form');
+    owner.innerHTML = `<form><input type="hidden" id="shared-badges" name="badges">
+        <input type="hidden" name="edit_revision" value="${revision}"></form>
+        <badge-editor input-field-id="shared-badges"></badge-editor><button type="submit">Save</button>`;
+    owner.querySelector('[name="badges"]').value = JSON.stringify(value);
+    document.body.append(owner);
+    return owner;
+}
+
+describe('form ownership', () => {
+    afterEach(() => {document.body.replaceChildren(); vi.restoreAllMocks();});
+
+    test('badge additions and deletions stay in the owning form despite duplicate fragment ids', () => {
+        const first = badgeForm(['First'], 'first-revision');
+        const second = badgeForm(['Second'], 'second-revision');
+        const badge = second.querySelector('badge-editor');
+        expect(badge.querySelector('.badge-name').textContent).toBe('Second');
+        badge.querySelector('input').value = 'Local';
+        badge.querySelector('li:last-child button').click();
+        badge.querySelector('.badge-delete-button').click();
+        expect(new FormData(second.querySelector('form')).get('badges')).toBe('["Local"]');
+        expect(new FormData(second.querySelector('form')).get('edit_revision')).toBe('second-revision');
+        expect(first.querySelector('[name="badges"]').value).toBe('["First"]');
+    });
+
+    test.each(['missing', 'ambiguous', 'text'])('invalid %s badge target refuses edits visibly', (kind) => {
+        const owner = badgeForm(['Stored']);
+        owner.remove();
+        const hidden = owner.querySelector('[name="badges"]');
+        if (kind === 'missing') hidden.removeAttribute('id');
+        if (kind === 'ambiguous') hidden.after(hidden.cloneNode());
+        if (kind === 'text') hidden.type = 'text';
+        document.body.append(owner);
+        expect(owner.querySelector('badge-editor [role="alert"]').textContent).toMatch(/target/i);
+        owner.querySelector('badge-editor .badge-delete-button')?.click();
+        expect(hidden.value).toBe('["Stored"]');
+    });
+
+    test('all named or data-field checkboxes project at change and before submit after reconnect', () => {
+        const owner = document.createElement('editable-form');
+        owner.innerHTML = `<form><input type="hidden" name="one" data-field="one" value="on">
+          <input type="hidden" name="two" value="on"></form>
+          <input type="checkbox" data-field="one"><input type="checkbox" name="two">
+          <button type="submit">Save</button>`;
+        document.body.append(owner);
+        for (let i = 0; i < 3; i++) {owner.remove(); document.body.append(owner);}
+        const checks = owner.querySelectorAll('[type="checkbox"]');
+        const hiddens = owner.querySelectorAll('[type="hidden"]');
+        const write = vi.spyOn(hiddens[1], 'value', 'set');
+        fireEvent.change(checks[1], {target: {checked: true}});
+        expect(write).toHaveBeenCalledTimes(1);
+        expect(hiddens[1].value).toBe('on');
+        checks[1].checked = false; // No change event, as with programmatic updates.
+        const form = owner.querySelector('form');
+        const submissions = [];
+        form.addEventListener('submit', event => {
+            event.preventDefault(); submissions.push(Object.fromEntries(new FormData(form)));
+        });
+        form.requestSubmit();
+        expect(submissions).toEqual([{one: '', two: ''}]);
+    });
+});
+
+describe('badge drafts', () => {
+    afterEach(() => {document.body.replaceChildren(); vi.restoreAllMocks();});
+
+    test.each(['click', 'requestSubmit', 'enter'])(
+        '%s commits pending text before serialization exactly once after reconnect', (method) => {
+            const owner = badgeForm(['Stored']);
+            for (let i = 0; i < 3; i++) {owner.remove(); document.body.append(owner);}
+            const badge = owner.querySelector('badge-editor');
+            badge.querySelector('input').value = ' Pending ';
+            const form = owner.querySelector('form');
+            const submissions = [];
+            form.addEventListener('submit', e => {
+                e.preventDefault(); submissions.push(new FormData(form).get('badges'));
+            });
+            if (method === 'click') owner.querySelector('button[type="submit"]').click();
+            else if (method === 'requestSubmit') form.requestSubmit();
+            else {fireEvent.keyDown(badge.querySelector('input'), {key: 'Enter'}); form.requestSubmit();}
+            expect(submissions).toEqual(['["Stored","Pending"]']);
+            expect(Array.from(badge.querySelectorAll('.badge-name'), el => el.textContent)).toEqual(['Stored', 'Pending']);
+            expect(badge.querySelector('input').value).toBe('');
+        }
+    );
+
+    test.each(['Stored', 'x'.repeat(1025)])('invalid pending badge blocks submit and preserves text', text => {
+        vi.spyOn(window, 'alert').mockImplementation(() => {});
+        const owner = badgeForm(['Stored']);
+        const input = owner.querySelector('badge-editor input');
+        input.value = text;
+        const serialized = vi.fn(e => e.preventDefault());
+        owner.querySelector('form').addEventListener('submit', serialized);
+        owner.querySelector('form').requestSubmit();
+        expect(serialized).not.toHaveBeenCalled();
+        expect(input.value).toBe(text);
+        expect(owner.querySelector('[name="badges"]').value).toBe('["Stored"]');
+        expect(owner.querySelector('badge-editor [role="alert"]').textContent).not.toBe('');
+        input.value = 'Fixed';
+        owner.querySelector('form').requestSubmit();
+        expect(serialized).toHaveBeenCalledTimes(1);
+    });
+
+    test.each([
+        ['x'.repeat(1024), 'y'.repeat(1024)],
+        Array(1024).fill('x'),
+        Array(64).fill('🐍'.repeat(1024)),
+    ].map(badges => [badges]))('boundary hydration preserves admitted badges', badges => {
+        const owner = badgeForm(badges);
+        expect(owner.querySelectorAll('.badge-name')).toHaveLength(badges.length);
+        expect(owner.querySelector('[name="badges"]').value).toBe(JSON.stringify(badges));
+    });
+
+    test.each([Array(1025).fill('x'), Array(65).fill('x'.repeat(1024)), ['x'.repeat(1025)], [1]].map(badges => [badges]))(
+        'oversized/invalid hydration refuses before creating badge subtrees and preserves data', badges => {
+            const owner = badgeForm(badges);
+            expect(owner.querySelectorAll('.badge-name')).toHaveLength(0);
+            expect(owner.querySelector('badge-editor [role="alert"]').textContent).toMatch(/badge/i);
+            expect(owner.querySelector('[name="badges"]').value).toBe(JSON.stringify(badges));
+            const serialized = vi.fn(e => e.preventDefault());
+            owner.querySelector('form').addEventListener('submit', serialized);
+            owner.querySelector('form').requestSubmit();
+            expect(serialized).not.toHaveBeenCalled();
+            const clear = owner.querySelector('badge-editor .badge-clear-button');
+            expect(owner.querySelectorAll('badge-editor .badge-clear-button')).toHaveLength(1);
+            clear.click();
+            expect(owner.querySelector('[name="badges"]').value).toBe('[]');
+            expect(owner.querySelector('badge-editor .badge-clear-button')).toBeNull();
+            owner.querySelector('badge-editor input').value = 'Fresh';
+            owner.querySelector('form').requestSubmit();
+            expect(serialized).toHaveBeenCalledTimes(1);
+            expect(owner.querySelector('[name="badges"]').value).toBe('["Fresh"]');
+        }
+    );
+
+    test('a non-JSON legacy value offers the same explicit clear recovery', () => {
+        const owner = badgeForm([]);
+        owner.remove();
+        owner.querySelector('[name="badges"]').value = 'Python, Django';
+        document.body.append(owner);
+        expect(owner.querySelector('[name="badges"]').value).toBe('Python, Django');
+        owner.querySelector('badge-editor .badge-clear-button').click();
+        expect(owner.querySelector('[name="badges"]').value).toBe('[]');
+        expect(owner.querySelector('badge-editor input.small-input')).not.toBeNull();
+    });
+
+    test('an admitted list cannot grow beyond the count or text budget', () => {
+        for (const badges of [Array(1024).fill('x'), Array(64).fill('x'.repeat(1024))]) {
+            const owner = badgeForm(badges);
+            owner.querySelector('badge-editor input').value = 'extra';
+            owner.querySelector('badge-editor li:last-child button').click();
+            expect(owner.querySelectorAll('.badge-name')).toHaveLength(badges.length);
+            expect(owner.querySelector('[name="badges"]').value).toBe(JSON.stringify(badges));
+            expect(owner.querySelector('badge-editor [role="alert"]').textContent).not.toBe('');
+            owner.remove();
+        }
+    });
+});
+
+describe('plain editor line breaks', () => {
+    afterEach(() => document.body.replaceChildren());
+    test.each([
+        ['First<div>Second</div><div>Third</div>', 'First\nSecond\nThird'],
+        ['<p>First</p><p>Second</p>', 'First\nSecond'],
+        ['<p>First</p>\n  <p>Second</p>', 'First\nSecond'],
+        ['First<br>Second<br><br>Fourth', 'First\nSecond\n\nFourth'],
+        ['<div>First</div><div><br></div><div>Third</div>', 'First\n\nThird'],
+        ['<div>First<br></div><div>Second</div>tail', 'First\nSecond\ntail'],
+        ['&lt;widget&gt;<div>&lt;/widget&gt; &amp; text</div>', '<widget>\n</widget> & text'],
+        ['<div><div>Nested</div><div>lines</div></div><p>End</p>', 'Nested\nlines\nEnd'],
+    ])('projects structural plain text through every submit path: %s', (html, expected) => {
+        for (const method of ['click', 'requestSubmit', 'submit']) {
+            const owner = document.createElement('editable-form');
+            owner.innerHTML = `<form><input type="hidden" name="text" data-field="text"></form>
+                <div contenteditable="true" data-field="text"></div><button type="submit">Save</button>`;
+            owner.querySelector('[contenteditable]').innerHTML = html;
+            document.body.append(owner);
+            const form = owner.querySelector('form');
+            let submitted;
+            form.addEventListener('submit', e => {e.preventDefault(); submitted = new FormData(form).get('text');});
+            if (method === 'click') owner.querySelector('button').click();
+            if (method === 'requestSubmit') form.requestSubmit();
+            if (method === 'submit') fireEvent.submit(form);
+            expect(submitted).toBe(expected);
+            owner.remove();
+        }
     });
 });

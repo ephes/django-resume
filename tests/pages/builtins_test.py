@@ -121,8 +121,7 @@ def test_detail_route_is_the_bare_catch_all():
 
 
 @pytest.mark.django_db
-def test_cv_route_is_get_only(client, resume):
-    # Intentional behavior change: page routes are GET-only (see changelog).
+def test_cv_route_is_read_only(client, resume):
     resume.owner.save()
     resume.save()
     url = reverse("resume:cv", kwargs={"slug": resume.slug})
@@ -130,4 +129,28 @@ def test_cv_route_is_get_only(client, resume):
     r = client.post(url)
 
     assert r.status_code == 405
-    assert r["Allow"] == "GET"
+    assert r["Allow"] == "GET, HEAD"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("page", ["detail", "cv", "403"])
+@pytest.mark.parametrize("owner", [False, True])
+def test_page_head_matches_get(client, resume, page, owner):
+    from django.utils import translation
+
+    resume.owner.save()
+    resume.plugin_data["theme"] = {"language": "de"}
+    resume.save()
+    if owner:
+        client.force_login(resume.owner)
+    url = reverse(f"resume:{page}", kwargs={"slug": resume.slug})
+    with translation.override("en"):
+        get = client.get(url)
+        head = client.head(url)
+        assert translation.get_language() == "en"
+    assert head.status_code == get.status_code
+    # Session/CSRF cookies and generated signed fields are request specific.
+    for header in ("Content-Type", "Cache-Control", "Vary", "Location"):
+        assert head.get(header) == get.get(header)
+    assert head.content == b""
+    assert client.post(url).status_code == 405

@@ -99,3 +99,118 @@ def test_drop_preview_matches_the_submitted_file(editor, failure):
         expect(editor.locator("img")).to_have_attribute(
             "src", "data:image/png;base64,bmV3"
         )
+
+
+def test_controls_stay_with_their_form(editor):
+    result = editor.evaluate("""() => {
+        document.body.replaceChildren();
+        function make(label) {
+            const owner = document.createElement('editable-form');
+            owner.innerHTML = `<form><input id="badges" type="hidden" name="badges" value='["${label}"]'>
+              <input name="one" data-field="one" type="hidden" value="on">
+              <input name="two" type="hidden" value="on">
+              <input name="edit_revision" type="hidden" value="${label}"></form>
+              <input type="checkbox" data-field="one"><input type="checkbox" name="two">
+              <badge-editor input-field-id="badges"></badge-editor><button type="submit">Save</button>`;
+            document.body.append(owner);
+            return owner;
+        }
+        const first = make('first'), second = make('second');
+        for (let i = 0; i < 3; i++) {second.remove(); document.body.append(second);}
+        const badge = second.querySelector('badge-editor');
+        badge.querySelector('input').value = 'local';
+        badge.querySelector('li:last-child button').click();
+        badge.querySelector('.badge-delete-button').click();
+        const form = second.querySelector('form');
+        let submitted;
+        form.addEventListener('submit', e => {e.preventDefault(); submitted = Object.fromEntries(new FormData(form));});
+        form.requestSubmit();
+        return {submitted, first: first.querySelector('[name=badges]').value};
+    }""")
+    assert result == {
+        "submitted": {
+            "badges": '["local"]',
+            "one": "",
+            "two": "",
+            "edit_revision": "second",
+        },
+        "first": '["first"]',
+    }
+
+
+@pytest.mark.parametrize("method", ["click", "requestSubmit", "enter"])
+def test_pending_badge_is_saved_or_refused_visibly(editor, method):
+    editor.evaluate("""() => {
+        const owner = document.querySelector('editable-form');
+        const form = owner.querySelector('form');
+        form.querySelector('[name=trigger]').value = 'synthetic';
+        const hidden = document.createElement('input');
+        Object.assign(hidden, {type: 'hidden', name: 'badges', id: 'badges', value: '["Stored"]'});
+        form.append(hidden);
+        const badge = document.createElement('badge-editor');
+        badge.setAttribute('input-field-id', 'badges');
+        owner.append(badge);
+        window.badgeSubmissions = [];
+        form.addEventListener('submit', e => {e.preventDefault(); badgeSubmissions.push(new FormData(form).get('badges'));});
+    }""")
+    pending = editor.get_by_placeholder("Add badge")
+    pending.fill("Pending")
+    if method == "click":
+        editor.get_by_role("button", name="Save").click()
+    elif method == "requestSubmit":
+        editor.locator("form").evaluate("form => form.requestSubmit()")
+    else:
+        pending.press("Enter")
+        editor.locator("form").evaluate("form => form.requestSubmit()")
+    assert editor.evaluate("badgeSubmissions") == ['["Stored","Pending"]']
+    expect(pending).to_have_value("")
+    pending.fill("Stored")
+    editor.locator("form").evaluate("form => form.requestSubmit()")
+    assert editor.evaluate("badgeSubmissions") == ['["Stored","Pending"]']
+    expect(pending).to_have_value("Stored")
+    expect(editor.get_by_role("alert")).to_contain_text("already exists")
+
+
+def test_badge_hydration_budget_preserves_the_source(editor):
+    result = editor.evaluate("""() => {
+        const owner = document.querySelector('editable-form'), form = owner.querySelector('form');
+        const hidden = document.createElement('input');
+        const value = JSON.stringify(Array(65).fill('x'.repeat(1024)));
+        Object.assign(hidden, {type: 'hidden', name: 'badges', id: 'badges', value});
+        form.append(hidden);
+        const badge = document.createElement('badge-editor');
+        badge.setAttribute('input-field-id', 'badges');
+        owner.append(badge);
+        return {preserved: hidden.value === value, count: badge.querySelectorAll('.badge-name').length};
+    }""")
+    assert result == {"preserved": True, "count": 0}
+    expect(editor.get_by_role("alert")).to_contain_text("limits")
+
+
+@pytest.mark.parametrize(
+    "html,expected",
+    [
+        ("First<div>Second</div><div>Third</div>", "First\nSecond\nThird"),
+        ("<p>First</p><p>Second</p>", "First\nSecond"),
+        ("First<br>Second<br><br>Fourth", "First\nSecond\n\nFourth"),
+        ("&lt;widget&gt;<div>&lt;/widget&gt;</div>", "<widget>\n</widget>"),
+    ],
+)
+def test_plain_editor_structural_lines_reach_submission(editor, html, expected):
+    editor.locator('[name="trigger"]').fill("synthetic")
+    editor.locator("[contenteditable]").evaluate(
+        "(field, html) => field.innerHTML = html", html
+    )
+    editor.locator("form").evaluate("form => form.requestSubmit()")
+    assert editor.evaluate("submissions") == [expected]
+
+
+def test_plain_editor_keyboard_enter_reaches_submission(editor):
+    editor.locator('[name="trigger"]').fill("synthetic")
+    field = editor.locator("[contenteditable]")
+    field.fill("First")
+    field.press("End")
+    field.press("Enter")
+    field.press_sequentially("<literal> Second")
+    editor.get_by_role("button", name="Save").click()
+    assert editor.evaluate("submissions") == ["First\n<literal> Second"]

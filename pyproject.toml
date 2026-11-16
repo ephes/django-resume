@@ -27,6 +27,10 @@ filterwarnings = [
     "ignore:Support for class-based `config` is deprecated:DeprecationWarning",
 ]
 
+[tool.ruff]
+# Keep older hook versions aligned with the declared runtime minimum.
+target-version = "py310"
+
 [tool.mypy]
 python_version = "3.14"
 ignore_missing_imports = true

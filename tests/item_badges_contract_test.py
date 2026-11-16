@@ -34,6 +34,7 @@ INVALID = [
     "[1e999]",
     json.dumps(["x"] * 1025),
     json.dumps(["x" * 1025]),
+    json.dumps(["x" * 1024] * 65),
 ]
 
 
@@ -94,7 +95,7 @@ def test_invalid_editor_badges_never_save(client, resume, plugin_class, view, ba
 @pytest.mark.parametrize("plugin_class", PLUGINS)
 @pytest.mark.parametrize("view", ["admin", "inline"])
 @pytest.mark.parametrize(
-    "badges", [["日本語", "Café", "Python 🐍"], ["x" * 1024] * 1024, []]
+    "badges", [["日本語", "Café", "Python 🐍"], ["x" * 1024] * 64, []]
 )
 def test_editor_to_real_adapter_preserves_valid_badges(
     client, resume, plugin_class, view, badges
