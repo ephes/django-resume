@@ -46,6 +46,17 @@ bounded selection on deeply nested input. See the
 `upstream changelog <https://facelessuser.github.io/soupsieve/about/changelog/>`_
 and `CVE-2026-126190 advisory <https://github.com/facelessuser/soupsieve/security/advisories/GHSA-mmhr-3c5m-f64f>`_.
 
+LLM context sources
+-------------------
+
+``uv run llm-content`` exports selected code/documentation files. Directory
+symlinks are not traversed; matching file symlinks and non-regular files cause
+an explicit nonzero refusal without reporting their target contents. Content
+opens are anchored to the selected root and refuse replacement symlinks in
+both directory components and filenames. ``--paths-only`` checks the inventory
+without opening file contents. The source tree must be trusted: hard links
+and concurrent edits to regular files are not a filesystem snapshot boundary.
+
 Repository Checks
 -----------------
 

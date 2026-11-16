@@ -5,6 +5,9 @@ Changelog
 Unreleased
 ----------
 
+* Refuse symlink/non-regular context sources and anchor content opens to the
+  selected root, including replacement symlinks; paths-only never reads content.
+
 * Preserve degrees and extension metadata when runtime legacy education data
   is read and later saved through either editor, without writes on read.
 * Render permission-denied pages without resolving storage URLs for absent,

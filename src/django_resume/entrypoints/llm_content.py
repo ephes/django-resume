@@ -4,6 +4,8 @@ import argparse
 import fnmatch
 import os
 import sys
+import stat
+from contextlib import contextmanager
 from pathlib import Path
 
 
@@ -27,19 +29,6 @@ def llm_content():
         help="Only show file paths without their contents",
     )
     args = parser.parse_args()
-
-    def echo_filename_and_content(files, paths_only=False):
-        """Print the relative path and optionally the content of each file."""
-        for f in files:
-            relative_path = f.relative_to(project_root)
-            if paths_only:
-                print(relative_path)
-            else:
-                print(f)
-                print(relative_path)
-                print("---")
-                print(f.read_text())
-                print("---")
 
     project_root = Path(get_project_root())
     # Exclude files and directories. This is tuned to make the project fit into the
@@ -67,19 +56,83 @@ def llm_content():
         "dist",
     }
     patterns = ["*.py", "*.rst", "*.js", "*.ts", "*.html"]
-    all_files = []
-    for root, dirs, files in os.walk(project_root):
-        root = Path(root)
-        # d is the plain directory name
-        dirs[:] = [d for d in dirs if d not in exclude_dirs]
-        for pattern in patterns:
-            for filename in fnmatch.filter(files, pattern):
-                if filename not in exclude_files:
-                    all_files.append(root / filename)
+    try:
+        with open_directory(project_root) as root_fd:
+            all_files = []
+            for directory, dirs, files, directory_fd in os.fwalk(
+                ".",
+                dir_fd=root_fd,
+                follow_symlinks=False,
+                onerror=raise_walk_error,
+            ):
+                dirs[:] = sorted(d for d in dirs if d not in exclude_dirs)
+                for filename in sorted(files):
+                    if filename in exclude_files or not any(
+                        fnmatch.fnmatch(filename, pattern) for pattern in patterns
+                    ):
+                        continue
+                    if not stat.S_ISREG(
+                        os.stat(
+                            filename, dir_fd=directory_fd, follow_symlinks=False
+                        ).st_mode
+                    ):
+                        raise ValueError("unsafe source entry")
+                    all_files.append(Path(directory) / filename)
 
-    # Output files
-    echo_filename_and_content(all_files, args.paths_only)
+            for relative_path in sorted(all_files):
+                if args.paths_only:
+                    print(relative_path)
+                else:
+                    with open_source(root_fd, relative_path) as source:
+                        content = source.read().decode("utf-8")
+                    print(project_root / relative_path)
+                    print(relative_path)
+                    print("---")
+                    print(content)
+                    print("---")
+    except (OSError, ValueError):
+        print("llm-content: refused unsafe or unreadable source entry", file=sys.stderr)
+        return 1
     return 0
+
+
+def raise_walk_error(error):
+    raise error
+
+
+@contextmanager
+def open_directory(path, *, dir_fd=None):
+    fd = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=dir_fd)
+    try:
+        yield fd
+    finally:
+        os.close(fd)
+
+
+@contextmanager
+def open_source(root_fd, relative_path):
+    # Anchor every component to the admitted root, even after directory swaps.
+    directory_fd = os.dup(root_fd)
+    try:
+        for component in relative_path.parts[:-1]:
+            next_fd = os.open(
+                component,
+                os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                dir_fd=directory_fd,
+            )
+            os.close(directory_fd)
+            directory_fd = next_fd
+        fd = os.open(
+            relative_path.name,
+            os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK,
+            dir_fd=directory_fd,
+        )
+        with os.fdopen(fd, "rb") as source:
+            if not stat.S_ISREG(os.fstat(source.fileno()).st_mode):
+                raise ValueError("unsafe source entry")
+            yield source
+    finally:
+        os.close(directory_fd)
 
 
 if __name__ == "__main__":
