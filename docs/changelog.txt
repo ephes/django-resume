@@ -5,6 +5,10 @@ Changelog
 Unreleased
 ----------
 
+* Validate project and timeline badges as bounded string lists in both editors
+  and at import boundaries. Portable exports omit invalid legacy badges with
+  value-free diagnostics without changing stored plugin data.
+
 * Recheck current resume ownership on the original database before returning
   private theme HTML; transfer/deletion during rendering returns 404.
 * Admit restored token policy cardinality, total secret encoding work and

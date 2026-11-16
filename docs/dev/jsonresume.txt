@@ -1635,8 +1635,15 @@ than truncated. Preview and command reports identify the plugin/item/field,
 retain mapping and loss notes, and create no resume. The caller's source
 document is unchanged; correct it and preview again. Valid imports retain the
 existing source-document and report behavior for unchanged re-export.
-These checks apply to portable adapter output; private round-trip payloads
-retain their existing structural validation and opaque extension support.
+Project keywords and project/employed/freelance timeline badge lists share the
+1,024-string / 1,024-character limits. These badge checks also apply to private
+round-trip imports when a badge field is present; an absent field remains
+supported. Other private payloads retain their existing structural validation
+and opaque extension support. Legacy reads accept JSON-encoded lists and
+consider only the first 1,024 entries, omitting non-string and overlong badges
+with value-free export notes. Reads never rewrite plugin data, and the private
+export envelope retains the original values. Correct invalid private badge
+payloads before re-importing, or choose portable-only import.
 
 All byte/file/URL loaders and browser preview/create imports reject decimal
 integer tokens longer than 4,300 digits (excluding the sign), even if Python's
