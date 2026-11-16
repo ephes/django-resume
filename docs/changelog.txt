@@ -5,6 +5,12 @@ Changelog
 Unreleased
 ----------
 
+* Recheck current resume ownership on the original database before returning
+  private theme HTML; transfer/deletion during rendering returns 404.
+* Admit restored token policy cardinality, total secret encoding work and
+  creation timestamp lengths before comparisons/parsing; oversized policies
+  fail closed without exposing values or granting valid sibling access.
+
 * Bound theme generation staging by entry count, bytes, nesting and elapsed
   copy time; refuse oversized caches before npm and preserve the current tree.
 * Sync staged generation contents and pointer publication before collecting old

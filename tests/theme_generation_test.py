@@ -423,3 +423,32 @@ def test_publication_syncs_files_directories_pointer_before_retirement(
     themes.install_catalog_theme("flat")
     assert not previous.exists()
     assert any(kind == "file" for kind, inode in events)
+
+
+def test_copy_byte_budget_accounts_growth_after_preflight(cache, monkeypatch):
+    from django_resume.formats.json_resume import themes
+    from unittest.mock import Mock
+
+    source = cache / "node_modules" / "growing"
+    source.write_bytes(b"x")
+    inode = source.stat().st_ino
+    original_open = themes.os.open
+    grown = []
+
+    def open_growing(path, flags, *args, **kwargs):
+        fd = original_open(path, flags, *args, **kwargs)
+        if themes.os.fstat(fd).st_ino == inode and not grown:
+            grown.append(True)
+            source.write_bytes(b"x" * 2048)
+        return fd
+
+    monkeypatch.setattr(themes, "_COPY_MAX_BYTES", 1024)
+    monkeypatch.setattr(themes.os, "open", open_growing)
+    npm = Mock(side_effect=fake_npm)
+    monkeypatch.setattr(themes, "_run_process", npm)
+    with pytest.raises(themes.JsonResumeThemeError, match="copy budget"):
+        themes.install_catalog_theme("flat")
+    assert grown == [True]
+    npm.assert_not_called()
+    assert themes._active_generation(cache) == cache
+    assert not list(cache.glob("generation-*"))

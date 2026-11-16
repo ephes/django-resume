@@ -114,3 +114,13 @@ Theme cache staging preflights and copies at most 100,000 entries, 1 GiB and
 directories and the new pointer are synced before old generations are retired.
 A visible pointer whose final sync fails reports uncertain durability and keeps
 both generations for recovery; see the JSON Resume developer reference.
+
+Private preview/render responses recheck the resume's current owner on the
+original database immediately before returning HTML. Transfers or deletions
+during rendering return the same nondisclosing 404 as other owner denials.
+
+Token authentication admits at most 256 restored items and 65,536 total UTF-8
+secret bytes (invalid Unicode is charged by character count), with creation
+strings limited to 128 characters. An oversized policy fails closed before
+secret comparisons or date parsing, even when it includes a valid sibling.
+Owner/staff bypass and admitted Unicode token expiration remain supported.

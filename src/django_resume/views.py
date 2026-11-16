@@ -489,6 +489,12 @@ def preview_json_resume_catalog_theme(
             content_type="text/plain; charset=utf-8",
             status=422,
         )
+    if (
+        not Resume.objects.using(resume._state.db)
+        .filter(pk=resume.pk, owner_id=request.user.pk)
+        .exists()
+    ):
+        return HttpResponse(status=404)
     return _theme_html_response(rendered.html)
 
 
@@ -548,6 +554,12 @@ def render_json_resume_theme(request: HttpRequest, slug: str) -> HttpResponse:
             content_type="text/plain; charset=utf-8",
             status=422,
         )
+    if (
+        not Resume.objects.using(resume._state.db)
+        .filter(pk=resume.pk, owner_id=request.user.pk)
+        .exists()
+    ):
+        return HttpResponse(status=404)
     return _theme_html_response(rendered.html)
 
 
