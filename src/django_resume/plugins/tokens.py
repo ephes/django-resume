@@ -22,6 +22,39 @@ from ..models import Resume
 TOKEN_ALPHABET = string.ascii_letters + string.digits
 DEFAULT_TOKEN_TTL = timedelta(days=30)
 TOKEN_TTL_SETTING = "DJANGO_RESUME_TOKEN_TTL"
+TOKEN_POLICY_MAX_ITEMS = 256
+TOKEN_POLICY_MAX_BYTES = 65_536
+TOKEN_CREATED_MAX_CHARS = 128
+
+
+def _admit_token_policy(items: list) -> list[tuple[dict, bytes]]:
+    if len(items) > TOKEN_POLICY_MAX_ITEMS:
+        raise PermissionDenied("Invalid token policy.")
+    admitted = []
+    total = 0
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        created = item.get("created")
+        if isinstance(created, str) and len(created) > TOKEN_CREATED_MAX_CHARS:
+            raise PermissionDenied("Invalid token policy.")
+        secret = item.get("token")
+        if not isinstance(secret, str):
+            continue
+        # UTF-8 uses at least one byte per character. Bound allocation/scanning
+        # before encoding, including malformed strings containing surrogates.
+        if len(secret) > TOKEN_POLICY_MAX_BYTES - total:
+            raise PermissionDenied("Invalid token policy.")
+        try:
+            encoded = secret.encode("utf-8")
+        except UnicodeEncodeError:
+            total += len(secret)
+            continue
+        total += len(encoded)
+        if total > TOKEN_POLICY_MAX_BYTES:
+            raise PermissionDenied("Invalid token policy.")
+        admitted.append((item, encoded))
+    return admitted
 
 
 class _UnsetTTL:
@@ -232,27 +265,15 @@ class TokenPlugin(ListPlugin):
         token = form.cleaned_data["token"]
         if token is None:
             raise PermissionDenied("Token required to access this page.")
+        admitted = _admit_token_policy(plugin_data.get("items", []))
+        token_bytes = token.encode("utf-8")
         matched_token = False
         matched_unexpired_token = False
         now = timezone.now()
         ttl = get_token_ttl()
-        for item in plugin_data.get("items", []):
-            if not isinstance(item, dict):
-                continue
-            stored_token = item.get("token")
-            if not isinstance(stored_token, str):
-                continue
-            try:
-                stored_token_bytes = stored_token.encode("utf-8")
-            except UnicodeEncodeError:
-                # Restored JSON may contain lone surrogates. Ignore invalid
-                # secrets without preventing valid sibling tokens from working.
-                continue
-            # Compare bytes: compare_digest raises TypeError for str values
-            # with non-ASCII characters, which would turn a bad token into a 500.
-            token_matches = hmac.compare_digest(
-                token.encode("utf-8"), stored_token_bytes
-            )
+        for item, stored_token_bytes in admitted:
+            # Compare bytes so non-ASCII secrets retain constant-time comparison.
+            token_matches = hmac.compare_digest(token_bytes, stored_token_bytes)
             token_is_unexpired = not is_token_expired(item, now=now, ttl=ttl)
             matched_token |= token_matches
             matched_unexpired_token |= token_matches & token_is_unexpired

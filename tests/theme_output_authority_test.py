@@ -97,3 +97,46 @@ def test_output_replacement_is_refused_without_reading_unadmitted_bytes(
         assert sum(map(len, read_bytes)) <= 17
     assert secret.read_text() == "secret"
     assert not output_paths[0].parent.exists()
+
+
+@pytest.mark.parametrize("mutation", ["rewrite", "truncate", "replace", "stable"])
+def test_output_read_requires_one_descriptor_generation(cache, monkeypatch, mutation):
+    output_paths, output_fds, changed = [], [], []
+    original_open, original_read = os.open, os.read
+    body = b"a" * 65536 + b"b" * 65536
+
+    def render(command, *, cwd, timeout):
+        output = Path(command[command.index("--output") + 1])
+        output.write_bytes(body)
+        output_paths.append(output)
+        return SimpleNamespace(returncode=0)
+
+    def open_output(path, flags, *args, **kwargs):
+        fd = original_open(path, flags, *args, **kwargs)
+        if Path(path) in output_paths:
+            output_fds.append(fd)
+        return fd
+
+    def read(fd, size):
+        chunk = original_read(fd, size)
+        if fd in output_fds and chunk and not changed:
+            changed.append(True)
+            path = output_paths[0]
+            if mutation == "replace":
+                replacement = path.with_suffix(".new")
+                replacement.write_bytes(b"c" * len(body))
+                replacement.replace(path)
+            elif mutation != "stable":
+                path.write_bytes(b"c" * (len(body) if mutation == "rewrite" else 16))
+        return chunk
+
+    monkeypatch.setattr(themes, "_run_process", render)
+    monkeypatch.setattr(os, "open", open_output)
+    monkeypatch.setattr(os, "read", read)
+    if mutation == "stable":
+        assert (
+            themes.render_catalog_theme(SimpleNamespace(), "even").html == body.decode()
+        )
+    else:
+        with pytest.raises(themes.JsonResumeThemeError, match="output changed"):
+            themes.render_catalog_theme(SimpleNamespace(), "even")

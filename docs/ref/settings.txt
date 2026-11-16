@@ -23,6 +23,11 @@ are compared by elapsed age without overflowing datetime boundaries. Setting
 existing normalization: missing/malformed creation timestamps initialize to the
 current time, and saving the item renews its timestamp/TTL.
 
+Authentication also enforces fixed stored-policy work limits: 256 items,
+65,536 aggregate UTF-8 secret bytes and 128 characters per creation string.
+Oversized policies fail closed before comparisons or expiry parsing; these
+limits are independent of TTL and request/import limits.
+
 ``DJANGO_RESUME_JSON_RESUME_THEME_DIR``
 =======================================
 

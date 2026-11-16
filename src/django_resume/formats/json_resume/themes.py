@@ -9,6 +9,7 @@ import stat
 import subprocess
 import tempfile
 import threading
+import time
 from contextlib import contextmanager, ExitStack
 from contextvars import ContextVar
 from dataclasses import dataclass
@@ -110,6 +111,10 @@ class JsonResumeThemeError(RuntimeError):
     """Raised when theme discovery, installation, or rendering fails."""
 
 
+class ThemePublicationUncertain(JsonResumeThemeError):
+    """The new generation is visible, but its publication could not be synced."""
+
+
 class ThemeOwnershipChanged(JsonResumeThemeError):
     """Raised when the selecting owner no longer owns the current resume."""
 
@@ -165,6 +170,16 @@ class _CapturedProcess:
 _READER_JOIN_TIMEOUT = 1.0
 _METADATA_MAX_BYTES = 1024 * 1024
 _METADATA_MAX_DEPTH = 64
+_COPY_MAX_ENTRIES = 100_000
+_COPY_MAX_BYTES = 1024 * 1024 * 1024
+_COPY_MAX_DEPTH = 64
+_COPY_TIMEOUT = 30.0
+_GENERATION_SOURCES = (
+    "node_modules",
+    "package.json",
+    "package-lock.json",
+    "npm-shrinkwrap.json",
+)
 _cache_authority: ContextVar[tuple[tuple[Path, int], ...]] = ContextVar(
     "theme_cache_authority", default=()
 )
@@ -613,6 +628,115 @@ def _verify_generation(target: Path, required: dict[str, str | None]) -> None:
             )
 
 
+def _copy_generation(current: Path, staged: Path) -> None:
+    deadline = time.monotonic() + _COPY_TIMEOUT
+
+    def check() -> None:
+        if time.monotonic() >= deadline:
+            raise JsonResumeThemeError("Theme generation copy budget exceeded")
+
+    # Preflight the entire tree before copying, then account again while copying
+    # actual bytes. Neither walk follows npm's executable symlinks.
+    for copying in (False, True):
+        entries = total = 0
+
+        def visit(source: Path, destination: Path, depth: int) -> None:
+            nonlocal entries, total
+            check()
+            entries += 1
+            if entries > _COPY_MAX_ENTRIES or depth > _COPY_MAX_DEPTH:
+                raise JsonResumeThemeError("Theme generation copy budget exceeded")
+            info = source.lstat()
+            if stat.S_ISLNK(info.st_mode):
+                link = os.readlink(source)
+                total += len(os.fsencode(link))
+                if copying:
+                    destination.symlink_to(link)
+            elif stat.S_ISDIR(info.st_mode):
+                if copying:
+                    destination.mkdir(mode=0o700)
+                with os.scandir(source) as children:
+                    for child in children:
+                        visit(source / child.name, destination / child.name, depth + 1)
+            elif stat.S_ISREG(info.st_mode):
+                if not copying:
+                    total += info.st_size
+                else:
+                    fd = os.open(source, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+                    try:
+                        opened = os.fstat(fd)
+                        if not stat.S_ISREG(opened.st_mode) or (
+                            info.st_dev,
+                            info.st_ino,
+                        ) != (opened.st_dev, opened.st_ino):
+                            raise JsonResumeThemeError(
+                                "Theme generation copy source changed"
+                            )
+                        with destination.open("xb") as output:
+                            while True:
+                                check()
+                                chunk = os.read(
+                                    fd, min(65536, _COPY_MAX_BYTES + 1 - total)
+                                )
+                                check()
+                                total += len(chunk)
+                                if total > _COPY_MAX_BYTES:
+                                    raise JsonResumeThemeError(
+                                        "Theme generation copy budget exceeded"
+                                    )
+                                if not chunk:
+                                    break
+                                output.write(chunk)
+                        destination.chmod(stat.S_IMODE(opened.st_mode))
+                    finally:
+                        os.close(fd)
+            else:
+                raise JsonResumeThemeError("Invalid theme generation copy source")
+            check()
+            if total > _COPY_MAX_BYTES:
+                raise JsonResumeThemeError("Theme generation copy budget exceeded")
+
+        for name in _GENERATION_SOURCES:
+            source = current / name
+            if source.is_symlink():
+                raise JsonResumeThemeError("Redirected JSON Resume cache source")
+            if source.exists():
+                visit(source, staged / name, 0)
+        check()
+
+
+def _sync_directory(path: Path) -> None:
+    descriptor = _open_directory(path)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def _sync_generation(target: Path) -> None:
+    # Sync file content before directory entries, bottom up. npm symlinks do
+    # not own their targets; their directory entries are synced with the parent.
+    def fail(error: OSError) -> None:
+        # os.walk skips unreadable directories by default; never publish them unsynced.
+        raise error
+
+    for directory, _, files in os.walk(
+        target, topdown=False, onerror=fail, followlinks=False
+    ):
+        for name in files:
+            path = Path(directory) / name
+            if path.is_symlink():
+                continue
+            fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+            try:
+                if not stat.S_ISREG(os.fstat(fd).st_mode):
+                    raise JsonResumeThemeError("Invalid staged theme generation file")
+                os.fsync(fd)
+            finally:
+                os.close(fd)
+        _sync_directory(Path(directory))
+
+
 def _install_theme_packages(packages: list[str], *, timeout: float) -> None:
     _process_limits(timeout)
     npm = shutil.which("npm")
@@ -636,19 +760,7 @@ def _install_theme_packages(packages: list[str], *, timeout: float) -> None:
         published = False
         try:
             # Copy, never hard-link: npm may mutate any file in its prefix.
-            for name in (
-                "node_modules",
-                "package.json",
-                "package-lock.json",
-                "npm-shrinkwrap.json",
-            ):
-                source = current / name
-                if source.is_symlink():
-                    raise JsonResumeThemeError("Redirected JSON Resume cache source")
-                if source.is_dir():
-                    shutil.copytree(source, staged / name, symlinks=True)
-                elif source.is_file():
-                    shutil.copy2(source, staged / name)
+            _copy_generation(current, staged)
             # Never run npm lifecycle scripts as the web server user.
             command = [
                 npm,
@@ -670,15 +782,30 @@ def _install_theme_packages(packages: list[str], *, timeout: float) -> None:
                     _bounded_error("npm install failed", completed)
                 )
             _verify_generation(staged, required)
-            pointer.write_text(staged.name, encoding="ascii")
-            _chmod_owner_only(pointer)
+            _sync_generation(staged)
+            _sync_directory(root)
+            with pointer.open("w", encoding="ascii") as marker:
+                _chmod_owner_only(pointer)
+                marker.write(staged.name)
+                marker.flush()
+                os.fsync(marker.fileno())
             os.replace(pointer, root / ".current")
             published = True
+            _sync_directory(root)
             # All renders hold the same lock through output reading; no retired
             # generation can still be in use here. Also collect crash leftovers.
             for retired in root.glob("generation-*"):
                 if retired != staged and retired.is_dir():
                     shutil.rmtree(retired, ignore_errors=True)
+        except OSError as exc:
+            if published or _active_generation(root) == staged:
+                raise ThemePublicationUncertain(
+                    "Theme generation is visible but publication durability is uncertain; "
+                    "previous generations retained for recovery"
+                ) from exc
+            raise JsonResumeThemeError(
+                "Theme generation staging/publication failed"
+            ) from exc
         finally:
             _cache_authority.reset(authority_token)
             os.close(staged_fd)
@@ -784,6 +911,16 @@ def _render_theme(
                     if not chunk:
                         break
                     content.extend(chunk)
+                final = os.fstat(descriptor)
+                if (
+                    opened.st_size != final.st_size
+                    or opened.st_mtime_ns != final.st_mtime_ns
+                    or opened.st_ctime_ns != final.st_ctime_ns
+                    or len(content) != final.st_size
+                ):
+                    raise JsonResumeThemeError(
+                        "Theme render output changed during read"
+                    )
             finally:
                 os.close(descriptor)
             if len(content) > max_bytes:
@@ -1066,6 +1203,8 @@ def _run_process(command: list[str], *, cwd: Path, timeout: float):
         finally:
             os.close(directory)
         started_threads: list[threading.Thread] = []
+        reaped = False
+        stop = threading.Event()
         try:
             assert process.stdout is not None
             assert process.stderr is not None
@@ -1083,15 +1222,12 @@ def _run_process(command: list[str], *, cwd: Path, timeout: float):
                         buffer.extend(chunk)
                         if len(buffer) > max_output_bytes:
                             output_error.append(_OutputLimitExceeded(stream_name))
-                            _terminate_process_tree(process)
+                            stop.set()
                             return
                 except Exception:
                     # Never expose stream content or accept truncated evidence.
                     reader_errors.append(stream_name)
-                    try:
-                        _terminate_process_tree(process)
-                    except OSError:
-                        pass
+                    stop.set()
 
             threads = [
                 threading.Thread(
@@ -1108,7 +1244,11 @@ def _run_process(command: list[str], *, cwd: Path, timeout: float):
             for thread in threads:
                 thread.start()
                 started_threads.append(thread)
-            returncode = process.wait(timeout=timeout)
+            _wait_process_exit(process, timeout, stop)
+            # Reserve the leader PID/group identity until all owned work is killed.
+            _terminate_process_tree(process)
+            returncode = process.wait(timeout=_READER_JOIN_TIMEOUT)
+            reaped = True
             if not _join_reader_threads(threads):
                 raise JsonResumeThemeError(
                     "Command output streams did not close after child process exited"
@@ -1131,8 +1271,8 @@ def _run_process(command: list[str], *, cwd: Path, timeout: float):
             # Ownership starts at Popen, including partial reader startup and
             # interruptions. Attempt every cleanup step, preserving the cause.
             for cleanup in (
-                lambda: _terminate_process_tree(process),
-                lambda: _wait_after_terminate(process),
+                lambda: None if reaped else _terminate_process_tree(process),
+                lambda: None if reaped else _wait_after_terminate(process),
                 lambda: _close_process_streams(process),
                 lambda: _join_reader_threads(started_threads),
             ):
@@ -1147,6 +1287,20 @@ def _run_process(command: list[str], *, cwd: Path, timeout: float):
         ) from exc
     except OSError as exc:
         raise JsonResumeThemeError(f"Could not run command: {exc}") from exc
+
+
+def _wait_process_exit(process, timeout: float, stop: threading.Event) -> None:
+    if os.name == "nt":
+        process.wait(timeout=timeout)
+        return
+    deadline = time.monotonic() + timeout
+    while not stop.is_set():
+        if _leader_exited(process):
+            return
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise subprocess.TimeoutExpired(process.args, timeout)
+        time.sleep(min(0.01, remaining))
 
 
 def _process_group_kwargs() -> dict:
@@ -1164,9 +1318,28 @@ def _terminate_process_tree(process) -> None:
         os.killpg(process.pid, signal.SIGKILL)
     except ProcessLookupError:
         return
-    except OSError:
-        if process.poll() is None:
-            process.kill()
+    except PermissionError:
+        # Darwin killpg1 excludes zombies, returning EPERM when no signalable
+        # live member remains. Only accept it after observing our leader's exit
+        # (unreaped via waitid; poll() reaps it on macOS without os.waitid), and
+        # never hide a live leader's failure.
+        # https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/kern_sig.c
+        if sys.platform == "darwin" and _leader_exited(process):
+            return
+        raise
+
+
+def _leader_exited(process) -> bool:
+    waitid = getattr(os, "waitid", None)
+    if waitid is None:
+        # CPython before 3.13 on macOS lacks os.waitid. Fall back to poll(),
+        # which reaps the leader; the group ID stays reserved while any member
+        # remains, so the following group SIGKILL still targets owned work.
+        return process.poll() is not None
+    # WNOWAIT observes exit without releasing the process-group identity.
+    return (
+        waitid(os.P_PID, process.pid, os.WEXITED | os.WNOWAIT | os.WNOHANG) is not None
+    )
 
 
 def _wait_after_terminate(process) -> None:

@@ -270,3 +270,217 @@ def test_relative_cache_path_retains_published_generation(
     themes.install_catalog_theme("flat")
     assert themes.catalog_theme_installed(themes.catalog_theme("even"))
     assert themes.catalog_theme_installed(themes.catalog_theme("flat"))
+
+
+@pytest.mark.parametrize("oversized", ["entries", "bytes", "depth", "elapsed"])
+def test_copy_envelope_refuses_before_npm_and_keeps_current(
+    cache, monkeypatch, oversized
+):
+    from django_resume.formats.json_resume import themes
+    from unittest.mock import Mock
+
+    monkeypatch.setattr(themes, "_run_process", fake_npm)
+    themes.install_catalog_theme("even")
+    previous = themes._active_generation(cache)
+    marker = (cache / ".current").read_bytes()
+    if oversized == "entries":
+        monkeypatch.setattr(themes, "_COPY_MAX_ENTRIES", 1, raising=False)
+    elif oversized == "bytes":
+        monkeypatch.setattr(themes, "_COPY_MAX_BYTES", 1, raising=False)
+    elif oversized == "depth":
+        nested = previous / "node_modules"
+        for _ in range(66):
+            nested /= "deep"
+            nested.mkdir()
+    else:
+        monkeypatch.setattr(themes, "_COPY_TIMEOUT", 0.000000001, raising=False)
+    npm = Mock(side_effect=fake_npm)
+    monkeypatch.setattr(themes, "_run_process", npm)
+    with pytest.raises(themes.JsonResumeThemeError, match="copy budget"):
+        themes.install_catalog_theme("flat")
+    npm.assert_not_called()
+    assert (cache / ".current").read_bytes() == marker
+    assert list(cache.glob("generation-*")) == [previous]
+    assert_renders(monkeypatch)
+
+
+def test_copy_running_deadline_keeps_last_generation(cache, monkeypatch):
+    from django_resume.formats.json_resume import themes
+    from unittest.mock import Mock
+
+    monkeypatch.setattr(themes, "_run_process", fake_npm)
+    themes.install_catalog_theme("even")
+    previous = themes._active_generation(cache)
+    clock = [0.0]
+    monkeypatch.setattr(themes.time, "monotonic", lambda: clock[0])
+    original_read = themes.os.read
+
+    def delayed_read(fd, size):
+        chunk = original_read(fd, size)
+        # Metadata reads are small; force expiry during the bounded copy loop.
+        if themes.os.fstat(fd).st_ino == themes._resumed_bin(previous).stat().st_ino:
+            clock[0] = 1000
+        return chunk
+
+    monkeypatch.setattr(themes.os, "read", delayed_read)
+    npm = Mock(side_effect=fake_npm)
+    monkeypatch.setattr(themes, "_run_process", npm)
+    with pytest.raises(themes.JsonResumeThemeError, match="copy budget"):
+        themes.install_catalog_theme("flat")
+    npm.assert_not_called()
+    assert themes._active_generation(cache) == previous
+    assert list(cache.glob("generation-*")) == [previous]
+    assert_renders(monkeypatch)
+
+
+@pytest.mark.parametrize(
+    "failure", ["generation", "root_before", "pointer", "root_after"]
+)
+def test_durable_publication_failure_keeps_recoverable_generations(
+    cache, monkeypatch, failure
+):
+    import os
+    from django_resume.formats.json_resume import themes
+
+    monkeypatch.setattr(themes, "_run_process", fake_npm)
+    themes.install_catalog_theme("even")
+    previous = themes._active_generation(cache)
+    original_fsync = os.fsync
+    hit = []
+
+    def fsync(fd):
+        info = os.fstat(fd)
+        pointer = cache / ".current-next"
+        pointer_inode = pointer.stat().st_ino if pointer.exists() else None
+        current = themes._active_generation(cache)
+        is_root = info.st_ino == cache.stat().st_ino
+        should_fail = (
+            (failure == "generation" and not is_root and info.st_ino != pointer_inode)
+            or (failure == "pointer" and info.st_ino == pointer_inode)
+            or (failure == "root_before" and is_root and current == previous)
+            or (failure == "root_after" and is_root and current != previous)
+        )
+        if should_fail and not hit:
+            hit.append(True)
+            raise OSError("synthetic sync failure")
+        return original_fsync(fd)
+
+    monkeypatch.setattr(os, "fsync", fsync)
+    with pytest.raises(themes.JsonResumeThemeError) as error:
+        themes.install_catalog_theme("flat")
+    assert hit == [True]
+    assert previous.is_dir()
+    current = themes._active_generation(cache)
+    if failure == "root_after":
+        assert "durability is uncertain" in str(error.value)
+        assert current != previous
+        assert len(list(cache.glob("generation-*"))) == 2
+        themes._verify_generation(current, {"jsonresume-theme-flat": "0.3.7"})
+    else:
+        assert current == previous
+        assert list(cache.glob("generation-*")) == [previous]
+    assert_renders(monkeypatch)
+
+
+def test_publication_syncs_files_directories_pointer_before_retirement(
+    cache, monkeypatch
+):
+    import os
+    import stat
+    from django_resume.formats.json_resume import themes
+
+    monkeypatch.setattr(themes, "_run_process", fake_npm)
+    themes.install_catalog_theme("even")
+    previous = themes._active_generation(cache)
+    events = []
+    original_fsync, original_replace, original_rmtree = (
+        os.fsync,
+        os.replace,
+        themes.shutil.rmtree,
+    )
+
+    def fsync(fd):
+        info = os.fstat(fd)
+        events.append(
+            ("directory" if stat.S_ISDIR(info.st_mode) else "file", info.st_ino)
+        )
+        return original_fsync(fd)
+
+    def replace(source, destination):
+        assert ("file", source.stat().st_ino) in events
+        events.append(("replace", 0))
+        return original_replace(source, destination)
+
+    def retire(path, **kwargs):
+        if path == previous:
+            assert events[-1] == ("directory", cache.stat().st_ino)
+            assert ("replace", 0) in events
+        return original_rmtree(path, **kwargs)
+
+    monkeypatch.setattr(os, "fsync", fsync)
+    monkeypatch.setattr(os, "replace", replace)
+    monkeypatch.setattr(themes.shutil, "rmtree", retire)
+    themes.install_catalog_theme("flat")
+    assert not previous.exists()
+    assert any(kind == "file" for kind, inode in events)
+
+
+def test_copy_byte_budget_accounts_growth_after_preflight(cache, monkeypatch):
+    from django_resume.formats.json_resume import themes
+    from unittest.mock import Mock
+
+    source = cache / "node_modules" / "growing"
+    source.write_bytes(b"x")
+    inode = source.stat().st_ino
+    original_open = themes.os.open
+    grown = []
+
+    def open_growing(path, flags, *args, **kwargs):
+        fd = original_open(path, flags, *args, **kwargs)
+        if themes.os.fstat(fd).st_ino == inode and not grown:
+            grown.append(True)
+            source.write_bytes(b"x" * 2048)
+        return fd
+
+    monkeypatch.setattr(themes, "_COPY_MAX_BYTES", 1024)
+    monkeypatch.setattr(themes.os, "open", open_growing)
+    npm = Mock(side_effect=fake_npm)
+    monkeypatch.setattr(themes, "_run_process", npm)
+    with pytest.raises(themes.JsonResumeThemeError, match="copy budget"):
+        themes.install_catalog_theme("flat")
+    assert grown == [True]
+    npm.assert_not_called()
+    assert themes._active_generation(cache) == cache
+    assert not list(cache.glob("generation-*"))
+
+
+def test_unreadable_generation_directory_fails_publication_closed(cache, monkeypatch):
+    import os
+    from django_resume.formats.json_resume import themes
+
+    monkeypatch.setattr(themes, "_run_process", fake_npm)
+    themes.install_catalog_theme("even")
+    previous = themes._active_generation(cache)
+    syncing = []
+    original_sync, original_scandir = themes._sync_generation, os.scandir
+
+    def sync(target):
+        syncing.append(True)
+        return original_sync(target)
+
+    def scandir(path="."):
+        # os.walk skips directories it cannot scan unless onerror re-raises.
+        named = isinstance(path, (str, os.PathLike))
+        if syncing and named and Path(path).name == "jsonresume-theme-flat":
+            raise PermissionError("synthetic unreadable directory")
+        return original_scandir(path)
+
+    monkeypatch.setattr(themes, "_sync_generation", sync)
+    monkeypatch.setattr(os, "scandir", scandir)
+    with pytest.raises(themes.JsonResumeThemeError, match="staging/publication"):
+        themes.install_catalog_theme("flat")
+    monkeypatch.setattr(os, "scandir", original_scandir)
+    assert syncing == [True]
+    assert themes._active_generation(cache) == previous
+    assert list(cache.glob("generation-*")) == [previous]
+    assert_renders(monkeypatch)

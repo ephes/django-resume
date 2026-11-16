@@ -437,7 +437,18 @@ Owner/staff bypass is intentional; missing token data keeps the secure default.
 Individual stored secrets that cannot be encoded as UTF-8 (for example, lone
 surrogates restored from escaped JSON) are ignored as invalid tokens. They do
 not grant access or prevent a valid sibling token from opening the protected
-CV. Encodable secrets still use constant-time comparison.
+CV. Encodable secrets still use constant-time comparison. Before any comparisons
+or creation-date parsing, the complete policy must fit 256 items, 65,536 total
+UTF-8 secret bytes and 128 characters per creation string. Length is checked
+before encoding; invalid Unicode secrets consume their character count from
+the same work budget. Oversized policies deny access as ``Invalid token policy.``
+without revealing stored values or granting access through a valid sibling.
+Owner/staff bypass and explicitly tokenless policies keep their existing behavior.
+
+Owner-only theme previews and selected-theme renders recheck current row
+ownership on the original database immediately before returning HTML. If the
+resume was transferred or deleted during rendering, the response is a
+nondisclosing 404; a new request by the current owner can render normally.
 
 Concurrent root admin edits
 ---------------------------

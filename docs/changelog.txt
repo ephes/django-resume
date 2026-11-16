@@ -5,6 +5,26 @@ Changelog
 Unreleased
 ----------
 
+* Recheck current resume ownership on the original database before returning
+  private theme HTML; transfer/deletion during rendering returns 404.
+* Admit restored token policy cardinality, total secret encoding work and
+  creation timestamp lengths before comparisons/parsing; oversized policies
+  fail closed without exposing values or granting valid sibling access.
+
+* Bound theme generation staging by entry count, bytes, nesting and elapsed
+  copy time; refuse oversized caches before npm and preserve the current tree.
+* Sync staged generation contents and pointer publication before collecting old
+  generations; retain recovery material on visible but uncertain publication.
+
+* Retire owned renderer/npm process groups before reaping completed leaders,
+  including successful exits with pipe-detached descendants.
+  macOS interpreters without ``os.waitid`` (CPython before 3.13) fall back to
+  ``poll()`` instead of failing every theme command.
+* Fail theme publication closed when a staged generation directory cannot be
+  scanned for syncing, instead of skipping it.
+* Refuse HTML modified in place, truncated or replaced during output reading by
+  checking final descriptor metadata and consumed bytes.
+
 * Replace repeated Markdown-link scans with linear matching while retaining
   the supported labels/URL punctuation. Rendering refuses inputs above 262,144
   characters explicitly instead of truncating them.

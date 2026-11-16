@@ -103,3 +103,24 @@ rendering diagnostics and login redirects. An integrator's site cache
 middleware must never replay these owner responses to another session or
 reuse signed editor forms after a mutation. Public page cache behavior is
 unchanged. Standard Django admin forms retain their admin cache policy.
+
+Theme command completion retires the owned POSIX process group before reaping
+its leader and admitting output, even after a successful exit. HTML descriptor
+size, modification/change metadata and consumed bytes must remain stable during
+the bounded read; concurrent changes return a rendering error.
+
+Theme cache staging preflights and copies at most 100,000 entries, 1 GiB and
+64 nested levels within a checked 30-second elapsed budget. Staged files,
+directories and the new pointer are synced before old generations are retired.
+A visible pointer whose final sync fails reports uncertain durability and keeps
+both generations for recovery; see the JSON Resume developer reference.
+
+Private preview/render responses recheck the resume's current owner on the
+original database immediately before returning HTML. Transfers or deletions
+during rendering return the same nondisclosing 404 as other owner denials.
+
+Token authentication admits at most 256 restored items and 65,536 total UTF-8
+secret bytes (invalid Unicode is charged by character count), with creation
+strings limited to 128 characters. An oversized policy fails closed before
+secret comparisons or date parsing, even when it includes a valid sibling.
+Owner/staff bypass and admitted Unicode token expiration remain supported.
