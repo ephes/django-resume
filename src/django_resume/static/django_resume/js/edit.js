@@ -213,81 +213,127 @@ customElements.define('editable-form', EditableForm);
  * @property {string} li-class='' A class name that will be added to each badge list item
  * @property {string} span-class='' A class name that will be added to each badge name span
  */
+// Keep in sync with plugins/badges.py: Unicode code points, not UTF-16 units.
+const BADGE_LIMITS = {count: 1024, length: 1024, text: 65536};
+function validBadges(badges) {
+    if (!Array.isArray(badges) || badges.length > BADGE_LIMITS.count) return false;
+    let total = 0;
+    for (const badge of badges) {
+        if (typeof badge !== 'string') return false;
+        // Count with early refusal rather than allocating a code-point array.
+        let length = 0;
+        for (const point of badge) {
+            if (++length > BADGE_LIMITS.length || ++total > BADGE_LIMITS.text) return false;
+        }
+    }
+    return true;
+}
+
 class BadgeEditor extends HTMLElement {
     constructor() {
         super();
-        this.render = () => {
-            if (!this.isConnected) return;
-            const owner = this.closest('editable-form');
-            const form = owner?.querySelector('form');
-            const targets = form ? Array.from(form.querySelectorAll('input'))
-                .filter(input => input.id === this.inputFieldId) : [];
-            if (targets.length !== 1 || targets[0].type !== 'hidden') {
-                this.innerHTML = '<p role="alert">Badge target is missing or ambiguous. Reload this form.</p>';
-                return;
-            }
-            const hiddenBadgesList = targets[0];
-            const badges = JSON.parse(hiddenBadgesList.value);
-            this.innerHTML = `
-                <ul class="cluster cluster-list">
-                    <!-- Badges will be inserted here -->
-                    <li>
-                        <input type="text" class="small-input" placeholder="Add badge">
-                        <button type="button">Add</button>
-                    </li>        
-                </ul>
-            `;
-            const newBadgeInput = this.querySelector('input');
-            const badgesList = this.querySelector('ul');
-            if (this.ulClass) badgesList.classList.add(this.ulClass);
-
-            // add event listener to add badge button
-            this.addBadgeButtonHandler = (e) => {
-                e.preventDefault();
-                const badge = newBadgeInput.value.trim();
-                if (badge) {
-                    const existingBadges = Array.from(badgesList.querySelectorAll('.badge-name'))
-                        .map(el => el.textContent.trim());
-                    if (existingBadges.includes(badge)) {
-                        alert('Badge already exists.');
-                    } else {
-                        const li = this.getBadgeLi(badge);
-                        badgesList.insertBefore(li, badgesList.lastElementChild);
-                        newBadgeInput.value = '';
-                        this.updateHiddenBadgesList(badgesList, hiddenBadgesList);
-                    }
-                }
-            };
-            const addBadgeButton = this.querySelector('button');
-            addBadgeButton.addEventListener('click', this.addBadgeButtonHandler);
-
-            // Delete badge handler
-            this.badgesListClickHandler = (e) => {
-                const deleteButton = e.target.closest('.badge-delete-button');
-                if (deleteButton) {
-                    e.preventDefault();
-                    const li = deleteButton.closest('li');
-                    if (li && badgesList.contains(li)) {
-                        badgesList.removeChild(li);
-                        this.updateHiddenBadgesList(badgesList, hiddenBadgesList);
-                    }
-                }
-            };
-            badgesList.addEventListener('click', this.badgesListClickHandler);
-
-            if (badges.length > 0) {
-                this.renderBadgesList(badges);
-            }
-        }
     }
 
-    updateHiddenBadgesList(badgesList, hiddenBadgesList) {
-        const badgeNames = Array.from(badgesList.querySelectorAll('.badge-name'))
-            .map(el => el.textContent.trim());
+    showError(message) {
+        let status = this.querySelector('[role="alert"]');
+        if (!status) {
+            status = document.createElement('p');
+            status.setAttribute('role', 'alert');
+            this.append(status);
+        }
+        status.textContent = message;
+    }
 
-        hiddenBadgesList.value = JSON.stringify(badgeNames);
-    };
+    render() {
+        if (!this.isConnected) return;
+        const pending = this.querySelector('input.small-input')?.value || '';
+        this.listeners?.abort();
+        this.listeners = new AbortController();
+        const options = {signal: this.listeners.signal};
+        const owner = this.closest('editable-form');
+        const form = owner?.querySelector('form');
+        const targets = form ? Array.from(form.querySelectorAll('input'))
+            .filter(input => input.id === this.inputFieldId) : [];
+        let ready = false;
+        // Capture precedes HTMX serialization, including listeners installed
+        // before custom-element upgrade. A refused draft stays on screen.
+        form?.addEventListener('submit', event => {
+            if (!ready || !this.commitPending()) {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+            }
+        }, {...options, capture: true});
+        if (targets.length !== 1 || targets[0].type !== 'hidden') {
+            this.showError('Badge target is missing or ambiguous. Reload this form.');
+            return;
+        }
+        const hidden = targets[0];
+        let badges;
+        try {
+            badges = JSON.parse(hidden.value);
+            if (!validBadges(badges)) throw new Error('Invalid badges');
+        } catch {
+            this.showError('Badges exceed the list/text limits or are invalid. Correct the data before editing.');
+            return;
+        }
+        // Admission happens before replacing any existing editing DOM.
+        this.innerHTML = `
+            <ul class="cluster cluster-list">
+                <li><input type="text" class="small-input" placeholder="Add badge">
+                    <button type="button">Add</button></li>
+            </ul><p role="alert"></p>`;
+        const input = this.querySelector('input');
+        input.value = pending;
+        const list = this.querySelector('ul');
+        if (this.ulClass) list.classList.add(this.ulClass);
+        this.renderBadgesList(badges);
+        this.commitPending = () => {
+            const badge = input.value.trim();
+            if (!badge) return true;
+            if (badges.includes(badge)) {
+                this.showError('Badge already exists.');
+                return false;
+            }
+            const proposed = [...badges, badge];
+            if (!validBadges(proposed)) {
+                this.showError('Badge count or text limit exceeded. Shorten or remove badges.');
+                return false;
+            }
+            badges = proposed;
+            list.insertBefore(this.getBadgeLi(badge), list.lastElementChild);
+            hidden.value = JSON.stringify(badges);
+            input.value = '';
+            this.showError('');
+            return true;
+        };
+        this.querySelector('li:last-child button').addEventListener('click', event => {
+            event.preventDefault();
+            this.commitPending();
+        }, options);
+        input.addEventListener('keydown', event => {
+            if (event.key === 'Enter' && !event.isComposing) {
+                event.preventDefault();
+                this.commitPending();
+            }
+        }, options);
+        input.addEventListener('input', () => this.showError(''), options);
+        list.addEventListener('click', event => {
+            const button = event.target.closest('.badge-delete-button');
+            if (!button || !list.contains(button)) return;
+            event.preventDefault();
+            const li = button.closest('li');
+            const index = Array.from(list.children).indexOf(li);
+            badges.splice(index, 1);
+            li.remove();
+            hidden.value = JSON.stringify(badges);
+            this.showError('');
+        }, options);
+        ready = true;
+    }
 
+    disconnectedCallback() {
+        this.listeners?.abort();
+    }
 
     get inputFieldId() {
         return this.getAttribute('input-field-id') || null;

@@ -136,3 +136,52 @@ def test_controls_stay_with_their_form(editor):
         },
         "first": '["first"]',
     }
+
+
+@pytest.mark.parametrize("method", ["click", "requestSubmit", "enter"])
+def test_pending_badge_is_saved_or_refused_visibly(editor, method):
+    editor.evaluate("""() => {
+        const owner = document.querySelector('editable-form');
+        const form = owner.querySelector('form');
+        form.querySelector('[name=trigger]').value = 'synthetic';
+        const hidden = document.createElement('input');
+        Object.assign(hidden, {type: 'hidden', name: 'badges', id: 'badges', value: '["Stored"]'});
+        form.append(hidden);
+        const badge = document.createElement('badge-editor');
+        badge.setAttribute('input-field-id', 'badges');
+        owner.append(badge);
+        window.badgeSubmissions = [];
+        form.addEventListener('submit', e => {e.preventDefault(); badgeSubmissions.push(new FormData(form).get('badges'));});
+    }""")
+    pending = editor.get_by_placeholder("Add badge")
+    pending.fill("Pending")
+    if method == "click":
+        editor.get_by_role("button", name="Save").click()
+    elif method == "requestSubmit":
+        editor.locator("form").evaluate("form => form.requestSubmit()")
+    else:
+        pending.press("Enter")
+        editor.locator("form").evaluate("form => form.requestSubmit()")
+    assert editor.evaluate("badgeSubmissions") == ['["Stored","Pending"]']
+    expect(pending).to_have_value("")
+    pending.fill("Stored")
+    editor.locator("form").evaluate("form => form.requestSubmit()")
+    assert editor.evaluate("badgeSubmissions") == ['["Stored","Pending"]']
+    expect(pending).to_have_value("Stored")
+    expect(editor.get_by_role("alert")).to_contain_text("already exists")
+
+
+def test_badge_hydration_budget_preserves_the_source(editor):
+    result = editor.evaluate("""() => {
+        const owner = document.querySelector('editable-form'), form = owner.querySelector('form');
+        const hidden = document.createElement('input');
+        const value = JSON.stringify(Array(65).fill('x'.repeat(1024)));
+        Object.assign(hidden, {type: 'hidden', name: 'badges', id: 'badges', value});
+        form.append(hidden);
+        const badge = document.createElement('badge-editor');
+        badge.setAttribute('input-field-id', 'badges');
+        owner.append(badge);
+        return {preserved: hidden.value === value, count: badge.querySelectorAll('.badge-name').length};
+    }""")
+    assert result == {"preserved": True, "count": 0}
+    expect(editor.get_by_role("alert")).to_contain_text("limits")

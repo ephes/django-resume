@@ -1,11 +1,9 @@
-import json
-
 from typing import Type, cast, Any
 
 from django import forms
 from django.http import HttpRequest
 
-from .badges import BadgesField, display_badges
+from .badges import BadgesField, display_badges, editor_badges_json
 
 from .base import (
     EditorTextField,
@@ -56,14 +54,7 @@ class ProjectItemForm(ListItemFormMixin, forms.Form):
         )
 
     def badges_as_json(self) -> str:
-        """
-        Return the initial badges which should already be a normal list of strings
-        or the initial_badged list for the first render of the form encoded as json.
-        """
-        existing_badges = self.initial.get("badges")
-        if existing_badges is not None:
-            return json.dumps(display_badges(existing_badges))
-        return json.dumps(self.initial_badges)
+        return editor_badges_json(self)
 
     @staticmethod
     def get_initial() -> ContextDict:

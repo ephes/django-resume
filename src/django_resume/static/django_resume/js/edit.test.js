@@ -48,7 +48,7 @@ describe('BadgeEditor', () => {
         fireEvent.click(addButton);
 
         // Check for an alert
-        expect(window.alert).toHaveBeenCalledWith('Badge already exists.');
+        expect(component.querySelector('[role="alert"]').textContent).toBe('Badge already exists.');
     });
 
     test('should update hidden input field when badge is added', () => {
@@ -531,7 +531,7 @@ describe('form ownership', () => {
         if (kind === 'text') hidden.type = 'text';
         document.body.append(owner);
         expect(owner.querySelector('badge-editor [role="alert"]').textContent).toMatch(/target/i);
-        expect(owner.querySelector('badge-editor .badge-delete-button')).toBeNull();
+        owner.querySelector('badge-editor .badge-delete-button')?.click();
         expect(hidden.value).toBe('["Stored"]');
     });
 
@@ -557,5 +557,81 @@ describe('form ownership', () => {
         });
         form.requestSubmit();
         expect(submissions).toEqual([{one: '', two: ''}]);
+    });
+});
+
+describe('badge drafts', () => {
+    afterEach(() => {document.body.replaceChildren(); vi.restoreAllMocks();});
+
+    test.each(['click', 'requestSubmit', 'enter'])(
+        '%s commits pending text before serialization exactly once after reconnect', (method) => {
+            const owner = badgeForm(['Stored']);
+            for (let i = 0; i < 3; i++) {owner.remove(); document.body.append(owner);}
+            const badge = owner.querySelector('badge-editor');
+            badge.querySelector('input').value = ' Pending ';
+            const form = owner.querySelector('form');
+            const submissions = [];
+            form.addEventListener('submit', e => {
+                e.preventDefault(); submissions.push(new FormData(form).get('badges'));
+            });
+            if (method === 'click') owner.querySelector('button[type="submit"]').click();
+            else if (method === 'requestSubmit') form.requestSubmit();
+            else {fireEvent.keyDown(badge.querySelector('input'), {key: 'Enter'}); form.requestSubmit();}
+            expect(submissions).toEqual(['["Stored","Pending"]']);
+            expect(Array.from(badge.querySelectorAll('.badge-name'), el => el.textContent)).toEqual(['Stored', 'Pending']);
+            expect(badge.querySelector('input').value).toBe('');
+        }
+    );
+
+    test.each(['Stored', 'x'.repeat(1025)])('invalid pending badge blocks submit and preserves text', text => {
+        vi.spyOn(window, 'alert').mockImplementation(() => {});
+        const owner = badgeForm(['Stored']);
+        const input = owner.querySelector('badge-editor input');
+        input.value = text;
+        const serialized = vi.fn(e => e.preventDefault());
+        owner.querySelector('form').addEventListener('submit', serialized);
+        owner.querySelector('form').requestSubmit();
+        expect(serialized).not.toHaveBeenCalled();
+        expect(input.value).toBe(text);
+        expect(owner.querySelector('[name="badges"]').value).toBe('["Stored"]');
+        expect(owner.querySelector('badge-editor [role="alert"]').textContent).not.toBe('');
+        input.value = 'Fixed';
+        owner.querySelector('form').requestSubmit();
+        expect(serialized).toHaveBeenCalledTimes(1);
+    });
+
+    test.each([
+        ['x'.repeat(1024), 'y'.repeat(1024)],
+        Array(1024).fill('x'),
+        Array(64).fill('🐍'.repeat(1024)),
+    ].map(badges => [badges]))('boundary hydration preserves admitted badges', badges => {
+        const owner = badgeForm(badges);
+        expect(owner.querySelectorAll('.badge-name')).toHaveLength(badges.length);
+        expect(owner.querySelector('[name="badges"]').value).toBe(JSON.stringify(badges));
+    });
+
+    test.each([Array(1025).fill('x'), Array(65).fill('x'.repeat(1024)), ['x'.repeat(1025)], [1]].map(badges => [badges]))(
+        'oversized/invalid hydration refuses before creating badge subtrees and preserves data', badges => {
+            const owner = badgeForm(badges);
+            expect(owner.querySelectorAll('.badge-name')).toHaveLength(0);
+            expect(owner.querySelector('badge-editor [role="alert"]').textContent).toMatch(/badge/i);
+            expect(owner.querySelector('[name="badges"]').value).toBe(JSON.stringify(badges));
+            const serialized = vi.fn(e => e.preventDefault());
+            owner.querySelector('form').addEventListener('submit', serialized);
+            owner.querySelector('form').requestSubmit();
+            expect(serialized).not.toHaveBeenCalled();
+        }
+    );
+
+    test('an admitted list cannot grow beyond the count or text budget', () => {
+        for (const badges of [Array(1024).fill('x'), Array(64).fill('x'.repeat(1024))]) {
+            const owner = badgeForm(badges);
+            owner.querySelector('badge-editor input').value = 'extra';
+            owner.querySelector('badge-editor li:last-child button').click();
+            expect(owner.querySelectorAll('.badge-name')).toHaveLength(badges.length);
+            expect(owner.querySelector('[name="badges"]').value).toBe(JSON.stringify(badges));
+            expect(owner.querySelector('badge-editor [role="alert"]').textContent).not.toBe('');
+            owner.remove();
+        }
     });
 });

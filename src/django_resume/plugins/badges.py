@@ -6,6 +6,7 @@ from django import forms
 
 MAX_BADGES = 1024
 MAX_BADGE_LENGTH = 1024
+MAX_BADGE_TEXT = 65536
 
 
 def validate_badges(badges: object) -> None:
@@ -19,6 +20,26 @@ def validate_badges(badges: object) -> None:
         raise forms.ValidationError(
             f"Each badge allows at most {MAX_BADGE_LENGTH} characters."
         )
+
+    if sum(map(len, badges)) > MAX_BADGE_TEXT:
+        raise forms.ValidationError(
+            f"Badge text allows at most {MAX_BADGE_TEXT} characters in total."
+        )
+
+
+def editor_badges_json(form: forms.Form) -> str:
+    """Keep the whole draft for browser admission, including refused legacy data."""
+    value = (
+        form.data.get(form.add_prefix("badges"))
+        if form.is_bound
+        else form.initial.get("badges", form.fields["badges"].initial)
+    )
+    if value is None or value == "":
+        value = []
+    if isinstance(value, str):
+        # Bound JSON is already encoded; invalid JSON must reach browser refusal.
+        return value
+    return json.dumps(value)
 
 
 def validate_stored_badges(badges: object) -> None:
@@ -54,11 +75,16 @@ def display_badges(
             notes.append(f"{field}: invalid or excess badges omitted")
     if not isinstance(value, list):
         return []
-    return [
-        badge
-        for badge in value[:MAX_BADGES]
-        if isinstance(badge, str) and len(badge) <= MAX_BADGE_LENGTH
-    ]
+    result: list[str] = []
+    total = 0
+    for badge in value[:MAX_BADGES]:
+        if not isinstance(badge, str) or len(badge) > MAX_BADGE_LENGTH:
+            continue
+        total += len(badge)
+        if total > MAX_BADGE_TEXT:
+            break
+        result.append(badge)
+    return result
 
 
 class BadgesField(forms.JSONField):

@@ -5,6 +5,12 @@ Changelog
 Unreleased
 ----------
 
+* Commit pending badge text on Save or Enter; block duplicate/invalid drafts
+  visibly without losing text. Admit badge hydration before DOM construction
+  and share the server's 1,024 badge / 1,024 character limits plus a 65,536
+  Unicode code point aggregate budget. Keep refused stored/submitted editor
+  data intact; display/export stays bounded without rewriting the source.
+
 * Bind badge editors to a unique hidden target in their own editable form.
   Refuse invalid targets visibly. Project every named/data-field checkbox
   on change and native submit, including after component reconnection.
