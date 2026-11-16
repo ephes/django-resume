@@ -1502,7 +1502,13 @@ operator cache refresh when browser installs are disabled; readiness never
 installs packages itself.
 
 Installs copy the active npm tree and lockfiles into a private
-``generation-*`` directory. npm only mutates that copy. Before publication,
+``generation-*`` directory. A complete preflight and the running copy each
+admit at most 100,000 entries, 1 GiB of file/link bytes and 64 nested levels.
+One 30-second elapsed budget covers both walks; checks bracket chunk reads
+and filesystem operations. Symlinks inside npm trees are copied without
+following them; special files and redirected top-level sources are refused.
+Refusal never starts npm, removes only the owned stage and preserves the
+current generation. These are fixed copy limits, separate from npm's timeout. npm only mutates that copy. Before publication,
 every previously declared direct dependency must retain its installed version
 unless explicitly replaced, requested pinned packages must match, and the
 renderer file must exist. An incomplete or failed install leaves the active
@@ -1513,7 +1519,14 @@ A complete generation becomes current through one atomic replacement of the
 ``.current`` pointer file under the cache lock. A killed installer therefore
 leaves either the previous complete generation or the new complete generation
 active; ordinary rendering ignores unreferenced directories and never attempts
-an automatic reinstall. This covers process death, not power-loss durability.
+an automatic reinstall. Before replacing the pointer, all staged regular files and directories are
+synced bottom up, followed by the cache root and the flushed pointer file.
+The root is synced again after replacement, before any old generation is
+retired. A sync failure before replacement leaves the previous generation
+active. A failure after replacement raises ``ThemePublicationUncertain``:
+the new generation is visible, its durability is uncertain, and both old and
+new complete generations are retained. Inspect them during offline recovery
+or retry installation; do not interpret this diagnostic as an uninstalled theme.
 The next successful install removes retired and incomplete ``generation-*``
 directories while holding the lock, after all previous renders have finished.
 Allow disk space for a complete additional npm tree and crash leftovers.

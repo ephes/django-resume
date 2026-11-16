@@ -5,6 +5,11 @@ Changelog
 Unreleased
 ----------
 
+* Bound theme generation staging by entry count, bytes, nesting and elapsed
+  copy time; refuse oversized caches before npm and preserve the current tree.
+* Sync staged generation contents and pointer publication before collecting old
+  generations; retain recovery material on visible but uncertain publication.
+
 * Retire owned renderer/npm process groups before reaping completed leaders,
   including successful exits with pipe-detached descendants.
 * Refuse HTML modified in place, truncated or replaced during output reading by

@@ -108,3 +108,9 @@ Theme command completion retires the owned POSIX process group before reaping
 its leader and admitting output, even after a successful exit. HTML descriptor
 size, modification/change metadata and consumed bytes must remain stable during
 the bounded read; concurrent changes return a rendering error.
+
+Theme cache staging preflights and copies at most 100,000 entries, 1 GiB and
+64 nested levels within a checked 30-second elapsed budget. Staged files,
+directories and the new pointer are synced before old generations are retired.
+A visible pointer whose final sync fails reports uncertain durability and keeps
+both generations for recovery; see the JSON Resume developer reference.

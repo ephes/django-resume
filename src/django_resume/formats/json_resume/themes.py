@@ -111,6 +111,10 @@ class JsonResumeThemeError(RuntimeError):
     """Raised when theme discovery, installation, or rendering fails."""
 
 
+class ThemePublicationUncertain(JsonResumeThemeError):
+    """The new generation is visible, but its publication could not be synced."""
+
+
 class ThemeOwnershipChanged(JsonResumeThemeError):
     """Raised when the selecting owner no longer owns the current resume."""
 
@@ -166,6 +170,16 @@ class _CapturedProcess:
 _READER_JOIN_TIMEOUT = 1.0
 _METADATA_MAX_BYTES = 1024 * 1024
 _METADATA_MAX_DEPTH = 64
+_COPY_MAX_ENTRIES = 100_000
+_COPY_MAX_BYTES = 1024 * 1024 * 1024
+_COPY_MAX_DEPTH = 64
+_COPY_TIMEOUT = 30.0
+_GENERATION_SOURCES = (
+    "node_modules",
+    "package.json",
+    "package-lock.json",
+    "npm-shrinkwrap.json",
+)
 _cache_authority: ContextVar[tuple[tuple[Path, int], ...]] = ContextVar(
     "theme_cache_authority", default=()
 )
@@ -614,6 +628,109 @@ def _verify_generation(target: Path, required: dict[str, str | None]) -> None:
             )
 
 
+def _copy_generation(current: Path, staged: Path) -> None:
+    deadline = time.monotonic() + _COPY_TIMEOUT
+
+    def check() -> None:
+        if time.monotonic() >= deadline:
+            raise JsonResumeThemeError("Theme generation copy budget exceeded")
+
+    # Preflight the entire tree before copying, then account again while copying
+    # actual bytes. Neither walk follows npm's executable symlinks.
+    for copying in (False, True):
+        entries = total = 0
+
+        def visit(source: Path, destination: Path, depth: int) -> None:
+            nonlocal entries, total
+            check()
+            entries += 1
+            if entries > _COPY_MAX_ENTRIES or depth > _COPY_MAX_DEPTH:
+                raise JsonResumeThemeError("Theme generation copy budget exceeded")
+            info = source.lstat()
+            if stat.S_ISLNK(info.st_mode):
+                link = os.readlink(source)
+                total += len(os.fsencode(link))
+                if copying:
+                    destination.symlink_to(link)
+            elif stat.S_ISDIR(info.st_mode):
+                if copying:
+                    destination.mkdir(mode=0o700)
+                with os.scandir(source) as children:
+                    for child in children:
+                        visit(source / child.name, destination / child.name, depth + 1)
+            elif stat.S_ISREG(info.st_mode):
+                if not copying:
+                    total += info.st_size
+                else:
+                    fd = os.open(source, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+                    try:
+                        opened = os.fstat(fd)
+                        if not stat.S_ISREG(opened.st_mode) or (
+                            info.st_dev,
+                            info.st_ino,
+                        ) != (opened.st_dev, opened.st_ino):
+                            raise JsonResumeThemeError(
+                                "Theme generation copy source changed"
+                            )
+                        with destination.open("xb") as output:
+                            while True:
+                                check()
+                                chunk = os.read(
+                                    fd, min(65536, _COPY_MAX_BYTES + 1 - total)
+                                )
+                                check()
+                                total += len(chunk)
+                                if total > _COPY_MAX_BYTES:
+                                    raise JsonResumeThemeError(
+                                        "Theme generation copy budget exceeded"
+                                    )
+                                if not chunk:
+                                    break
+                                output.write(chunk)
+                        destination.chmod(stat.S_IMODE(opened.st_mode))
+                    finally:
+                        os.close(fd)
+            else:
+                raise JsonResumeThemeError("Invalid theme generation copy source")
+            check()
+            if total > _COPY_MAX_BYTES:
+                raise JsonResumeThemeError("Theme generation copy budget exceeded")
+
+        for name in _GENERATION_SOURCES:
+            source = current / name
+            if source.is_symlink():
+                raise JsonResumeThemeError("Redirected JSON Resume cache source")
+            if source.exists():
+                visit(source, staged / name, 0)
+        check()
+
+
+def _sync_directory(path: Path) -> None:
+    descriptor = _open_directory(path)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def _sync_generation(target: Path) -> None:
+    # Sync file content before directory entries, bottom up. npm symlinks do
+    # not own their targets; their directory entries are synced with the parent.
+    for directory, _, files in os.walk(target, topdown=False, followlinks=False):
+        for name in files:
+            path = Path(directory) / name
+            if path.is_symlink():
+                continue
+            fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+            try:
+                if not stat.S_ISREG(os.fstat(fd).st_mode):
+                    raise JsonResumeThemeError("Invalid staged theme generation file")
+                os.fsync(fd)
+            finally:
+                os.close(fd)
+        _sync_directory(Path(directory))
+
+
 def _install_theme_packages(packages: list[str], *, timeout: float) -> None:
     _process_limits(timeout)
     npm = shutil.which("npm")
@@ -637,19 +754,7 @@ def _install_theme_packages(packages: list[str], *, timeout: float) -> None:
         published = False
         try:
             # Copy, never hard-link: npm may mutate any file in its prefix.
-            for name in (
-                "node_modules",
-                "package.json",
-                "package-lock.json",
-                "npm-shrinkwrap.json",
-            ):
-                source = current / name
-                if source.is_symlink():
-                    raise JsonResumeThemeError("Redirected JSON Resume cache source")
-                if source.is_dir():
-                    shutil.copytree(source, staged / name, symlinks=True)
-                elif source.is_file():
-                    shutil.copy2(source, staged / name)
+            _copy_generation(current, staged)
             # Never run npm lifecycle scripts as the web server user.
             command = [
                 npm,
@@ -671,15 +776,30 @@ def _install_theme_packages(packages: list[str], *, timeout: float) -> None:
                     _bounded_error("npm install failed", completed)
                 )
             _verify_generation(staged, required)
-            pointer.write_text(staged.name, encoding="ascii")
-            _chmod_owner_only(pointer)
+            _sync_generation(staged)
+            _sync_directory(root)
+            with pointer.open("w", encoding="ascii") as marker:
+                _chmod_owner_only(pointer)
+                marker.write(staged.name)
+                marker.flush()
+                os.fsync(marker.fileno())
             os.replace(pointer, root / ".current")
             published = True
+            _sync_directory(root)
             # All renders hold the same lock through output reading; no retired
             # generation can still be in use here. Also collect crash leftovers.
             for retired in root.glob("generation-*"):
                 if retired != staged and retired.is_dir():
                     shutil.rmtree(retired, ignore_errors=True)
+        except OSError as exc:
+            if published or _active_generation(root) == staged:
+                raise ThemePublicationUncertain(
+                    "Theme generation is visible but publication durability is uncertain; "
+                    "previous generations retained for recovery"
+                ) from exc
+            raise JsonResumeThemeError(
+                "Theme generation staging/publication failed"
+            ) from exc
         finally:
             _cache_authority.reset(authority_token)
             os.close(staged_fd)
