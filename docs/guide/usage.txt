@@ -105,6 +105,16 @@ The supported formatting is intentionally limited to:
 Rendered HTML is sanitized before it is marked safe, so raw HTML is not preserved
 and dangerous link protocols are removed.
 
+Link matching runs in linear work, including unmatched/nested brackets. The
+existing small syntax is preserved: labels stay on one line, and URLs support
+flat parenthesized groups (for example ``https://example.com/a(b)``), but no
+deeper nesting. Backslashes retain their literal behavior; this is not a full
+CommonMark parser. ``markdown_to_html`` and ``markdown_to_plain_text`` reject
+inputs above 262,144 Unicode characters with ``ValueError`` before rendering;
+callers importing larger fields must validate/handle this explicit refusal.
+No text is silently truncated. Custom handlers and the final HTML sanitizer
+continue to apply.
+
 Exporting to JSON Resume
 ------------------------
 

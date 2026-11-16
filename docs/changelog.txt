@@ -5,6 +5,10 @@ Changelog
 Unreleased
 ----------
 
+* Replace repeated Markdown-link scans with linear matching while retaining
+  the supported labels/URL punctuation. Rendering refuses inputs above 262,144
+  characters explicitly instead of truncating them.
+
 * Bound context inventory entries/depth/path bytes, actual per-file reads and
   total UTF-8 output. Sort exports deterministically and stage them before stdout
   so source admission failures emit no partial dump.
