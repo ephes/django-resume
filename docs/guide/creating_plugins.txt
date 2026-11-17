@@ -262,6 +262,12 @@ termination, including termination after the final replacement. A subsequent
 create or remove refuses the unresolved intent instead of accepting a mixed
 bundle. Do not delete the intent or its referenced files.
 
+Intents are per project root. Sharing one symlinked ``templates`` or
+``core/plugins`` tree between several projects is not supported for plugin
+create/remove: another project cannot see this project's unresolved intent and
+could mutate the shared targets before recovery. Resolve every intent before
+running these commands from another project that shares the tree.
+
 Stop unrelated editors and run these commands from the same project root,
 using the same account, mount and lock directory as the interrupted writer::
 

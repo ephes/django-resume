@@ -366,3 +366,25 @@ def test_symlinked_templates_keep_intent_in_project_root(tmp_path, monkeypatch):
     )
     assert resolved_shared in synced
     assert (shared / "django_resume/plugins/safe_plugin/plain/form.html").is_file()
+
+
+def test_fresh_project_syncs_every_created_parent(tmp_path, monkeypatch):
+    from django_resume.management.commands import _plugin_publication as publication
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("sys.stdin", StringIO(plugin_bundle()))
+    root = tmp_path.resolve()
+    sync = publication.sync_directory
+    synced = set()
+
+    def record_sync(directory):
+        synced.add(Path(directory).resolve())
+        return sync(directory)
+
+    monkeypatch.setattr(publication, "sync_directory", record_sync)
+    call_command("create_plugin_from_stdin", stdout=StringIO())
+    # Every directory whose entry list gained a created child must be synced.
+    expected = {root, root / "core", root / "core/plugins", root / "templates"}
+    plain = root / "templates/django_resume/plugins/safe_plugin/plain"
+    expected |= {plain, *[p for p in plain.parents if p.is_relative_to(root)]}
+    assert expected <= synced

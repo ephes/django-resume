@@ -137,17 +137,21 @@ class Publication:
             raise
 
     def sync_targets(self) -> None:
-        # Sync each target directory and its ancestors up to and including its
-        # base tree (``core/plugins``, ``templates`` or the project root), so
-        # newly created parents are durable without walking shared ancestors.
-        directories = {self.intent.parent}
-        stops = target_bases()
+        # Sync each target directory and its ancestors up to the project root,
+        # so freshly created parents (e.g. ``core`` and ``core/plugins``) are
+        # durable. A base symlinked outside the root stops at that resolved
+        # base instead of walking shared ancestors.
+        root = self.intent.parent
+        directories = {root}
+        outside_stops = {
+            base for base in target_bases() if not base.is_relative_to(root)
+        }
         for path in self.paths:
             parent = path.parent
             while True:
                 if parent.exists():
                     directories.add(parent)
-                if parent in stops or parent == parent.parent:
+                if parent == root or parent in outside_stops or parent == parent.parent:
                     break
                 parent = parent.parent
         for directory in sorted(directories, key=lambda p: len(p.parts), reverse=True):

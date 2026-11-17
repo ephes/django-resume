@@ -19,7 +19,8 @@ Unreleased
 * Record interrupted plugin installation with complete old/new generations;
   refuse further mutations until ``recover_plugin`` explicitly restores or
   finishes the bundle under the writer locks. The intent lives in the project
-  root even when ``templates`` is a symlink elsewhere. ``status`` still prints the
+  root even when ``templates`` is a symlink elsewhere; sharing one symlinked
+  plugin tree between projects is unsupported. ``status`` still prints the
   intent record when a recovery copy fails validation and reports when nothing
   needs recovery.
 
