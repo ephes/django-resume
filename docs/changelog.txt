@@ -5,6 +5,9 @@ Changelog
 Unreleased
 ----------
 
+0.4.0 - 2026-11-17
+------------------
+
 * Preserve owner changes during plugin recovery. ``recover_plugin`` restore,
   finish and in-process rollback now admit the whole installed target set
   against the intent's recorded old/new/absent generations before any change,
