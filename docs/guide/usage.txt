@@ -131,6 +131,14 @@ callers importing larger fields must validate/handle this explicit refusal.
 No text is silently truncated. Custom handlers and the final HTML sanitizer
 continue to apply.
 
+Link destinations remain literal data: emphasis applies to labels, not URLs.
+The built-in default and underlined link handlers escape destinations as HTML
+attribute values, preserving quotes, ampersands and flat parentheses without
+creating extra attributes. Custom ``link`` handlers still receive the formatted
+label and the original, unescaped destination; they must escape the destination
+when inserting it into HTML. The final sanitizer continues to refuse unsafe
+schemes for built-in and custom handlers.
+
 Exporting to JSON Resume
 ------------------------
 

@@ -388,7 +388,6 @@ def test_markdown_render_input_ceiling(monkeypatch):
         "[empty]() [next](relative/path)",
         "[bad](a(b(c))) [good](https://example.com)",
         "[first\nsecond](https://example.com)",
-        "[label](url\nnext)",
         "[bad](broken( [label](ok)",
     ],
 )

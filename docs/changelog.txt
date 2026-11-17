@@ -5,6 +5,11 @@ Changelog
 Unreleased
 ----------
 
+* Preserve Markdown link destinations as literal data through inline formatting
+  and HTML attribute encoding in default/underlined links. Keep formatted
+  labels, raw destinations for custom link handlers, the limited linear link
+  grammar and unsafe-scheme refusal.
+
 * Verify complete JPEG/PNG/GIF/WebP uploads with Pillow before storage,
   decoding all animation frames within the aggregate pixel budget and checking
   required PNG/GIF endings (trailing bytes are refused). Allow at most 4,096

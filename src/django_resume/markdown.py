@@ -33,8 +33,13 @@ ALLOWED_URL_SCHEMES = {"http", "https", "mailto"}
 URL_SCHEME_RE = re.compile(r"^([a-zA-Z][a-zA-Z0-9+.-]*):")
 
 
+def _link_attribute(url: str) -> str:
+    # Keep destination newlines out of the later newline -> <br> assembly.
+    return html.escape(url, quote=True).replace("\n", "&#10;")
+
+
 def underlined_link_handler(text: str, url: str) -> str:
-    return f'<a href="{url}" class="underlined">{text}</a>'
+    return f'<a href="{_link_attribute(url)}" class="underlined">{text}</a>'
 
 
 def _get_normalized_url_scheme(value: str) -> str | None:
@@ -205,12 +210,30 @@ def markdown_to_html(text: str, handlers: dict[str, Callable] | None = None) -> 
     if handlers is None:
         handlers = {}
 
+    # Protect destinations before formatting, including multiline URLs that
+    # contain what would otherwise look like a heading or list item. Source
+    # NULs are removed so the numeric markers cannot collide with input.
+    text = text.replace("\x00", "")
+    destinations: dict[str, str] = {}
+
+    def protect_destination(label, url):
+        marker = f"\x00{len(destinations)}\x00"
+        destinations[marker] = url
+        return f"[{label}]({marker})"
+
+    text = _replace_links(text, protect_destination)
+
+    def restore_destinations(content: str) -> str:
+        # Custom formatting callbacks keep their source-text arguments. Protect
+        # any links in their result again before the next formatting pass.
+        return re.sub(r"\x00\d+\x00", lambda m: destinations.get(m[0], m[0]), content)
+
     # Mark list items first; inline formatting must not consume their markers.
     text = "\n".join(
         LIST_ITEM_MARKER + match.group(1).strip()
         if (match := LIST_ITEM_RE.match(line))
         else line
-        for line in text.replace("\x00", "").split("\n")
+        for line in text.split("\n")
     )
 
     # Headings
@@ -218,7 +241,10 @@ def markdown_to_html(text: str, handlers: dict[str, Callable] | None = None) -> 
         level = len(m.group(1))
         content = m.group(2).strip()
         if "heading" in handlers:
-            return handlers["heading"](level, content)
+            return _replace_links(
+                handlers["heading"](level, restore_destinations(content)),
+                protect_destination,
+            )
         else:
             return f"<h{level}>{content}</h{level}>"
 
@@ -233,7 +259,9 @@ def markdown_to_html(text: str, handlers: dict[str, Callable] | None = None) -> 
     def render_bold(m):
         content = m.group(1)
         if "bold" in handlers:
-            return handlers["bold"](content)
+            return _replace_links(
+                handlers["bold"](restore_destinations(content)), protect_destination
+            )
         else:
             return f"<strong>{content}</strong>"
 
@@ -243,7 +271,9 @@ def markdown_to_html(text: str, handlers: dict[str, Callable] | None = None) -> 
     def render_italic(m):
         content = m.group(1)
         if "italic" in handlers:
-            return handlers["italic"](content)
+            return _replace_links(
+                handlers["italic"](restore_destinations(content)), protect_destination
+            )
         else:
             return f"<em>{content}</em>"
 
@@ -251,10 +281,11 @@ def markdown_to_html(text: str, handlers: dict[str, Callable] | None = None) -> 
 
     # Links
     def render_link(link_text, url):
+        url = destinations.get(url, url)
         if "link" in handlers:
             return handlers["link"](link_text, url)
         else:
-            return f'<a href="{url}">{link_text}</a>'
+            return f'<a href="{_link_attribute(url)}">{link_text}</a>'
 
     text = _replace_links(text, render_link)
 
