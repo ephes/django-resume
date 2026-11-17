@@ -1,0 +1,47 @@
+from pathlib import Path
+
+from django.core.management.base import BaseCommand, CommandError
+
+from ._file_rollback import writer_locks
+from ._path_safety import resolve_within, validate_plugin_name
+from ._plugin_publication import Publication
+
+
+class Command(BaseCommand):
+    help = "Inspect or reconcile an interrupted filesystem plugin publication"
+
+    def add_arguments(self, parser):
+        parser.add_argument("plugin_name")
+        parser.add_argument(
+            "--action", choices=["status", "restore", "finish"], default="status"
+        )
+
+    def handle(self, *args, **options):
+        name = validate_plugin_name(options["plugin_name"])
+        paths = [
+            resolve_within(Path.cwd() / "core/plugins", f"{name}.py"),
+            resolve_within(
+                Path.cwd() / "templates",
+                f"django_resume/plugins/{name}/plain/content.html",
+            ),
+            resolve_within(
+                Path.cwd() / "templates",
+                f"django_resume/plugins/{name}/plain/form.html",
+            ),
+        ]
+        if len(set(paths)) != 3:
+            raise CommandError("Plugin targets must resolve to distinct files")
+        with writer_locks(paths):
+            publication = Publication(paths)
+            publication.load()
+            if options["action"] == "status":
+                self.stdout.write(publication.intent.read_text())
+                return
+            try:
+                publication.apply("old" if options["action"] == "restore" else "new")
+                publication.retire()
+            except OSError as error:
+                raise CommandError(
+                    f"Recovery incomplete; retain {publication.intent}: {error}"
+                ) from error
+            self.stdout.write("Plugin generation reconciled")

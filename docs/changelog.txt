@@ -5,6 +5,10 @@ Changelog
 Unreleased
 ----------
 
+* Record interrupted plugin installation with complete old/new generations;
+  refuse further mutations until ``recover_plugin`` explicitly restores or
+  finishes the bundle under the writer locks.
+
 * Allow navigation tags to accept an optional request and retain a validated
   capability only on the built-in protected CV link. Omit invalid/expired
   tokens and keep public, owner/staff and custom destinations token-free;

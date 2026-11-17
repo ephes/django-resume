@@ -191,8 +191,7 @@ All three paths are validated and complete UTF-8 files staged beside the targets
 before replacement begins. Existing file permissions are preserved; new files
 use the usual umask-based permissions. Ordinary replacement failures restore previous files and
 remove newly installed files. Empty directories created during staging can
-remain after failure. The same crash, concurrency and recovery limitations as
-removal apply; errors identify retained backups when manual recovery is needed.
+remain after failure. An interrupted installation leaves a persistent recovery intent; see below.
 
 
 Plugin-wide data removal streams only ``id`` and ``plugin_data`` with a
@@ -245,3 +244,37 @@ For early cleanup, async streaming sources must provide the synchronous
 ``close()`` hook supported by Django's response lifecycle; Django does not call
 an async source's ``aclose()`` on response close. Generators still clean up in
 their iteration language when exhausted, failed or cancelled during a step.
+
+
+Recovering interrupted plugin installation
+------------------------------------------
+
+Create commands record ``.django-resume-plugin-NAME.intent.json`` in the
+project root before the first installed file changes, while holding all three
+writer locks. The intent names the exact targets, SHA-256 hashes and sibling
+``.FILENAME.backup-*`` (old) and ``.FILENAME.new-*`` (new) copies. Absence of an
+old file is recorded explicitly. Both complete generations survive process
+termination, including termination after the final replacement. A subsequent
+create or remove refuses the unresolved intent instead of accepting a mixed
+bundle. Do not delete the intent or its referenced files.
+
+Stop unrelated editors and run these commands from the same project root,
+using the same account, mount and lock directory as the interrupted writer::
+
+    python manage.py recover_plugin NAME --action status
+    python manage.py recover_plugin NAME --action restore
+
+``status`` only prints the recorded operation and recovery files. ``restore``
+restores all three old files (removing targets that were originally absent).
+To install the complete recorded new generation instead, use
+``--action finish``. Recovery validates the target set and every copy's digest
+before changing files, and holds the same writer locks. It retains authority
+copies throughout recovery, so an interrupted recovery can be repeated.
+Only a complete recovery retires the intent and admits new mutations.
+
+Keep the project unavailable while resolving a mixed generation: native locks
+serialize cooperating writers, but do not prevent Python/template readers or
+unrelated editors from observing intermediate files. Backups and intents may
+contain private source; protect the project tree accordingly. Orphan stage or
+backup files not referenced by an intent can be inspected and removed after all
+writers have stopped. Never remove a referenced recovery copy.
