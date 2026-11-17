@@ -722,10 +722,10 @@ def test_cv_permission_denied_message_renders_sanitized_markdown(client, resume)
 
 @pytest.mark.django_db
 def test_cv_editable_only_for_authenticated_users(client, resume):
-    # Given a resume in the database and the token plugin deactivated
+    # Public access is an explicit policy, independent of renderer registration.
     resume.owner.save()
+    resume.plugin_data["token"] = {"flat": {"token_required": False}}
     resume.save()
-    plugin_registry.unregister(TokenPlugin)
 
     # When we access the cv page
     cv_url = reverse("resume:cv", kwargs={"slug": resume.slug})

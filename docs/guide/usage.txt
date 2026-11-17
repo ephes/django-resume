@@ -58,6 +58,15 @@ This is the list of built-in plugins that come with django-resume:
   ``Referrer-Policy: no-referrer``. Generated CV links query-encode the exact
   stored token, including punctuation and Unicode, so editable credentials
   containing ``+``, ``&``, ``=`` or ``#`` remain redeemable.
+  The built-in CV enforces this stored policy even if the token renderer is
+  unregistered. Removing a display plugin never makes a protected CV public.
+  Missing token data requires a token; only explicit ``token_required: false``
+  makes it public. Denials use the permission-denied renderer, or a content-free
+  404 when that renderer is unavailable.
+  Integrations rendering CV navigation can pass ``request=request`` to either
+  ``page_nav_links`` or ``page_nav_groups`` to preserve a validated token on the
+  built-in protected CV link. No token is copied to other destinations; owner,
+  staff and public CV navigation stays token-free. See :doc:`../ref/pages`.
 
 Legacy education and optional denial avatars
 --------------------------------------------

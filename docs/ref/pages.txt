@@ -104,6 +104,9 @@ ResumePage
 
       The page's URL for ``resume``, reversed via the ``django_resume``
       application namespace.
+      This hook remains request-unaware, including existing custom overrides.
+      The navigation tags below can retain a validated CV token when given a
+      request, without changing this hook's signature.
 
    .. method:: get_context(request, resume, *, base_context)
 
@@ -257,20 +260,36 @@ Load the tags with ``{% load page_nav %}``. Both take a ``resume`` and return
 only pages that have a :attr:`~ResumePage.nav_title` and are
 :meth:`~ResumePage.is_visible` for that resume.
 
-``page_nav_links resume``
+``page_nav_links resume [request=request]``
    Returns a flat list of ``{"title", "url", "group"}`` entries, ordered by
    :attr:`~ResumePage.nav_order`.
 
-``page_nav_groups resume``
+``page_nav_groups resume [request=request]``
    Returns the same links bucketed by :attr:`~ResumePage.nav_group` as
    ``{"title", "links"}`` groups. Groups appear in the order their first link
    does, and a group stays one contiguous section even if its members interleave
    with other groups by order. The resume overview renders this tag.
 
+Pass the optional ``request`` to keep a token visitor authorized when following
+the built-in CV navigation link. The token must pass the destination resume's
+existing permission policy, including expiration and policy admission. Only the
+validated form value is query-encoded, with no other request parameters copied.
+Missing, malformed, invalid or expired tokens are omitted. Owner/staff bypass
+and explicitly public CVs retain their bare URLs.
+
+Tokens are never added to cover, permission-denied, public, external or custom
+page links. This also excludes ``CvPage`` subclasses and custom replacements
+of the CV page: they need their own explicit navigation contract. Existing
+calls without a request, in Python or templates, keep their previous behavior.
+The caller supplies the current request explicitly; tags do not read it from
+template context automatically. If the ``request`` variable is missing from the
+template context (for example ``render_to_string`` without a request, or no
+request context processor), the tags fall back to the bare, token-free URLs.
+
 .. code-block:: html+django
 
    {% load page_nav %}
-   {% page_nav_groups resume as nav_groups %}
+   {% page_nav_groups resume request=request as nav_groups %}
    {% for group in nav_groups %}
      {% if group.title %}<strong>{{ group.title }}:</strong>{% endif %}
      {% for link in group.links %}

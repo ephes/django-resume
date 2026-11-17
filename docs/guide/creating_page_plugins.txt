@@ -279,6 +279,15 @@ The bundled :doc:`example_project` ships exactly this ``PortfolioPage`` in its
 templates), so you can see the whole flow end to end -- including the Portfolio
 link appearing in the resume overview.
 
+For navigation on a token-authorized CV, opt into request-aware links with
+``{% page_nav_links resume request=request as nav_links %}`` or
+``{% page_nav_groups resume request=request as nav_groups %}``. The tags
+validate the token against that resume and carry it only to the built-in,
+protected CV destination. Other links, custom CV replacements/subclasses,
+owner/staff visits and public CVs keep token-free URLs. Invalid or expired
+tokens are never reflected. Existing tag calls and ``nav_url(resume)``
+overrides remain compatible; see :doc:`../ref/pages` for the full contract.
+
 Shipping a page as its own package
 ----------------------------------
 
