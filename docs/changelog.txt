@@ -5,6 +5,12 @@ Changelog
 Unreleased
 ----------
 
+* Verify complete JPEG/PNG/GIF/WebP uploads with Pillow before storage,
+  decoding all animation frames within the aggregate pixel budget and checking
+  required PNG/GIF endings. Reuse a single admitted byte snapshot through form
+  validation and storage; malformed replacements preserve existing references.
+  Keep original bytes and supported animations without re-encoding.
+
 * Scan editor HTML tags in linear work and admit at most 2,097,152 encoded
   characters before conversion, including bound-form display. Keep decoded
   field length limits and one-pass entity behavior; rejected edits leave saved

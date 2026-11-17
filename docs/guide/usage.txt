@@ -443,7 +443,9 @@ owner with 403; a missing resume returns 404.
 
 Image uploads retain the 2 MiB compressed-byte limit and JPEG/PNG/GIF/WebP
 allowlist. Before storage, dimensions must be positive, at most 16,384 pixels
-per axis and at most 67,108,864 decoded pixels in total. Exact limits are
+per axis and at most 67,108,864 decoded pixels in total across animation
+frames. Complete raster decoding must succeed, and format-specific decoder
+limits also apply. Exact application limits are
 accepted. A refused upload changes neither storage nor plugin data.
 
 

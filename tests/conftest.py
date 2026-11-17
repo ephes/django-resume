@@ -1,5 +1,8 @@
+import io
 import struct
 import zlib
+
+from PIL import Image
 
 import pytest
 
@@ -57,3 +60,24 @@ def in_memory_storage(settings):
             "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"
         },
     }
+
+
+def raster_bytes(
+    format: str,
+    width: int = 3,
+    height: int = 2,
+    *,
+    animated: bool = False,
+    lossless: bool = False,
+) -> bytes:
+    """Encode small, complete synthetic raster fixtures."""
+    output = io.BytesIO()
+    with Image.new("RGB", (width, height), "red") as first:
+        with Image.new("RGB", (width, height), "blue") as second:
+            options: dict = {"lossless": lossless} if format == "WEBP" else {}
+            if animated:
+                options.update(
+                    save_all=True, append_images=[second], duration=20, loop=0
+                )
+            first.save(output, format=format, **options)
+    return output.getvalue()
