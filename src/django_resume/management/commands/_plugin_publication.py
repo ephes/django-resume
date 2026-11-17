@@ -11,9 +11,20 @@ from pathlib import Path
 from django.core.management.base import CommandError
 
 
+def project_root() -> Path:
+    # Commands resolve their targets below the current project directory.
+    # Anchor the intent there even when ``templates`` or ``core/plugins`` is a
+    # symlink to another tree, never in a shared ancestor of the targets.
+    return Path.cwd().resolve()
+
+
+def target_bases() -> set[Path]:
+    root = project_root()
+    return {root, (root / "core/plugins").resolve(), (root / "templates").resolve()}
+
+
 def intent_path(paths: list[Path]) -> Path:
-    root = Path(os.path.commonpath([str(path.parent) for path in paths]))
-    return root / f".django-resume-plugin-{paths[0].stem}.intent.json"
+    return project_root() / f".django-resume-plugin-{paths[0].stem}.intent.json"
 
 
 def require_recovered(paths: list[Path]) -> None:
@@ -126,12 +137,18 @@ class Publication:
             raise
 
     def sync_targets(self) -> None:
+        # Sync each target directory and its ancestors up to and including its
+        # base tree (``core/plugins``, ``templates`` or the project root), so
+        # newly created parents are durable without walking shared ancestors.
         directories = {self.intent.parent}
+        stops = target_bases()
         for path in self.paths:
             parent = path.parent
-            while parent != self.intent.parent:
+            while True:
                 if parent.exists():
                     directories.add(parent)
+                if parent in stops or parent == parent.parent:
+                    break
                 parent = parent.parent
         for directory in sorted(directories, key=lambda p: len(p.parts), reverse=True):
             sync_directory(directory)

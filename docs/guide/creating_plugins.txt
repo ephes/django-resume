@@ -253,7 +253,8 @@ Recovering interrupted plugin commands
 --------------------------------------
 
 Create and remove commands record ``.django-resume-plugin-NAME.intent.json`` in the
-project root before the first installed file changes, while holding all three
+project root (the current directory, also when ``templates`` or ``core/plugins``
+is a symlink to another tree) before the first installed file changes, while holding all three
 writer locks. The intent names the exact targets, SHA-256 hashes and sibling
 ``.FILENAME.backup-*`` (old) and ``.FILENAME.new-*`` (new) copies. Absence of an
 old file is recorded explicitly. For creation, both complete generations survive process

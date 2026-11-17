@@ -325,3 +325,44 @@ def test_committed_removal_sync_failure_names_finish_assertion(tree, monkeypatch
     )
     assert not any(path.exists() for path in _paths(tree))
     assert not intent.exists()
+
+
+def test_symlinked_templates_keep_intent_in_project_root(tmp_path, monkeypatch):
+    from django_resume.management.commands import _plugin_publication as publication
+
+    project = tmp_path / "project"
+    shared = tmp_path / "shared-templates"
+    (project / "core/plugins").mkdir(parents=True)
+    shared.mkdir()
+    (project / "templates").symlink_to(shared, target_is_directory=True)
+    monkeypatch.chdir(project)
+    monkeypatch.setattr("sys.stdin", StringIO(plugin_bundle()))
+    root = project.resolve()
+    intent = root / ".django-resume-plugin-safe_plugin.intent.json"
+    sync, replace = publication.sync_directory, Path.replace
+    synced, seen = [], []
+
+    def record_sync(directory):
+        synced.append(Path(directory).resolve())
+        return sync(directory)
+
+    def checked_replace(source, target):
+        if ".stage-" in source.name:
+            seen.append(intent.is_file())
+        return replace(source, target)
+
+    monkeypatch.setattr(publication, "sync_directory", record_sync)
+    monkeypatch.setattr(Path, "replace", checked_replace)
+    call_command("create_plugin_from_stdin", stdout=StringIO())
+    assert seen == [True] * 3
+    assert not intent.exists()
+    assert not list(tmp_path.glob("*.intent.json"))
+    resolved_shared = shared.resolve()
+    assert all(
+        directory == root
+        or directory.is_relative_to(root)
+        or directory.is_relative_to(resolved_shared)
+        for directory in synced
+    )
+    assert resolved_shared in synced
+    assert (shared / "django_resume/plugins/safe_plugin/plain/form.html").is_file()
