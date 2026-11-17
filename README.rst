@@ -69,6 +69,10 @@ is retained for explicit, verified recovery. An interrupted
 create/remove blocks further mutations with a persistent recovery intent. Use
 ``recover_plugin NAME --action status`` and the plugin creation guide to
 reconcile the file generation and verify any removal database outcome.
+Recovery refuses, without changing anything, when an installed target was
+edited, recreated or replaced after the interruption (it holds neither
+recorded generation), and when the intent is not one bounded regular file;
+move the change aside, put back a recorded copy, recover, then reapply it.
 
 Default plugin JSON editors accept strict JSON objects up to 2 MiB and 64
 container levels. Duplicate members and non-finite numbers are rejected.

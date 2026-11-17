@@ -275,16 +275,41 @@ using the same account, mount and lock directory as the interrupted writer::
     python manage.py recover_plugin NAME --action restore
 
 ``status`` only prints the recorded operation and recovery files, or ``No
-interrupted plugin publication`` when no intent exists. If a
-recovery copy is missing or fails its digest check, ``status`` still prints the
-bounded intent record and then reports the validation error; ``restore`` and
-``finish`` refuse such an intent. ``restore``
+interrupted plugin publication`` when no intent exists. The intent is read once,
+without following links or blocking, and must be a regular file of at most
+131,072 bytes that does not change while it is read; a FIFO, directory, link,
+oversized, changing, malformed or excessively nested record is refused with
+``Cannot read recovery intent`` and nothing is changed. ``status`` prints the
+exact bytes it admitted (also when a recovery copy is missing or fails its
+digest check, followed by the validation error); ``restore`` and ``finish``
+refuse such an intent. ``restore``
 restores all three old files (removing targets that were originally absent).
 To install the complete recorded new generation instead, use
 ``--action finish``. Recovery validates the target set and every copy's digest
 before changing files, and holds the same writer locks. It retains authority
 copies throughout recovery, so an interrupted recovery can be repeated.
 Only a complete recovery retires the intent and admits new mutations.
+
+Recovery only replaces what the interrupted command owned. Before changing
+anything, it requires every installed target to hold one of the two recorded
+generations: the old or new bytes, or absence where that generation was
+absent. Any mixture of recorded generations (for example after an interrupted
+recovery) is accepted in either direction. A target edited, repaired or newly
+created after the interruption, or replaced by a directory or other special
+file, is a third generation: recovery refuses with ``neither recorded
+generation is installed at ...``, names the targets, and keeps the files, the
+intent and every recovery copy. A target replaced by a link resolves elsewhere,
+so recovery refuses it earlier during target resolution (for example because
+it escapes its directory, collides with another target or no longer matches
+the recorded target set), equally without changing anything. Each target is checked again, and each staged
+copy's digest re-verified, immediately before it is replaced; a change in that
+window stops recovery the same way, leaving a recognized mixed state.
+
+To reconcile such a target without losing the change, move or copy the changed
+file somewhere outside the plugin tree, then put back the recorded copy that
+``status`` lists for it (``old`` or ``new``), or remove the target where that
+generation is recorded as ``null``. Repeat ``restore`` or ``finish``, then
+reapply your change deliberately. Never delete the intent to skip this check.
 
 Removal records the selected database alias, backend and database name, with
 an explicitly unknown outcome. A crash before commit rolls back database data;
