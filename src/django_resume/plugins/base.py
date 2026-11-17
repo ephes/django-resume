@@ -124,9 +124,9 @@ class EditorTextField(forms.CharField):
     """Multi-line text submitted as editor input (see
     ``markdown_to_textarea_input``).
 
-    The submitted value is decoded to the stored literal text before length
-    validation, so ``max_length`` limits what is stored rather than its
-    entity-escaped encoding, and the cleaned value is the stored text.
+    The submitted value is decoded to the stored literal text before required,
+    length and custom validation. ``max_length`` limits what is stored rather
+    than its entity-escaped encoding, and the cleaned value is the stored text.
     """
 
     widget = forms.Textarea
@@ -145,11 +145,11 @@ class EditorTextField(forms.CharField):
                 "Editor input exceeds 2097152 character limit", code="max_editor_input"
             )
         submitted = self.to_python(value)
-        self.validate(submitted)
         try:
             text = textarea_input_to_markdown(submitted or "")
         except ValueError as error:
             raise forms.ValidationError(str(error), code="max_editor_input") from error
+        self.validate(text)
         self.run_validators(text)
         return text
 

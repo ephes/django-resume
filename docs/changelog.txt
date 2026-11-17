@@ -5,6 +5,11 @@ Changelog
 Unreleased
 ----------
 
+* Validate required editor text after bounded HTML/entity decoding. About and
+  Project editors now reject markup-only, break-only and NBSP-only submissions
+  without saving; optional fields still accept empty text. Length and custom
+  validation continue to use the same stored-text value.
+
 * Preserve Markdown link destinations as literal data through inline formatting
   and HTML attribute encoding in default/underlined links. Keep formatted
   labels, raw destinations for custom link handlers, the limited linear link
