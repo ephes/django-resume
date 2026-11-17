@@ -7,6 +7,7 @@ import nh3
 
 
 MAX_MARKDOWN_CHARS = 256 * 1024
+MAX_EDITOR_INPUT_CHARS = 2 * 1024 * 1024
 
 
 ALLOWED_TAGS = {
@@ -76,7 +77,26 @@ def sanitize_html(text: str) -> str:
     )
 
 
+def _strip_html_tags(text: str) -> str:
+    """Remove the legacy <[^>]+> subset without rescanning failed suffixes."""
+    pieces = []
+    cursor = search = 0
+    while (start := text.find("<", search)) != -1:
+        end = text.find(">", start + 1)
+        if end == -1:
+            break
+        search = end + 1
+        if end == start + 1:  # <> was never a tag in the editor format.
+            continue
+        pieces.append(text[cursor:start])
+        cursor = search
+    pieces.append(text[cursor:])
+    return "".join(pieces)
+
+
 def textarea_input_to_markdown(text: str) -> str:
+    if len(text) > MAX_EDITOR_INPUT_CHARS:
+        raise ValueError("Editor input exceeds 2097152 character limit")
     # Replace div tags with newlines
     content = re.sub(r"<div>", "\n", text, flags=re.IGNORECASE)
     content = re.sub(r"</div>", "", content, flags=re.IGNORECASE)
@@ -85,7 +105,7 @@ def textarea_input_to_markdown(text: str) -> str:
     content = re.sub(r"<br\s*/?>", "\n", content, flags=re.IGNORECASE)
 
     # Remove any remaining HTML tags
-    content = re.sub(r"<[^>]+>", "", content)
+    content = _strip_html_tags(content)
 
     # Decode once after stripping tags: encoded markup remains literal text.
     content = html.unescape(content)
@@ -112,6 +132,10 @@ def textarea_input_to_html(text: str) -> str:
     ``markdown_to_textarea_input`` or submitted ``innerHTML``) for a
     contenteditable field: the text it would be saved as, escaped, with line
     breaks as the only markup."""
+    # Bound redisplay too: a refused bound form still carries its original
+    # submitted data, but must not convert it again while showing field errors.
+    if len(text) > MAX_EDITOR_INPUT_CHARS:
+        return ""
     return markdown_to_textarea_input(textarea_input_to_markdown(text))
 
 

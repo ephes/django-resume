@@ -31,7 +31,7 @@ from django.core.exceptions import PermissionDenied
 from django.db import router, transaction
 
 from ..images import ImageFormMixin
-from ..markdown import safe_link_url, textarea_input_to_markdown
+from ..markdown import MAX_EDITOR_INPUT_CHARS, safe_link_url, textarea_input_to_markdown
 from ..theme_names import is_valid_theme_name
 from ..models import Resume
 
@@ -140,9 +140,16 @@ class EditorTextField(forms.CharField):
         return attrs
 
     def clean(self, value: Any) -> str:
+        if isinstance(value, str) and len(value) > MAX_EDITOR_INPUT_CHARS:
+            raise forms.ValidationError(
+                "Editor input exceeds 2097152 character limit", code="max_editor_input"
+            )
         submitted = self.to_python(value)
         self.validate(submitted)
-        text = textarea_input_to_markdown(submitted or "")
+        try:
+            text = textarea_input_to_markdown(submitted or "")
+        except ValueError as error:
+            raise forms.ValidationError(str(error), code="max_editor_input") from error
         self.run_validators(text)
         return text
 

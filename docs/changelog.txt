@@ -5,6 +5,11 @@ Changelog
 Unreleased
 ----------
 
+* Scan editor HTML tags in linear work and admit at most 2,097,152 encoded
+  characters before conversion, including bound-form display. Keep decoded
+  field length limits and one-pass entity behavior; rejected edits leave saved
+  text unchanged.
+
 * Sync plugin stage/recovery bytes, publication directories and intent retirement
   before acknowledging completion. Retain recovery authority and report uncertain
   durability on postpublication sync failure instead of blindly restoring files.
