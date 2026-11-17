@@ -5,6 +5,25 @@ Changelog
 Unreleased
 ----------
 
+* Sync plugin stage/recovery bytes, publication directories and intent retirement
+  before acknowledging completion. Retain recovery authority and report uncertain
+  durability on postpublication sync failure instead of blindly restoring files.
+
+* Retain plugin removal intents and file backups across process death before or
+  after database commit. Require an independently verified database outcome
+  for explicit recovery; hold the intent through the outermost transaction.
+  A failure while committing no longer restores files: the outcome is unknown,
+  so the intent and backups are retained. A visible intent left by a
+  prepublication failure is named in the error.
+
+* Record interrupted plugin installation with complete old/new generations;
+  refuse further mutations until ``recover_plugin`` explicitly restores or
+  finishes the bundle under the writer locks. The intent lives in the project
+  root even when ``templates`` is a symlink elsewhere; sharing one symlinked
+  plugin tree between projects is unsupported. ``status`` still prints the
+  intent record when a recovery copy fails validation and reports when nothing
+  needs recovery.
+
 * Allow navigation tags to accept an optional request and retain a validated
   capability only on the built-in protected CV link. Omit invalid/expired
   tokens and keep public, owner/staff and custom destinations token-free;
@@ -37,8 +56,9 @@ Unreleased
   language and finalization behavior; other methods still return 405.
 
 * Use one routed Resume write alias for filesystem plugin removal and its
-  bound data manager. Restore files outside that transaction on failure,
-  including a selected-database commit failure; do not require default access.
+  bound data manager. Restore files outside that transaction on a failure
+  before commit (a commit failure retains the removal intent, see above); do
+  not require default access.
 
 * Validate project and timeline badges as bounded string lists in both editors
   and at import boundaries. Portable exports omit invalid legacy badges with

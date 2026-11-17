@@ -41,7 +41,7 @@ def _lock_path(path: Path) -> Path:
 
 
 @contextmanager
-def backup_files(paths: list[Path]):
+def writer_locks(paths: list[Path]):
     # Per-target locks also serialize overlapping target sets. Filelock owns
     # lock-file lifecycle; do not manually unlink a cooperating writer's lock.
     deadline = time.monotonic() + WRITER_LOCK_TIMEOUT
@@ -57,8 +57,21 @@ def backup_files(paths: list[Path]):
                 )
             except Timeout as error:
                 raise CommandError(f"Plugin writer busy; retry: {path}") from error
-        with _backup_files(paths):
-            yield
+        yield
+
+
+@contextmanager
+def backup_files(paths: list[Path], *, staged=None, database=None):
+    from ._plugin_publication import publication_files, require_recovered
+
+    with writer_locks(paths):
+        require_recovered(paths)
+        if staged is None and database is None:
+            with _backup_files(paths):
+                yield None
+        else:
+            with publication_files(paths, staged, database=database) as publication:
+                yield publication
 
 
 @contextmanager

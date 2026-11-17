@@ -63,8 +63,12 @@ never rewrites stored data; the private round-trip envelope retains the source.
 templates and stored data using the Resume write database selected once by the
 Django router. It needs no connection to ``default`` when routed elsewhere.
 Files are backed up before removal and restored after the selected transaction
-rolls back on failure, including commit failure. See the plugin creation guide
-for locking and manual recovery details.
+rolls back on ordinary failure before commit. A failure while committing leaves
+the database outcome unknown, so the files stay removed and the recovery intent
+is retained for explicit, verified recovery. An interrupted
+create/remove blocks further mutations with a persistent recovery intent. Use
+``recover_plugin NAME --action status`` and the plugin creation guide to
+reconcile the file generation and verify any removal database outcome.
 
 Default plugin JSON editors accept strict JSON objects up to 2 MiB and 64
 container levels. Duplicate members and non-finite numbers are rejected.
