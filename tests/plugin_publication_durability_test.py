@@ -294,3 +294,34 @@ def test_visible_removal_intent_hint_names_untouched_database(tree, monkeypatch)
     )
     assert [path.read_text() for path in _paths(tree)] == ["old"] * 3
     assert not intent.exists()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_committed_removal_sync_failure_names_finish_assertion(tree, monkeypatch):
+    from django_resume.management.commands import _plugin_publication as publication
+
+    sync = publication.sync_directory
+    intent = publication.intent_path(_paths(tree))
+
+    def fail(directory):
+        if intent.exists() and not any(path.exists() for path in _paths(tree)):
+            raise OSError("synthetic post-commit sync failure")
+        return sync(directory)
+
+    monkeypatch.setattr(publication, "sync_directory", fail)
+    with pytest.raises(
+        CommandError,
+        match="committed: use --action finish --database-outcome committed",
+    ):
+        call_command("remove_plugin_by_name", "safe_plugin", stdout=StringIO())
+    assert intent.is_file()
+    monkeypatch.setattr(publication, "sync_directory", sync)
+    call_command(
+        "recover_plugin",
+        "safe_plugin",
+        action="finish",
+        database_outcome="committed",
+        stdout=StringIO(),
+    )
+    assert not any(path.exists() for path in _paths(tree))
+    assert not intent.exists()

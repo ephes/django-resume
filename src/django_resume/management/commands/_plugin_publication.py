@@ -265,7 +265,13 @@ def publication_files(
             publication.sync_targets()
             publication.retire()
         except OSError as error:
+            hint = (
+                "; the removal transaction committed: use --action finish "
+                "--database-outcome committed"
+                if publication.data["operation"] == "remove"
+                else ""
+            )
             raise CommandError(
                 f"Plugin files visible but durability uncertain; retain "
-                f"{publication.intent} and its recovery copies: {error}"
+                f"{publication.intent} and its recovery copies{hint}: {error}"
             ) from error

@@ -317,3 +317,14 @@ def test_status_prints_record_when_recovery_copy_is_invalid(tmp_path, monkeypatc
         call_command("recover_plugin", "safe_plugin", action="status", stdout=output)
     assert json.loads(output.getvalue()) == intent
     assert intent_path.exists()
+
+
+def test_status_without_intent_reports_nothing_to_recover(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    output = StringIO()
+    call_command("recover_plugin", "safe_plugin", action="status", stdout=output)
+    assert "No interrupted plugin publication" in output.getvalue()
+    with pytest.raises(CommandError, match="Cannot read recovery intent"):
+        call_command(
+            "recover_plugin", "safe_plugin", action="restore", stdout=StringIO()
+        )

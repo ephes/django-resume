@@ -267,7 +267,8 @@ using the same account, mount and lock directory as the interrupted writer::
     python manage.py recover_plugin NAME --action status
     python manage.py recover_plugin NAME --action restore
 
-``status`` only prints the recorded operation and recovery files. If a
+``status`` only prints the recorded operation and recovery files, or ``No
+interrupted plugin publication`` when no intent exists. If a
 recovery copy is missing or fails its digest check, ``status`` still prints the
 bounded intent record and then reports the validation error; ``restore`` and
 ``finish`` refuse such an intent. ``restore``
@@ -333,6 +334,8 @@ replacement failure restores and synchronizes the old set. A directory-sync
 failure after publication reports ``Plugin files visible but durability
 uncertain`` and retains the intent and both recovery generations. It does not
 blindly roll files back after a visible publication or a removal DB commit.
+For a removal this message adds that the transaction committed, so
+``--action finish --database-outcome committed`` applies.
 Inspect with ``recover_plugin ... --action status`` and explicitly restore or
 finish as above. A failure during intent retirement likewise retains the copies
 and attempts to re-establish the visible intent; an ongoing storage failure may

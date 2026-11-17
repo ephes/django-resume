@@ -36,6 +36,10 @@ class Command(BaseCommand):
         with writer_locks(paths):
             publication = Publication(paths)
             if options["action"] == "status":
+                intent = publication.intent
+                if not intent.exists() and not intent.is_symlink():
+                    self.stdout.write("No interrupted plugin publication")
+                    return
                 try:
                     publication.load()
                 except CommandError:
