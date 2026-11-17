@@ -300,3 +300,35 @@ unrelated editors from observing intermediate files. Backups and intents may
 contain private source; protect the project tree accordingly. Orphan stage or
 backup files not referenced by an intent can be inspected and removed after all
 writers have stopped. Never remove a referenced recovery copy.
+
+
+Plugin publication durability
+-----------------------------
+
+Create synchronizes every closed staged file and both old/new authority copies
+before publication. Removal synchronizes its old authority copies. Both commands
+synchronize sibling directory entries and newly created parent directories,
+then atomically write and synchronize the intent and its parent before changing
+installed files. After replacements/unlinks (and the removal DB commit), they
+synchronize every affected directory before retiring the recovery intent.
+Intent deletion is also synchronized before recovery copies are collected.
+Recovery synchronizes replacement bytes and directories with the same ordering.
+This requires filesystem support for file and directory ``fsync``; unsupported
+or failed synchronization is reported as an error, never skipped.
+
+A prepublication failure leaves the installed generation unchanged. An ordinary
+replacement failure restores and synchronizes the old set. A directory-sync
+failure after publication reports ``Plugin files visible but durability
+uncertain`` and retains the intent and both recovery generations. It does not
+blindly roll files back after a visible publication or a removal DB commit.
+Inspect with ``recover_plugin ... --action status`` and explicitly restore or
+finish as above. A failure during intent retirement likewise retains the copies
+and attempts to re-establish the visible intent; an ongoing storage failure may
+prevent that write, in which case stop writers and preserve every named copy
+for manual reconciliation. Cleanup warnings after durable retirement only name
+unreferenced leftovers; they do not change the completed operation's outcome.
+
+These sync boundaries acknowledge the filesystem's durability contract, not a
+transaction for readers across three files, nor a replacement for database
+backups or reliable storage hardware. A process kill can be reproduced in tests;
+power-loss behavior is verified through sync ordering and injected I/O failures.

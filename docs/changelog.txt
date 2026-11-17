@@ -5,6 +5,10 @@ Changelog
 Unreleased
 ----------
 
+* Sync plugin stage/recovery bytes, publication directories and intent retirement
+  before acknowledging completion. Retain recovery authority and report uncertain
+  durability on postpublication sync failure instead of blindly restoring files.
+
 * Retain plugin removal intents and file backups across process death before or
   after database commit. Require an independently verified database outcome
   for explicit recovery; hold the intent through the outermost transaction.

@@ -39,10 +39,16 @@ def copy_sibling(source: Path, target: Path, kind: str) -> Path:
     result = Path(name)
     try:
         shutil.copy2(source, result)
+        sync_file(result)
     except BaseException:
         result.unlink(missing_ok=True)
         raise
     return result
+
+
+def sync_file(path: Path) -> None:
+    with path.open("rb") as source:
+        os.fsync(source.fileno())
 
 
 def sync_directory(path: Path) -> None:
@@ -74,6 +80,10 @@ class Publication:
                 "outcome": "unknown",
             }
         try:
+            if staged is not None:
+                for source in staged.values():
+                    if source is not None:
+                        sync_file(source)
             for path in self.paths:
                 if path.exists() and not path.is_file():
                     raise CommandError(f"Plugin target is not a regular file: {path}")
@@ -89,21 +99,39 @@ class Publication:
                         )
                         entry[key] = str(copy)
                         entry[f"{key}_sha256"] = digest(copy)
-            # Publish the intent before touching any installed file. The atomic
-            # rename means a killed writer never exposes half a JSON document.
-            fd, name = tempfile.mkstemp(
-                prefix=".plugin-intent-", dir=self.intent.parent
-            )
-            with os.fdopen(fd, "w") as output:
-                json.dump(self.data, output)
-                output.flush()
-                os.fsync(output.fileno())
-            Path(name).replace(self.intent)
-            sync_directory(self.intent.parent)
+            # Persist bytes and sibling names, including freshly created parent
+            # directories, before granting the intent any recovery authority.
+            self.sync_targets()
+            self.write_intent()
         except BaseException:
             if not self.intent.exists():
                 self.cleanup()
             raise
+
+    def sync_targets(self) -> None:
+        directories = {self.intent.parent}
+        for path in self.paths:
+            parent = path.parent
+            while parent != self.intent.parent:
+                if parent.exists():
+                    directories.add(parent)
+                parent = parent.parent
+        for directory in sorted(directories, key=lambda p: len(p.parts), reverse=True):
+            sync_directory(directory)
+
+    def write_intent(self) -> None:
+        # Atomic JSON publication: never expose a partially written intent.
+        fd, name = tempfile.mkstemp(prefix=".plugin-intent-", dir=self.intent.parent)
+        temporary = Path(name)
+        try:
+            with os.fdopen(fd, "w") as output:
+                json.dump(self.data, output)
+                output.flush()
+                os.fsync(output.fileno())
+            temporary.replace(self.intent)
+            sync_directory(self.intent.parent)
+        finally:
+            temporary.unlink(missing_ok=True)
 
     def load(self) -> None:
         try:
@@ -153,6 +181,7 @@ class Publication:
                     copy.replace(path)
                 finally:
                     copy.unlink(missing_ok=True)
+        self.sync_targets()
 
     def cleanup(self) -> None:
         from ._file_rollback import cleanup_backups
@@ -167,6 +196,16 @@ class Publication:
 
     def retire(self) -> None:
         self.intent.unlink()
+        try:
+            sync_directory(self.intent.parent)
+        except OSError:
+            # The installed generation is complete, but retirement is uncertain.
+            # Re-establish the visible blocker and retain every authority copy.
+            try:
+                self.write_intent()
+            except OSError:
+                pass
+            raise
         self.cleanup()
 
 
@@ -184,12 +223,21 @@ def publication_files(
     except BaseException as error:
         try:
             publication.apply("old")
+            publication.retire()
         except OSError as restore_error:
             raise CommandError(
                 f"{error}; rollback incomplete; recover using {publication.intent}: "
                 f"{restore_error}; backups: {publication.data['files']}"
             ) from error
-        publication.retire()
         raise
     else:
-        publication.retire()
+        # A directory-sync failure after publication (or database commit) is
+        # not a prepublication error: never restore blindly across this boundary.
+        try:
+            publication.sync_targets()
+            publication.retire()
+        except OSError as error:
+            raise CommandError(
+                f"Plugin files visible but durability uncertain; retain "
+                f"{publication.intent} and its recovery copies: {error}"
+            ) from error

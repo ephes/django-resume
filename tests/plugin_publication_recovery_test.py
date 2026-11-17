@@ -64,31 +64,41 @@ def _kill(context, target, args, reached):
 
 @pytest.mark.parametrize("barrier", [1, 2, 3])
 @pytest.mark.parametrize("action", ["restore", "finish"])
+@pytest.mark.parametrize("existing", [True, False])
 def test_create_killed_between_replacements_requires_recovery(
-    tmp_path, monkeypatch, barrier, action
+    tmp_path, monkeypatch, barrier, action, existing
 ):
     monkeypatch.chdir(tmp_path)
     paths = _paths(tmp_path)
     for index, path in enumerate(paths):
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(f"old {index}")
+        if existing:
+            path.write_text(f"old {index}")
     context = multiprocessing.get_context("spawn")
     reached = context.Event()
     _kill(context, _crashing_create, (str(tmp_path), barrier, reached), reached)
-    visible = [path.read_bytes() for path in paths]
+    visible = [path.read_bytes() if path.exists() else None for path in paths]
     monkeypatch.setattr("sys.stdin", StringIO(plugin_bundle()))
     with pytest.raises(CommandError, match="[Ii]nterrupted plugin publication"):
         call_command("create_plugin_from_stdin", stdout=StringIO())
-    assert [path.read_bytes() for path in paths] == visible
+    assert [path.read_bytes() if path.exists() else None for path in paths] == visible
     intents = list(tmp_path.rglob("*.intent.json"))
     assert len(intents) == 1
     intent = json.loads(intents[0].read_text())
     for entry in intent["files"]:
-        assert Path(entry["old"]).read_text().startswith("old ")
+        if existing:
+            assert Path(entry["old"]).read_text().startswith("old ")
+        else:
+            assert entry["old"] is None
         assert Path(entry["new"]).is_file()
     call_command("recover_plugin", "safe_plugin", action=action, stdout=StringIO())
     if action == "restore":
-        assert [path.read_text() for path in paths] == [f"old {i}" for i in range(3)]
+        if existing:
+            assert [path.read_text() for path in paths] == [
+                f"old {i}" for i in range(3)
+            ]
+        else:
+            assert not any(path.exists() for path in paths)
     else:
         assert all("old " not in path.read_text() for path in paths)
     assert not list(tmp_path.rglob("*.intent.json"))
@@ -216,3 +226,75 @@ def test_remove_killed_at_database_boundary_keeps_explicit_recovery(
     finally:
         if isolated is not None:
             isolated.close()
+
+
+def _crashing_recovery(root, reached):
+    os.environ["DJANGO_SETTINGS_MODULE"] = "tests.settings"
+    import django
+
+    django.setup()
+    os.chdir(root)
+    replace = Path.replace
+
+    def pause(source, target):
+        result = replace(source, target)
+        if ".backup-restore-" in source.name:
+            reached.set()
+            import time
+
+            time.sleep(60)
+        return result
+
+    Path.replace = pause
+    call_command("recover_plugin", "safe_plugin", action="restore", stdout=StringIO())
+
+
+def test_interrupted_recovery_can_be_repeated(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    paths = _paths(tmp_path)
+    for path in paths:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("old")
+    context = multiprocessing.get_context("spawn")
+    reached = context.Event()
+    _kill(context, _crashing_create, (str(tmp_path), 1, reached), reached)
+    reached = context.Event()
+    _kill(context, _crashing_recovery, (str(tmp_path), reached), reached)
+    intent = json.loads(next(tmp_path.glob("*.intent.json")).read_text())
+    assert all(
+        Path(entry[key]).is_file()
+        for entry in intent["files"]
+        for key in ["old", "new"]
+    )
+    call_command("recover_plugin", "safe_plugin", action="restore", stdout=StringIO())
+    assert [path.read_text() for path in paths] == ["old"] * 3
+    assert not list(tmp_path.glob("*.intent.json"))
+
+
+@pytest.mark.parametrize("generation", ["old", "new"])
+def test_corrupt_recovery_copy_refuses_before_mutation(
+    tmp_path, monkeypatch, generation
+):
+    monkeypatch.chdir(tmp_path)
+    paths = _paths(tmp_path)
+    for path in paths:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("old")
+    context = multiprocessing.get_context("spawn")
+    reached = context.Event()
+    _kill(context, _crashing_create, (str(tmp_path), 1, reached), reached)
+    visible = [path.read_bytes() for path in paths]
+    intent_path = next(tmp_path.glob("*.intent.json"))
+    intent = json.loads(intent_path.read_text())
+    copy = Path(intent["files"][0][generation])
+    original = copy.read_bytes()
+    copy.write_text("synthetic corruption")
+    with pytest.raises(CommandError, match="invalid recovery copy"):
+        call_command(
+            "recover_plugin", "safe_plugin", action="restore", stdout=StringIO()
+        )
+    assert [path.read_bytes() for path in paths] == visible
+    assert intent_path.exists()
+    copy.write_bytes(original)
+    call_command("recover_plugin", "safe_plugin", action="finish", stdout=StringIO())
+    assert all("new" in path.read_text() for path in paths)
