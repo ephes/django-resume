@@ -405,3 +405,124 @@ def test_markdown_link_subset_compatibility(text):
         formatted,
     ).replace("\n", "<br>")
     assert markdown_to_html(text) == sanitize_html(expected)
+
+
+def test_editor_unmatched_html_tag_work_is_bounded():
+    import subprocess
+    import sys
+
+    # Includes interpreter startup; the former suffix-rescanning regex takes
+    # tens of seconds for this admitted input. No tight timing ratios.
+    subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "from django_resume.markdown import textarea_input_to_markdown; "
+            "text = '<' * 250000; "
+            "assert textarea_input_to_markdown(text) == text",
+        ],
+        timeout=5,
+        check=True,
+        capture_output=True,
+    )
+
+
+@pytest.mark.parametrize(
+    "source,expected",
+    [
+        ("a<>b<<x>c<unfinished", "a<>bc<unfinished"),
+        ("a<DIV>b<BR />c</DIV>d", "a\nb\ncd"),
+        ("&lt;div&gt;&amp;lt;br&amp;gt;", "<div>&lt;br&gt;"),
+    ],
+)
+def test_editor_tag_scan_compatibility(source, expected):
+    assert textarea_input_to_markdown(source) == expected
+
+
+def test_editor_encoded_input_ceiling_precedes_conversion(monkeypatch):
+    from django_resume import markdown
+
+    def unexpected(*args, **kwargs):
+        pytest.fail("conversion ran before input admission")
+
+    monkeypatch.setattr(markdown.html, "unescape", unexpected)
+    with pytest.raises(ValueError, match="2097152"):
+        markdown.textarea_input_to_markdown("x" * (2 * 1024 * 1024 + 1))
+
+
+def test_editor_encoded_input_exact_ceiling():
+    assert textarea_input_to_markdown("x" * (2 * 1024 * 1024)) == "x" * (
+        2 * 1024 * 1024
+    )
+
+
+@pytest.mark.parametrize("surface", ["admin", "inline"])
+@pytest.mark.parametrize("plugin_name", ["about", "cover"])
+@pytest.mark.django_db
+def test_oversized_editor_submission_preserves_saved_content(
+    client, resume, surface, plugin_name
+):
+    from tests.editor_helpers import post_current_editor
+    from django_resume.plugins import plugin_registry
+
+    resume.owner.is_staff = True
+    resume.owner.save()
+    original = {
+        "about": {"title": "Synthetic", "text": "Original"},
+        "cover": {
+            "items": [
+                {"id": "first", "title": "Synthetic", "text": "Original", "position": 0}
+            ]
+        },
+    }
+    resume.plugin_data = original
+    resume.save()
+    client.force_login(resume.owner)
+    plugin = plugin_registry.get_plugin(plugin_name)
+    if plugin_name == "about":
+        url = (
+            plugin.admin.get_change_post_url(resume.pk)
+            if surface == "admin"
+            else plugin.inline.get_post_url(resume.pk)
+        )
+    else:
+        url = (
+            plugin.admin.get_change_item_post_url(resume.pk)
+            if surface == "admin"
+            else plugin.inline.get_post_item_url(resume.pk)
+        )
+    response = post_current_editor(
+        client,
+        url,
+        {"id": "first", "position": 0, "title": "Synthetic", "text": "<x>" * 699051},
+    )
+    assert response.status_code == 200
+    assert "2097152" in response.content.decode()
+    resume.refresh_from_db()
+    assert resume.plugin_data == original
+
+
+def test_cover_encoded_valid_length_boundary(resume):
+    from django_resume.plugins.cover import CoverItemForm
+
+    for count in (4096, 4097):
+        form = CoverItemForm(
+            data={
+                "title": "Synthetic",
+                "text": "&CounterClockwiseContourIntegral;" * count,
+                "position": 0,
+            },
+            resume=resume,
+            existing_items=[],
+        )
+        assert form.is_valid() == (count == 4096)
+        if count == 4096:
+            assert form.cleaned_data["text"] == "∳" * count
+
+
+def test_editor_input_ceiling_counts_whitespace_before_stripping():
+    from django_resume.plugins.about import AboutForm
+
+    form = AboutForm(data={"title": "Synthetic", "text": " " * (2 * 1024 * 1024) + "x"})
+    assert not form.is_valid()
+    assert "2097152" in str(form.errors["text"])

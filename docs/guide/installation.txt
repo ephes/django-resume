@@ -45,6 +45,29 @@ truncated headers and invalid VP8L signatures are rejected. Both declared and
 actual upload sizes are checked: copying retains at most 2 MiB plus one byte
 and stops consuming chunks immediately when the limit is exceeded.
 
+After byte and canvas admission, Pillow's public
+`verify/load APIs <https://pillow.readthedocs.io/en/stable/reference/Image.html>`_
+check container integrity and decode every frame before storage. Missing or
+corrupt payloads and incomplete PNG/GIF endings are rejected as field errors.
+The form reads each upload once and stores those same admitted bytes without
+re-encoding; small animated PNG, GIF and WebP files retain their frames.
+The 67,108,864 pixel work budget counts the sum of decoded frame canvases,
+and an animation may have at most 4,096 frames; format-specific decoder limits
+also apply (WebP axes are at most 16,383). PNG files must end with a valid
+``IEND`` chunk and GIF files with their trailer byte: trailing bytes after
+those markers are refused. JPEG and WebP files are not checked for bytes
+after their image data; the stored file keeps its detected raster extension.
+
+Complete decoding allocates the full canvas, up to about 4 bytes per pixel
+(roughly 256 MiB at the pixel budget) for the duration of one validation. Each
+server process therefore decodes one upload at a time; an upload waits up to
+10 seconds for that slot and is otherwise refused with a "busy, try again"
+field error, without storing anything. Size worker memory for one such decode
+per process.
+Keep Pillow's default strict truncated-image handling enabled; do not set
+``PIL.ImageFile.LOAD_TRUNCATED_IMAGES = True`` in the host application:
+uploads fail closed while that global lenient option is enabled.
+
 If an upload or the plugin database mutation fails, the editing views delete
 only uploads newly created by that operation. Existing images and plugin data
 are preserved. Storage must support deletion for compensation to succeed;

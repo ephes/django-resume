@@ -349,6 +349,12 @@ nonbreaking spaces and markup-looking text such as a literal ``<br>`` survive
 unchanged saves and JSON Resume exports. Encoded markup is not parsed again
 during input cleaning; rendered Markdown still passes through the output
 sanitizer. Length limits apply to the stored text, not to its encoded form.
+A separate work ceiling admits at most 2,097,152 encoded input characters
+before conversion. Tag discovery scans linearly, including unfinished tags.
+Over-ceiling submissions show a field error and leave saved content unchanged;
+the contenteditable preview stays empty until the input is reduced. The bound
+form retains the submitted value. Valid entity encodings can exceed the decoded
+field's length limit.
 
 The Django admin textarea shows the same encoded format: ``R&D <3`` appears as
 ``R&amp;D &lt;3``, and markup typed there without escaping is treated as
@@ -437,7 +443,12 @@ owner with 403; a missing resume returns 404.
 
 Image uploads retain the 2 MiB compressed-byte limit and JPEG/PNG/GIF/WebP
 allowlist. Before storage, dimensions must be positive, at most 16,384 pixels
-per axis and at most 67,108,864 decoded pixels in total. Exact limits are
+per axis and at most 67,108,864 decoded pixels in total across animation
+frames, with at most 4,096 frames. Complete raster decoding must succeed,
+PNG/GIF files must end with their terminal marker, and format-specific decoder
+limits also apply. One decode runs per server process at a time; an upload
+that cannot get that slot within 10 seconds is refused as busy. Exact
+application limits are
 accepted. A refused upload changes neither storage nor plugin data.
 
 

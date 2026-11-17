@@ -3,10 +3,13 @@ import logging
 import sys
 from hashlib import sha256
 import struct
+import threading
 import uuid
 
 from collections.abc import Iterable
 from typing import IO, Any, cast
+
+from PIL import Image, ImageFile
 
 from django import forms
 from django.core.files.base import ContentFile
@@ -25,6 +28,13 @@ MAX_IMAGE_DIMENSION = 16_384
 MAX_IMAGE_PIXELS = 67_108_864
 MAX_IMAGE_UPLOAD_SIZE = 2 * 1024 * 1024
 MAX_STORED_IMAGE_METADATA_BYTES = 2 * 1024 * 1024
+MAX_IMAGE_FRAMES = 4096
+IMAGE_DECODE_WAIT_SECONDS = 10.0
+
+# A complete decode allocates the full canvas (up to about 4 bytes per pixel,
+# so roughly 256 MiB at the pixel budget). Admit one decode per process at a
+# time so concurrent uploads cannot multiply that peak.
+_IMAGE_DECODE_SLOT = threading.BoundedSemaphore(1)
 
 # Raster formats accepted for uploads, mapped to the file extension used when
 # storing them. SVG, HTML and anything else that is not one of these is rejected.
@@ -59,7 +69,8 @@ def validate_image_upload(upload: UploadedFile) -> tuple[bytes, str, int, int]:
     one byte. The client's filename and content type are ignored: the format is detected
     from the file content. Returns the file content, the extension to store it
     under, and the image width and height. Raises ``forms.ValidationError``
-    for files that are too large, not an allowed image format, or unreadable.
+    for files that are too large, not an allowed image format, incomplete or
+    unreadable. All animation frames share the decoded-pixel work budget.
     """
     if upload.size is None or upload.size > MAX_IMAGE_UPLOAD_SIZE:
         raise forms.ValidationError("Image file too large ( > 2mb )")
@@ -94,7 +105,121 @@ def validate_image_upload(upload: UploadedFile) -> tuple[bytes, str, int, int]:
         raise forms.ValidationError(
             "Image dimensions exceed 16384 pixels per axis or 67108864 total pixels."
         )
+    if not _IMAGE_DECODE_SLOT.acquire(timeout=IMAGE_DECODE_WAIT_SECONDS):
+        raise forms.ValidationError(
+            "Image validation is busy. Please try the upload again."
+        )
+    try:
+        _verify_complete_raster(data, image_format, width, height)
+    finally:
+        _IMAGE_DECODE_SLOT.release()
     return data, ALLOWED_IMAGE_FORMATS[image_format], width, height
+
+
+PNG_IEND_CHUNK = b"\x00\x00\x00\x00IEND\xaeB`\x82"
+
+
+def _terminal_marker_end(data: bytes, image_format: str) -> int:
+    """Return the offset just after the first PNG IEND chunk or GIF trailer.
+
+    Walks chunk/block lengths once (linear in ``len(data)``) and raises
+    ``ValueError`` for a missing, corrupt or structurally truncated marker.
+    """
+    try:
+        if image_format == "png":
+            offset = 8
+            while True:
+                (length,) = struct.unpack(">I", data[offset : offset + 4])
+                end = offset + 12 + length
+                if end > len(data):
+                    raise ValueError("Truncated PNG chunk")
+                if data[offset + 4 : offset + 8] == b"IEND":
+                    if data[offset:end] != PNG_IEND_CHUNK:
+                        raise ValueError("Corrupt PNG end chunk")
+                    return end
+                offset = end
+        offset = 13
+        if data[10] & 0x80:
+            offset += 3 * 2 ** ((data[10] & 0x07) + 1)
+        while True:
+            block = data[offset]
+            if block == 0x3B:
+                return offset + 1
+            if block == 0x21:
+                offset += 2
+            elif block == 0x2C:
+                flags = data[offset + 9]
+                offset += 10
+                if flags & 0x80:
+                    offset += 3 * 2 ** ((flags & 0x07) + 1)
+                offset += 1  # LZW minimum code size
+            else:
+                raise ValueError("Unknown GIF block")
+            while (size := data[offset]) != 0:
+                offset += 1 + size
+            offset += 1
+    except (IndexError, struct.error) as error:
+        raise ValueError("Missing image end marker") from error
+
+
+def _verify_complete_raster(
+    data: bytes, image_format: str, width: int, height: int
+) -> None:
+    """Decode every frame of admitted bytes; raise ``forms.ValidationError``."""
+    try:
+        # This host-wide Pillow option would silently admit truncated pixels.
+        # Never change it temporarily: other requests may be decoding in parallel.
+        if ImageFile.LOAD_TRUNCATED_IMAGES:
+            raise ValueError("Strict image decoding is unavailable")
+        # Restrict decoder discovery to the already admitted raster format.
+        with Image.open(io.BytesIO(data), formats=[image_format.upper()]) as image:
+            if image.size != (width, height):
+                raise ValueError("Inconsistent image dimensions")
+            image.verify()
+        # verify() checks container integrity where supported; load() also
+        # validates compressed pixels, including every animation frame.
+        with Image.open(io.BytesIO(data), formats=[image_format.upper()]) as image:
+            pixels = 0
+            frame = 0
+            while True:
+                frame_width, frame_height = image.size
+                pixels += frame_width * frame_height
+                if (
+                    frame_width <= 0
+                    or frame_height <= 0
+                    or frame_width > MAX_IMAGE_DIMENSION
+                    or frame_height > MAX_IMAGE_DIMENSION
+                    or pixels > MAX_IMAGE_PIXELS
+                    or frame >= MAX_IMAGE_FRAMES
+                ):
+                    raise forms.ValidationError(
+                        "Image dimensions or animation exceed 67108864 total decoded "
+                        "pixels or 4096 frames."
+                    )
+                image.load()
+                frame += 1
+                try:
+                    image.seek(frame)
+                except EOFError:
+                    break
+        # Pillow accepts a missing GIF trailer, does not check the final PNG
+        # IEND checksum and stops at the first terminal marker. Walk the
+        # container to its first complete marker and require it to end the file.
+        if image_format in ("png", "gif") and _terminal_marker_end(
+            data, image_format
+        ) != len(data):
+            raise ValueError("Trailing data after the image end marker")
+    except (
+        OSError,
+        ValueError,
+        SyntaxError,
+        EOFError,
+        struct.error,
+        Image.DecompressionBombError,
+    ) as error:
+        raise forms.ValidationError(
+            "Upload a valid image. The file could not be read as an image."
+        ) from error
 
 
 def get_image_metadata_from_bytesio(input: IO[bytes], size: int) -> tuple[int, int]:
@@ -236,6 +361,7 @@ class ImageFormMixin:
     def __init__(self, *args, **kwargs) -> None:
         self.image_fields = tuple(self.image_fields)
         self.new_image_uploads: list[str] = []
+        self._validated_image_uploads: dict[str, tuple[bytes, str, int, int]] = {}
         super().__init__(*args, **kwargs)
         initial = cast(dict[str, Any], self.initial)  # type: ignore
         for field_name, _clear in self.image_fields:
@@ -269,7 +395,10 @@ class ImageFormMixin:
         if set_new_image:
             assert isinstance(image, UploadedFile)
             try:
-                data, extension, width, height = validate_image_upload(image)
+                admitted = self._validated_image_uploads.get(image_field)
+                if admitted is None:
+                    admitted = validate_image_upload(image)
+                data, extension, width, height = admitted
             except forms.ValidationError as error:
                 # attach the error to the upload field
                 raise forms.ValidationError({image_field: error.messages})
@@ -301,7 +430,9 @@ class ImageFormMixin:
             image = cleaned_data.get(image_field)
             if isinstance(image, UploadedFile):
                 try:
-                    validate_image_upload(image)
+                    self._validated_image_uploads[image_field] = validate_image_upload(
+                        image
+                    )
                 except forms.ValidationError as error:
                     self.add_error(image_field, error)  # type: ignore[attr-defined]
                     has_invalid_upload = True

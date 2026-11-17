@@ -1,6 +1,7 @@
 from tests.editor_helpers import post_current_editor
 import re
 import struct
+import zlib
 
 import pytest
 from django import forms
@@ -13,7 +14,7 @@ from django_resume.images import (
     detect_image_format,
 )
 
-from .conftest import png_bytes
+from .conftest import png_bytes, raster_bytes
 
 
 class TwoImageForm(ImageFormMixin, forms.Form):
@@ -135,9 +136,9 @@ def test_valid_png_is_saved_under_generated_name(in_memory_storage):
 @pytest.mark.parametrize(
     "content, extension, size",
     [
-        (gif_bytes(3, 4), "gif", (3, 4)),
-        (jpeg_bytes(640, 480), "jpg", (640, 480)),
-        (webp_vp8x_bytes(1000, 7000), "webp", (1000, 7000)),
+        (raster_bytes("GIF", 3, 4), "gif", (3, 4)),
+        (raster_bytes("JPEG", 640, 480), "jpg", (640, 480)),
+        (raster_bytes("WEBP", 10, 70), "webp", (10, 70)),
     ],
 )
 def test_allowed_formats_use_detected_extension(
@@ -380,14 +381,10 @@ def test_cleanup_attempts_every_new_object(
 
 
 def webp_vp8l_bytes(width: int, height: int) -> bytes:
-    # VP8L: signature then 14-bit width-1, 14-bit height-1, alpha and version.
-    packed = (width - 1) | ((height - 1) << 14) | (1 << 28)
-    payload = b"\x2f" + struct.pack("<I", packed)
-    chunk = b"VP8L" + struct.pack("<I", len(payload)) + payload + b"\x00"
-    return b"RIFF" + struct.pack("<I", 4 + len(chunk)) + b"WEBP" + chunk
+    return raster_bytes("WEBP", width, height, lossless=True)
 
 
-@pytest.mark.parametrize("width,height", [(301, 199), (1, 16384), (16384, 1)])
+@pytest.mark.parametrize("width,height", [(301, 199), (1, 16383), (16383, 1)])
 def test_lossless_webp_upload_and_rendered_dimensions(in_memory_storage, width, height):
     from django.template.loader import render_to_string
     from django_resume.images import get_image_dimensions_from_storage
@@ -455,7 +452,15 @@ def test_understated_upload_stops_copying_and_stores_nothing(in_memory_storage):
 @pytest.mark.parametrize("extra", [0, 1])
 def test_actual_upload_size_boundary(in_memory_storage, extra):
     header = png_bytes(1, 1)
-    content = header + b"x" * (MAX_IMAGE_UPLOAD_SIZE - len(header) + extra)
+    # A complete PNG with an ancillary text chunk exactly at the byte limit.
+    padding = b"Comment\x00" + b"x" * (MAX_IMAGE_UPLOAD_SIZE - len(header) - 20 + extra)
+    chunk = (
+        struct.pack(">I", len(padding))
+        + b"tEXt"
+        + padding
+        + struct.pack(">I", zlib.crc32(b"tEXt" + padding))
+    )
+    content = header[:-12] + chunk + header[-12:]
     upload = UnderstatedUpload([content[:100], content[100:]])
     upload.seek(1)
     form = OneImageForm(data={}, files={"avatar_img": upload})
@@ -468,7 +473,7 @@ def test_actual_upload_size_boundary(in_memory_storage, extra):
 
         with default_storage.open(form.cleaned_data["avatar_img"]) as stored:
             assert stored.read() == content
-        assert upload.consumed == 4  # both validation passes restart the source
+        assert upload.consumed == 2  # validation and storage share admitted bytes
 
 
 @pytest.mark.parametrize("size_hint", [0, 1, 10**12])
@@ -574,13 +579,7 @@ def test_upload_canvas_limits_leave_storage_empty(in_memory_storage, width, heig
 def test_upload_canvas_exact_limits(in_memory_storage, width, height):
     from django_resume.images import validate_image_upload
 
-    upload = SimpleUploadedFile(
-        "canvas.png",
-        b"\x89PNG\r\n\x1a\n"
-        + b"\x00" * 4
-        + b"IHDR"
-        + struct.pack(">II", width, height),
-    )
+    upload = SimpleUploadedFile("canvas.png", png_bytes(width, height))
     assert validate_image_upload(upload)[2:] == (width, height)
 
 
