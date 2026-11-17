@@ -128,13 +128,16 @@ The command records a persistent removal intent and creates sibling ``.FILENAME.
 files and uses a database transaction on the Resume write alias selected once
 by Django's router. The data manager is bound to that same alias; a read replica
 or ``default`` is not accessed when writes route elsewhere. File restoration
-happens outside the transaction, after a rollback, including a failure while
-committing the selected database. Resume rows are locked where supported
-and checked against their original JSON data before updating. A concurrent
-SQLite edit can abort removal with a database conflict; retry the whole command
-after that writer finishes. An ordinary file or database failure
-rolls back the data change and restores the files. Ctrl+C also triggers
-restoration. Cooperating create/remove commands take native ``filelock`` locks
+happens outside the transaction, after a rollback before commit. Resume rows are
+locked where supported and checked against their original JSON data before
+updating. A concurrent SQLite edit can abort removal with a database conflict;
+retry the whole command after that writer finishes. An ordinary file or
+database failure before commit rolls back the data change and restores the
+files. Ctrl+C before commit also triggers restoration. A failure or interruption
+while committing the selected database (for example a dropped connection during
+``COMMIT``) cannot prove a rollback: the command reports ``database outcome
+uncertain after commit attempt``, leaves the files removed and retains the
+removal intent and backups for the explicit recovery below. Cooperating create/remove commands take native ``filelock`` locks
 on each resolved target, in sorted order, before backup and hold them through
 the database transaction and any rollback. Waiting has a total 10-second budget;
 a busy writer raises ``CommandError`` and can be retried. Unrelated plugin
@@ -316,7 +319,11 @@ Recovery synchronizes replacement bytes and directories with the same ordering.
 This requires filesystem support for file and directory ``fsync``; unsupported
 or failed synchronization is reported as an error, never skipped.
 
-A prepublication failure leaves the installed generation unchanged. An ordinary
+A prepublication failure leaves the installed generation unchanged. If the
+intent was already visible (for example its directory synchronization failed),
+the error reports ``Plugin files unchanged, but recovery intent retained`` with
+the intent path; that intent still blocks mutations, so inspect it with
+``recover_plugin NAME --action status`` and restore before retrying. An ordinary
 replacement failure restores and synchronizes the old set. A directory-sync
 failure after publication reports ``Plugin files visible but durability
 uncertain`` and retains the intent and both recovery generations. It does not

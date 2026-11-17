@@ -238,3 +238,30 @@ def test_rollback_retirement_sync_failure_names_retained_authority(tree, monkeyp
         for entry in intent["files"]
         for key in ["old", "new"]
     )
+
+
+def test_visible_intent_sync_failure_names_retained_blocker(tree, monkeypatch):
+    from django_resume.management.commands import _plugin_publication as publication
+
+    sync = publication.sync_directory
+    intent = publication.intent_path(_paths(tree))
+
+    def fail(directory):
+        if intent.exists():
+            raise OSError("synthetic intent directory sync failure")
+        return sync(directory)
+
+    monkeypatch.setattr(publication, "sync_directory", fail)
+    with pytest.raises(CommandError) as error:
+        call_command("create_plugin_from_stdin", stdout=StringIO())
+    message = str(error.value)
+    assert "synthetic intent directory sync failure" in message
+    assert "Plugin files unchanged, but recovery intent retained" in message
+    assert str(intent) in message
+    assert "recover_plugin safe_plugin --action status" in message
+    assert [path.read_text() for path in _paths(tree)] == ["old"] * 3
+    assert intent.is_file()
+    monkeypatch.setattr(publication, "sync_directory", sync)
+    call_command("recover_plugin", "safe_plugin", action="restore", stdout=StringIO())
+    assert [path.read_text() for path in _paths(tree)] == ["old"] * 3
+    assert not intent.exists()

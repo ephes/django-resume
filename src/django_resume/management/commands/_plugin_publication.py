@@ -64,6 +64,9 @@ class Publication:
         self.paths = paths
         self.intent = intent_path(paths)
         self.data: dict = {"version": 1, "operation": "create", "files": []}
+        # Set by the removal body immediately before its transaction commits.
+        # A later failure cannot prove a rollback, so files are not restored.
+        self.commit_attempted = False
 
     def prepare(
         self, staged: dict[Path, Path | None] | None, database: str | None = None
@@ -103,9 +106,18 @@ class Publication:
             # directories, before granting the intent any recovery authority.
             self.sync_targets()
             self.write_intent()
-        except BaseException:
+        except BaseException as error:
             if not self.intent.exists():
                 self.cleanup()
+                raise
+            if isinstance(error, OSError):
+                # The intent is visible (e.g. its directory sync failed), so it
+                # blocks further mutations although no installed file changed.
+                raise CommandError(
+                    f"Plugin files unchanged, but recovery intent retained: "
+                    f"{self.intent}; run recover_plugin {self.paths[0].stem} "
+                    f"--action status: {error}"
+                ) from error
             raise
 
     def sync_targets(self) -> None:
@@ -221,6 +233,17 @@ def publication_files(
     try:
         yield publication
     except BaseException as error:
+        if publication.commit_attempted:
+            # A commit failure (e.g. a dropped connection) or an interruption
+            # during commit may follow a committed deletion: keep the intent.
+            if not isinstance(error, Exception):
+                raise
+            raise CommandError(
+                f"{error}; database outcome uncertain after commit attempt; "
+                f"plugin files stay removed; retain {publication.intent}, verify "
+                f"the database and run recover_plugin {paths[0].stem} with "
+                f"--database-outcome"
+            ) from error
         try:
             publication.apply("old")
             publication.retire()

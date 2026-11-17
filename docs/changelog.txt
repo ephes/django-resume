@@ -12,6 +12,9 @@ Unreleased
 * Retain plugin removal intents and file backups across process death before or
   after database commit. Require an independently verified database outcome
   for explicit recovery; hold the intent through the outermost transaction.
+  A failure while committing no longer restores files: the outcome is unknown,
+  so the intent and backups are retained. A visible intent left by a
+  prepublication failure is named in the error.
 
 * Record interrupted plugin installation with complete old/new generations;
   refuse further mutations until ``recover_plugin`` explicitly restores or

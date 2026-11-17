@@ -68,10 +68,10 @@ def backup_files(paths: list[Path], *, staged=None, database=None):
         require_recovered(paths)
         if staged is None and database is None:
             with _backup_files(paths):
-                yield
+                yield None
         else:
-            with publication_files(paths, staged, database=database):
-                yield
+            with publication_files(paths, staged, database=database) as publication:
+                yield publication
 
 
 @contextmanager

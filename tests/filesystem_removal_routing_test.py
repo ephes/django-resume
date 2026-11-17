@@ -87,9 +87,11 @@ def test_failure_after_manager_returns_restores_files_and_all_rows(
 
 
 @pytest.mark.django_db(databases=["other"], transaction=True)
-def test_selected_commit_failure_restores_files_and_all_rows(
+def test_selected_commit_failure_retains_intent_for_uncertain_outcome(
     routed_plugin, monkeypatch
 ):
+    from django_resume.management.commands._plugin_publication import intent_path
+
     paths, contents, original, router = routed_plugin
     commits = []
 
@@ -104,12 +106,27 @@ def test_selected_commit_failure_restores_files_and_all_rows(
 
     with monkeypatch.context() as patch:
         patch.setattr(connections["other"], "commit", fail_commit)
-        with pytest.raises(CommandError, match="synthetic selected commit failure"):
+        with pytest.raises(
+            CommandError, match="synthetic selected commit failure.*outcome uncertain"
+        ):
             call_command("remove_plugin_by_name", "safe_plugin")
     assert commits == [True]
     assert router.calls == [Resume]
-    assert [path.read_bytes() for path in paths] == contents
+    # A failed COMMIT may still have committed (e.g. a dropped connection):
+    # files stay removed and the intent blocks mutation until verified.
+    assert not any(path.exists() for path in paths)
+    assert intent_path(paths).is_file()
+    with pytest.raises(CommandError, match="Interrupted plugin publication"):
+        call_command("remove_plugin_by_name", "safe_plugin")
     assert (
         list(Resume.objects.using("other").values_list("plugin_data", flat=True))
         == [original] * 2
     )
+    call_command(
+        "recover_plugin",
+        "safe_plugin",
+        action="restore",
+        database_outcome="rolled-back",
+    )
+    assert [path.read_bytes() for path in paths] == contents
+    assert not intent_path(paths).exists()
