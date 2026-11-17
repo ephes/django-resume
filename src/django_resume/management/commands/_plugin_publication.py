@@ -4,11 +4,20 @@ import hashlib
 import json
 import os
 import shutil
+import stat
 import tempfile
 from contextlib import contextmanager
 from pathlib import Path
 
 from django.core.management.base import CommandError
+
+INTENT_LIMIT = 131072
+_READ_FLAGS = (
+    os.O_RDONLY
+    | getattr(os, "O_NOFOLLOW", 0)
+    | getattr(os, "O_NONBLOCK", 0)
+    | getattr(os, "O_BINARY", 0)
+)
 
 
 def project_root() -> Path:
@@ -36,12 +45,87 @@ def require_recovered(paths: list[Path]) -> None:
         )
 
 
+def open_regular(path: Path) -> tuple[int, os.stat_result]:
+    """Open ``path`` itself, without following links or blocking on FIFOs."""
+    if path.is_symlink():
+        raise ValueError(f"not a regular file: {path}")
+    fd = os.open(path, _READ_FLAGS)
+    try:
+        info = os.fstat(fd)
+        if not stat.S_ISREG(info.st_mode):
+            raise ValueError(f"not a regular file: {path}")
+    except BaseException:
+        os.close(fd)
+        raise
+    return fd, info
+
+
 def digest(path: Path) -> str:
     result = hashlib.sha256()
-    with path.open("rb") as source:
-        for chunk in iter(lambda: source.read(65536), b""):
+    fd, _ = open_regular(path)
+    try:
+        for chunk in iter(lambda: os.read(fd, 65536), b""):
             result.update(chunk)
+    finally:
+        os.close(fd)
     return result.hexdigest()
+
+
+def target_state(path: Path) -> str | None:
+    """Digest of an installed regular target, or ``None`` when it is absent."""
+    try:
+        mode = path.lstat().st_mode
+    except FileNotFoundError:
+        return None
+    if not stat.S_ISREG(mode):
+        raise ValueError("not a regular file")
+    return digest(path)
+
+
+def read_intent(path: Path) -> bytes:
+    """Read one regular intent file through a single descriptor, bounded."""
+    fd, before = open_regular(path)
+    try:
+        if before.st_size > INTENT_LIMIT:
+            raise ValueError(f"intent exceeds {INTENT_LIMIT} bytes")
+        chunks: list[bytes] = []
+        remaining = INTENT_LIMIT + 1
+        while remaining:
+            chunk = os.read(fd, remaining)
+            if not chunk:
+                break
+            chunks.append(chunk)
+            remaining -= len(chunk)
+        after = os.fstat(fd)
+    finally:
+        os.close(fd)
+    raw = b"".join(chunks)
+    if len(raw) > INTENT_LIMIT:
+        raise ValueError(f"intent exceeds {INTENT_LIMIT} bytes")
+    if (before.st_size, before.st_mtime_ns) != (
+        after.st_size,
+        after.st_mtime_ns,
+    ) or len(raw) != after.st_size:
+        raise ValueError("intent changed while reading")
+    return raw
+
+
+def _validated(data: object) -> dict:
+    # Shape checks only; ``load`` verifies paths and copies against the targets.
+    if not isinstance(data, dict) or not isinstance(data.get("files"), list):
+        raise ValueError("malformed intent")
+    if data.get("version") != 1 or data.get("operation") not in ("create", "remove"):
+        raise ValueError("unsupported intent")
+    for entry in data["files"]:
+        if not isinstance(entry, dict) or not isinstance(entry.get("path"), str):
+            raise ValueError("malformed intent entry")
+        for key in ["old", "new"]:
+            if entry.get(key) is not None and not (
+                isinstance(entry[key], str)
+                and isinstance(entry.get(f"{key}_sha256"), str)
+            ):
+                raise ValueError("malformed intent entry")
+    return data
 
 
 def copy_sibling(source: Path, target: Path, kind: str) -> Path:
@@ -75,6 +159,8 @@ class Publication:
         self.paths = paths
         self.intent = intent_path(paths)
         self.data: dict = {"version": 1, "operation": "create", "files": []}
+        # The exact bytes admitted by ``load``, also shown by ``status``.
+        self.raw: bytes | None = None
         # Set by the removal body immediately before its transaction commits.
         # A later failure cannot prove a rollback, so files are not restored.
         self.commit_attempted = False
@@ -172,16 +258,11 @@ class Publication:
             temporary.unlink(missing_ok=True)
 
     def load(self) -> None:
+        self.raw = None
         try:
-            if self.intent.is_symlink() or self.intent.stat().st_size > 131072:
-                raise ValueError("invalid intent file")
-            self.data = json.loads(self.intent.read_text())
-            if self.data["version"] != 1 or self.data["operation"] not in {
-                "create",
-                "remove",
-            }:
-                raise ValueError("unsupported intent")
-            entries = self.data["files"]
+            self.raw = read_intent(self.intent)
+            data = _validated(json.loads(self.raw.decode("utf-8")))
+            entries = data["files"]
             if [entry["path"] for entry in entries] != [
                 str(path) for path in self.paths
             ]:
@@ -189,33 +270,82 @@ class Publication:
             for path, entry in zip(self.paths, entries):
                 for key, kind in [("old", "backup"), ("new", "new")]:
                     if entry[key] is None:
-                        if key == "new" and self.data["operation"] == "create":
+                        if key == "new" and data["operation"] == "create":
                             raise ValueError("missing new generation")
                         continue
                     copy = Path(entry[key])
-                    if (
-                        copy.parent != path.parent
-                        or not copy.name.startswith(f".{path.name}.{kind}-")
-                        or copy.is_symlink()
-                        or not copy.is_file()
-                        or digest(copy) != entry[f"{key}_sha256"]
-                    ):
+                    try:
+                        valid = (
+                            copy.parent == path.parent
+                            and copy.name.startswith(f".{path.name}.{kind}-")
+                            and digest(copy) == entry[f"{key}_sha256"]
+                        )
+                    except (OSError, ValueError) as error:
+                        raise ValueError(
+                            f"invalid recovery copy: {copy} ({error})"
+                        ) from error
+                    if not valid:
                         raise ValueError(f"invalid recovery copy: {copy}")
-        except (OSError, ValueError, KeyError, TypeError) as error:
+        except (OSError, ValueError, KeyError, TypeError, RecursionError) as error:
             raise CommandError(
                 f"Cannot read recovery intent {self.intent}: {error}"
             ) from error
+        self.data = data
+
+    def recorded(self, entry: dict) -> set[str | None]:
+        # An absent generation is recorded as ``None``: the target is missing.
+        return {
+            entry[f"{key}_sha256"] if entry[key] is not None else None
+            for key in ["old", "new"]
+        }
+
+    def admit(self, targets: list[tuple[Path, dict]]) -> None:
+        """Refuse unless every target holds a generation this intent recorded.
+
+        Anything else (an owner edit, a replacement file, a link, a directory
+        or another special file) is a third generation recovery cannot own.
+        """
+        unexpected = []
+        for path, entry in targets:
+            try:
+                state = target_state(path)
+            except (OSError, ValueError) as error:
+                unexpected.append(f"{path} ({error})")
+                continue
+            if state not in self.recorded(entry):
+                unexpected.append(str(path))
+        if unexpected:
+            raise CommandError(
+                f"Refusing plugin recovery: neither recorded generation is "
+                f"installed at {', '.join(unexpected)} (changed after the "
+                f"interrupted command?). "
+                f"Nothing was changed by this check; {self.intent} and its "
+                f"recovery copies are retained. Move each changed target aside, "
+                f"put back its recorded old or new copy (or remove it where that "
+                f"generation is absent), repeat recovery, then reapply the change."
+            )
 
     def apply(self, generation: str) -> None:
         # Keep the authority copies intact, so interruption during recovery is
-        # itself recoverable by repeating exactly the same command.
-        for path, entry in reversed(list(zip(self.paths, self.data["files"]))):
+        # itself recoverable by repeating exactly the same command. Admit the
+        # complete target set first, then recheck each target and its staged
+        # authority bytes immediately before replacing it.
+        targets = list(zip(self.paths, self.data["files"]))
+        self.admit(targets)
+        for path, entry in reversed(targets):
             source = entry[generation]
             if source is None:
+                self.admit([(path, entry)])
                 path.unlink(missing_ok=True)
             else:
                 copy = copy_sibling(Path(source), path, "backup-restore")
                 try:
+                    if digest(copy) != entry[f"{generation}_sha256"]:
+                        raise CommandError(
+                            f"Refusing plugin recovery: recovery copy changed "
+                            f"while staging {path}; {self.intent} is retained"
+                        )
+                    self.admit([(path, entry)])
                     copy.replace(path)
                 finally:
                     copy.unlink(missing_ok=True)
@@ -273,7 +403,7 @@ def publication_files(
         try:
             publication.apply("old")
             publication.retire()
-        except OSError as restore_error:
+        except (OSError, CommandError) as restore_error:
             raise CommandError(
                 f"{error}; rollback incomplete; recover using {publication.intent}: "
                 f"{restore_error}; backups: {publication.data['files']}"

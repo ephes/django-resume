@@ -36,24 +36,23 @@ class Command(BaseCommand):
         with writer_locks(paths):
             publication = Publication(paths)
             if options["action"] == "status":
-                intent = publication.intent
-                if not intent.exists() and not intent.is_symlink():
+                try:
+                    publication.intent.lstat()
+                except FileNotFoundError:
                     self.stdout.write("No interrupted plugin publication")
                     return
+                except OSError:
+                    pass  # ``load`` reports why the intent cannot be read.
                 try:
                     publication.load()
-                except CommandError:
-                    # Still show a bounded regular record for manual
-                    # reconciliation, then report why it cannot be applied.
-                    intent = publication.intent
-                    if (
-                        not intent.is_symlink()
-                        and intent.is_file()
-                        and intent.stat().st_size <= 131072
-                    ):
-                        self.stdout.write(intent.read_text(errors="replace"))
-                    raise
-                self.stdout.write(publication.intent.read_text())
+                finally:
+                    # Show exactly the admitted bounded bytes (never a second
+                    # read by name) for manual reconciliation, also when the
+                    # record cannot be applied.
+                    if publication.raw is not None:
+                        self.stdout.write(
+                            publication.raw.decode("utf-8", errors="replace")
+                        )
                 return
             publication.load()
             if publication.data["operation"] == "remove":

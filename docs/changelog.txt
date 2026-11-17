@@ -5,6 +5,22 @@ Changelog
 Unreleased
 ----------
 
+* Preserve owner changes during plugin recovery. ``recover_plugin`` restore,
+  finish and in-process rollback now admit the whole installed target set
+  against the intent's recorded old/new/absent generations before any change,
+  recheck each target and staged copy digest right before replacing it, and
+  refuse a third generation (an edit, a newly created file, a directory or
+  special file; a link is refused by target resolution) while keeping files,
+  intent and recovery copies. Recognized mixed states, including interrupted
+  recoveries, still recover in either direction. The guide documents safe
+  manual reconciliation.
+
+* Read the plugin recovery intent once through one non-following, nonblocking
+  descriptor: it must be a regular file of at most 131,072 bytes that does not
+  change while read. FIFOs no longer block recovery, growth cannot bypass the
+  cap, and malformed or deeply nested JSON is refused with ``CommandError``.
+  ``status`` prints exactly the admitted bytes instead of rereading the path.
+
 * Validate required editor text after bounded HTML/entity decoding. Every
   required editor text field (About, Projects, Timelines, Cover and Permission
   Denied) now rejects markup-only, break-only and NBSP-only submissions without
