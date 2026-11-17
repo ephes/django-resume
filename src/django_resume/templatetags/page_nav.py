@@ -19,9 +19,11 @@ def _nav_url(page: ResumePage, resume: Resume, request: HttpRequest | None) -> s
     url = page.nav_url(resume)
     # Custom pages (including CvPage subclasses) retain their existing URL
     # contract. Never attach a bearer capability to an arbitrary destination.
+    # A template without ``request`` in its context resolves the variable to
+    # "" (or ``string_if_invalid``); anything that is not a request is ignored.
     if (
         type(page) is not CvPage
-        or request is None
+        or not isinstance(request, HttpRequest)
         or not resume.token_is_required
         or TokenPlugin.user_can_bypass_token(request, resume)
     ):

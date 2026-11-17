@@ -177,3 +177,32 @@ def test_navigation_validates_against_the_destination_resume(navigation_resume):
     navigation_resume.plugin_data["token"] = {"items": [{"token": "different"}]}
     links = render_links(navigation_resume, token_request("cap+&=#ä"))
     assert links["CV"] == CvPage().nav_url(navigation_resume)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("grouped", [False, True])
+@pytest.mark.parametrize("string_if_invalid", ["", "INVALID"])
+def test_navigation_without_request_in_context_stays_bare(
+    navigation_resume, settings, grouped, string_if_invalid
+):
+    # Documented ``request=request`` usage in a template rendered without a
+    # request (no context processor, render_to_string, email templates).
+    templates = deepcopy(settings.TEMPLATES)
+    templates[0]["OPTIONS"]["string_if_invalid"] = string_if_invalid
+    settings.TEMPLATES = templates
+    tag = (
+        "{% page_nav_groups resume request=request as groups %}"
+        "{% for group in groups %}{% for link in group.links %}"
+        '<a href="{{ link.url }}">{{ link.title }}</a>{% endfor %}{% endfor %}'
+        if grouped
+        else "{% page_nav_links resume request=request as links %}"
+        '{% for link in links %}<a href="{{ link.url }}">{{ link.title }}</a>{% endfor %}'
+    )
+    html = Template("{% load page_nav %}" + tag).render(
+        Context({"resume": navigation_resume})
+    )
+    links = {
+        a.text: a["href"] for a in BeautifulSoup(html, "html.parser").find_all("a")
+    }
+    assert links["CV"] == CvPage().nav_url(navigation_resume)
+    assert all("token" not in parse_qs(urlsplit(u).query) for u in links.values())

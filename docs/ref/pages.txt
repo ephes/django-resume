@@ -282,7 +282,9 @@ page links. This also excludes ``CvPage`` subclasses and custom replacements
 of the CV page: they need their own explicit navigation contract. Existing
 calls without a request, in Python or templates, keep their previous behavior.
 The caller supplies the current request explicitly; tags do not read it from
-template context automatically.
+template context automatically. If the ``request`` variable is missing from the
+template context (for example ``render_to_string`` without a request, or no
+request context processor), the tags fall back to the bare, token-free URLs.
 
 .. code-block:: html+django
 
