@@ -298,3 +298,22 @@ def test_corrupt_recovery_copy_refuses_before_mutation(
     copy.write_bytes(original)
     call_command("recover_plugin", "safe_plugin", action="finish", stdout=StringIO())
     assert all("new" in path.read_text() for path in paths)
+
+
+def test_status_prints_record_when_recovery_copy_is_invalid(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    paths = _paths(tmp_path)
+    for path in paths:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("old")
+    context = multiprocessing.get_context("spawn")
+    reached = context.Event()
+    _kill(context, _crashing_create, (str(tmp_path), 1, reached), reached)
+    intent_path = next(tmp_path.glob("*.intent.json"))
+    intent = json.loads(intent_path.read_text())
+    Path(intent["files"][0]["old"]).unlink()
+    output = StringIO()
+    with pytest.raises(CommandError, match="invalid recovery copy"):
+        call_command("recover_plugin", "safe_plugin", action="status", stdout=output)
+    assert json.loads(output.getvalue()) == intent
+    assert intent_path.exists()

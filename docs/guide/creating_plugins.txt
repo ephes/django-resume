@@ -267,7 +267,10 @@ using the same account, mount and lock directory as the interrupted writer::
     python manage.py recover_plugin NAME --action status
     python manage.py recover_plugin NAME --action restore
 
-``status`` only prints the recorded operation and recovery files. ``restore``
+``status`` only prints the recorded operation and recovery files. If a
+recovery copy is missing or fails its digest check, ``status`` still prints the
+bounded intent record and then reports the validation error; ``restore`` and
+``finish`` refuse such an intent. ``restore``
 restores all three old files (removing targets that were originally absent).
 To install the complete recorded new generation instead, use
 ``--action finish``. Recovery validates the target set and every copy's digest
@@ -323,7 +326,9 @@ A prepublication failure leaves the installed generation unchanged. If the
 intent was already visible (for example its directory synchronization failed),
 the error reports ``Plugin files unchanged, but recovery intent retained`` with
 the intent path; that intent still blocks mutations, so inspect it with
-``recover_plugin NAME --action status`` and restore before retrying. An ordinary
+``recover_plugin NAME --action status`` and restore before retrying. For a
+removal, no transaction ran yet, so ``--database-outcome rolled-back`` is the
+correct assertion for that restore. An ordinary
 replacement failure restores and synchronizes the old set. A directory-sync
 failure after publication reports ``Plugin files visible but durability
 uncertain`` and retains the intent and both recovery generations. It does not

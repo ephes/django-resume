@@ -35,10 +35,23 @@ class Command(BaseCommand):
             raise CommandError("Plugin targets must resolve to distinct files")
         with writer_locks(paths):
             publication = Publication(paths)
-            publication.load()
             if options["action"] == "status":
+                try:
+                    publication.load()
+                except CommandError:
+                    # Still show a bounded regular record for manual
+                    # reconciliation, then report why it cannot be applied.
+                    intent = publication.intent
+                    if (
+                        not intent.is_symlink()
+                        and intent.is_file()
+                        and intent.stat().st_size <= 131072
+                    ):
+                        self.stdout.write(intent.read_text(errors="replace"))
+                    raise
                 self.stdout.write(publication.intent.read_text())
                 return
+            publication.load()
             if publication.data["operation"] == "remove":
                 expected = (
                     "rolled-back" if options["action"] == "restore" else "committed"

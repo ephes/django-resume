@@ -18,7 +18,8 @@ Unreleased
 
 * Record interrupted plugin installation with complete old/new generations;
   refuse further mutations until ``recover_plugin`` explicitly restores or
-  finishes the bundle under the writer locks.
+  finishes the bundle under the writer locks. ``status`` still prints the
+  intent record when a recovery copy fails validation.
 
 * Allow navigation tags to accept an optional request and retain a validated
   capability only on the built-in protected CV link. Omit invalid/expired

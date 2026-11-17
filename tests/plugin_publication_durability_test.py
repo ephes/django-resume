@@ -259,9 +259,38 @@ def test_visible_intent_sync_failure_names_retained_blocker(tree, monkeypatch):
     assert "Plugin files unchanged, but recovery intent retained" in message
     assert str(intent) in message
     assert "recover_plugin safe_plugin --action status" in message
+    assert "--database-outcome" not in message
     assert [path.read_text() for path in _paths(tree)] == ["old"] * 3
     assert intent.is_file()
     monkeypatch.setattr(publication, "sync_directory", sync)
     call_command("recover_plugin", "safe_plugin", action="restore", stdout=StringIO())
+    assert [path.read_text() for path in _paths(tree)] == ["old"] * 3
+    assert not intent.exists()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_visible_removal_intent_hint_names_untouched_database(tree, monkeypatch):
+    from django_resume.management.commands import _plugin_publication as publication
+
+    sync = publication.sync_directory
+    intent = publication.intent_path(_paths(tree))
+
+    def fail(directory):
+        if intent.exists():
+            raise OSError("synthetic intent directory sync failure")
+        return sync(directory)
+
+    monkeypatch.setattr(publication, "sync_directory", fail)
+    with pytest.raises(CommandError, match="--database-outcome rolled-back"):
+        call_command("remove_plugin_by_name", "safe_plugin", stdout=StringIO())
+    assert [path.read_text() for path in _paths(tree)] == ["old"] * 3
+    monkeypatch.setattr(publication, "sync_directory", sync)
+    call_command(
+        "recover_plugin",
+        "safe_plugin",
+        action="restore",
+        database_outcome="rolled-back",
+        stdout=StringIO(),
+    )
     assert [path.read_text() for path in _paths(tree)] == ["old"] * 3
     assert not intent.exists()

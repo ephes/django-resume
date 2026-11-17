@@ -113,10 +113,15 @@ class Publication:
             if isinstance(error, OSError):
                 # The intent is visible (e.g. its directory sync failed), so it
                 # blocks further mutations although no installed file changed.
+                hint = (
+                    " (the database was not touched: --database-outcome rolled-back)"
+                    if self.data["operation"] == "remove"
+                    else ""
+                )
                 raise CommandError(
                     f"Plugin files unchanged, but recovery intent retained: "
                     f"{self.intent}; run recover_plugin {self.paths[0].stem} "
-                    f"--action status: {error}"
+                    f"--action status, then --action restore{hint}: {error}"
                 ) from error
             raise
 
