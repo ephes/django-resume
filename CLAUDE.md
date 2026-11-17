@@ -59,6 +59,7 @@ coverage report
 ### Plugin Management
 - `python manage.py create_plugin_from_stdin` - Create plugin from stdin
 - `python manage.py remove_plugin_by_name` - Remove plugin by name
+- `python manage.py recover_plugin NAME --action status|restore|finish [--database-outcome rolled-back|committed]` - Inspect or reconcile an interrupted plugin create/remove (its intent blocks further mutations)
 - `python manage.py remove_all_resumes` - Preview the resume count; add `--delete-all-resumes` to permanently delete every owner's resumes in one transaction
 
 ### LLM Content Generation
