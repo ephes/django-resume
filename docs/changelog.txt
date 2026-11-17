@@ -52,8 +52,9 @@ Unreleased
   language and finalization behavior; other methods still return 405.
 
 * Use one routed Resume write alias for filesystem plugin removal and its
-  bound data manager. Restore files outside that transaction on failure,
-  including a selected-database commit failure; do not require default access.
+  bound data manager. Restore files outside that transaction on a failure
+  before commit (a commit failure retains the removal intent, see above); do
+  not require default access.
 
 * Validate project and timeline badges as bounded string lists in both editors
   and at import boundaries. Portable exports omit invalid legacy badges with
