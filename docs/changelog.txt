@@ -5,6 +5,18 @@ Changelog
 Unreleased
 ----------
 
+* Validate required editor text after bounded HTML/entity decoding. Every
+  required editor text field (About, Projects, Timelines, Cover and Permission
+  Denied) now rejects markup-only, break-only and NBSP-only submissions without
+  saving, where these were previously stored as empty text; optional fields
+  still accept empty text. Length and custom validation continue to use the
+  same stored-text value.
+
+* Preserve Markdown link destinations as literal data through inline formatting
+  and HTML attribute encoding in default/underlined links. Keep formatted
+  labels, raw destinations for custom link handlers, the limited linear link
+  grammar and unsafe-scheme refusal.
+
 * Verify complete JPEG/PNG/GIF/WebP uploads with Pillow before storage,
   decoding all animation frames within the aggregate pixel budget and checking
   required PNG/GIF endings (trailing bytes are refused). Allow at most 4,096

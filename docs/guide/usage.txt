@@ -131,6 +131,14 @@ callers importing larger fields must validate/handle this explicit refusal.
 No text is silently truncated. Custom handlers and the final HTML sanitizer
 continue to apply.
 
+Link destinations remain literal data: emphasis applies to labels, not URLs.
+The built-in default and underlined link handlers escape destinations as HTML
+attribute values, preserving quotes, ampersands and flat parentheses without
+creating extra attributes. Custom ``link`` handlers still receive the formatted
+label and the original, unescaped destination; they must escape the destination
+when inserting it into HTML. The final sanitizer continues to refuse unsafe
+schemes for built-in and custom handlers.
+
 Exporting to JSON Resume
 ------------------------
 
@@ -355,6 +363,12 @@ Over-ceiling submissions show a field error and leave saved content unchanged;
 the contenteditable preview stays empty until the input is reduced. The bound
 form retains the submitted value. Valid entity encodings can exceed the decoded
 field's length limit.
+
+Required fields validate the decoded, trimmed stored text. Markup-only,
+break-only and nonbreaking-space-only input is empty and produces a required
+field error without changing saved content. Optional editor text fields accept
+the same inputs as empty text. Requiredness, length limits and custom validators
+all use the same decoded value; escaped literal markup remains text.
 
 The Django admin textarea shows the same encoded format: ``R&D <3`` appears as
 ``R&amp;D &lt;3``, and markup typed there without escaping is treated as

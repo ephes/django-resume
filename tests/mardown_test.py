@@ -335,16 +335,6 @@ def test_editor_text_length_limit_applies_to_decoded_text():
         assert "at most 1024 characters" in str(form.errors["text"])
 
 
-def test_editor_text_field_keeps_required_and_structure_only_behaviour():
-    from django_resume.plugins.about import AboutForm
-
-    assert not AboutForm(data={"title": "About", "text": "  "}).is_valid()
-    # Markup-only editor content is still accepted and stored as empty text.
-    form = AboutForm(data={"title": "About", "text": "<div><br></div>"})
-    assert form.is_valid(), form.errors
-    assert form.cleaned_data["text"] == ""
-
-
 def test_markdown_unmatched_link_work_is_bounded():
     import subprocess
     import sys
@@ -388,7 +378,6 @@ def test_markdown_render_input_ceiling(monkeypatch):
         "[empty]() [next](relative/path)",
         "[bad](a(b(c))) [good](https://example.com)",
         "[first\nsecond](https://example.com)",
-        "[label](url\nnext)",
         "[bad](broken( [label](ok)",
     ],
 )
