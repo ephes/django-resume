@@ -35,8 +35,8 @@ class Command(BaseCommand):
             raise CommandError("Plugin targets must resolve to distinct files")
         database = router.db_for_write(Resume)
         try:
-            with backup_files(paths):
-                with transaction.atomic(using=database):
+            with backup_files(paths, database=database):
+                with transaction.atomic(using=database, durable=True):
                     for path in paths:
                         path.unlink(missing_ok=True)
                     Resume.objects.db_manager(database).remove_plugin_data_by_name(

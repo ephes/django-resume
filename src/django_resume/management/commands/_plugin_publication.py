@@ -59,7 +59,20 @@ class Publication:
         self.intent = intent_path(paths)
         self.data: dict = {"version": 1, "operation": "create", "files": []}
 
-    def prepare(self, staged: dict[Path, Path | None]) -> None:
+    def prepare(
+        self, staged: dict[Path, Path | None] | None, database: str | None = None
+    ) -> None:
+        if database is not None:
+            from django.db import connections
+
+            selected = connections[database].settings_dict
+            self.data["operation"] = "remove"
+            self.data["database"] = {
+                "alias": database,
+                "engine": selected["ENGINE"],
+                "name": str(selected["NAME"]),
+                "outcome": "unknown",
+            }
         try:
             for path in self.paths:
                 if path.exists() and not path.is_file():
@@ -68,7 +81,7 @@ class Publication:
                 self.data["files"].append(entry)
                 for key, source in [
                     ("old", path if path.exists() else None),
-                    ("new", staged[path]),
+                    ("new", staged[path] if staged is not None else None),
                 ]:
                     if source is not None:
                         copy = copy_sibling(
@@ -97,7 +110,10 @@ class Publication:
             if self.intent.is_symlink() or self.intent.stat().st_size > 131072:
                 raise ValueError("invalid intent file")
             self.data = json.loads(self.intent.read_text())
-            if self.data["version"] != 1 or self.data["operation"] != "create":
+            if self.data["version"] != 1 or self.data["operation"] not in {
+                "create",
+                "remove",
+            }:
                 raise ValueError("unsupported intent")
             entries = self.data["files"]
             if [entry["path"] for entry in entries] != [
@@ -107,7 +123,7 @@ class Publication:
             for path, entry in zip(self.paths, entries):
                 for key, kind in [("old", "backup"), ("new", "new")]:
                     if entry[key] is None:
-                        if key == "new":
+                        if key == "new" and self.data["operation"] == "create":
                             raise ValueError("missing new generation")
                         continue
                     copy = Path(entry[key])
@@ -155,9 +171,14 @@ class Publication:
 
 
 @contextmanager
-def publication_files(paths: list[Path], staged: dict[Path, Path | None]):
+def publication_files(
+    paths: list[Path],
+    staged: dict[Path, Path | None] | None,
+    *,
+    database: str | None = None,
+):
     publication = Publication(paths)
-    publication.prepare(staged)
+    publication.prepare(staged, database)
     try:
         yield publication
     except BaseException as error:

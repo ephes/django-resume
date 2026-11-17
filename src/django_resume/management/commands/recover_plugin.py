@@ -16,6 +16,8 @@ class Command(BaseCommand):
             "--action", choices=["status", "restore", "finish"], default="status"
         )
 
+        parser.add_argument("--database-outcome", choices=["rolled-back", "committed"])
+
     def handle(self, *args, **options):
         name = validate_plugin_name(options["plugin_name"])
         paths = [
@@ -37,6 +39,15 @@ class Command(BaseCommand):
             if options["action"] == "status":
                 self.stdout.write(publication.intent.read_text())
                 return
+            if publication.data["operation"] == "remove":
+                expected = (
+                    "rolled-back" if options["action"] == "restore" else "committed"
+                )
+                if options["database_outcome"] != expected:
+                    raise CommandError(
+                        f"Removal database outcome is unknown; verify the recorded database "
+                        f"and pass --database-outcome {expected} for this action"
+                    )
             try:
                 publication.apply("old" if options["action"] == "restore" else "new")
                 publication.retire()

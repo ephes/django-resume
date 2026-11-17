@@ -5,6 +5,10 @@ Changelog
 Unreleased
 ----------
 
+* Retain plugin removal intents and file backups across process death before or
+  after database commit. Require an independently verified database outcome
+  for explicit recovery; hold the intent through the outermost transaction.
+
 * Record interrupted plugin installation with complete old/new generations;
   refuse further mutations until ``recover_plugin`` explicitly restores or
   finishes the bundle under the writer locks.

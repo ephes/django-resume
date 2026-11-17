@@ -124,7 +124,7 @@ from every resume. Missing files are allowed. All three paths are validated
 before any changes; paths escaping their expected tree or resolving to the
 same file are rejected.
 
-The command creates sibling ``.FILENAME.backup-*`` copies before removing
+The command records a persistent removal intent and creates sibling ``.FILENAME.backup-*`` copies before removing
 files and uses a database transaction on the Resume write alias selected once
 by Django's router. The data manager is bound to that same alias; a read replica
 or ``default`` is not accessed when writes route elsewhere. File restoration
@@ -155,12 +155,12 @@ inaccessible, stop all cooperating writers and configure the same private
 ``TMPDIR`` for every invocation before retrying; do not remove another user's
 lock directory or switch namespaces while a writer is active.
 
-This is not a transaction across the filesystem and database: process
-termination, unrelated editors (which do not take these locks), or a further
-I/O failure during recovery can leave partial results. Stop unrelated editors
-and keep a database backup. If restoration
-fails, the error lists affected paths and retained backup locations; restore
-those files manually before retrying. A backup cleanup warning after success
+This is not a transaction across the filesystem and database. Process
+termination leaves an unresolved removal intent and retained backups, including
+when the database commit already happened. See the recovery procedure below.
+Stop unrelated editors and keep a database backup. If ordinary restoration
+fails, the error lists the intent and retained backup locations; use explicit
+recovery before retrying. A backup cleanup warning after success
 means the operation completed but the named leftover backup needs removal.
 Cleanup logs a bounded warning through
 ``django_resume.management.commands._file_rollback`` naming leftover paths;
@@ -246,14 +246,14 @@ an async source's ``aclose()`` on response close. Generators still clean up in
 their iteration language when exhausted, failed or cancelled during a step.
 
 
-Recovering interrupted plugin installation
-------------------------------------------
+Recovering interrupted plugin commands
+--------------------------------------
 
-Create commands record ``.django-resume-plugin-NAME.intent.json`` in the
+Create and remove commands record ``.django-resume-plugin-NAME.intent.json`` in the
 project root before the first installed file changes, while holding all three
 writer locks. The intent names the exact targets, SHA-256 hashes and sibling
 ``.FILENAME.backup-*`` (old) and ``.FILENAME.new-*`` (new) copies. Absence of an
-old file is recorded explicitly. Both complete generations survive process
+old file is recorded explicitly. For creation, both complete generations survive process
 termination, including termination after the final replacement. A subsequent
 create or remove refuses the unresolved intent instead of accepting a mixed
 bundle. Do not delete the intent or its referenced files.
@@ -271,6 +271,28 @@ To install the complete recorded new generation instead, use
 before changing files, and holds the same writer locks. It retains authority
 copies throughout recovery, so an interrupted recovery can be repeated.
 Only a complete recovery retires the intent and admits new mutations.
+
+Removal records the selected database alias, backend and database name, with
+an explicitly unknown outcome. A crash before commit rolls back database data;
+a crash after commit leaves deletion committed. Neither file absence nor an
+intent proves which happened. Inspect the recorded database with a fresh
+connection (and your database backup/audit history) before choosing recovery.
+If the removal rolled back, use::
+
+    python manage.py recover_plugin NAME --action restore --database-outcome rolled-back
+
+If removal committed, use::
+
+    python manage.py recover_plugin NAME --action finish --database-outcome committed
+
+These options are the operator's assertion of an independently verified DB
+outcome; recovery does not query or modify resume data, and refuses a missing
+or mismatched assertion. ``finish`` removes the three files; ``restore`` copies
+back their original code. Restoring files alone cannot recover committed data
+removal: use a database backup if that operation must be undone. Leave the
+intent unresolved if the result is ambiguous. Ordinary successful removal
+retires its intent only after its outermost database transaction commits;
+invocation inside an existing application transaction is rejected.
 
 Keep the project unavailable while resolving a mixed generation: native locks
 serialize cooperating writers, but do not prevent Python/template readers or

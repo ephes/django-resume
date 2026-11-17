@@ -61,16 +61,16 @@ def writer_locks(paths: list[Path]):
 
 
 @contextmanager
-def backup_files(paths: list[Path], *, staged=None):
+def backup_files(paths: list[Path], *, staged=None, database=None):
     from ._plugin_publication import publication_files, require_recovered
 
     with writer_locks(paths):
         require_recovered(paths)
-        if staged is None:
+        if staged is None and database is None:
             with _backup_files(paths):
                 yield
         else:
-            with publication_files(paths, staged):
+            with publication_files(paths, staged, database=database):
                 yield
 
 
