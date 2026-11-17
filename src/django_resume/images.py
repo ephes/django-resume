@@ -3,6 +3,7 @@ import logging
 import sys
 from hashlib import sha256
 import struct
+import threading
 import uuid
 
 from collections.abc import Iterable
@@ -27,6 +28,13 @@ MAX_IMAGE_DIMENSION = 16_384
 MAX_IMAGE_PIXELS = 67_108_864
 MAX_IMAGE_UPLOAD_SIZE = 2 * 1024 * 1024
 MAX_STORED_IMAGE_METADATA_BYTES = 2 * 1024 * 1024
+MAX_IMAGE_FRAMES = 4096
+IMAGE_DECODE_WAIT_SECONDS = 10.0
+
+# A complete decode allocates the full canvas (up to about 4 bytes per pixel,
+# so roughly 256 MiB at the pixel budget). Admit one decode per process at a
+# time so concurrent uploads cannot multiply that peak.
+_IMAGE_DECODE_SLOT = threading.BoundedSemaphore(1)
 
 # Raster formats accepted for uploads, mapped to the file extension used when
 # storing them. SVG, HTML and anything else that is not one of these is rejected.
@@ -97,6 +105,67 @@ def validate_image_upload(upload: UploadedFile) -> tuple[bytes, str, int, int]:
         raise forms.ValidationError(
             "Image dimensions exceed 16384 pixels per axis or 67108864 total pixels."
         )
+    if not _IMAGE_DECODE_SLOT.acquire(timeout=IMAGE_DECODE_WAIT_SECONDS):
+        raise forms.ValidationError(
+            "Image validation is busy. Please try the upload again."
+        )
+    try:
+        _verify_complete_raster(data, image_format, width, height)
+    finally:
+        _IMAGE_DECODE_SLOT.release()
+    return data, ALLOWED_IMAGE_FORMATS[image_format], width, height
+
+
+PNG_IEND_CHUNK = b"\x00\x00\x00\x00IEND\xaeB`\x82"
+
+
+def _terminal_marker_end(data: bytes, image_format: str) -> int:
+    """Return the offset just after the first PNG IEND chunk or GIF trailer.
+
+    Walks chunk/block lengths once (linear in ``len(data)``) and raises
+    ``ValueError`` for a missing, corrupt or structurally truncated marker.
+    """
+    try:
+        if image_format == "png":
+            offset = 8
+            while True:
+                (length,) = struct.unpack(">I", data[offset : offset + 4])
+                end = offset + 12 + length
+                if end > len(data):
+                    raise ValueError("Truncated PNG chunk")
+                if data[offset + 4 : offset + 8] == b"IEND":
+                    if data[offset:end] != PNG_IEND_CHUNK:
+                        raise ValueError("Corrupt PNG end chunk")
+                    return end
+                offset = end
+        offset = 13
+        if data[10] & 0x80:
+            offset += 3 * 2 ** ((data[10] & 0x07) + 1)
+        while True:
+            block = data[offset]
+            if block == 0x3B:
+                return offset + 1
+            if block == 0x21:
+                offset += 2
+            elif block == 0x2C:
+                flags = data[offset + 9]
+                offset += 10
+                if flags & 0x80:
+                    offset += 3 * 2 ** ((flags & 0x07) + 1)
+                offset += 1  # LZW minimum code size
+            else:
+                raise ValueError("Unknown GIF block")
+            while (size := data[offset]) != 0:
+                offset += 1 + size
+            offset += 1
+    except (IndexError, struct.error) as error:
+        raise ValueError("Missing image end marker") from error
+
+
+def _verify_complete_raster(
+    data: bytes, image_format: str, width: int, height: int
+) -> None:
+    """Decode every frame of admitted bytes; raise ``forms.ValidationError``."""
     try:
         # This host-wide Pillow option would silently admit truncated pixels.
         # Never change it temporarily: other requests may be decoding in parallel.
@@ -121,9 +190,11 @@ def validate_image_upload(upload: UploadedFile) -> tuple[bytes, str, int, int]:
                     or frame_width > MAX_IMAGE_DIMENSION
                     or frame_height > MAX_IMAGE_DIMENSION
                     or pixels > MAX_IMAGE_PIXELS
+                    or frame >= MAX_IMAGE_FRAMES
                 ):
                     raise forms.ValidationError(
-                        "Image dimensions or animation exceed 67108864 total decoded pixels."
+                        "Image dimensions or animation exceed 67108864 total decoded "
+                        "pixels or 4096 frames."
                     )
                 image.load()
                 frame += 1
@@ -131,14 +202,13 @@ def validate_image_upload(upload: UploadedFile) -> tuple[bytes, str, int, int]:
                     image.seek(frame)
                 except EOFError:
                     break
-        # Pillow accepts a missing GIF trailer and does not check the final
-        # PNG IEND checksum. Require those complete terminal markers too.
-        if image_format == "png" and not data.endswith(
-            b"\x00\x00\x00\x00IEND\xaeB`\x82"
-        ):
-            raise ValueError("Missing or corrupt PNG end chunk")
-        if image_format == "gif" and not data.endswith(b";"):
-            raise ValueError("Missing GIF trailer")
+        # Pillow accepts a missing GIF trailer, does not check the final PNG
+        # IEND checksum and stops at the first terminal marker. Walk the
+        # container to its first complete marker and require it to end the file.
+        if image_format in ("png", "gif") and _terminal_marker_end(
+            data, image_format
+        ) != len(data):
+            raise ValueError("Trailing data after the image end marker")
     except (
         OSError,
         ValueError,
@@ -150,7 +220,6 @@ def validate_image_upload(upload: UploadedFile) -> tuple[bytes, str, int, int]:
         raise forms.ValidationError(
             "Upload a valid image. The file could not be read as an image."
         ) from error
-    return data, ALLOWED_IMAGE_FORMATS[image_format], width, height
 
 
 def get_image_metadata_from_bytesio(input: IO[bytes], size: int) -> tuple[int, int]:

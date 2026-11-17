@@ -3,6 +3,7 @@
 import struct
 
 import pytest
+from django import forms
 from django.core.files.uploadedfile import SimpleUploadedFile
 from PIL import Image
 
@@ -201,3 +202,90 @@ def test_lenient_host_decoder_cannot_admit_uploads(monkeypatch, in_memory_storag
     assert not form.is_valid()
     assert "Upload a valid image" in str(form.errors)
     assert stored_uploads() == []
+
+
+def synthetic_gif_frames(count: int) -> bytes:
+    """A 1x1 GIF with ``count`` minimal LZW frames and a trailer."""
+    header = b"GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff"
+    frame = b"\x2c\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02\x44\x01\x00"
+    return header + frame * count + b";"
+
+
+def test_frame_count_limit_is_exact(in_memory_storage):
+    from django_resume.images import MAX_IMAGE_FRAMES
+
+    accepted = validate_image_upload(
+        SimpleUploadedFile("frames.gif", synthetic_gif_frames(MAX_IMAGE_FRAMES))
+    )
+    assert accepted[1:] == ("gif", 1, 1)
+    form = OneImageForm(
+        data={},
+        files={
+            "avatar_img": SimpleUploadedFile(
+                "frames.gif", synthetic_gif_frames(MAX_IMAGE_FRAMES + 1)
+            )
+        },
+    )
+    assert not form.is_valid()
+    assert "4096 frames" in str(form.errors["avatar_img"])
+    assert stored_uploads() == []
+
+
+def test_busy_decode_slot_refuses_without_storage(in_memory_storage, monkeypatch):
+    from django_resume import images
+
+    monkeypatch.setattr(images, "IMAGE_DECODE_WAIT_SECONDS", 0.01)
+    assert images._IMAGE_DECODE_SLOT.acquire(timeout=1)
+    try:
+        form = OneImageForm(
+            data={},
+            files={"avatar_img": SimpleUploadedFile("a.png", raster_bytes("PNG"))},
+        )
+        assert not form.is_valid()
+        assert "busy" in str(form.errors["avatar_img"])
+        assert stored_uploads() == []
+    finally:
+        images._IMAGE_DECODE_SLOT.release()
+    # The slot is released after every decode, including refusals.
+    assert validate_image_upload(SimpleUploadedFile("a.png", raster_bytes("PNG")))
+    with pytest.raises(forms.ValidationError):
+        validate_image_upload(SimpleUploadedFile("b.png", raster_bytes("PNG")[:-8]))
+    assert images._IMAGE_DECODE_SLOT.acquire(timeout=0)
+    images._IMAGE_DECODE_SLOT.release()
+
+
+PNG_IEND = b"\x00\x00\x00\x00IEND\xaeB`\x82"
+
+
+@pytest.mark.parametrize(
+    "format,suffix",
+    [
+        ("PNG", b"\x00trail"),
+        ("GIF", b"\x00trail"),
+        ("GIF", b"<html>junk;"),
+        ("PNG", b"<script>x</script>" + PNG_IEND),
+        ("PNG", PNG_IEND),
+        ("GIF", b";"),
+    ],
+)
+def test_trailing_bytes_after_terminal_marker_are_refused(
+    in_memory_storage, format, suffix
+):
+    form = OneImageForm(
+        data={},
+        files={"avatar_img": SimpleUploadedFile("t", raster_bytes(format) + suffix)},
+    )
+    assert not form.is_valid()
+    assert "Upload a valid image" in str(form.errors["avatar_img"])
+    assert stored_uploads() == []
+
+
+@pytest.mark.parametrize("animated", [False, True])
+@pytest.mark.parametrize("format", ["PNG", "GIF"])
+def test_terminal_marker_walk_accepts_complete_containers(format, animated):
+    from django_resume.images import _terminal_marker_end
+
+    content = raster_bytes(format, animated=animated)
+    assert _terminal_marker_end(content, format.lower()) == len(content)
+    with pytest.raises(ValueError):
+        _terminal_marker_end(content[:-1], format.lower())
