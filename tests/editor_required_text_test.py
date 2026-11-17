@@ -122,3 +122,25 @@ def test_empty_required_editor_posts_preserve_stored_data(
     assert b"This field is required." in response.content
     resume.refresh_from_db()
     assert resume.plugin_data == original
+
+
+@pytest.mark.parametrize("submitted", ["<div><br></div>", "&nbsp;", "<br>"])
+@pytest.mark.parametrize(
+    "form_path,field_name",
+    [
+        ("django_resume.plugins.timelines.TimelineItemForm", "description"),
+        ("django_resume.plugins.cover.CoverItemForm", "text"),
+        ("django_resume.plugins.permission_denied.PermissionDeniedForm", "text"),
+    ],
+)
+def test_all_required_editor_fields_reject_decoded_empty_text(
+    form_path, field_name, submitted
+):
+    from django.utils.module_loading import import_string
+
+    field = import_string(form_path).base_fields[field_name]
+    assert isinstance(field, EditorTextField)
+    assert field.required
+    with pytest.raises(forms.ValidationError) as error:
+        field.clean(submitted)
+    assert error.value.error_list[0].code == "required"
