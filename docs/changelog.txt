@@ -8,6 +8,9 @@ Unreleased
 * Reject conflicting versions of one npm package across enabled JSON Resume
   catalog entries before installation. Same-version aliases are allowed.
 
+* Use outer keys as JSON Resume catalog identities in mapping-style settings.
+  Reject entries whose embedded key differs from the outer key.
+
 * Preflight stored ``plugin_data`` roots in both directions of education
   migration 0003. Non-object, non-null roots stop conversion with the affected
   resume ID and repair instructions before any rows change.

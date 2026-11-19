@@ -1331,9 +1331,11 @@ def test_theme_catalog_has_valid_default_entries():
     assert catalog_theme("even").enabled is True
 
 
-def test_theme_catalog_accepts_setting_override(settings):
+@pytest.mark.parametrize("key_field", [{}, {"key": "custom"}])
+def test_theme_catalog_accepts_setting_override(settings, key_field):
     settings.DJANGO_RESUME_JSON_RESUME_THEME_CATALOG = {
         "custom": {
+            **key_field,
             "package": "jsonresume-theme-even",
             "version": "0.26.1",
             "display_name": "Custom Even",
@@ -1348,6 +1350,26 @@ def test_theme_catalog_accepts_setting_override(settings):
 
     assert [entry.key for entry in catalog] == ["custom"]
     assert catalog[0].display_name == "Custom Even"
+    assert catalog_theme("custom") == catalog[0]
+
+
+@pytest.mark.parametrize("as_object", [False, True])
+def test_theme_catalog_rejects_mapping_key_mismatch(settings, as_object):
+    metadata = {
+        "key": "alternate",
+        "package": "jsonresume-theme-even",
+        "version": "0.26.1",
+        "display_name": "Alternate Even",
+        "description": "",
+        "preview_image": "",
+        "registry_preview_url": "",
+        "enabled": True,
+    }
+    entry = ThemeCatalogEntry(**metadata) if as_object else metadata
+    settings.DJANGO_RESUME_JSON_RESUME_THEME_CATALOG = {"custom": entry}
+
+    with pytest.raises(JsonResumeThemeError, match=r"'custom'.*'alternate'"):
+        catalog_theme("alternate")
 
 
 def test_theme_catalog_rejects_invalid_entries(settings):

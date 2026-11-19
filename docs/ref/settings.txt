@@ -43,10 +43,12 @@ permissions when possible.
 Default: a small checked-in curated catalog.
 
 Catalog entries may be a list of dictionaries or a mapping from catalog key to
-entry metadata. Each entry must provide a stable key, a valid JSON Resume npm
-theme package name, an exact version, display metadata, preview image metadata,
-and a boolean ``enabled`` value. Disabled entries can be shown as unavailable
-but cannot be previewed or selected.
+entry metadata. In a list, each entry supplies its own stable ``key``. In a
+mapping, the outer key is the catalog key. An optional embedded ``key`` must
+match it exactly. Each entry must provide a valid JSON Resume npm theme package
+name, an exact version, display metadata, preview image metadata, and a boolean
+``enabled`` value. Disabled entries can be shown as unavailable but cannot be
+previewed or selected.
 
 The shared cache stores one version of each package. All enabled keys for the
 same npm package must pin the same exact version. Aliases with the same pin

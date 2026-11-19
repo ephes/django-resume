@@ -959,10 +959,20 @@ def render_catalog_theme(
 
 def _catalog_entries(raw_catalog) -> list[ThemeCatalogEntry]:
     if isinstance(raw_catalog, dict):
-        iterable = [
-            {"key": key, **value} if isinstance(value, dict) else value
-            for key, value in raw_catalog.items()
-        ]
+        iterable = []
+        for key, item in raw_catalog.items():
+            embedded_key = key
+            if isinstance(item, dict):
+                embedded_key = item.get("key", key)
+                item = {**item, "key": key}
+            elif isinstance(item, ThemeCatalogEntry):
+                embedded_key = item.key
+            if embedded_key != key:
+                raise JsonResumeThemeError(
+                    f"JSON Resume theme catalog mapping key {key!r} "
+                    f"does not match embedded key {embedded_key!r}"
+                )
+            iterable.append(item)
     else:
         iterable = list(raw_catalog)
     entries = [_catalog_entry(item) for item in iterable]
