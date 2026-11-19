@@ -242,7 +242,10 @@ URLconf freezes.
    installed Django apps, through :data:`ENTRY_POINT_GROUP` entry points. Each
    entry point loads to either a :class:`ResumePage` subclass (registered
    directly) or a zero-argument callable (invoked so it can register its own
-   pages); any other target raises ``TypeError``. Loading is idempotent.
+   pages); any other target raises ``TypeError``. Rediscovering the same
+   distribution's entry point is idempotent. An identical name and target
+   declared by distinct distributions raises ``PageRegistrationError``
+   before any new registrations.
 
 .. data:: ENTRY_POINT_GROUP
 

@@ -343,6 +343,11 @@ callback raises, the page registry is restored to its pre-callback entries,
 including replaced or removed entries; startup can retry the callback. External
 side effects performed by a callback remain the package's responsibility.
 
+Discovery tracks the distribution name and version alongside the entry-point
+name and target. If two distributions declare the same name and target,
+startup raises ``PageRegistrationError`` identifying both distributions before
+registering new pages. Keep the declaration in a single distribution.
+
 Generated page routes accept GET and HEAD. Both run access checks, resume
 language selection and response finalization; Django removes the HEAD body.
 Other methods return 405 with ``Allow: GET, HEAD``.

@@ -15,7 +15,7 @@ ENTRY_POINT_GROUP = "django_resume.pages"
 #: call) does not re-invoke a registering callable or re-register a page.
 #: ``resume_pages`` autodiscovery is idempotent for free via Python's import
 #: cache; entry-point *targets* run outside any import, so they need this guard.
-_loaded_entry_points: set[tuple[str, str]] = set()
+_loaded_entry_points: dict[tuple[str, str], tuple[str, str] | None] = {}
 
 
 def load_entry_point_pages() -> None:
@@ -32,11 +32,29 @@ def load_entry_point_pages() -> None:
     pages get routes under the same ordering guarantee as built-ins and
     autodiscovered ``resume_pages`` modules. Each entry point is processed at
     most once (see :data:`_loaded_entry_points`), so the call is idempotent.
+    Distinct distributions declaring the same name and target are rejected
+    before any new registrations.
     """
+    providers = _loaded_entry_points.copy()
+    pending = []
     for entry_point in entry_points(group=ENTRY_POINT_GROUP):
-        identity = (entry_point.name, entry_point.value)
-        if identity in _loaded_entry_points:
+        declaration = (entry_point.name, entry_point.value)
+        dist = entry_point.dist
+        provider = (dist.name, dist.version) if dist is not None else None
+        if declaration in providers:
+            previous = providers[declaration]
+            if previous != provider:
+                raise PageRegistrationError(
+                    f"Duplicate entry point {entry_point.name!r} targeting "
+                    f"{entry_point.value!r} in group {ENTRY_POINT_GROUP!r}: "
+                    f"declared by both {previous!r} and {provider!r} "
+                    "(distribution name, version)."
+                )
             continue
+        providers[declaration] = provider
+        pending.append((entry_point, declaration, provider))
+
+    for entry_point, declaration, provider in pending:
         target = entry_point.load()
         if isinstance(target, type):
             # A class target must be a ResumePage subclass. Any other class is a
@@ -64,7 +82,7 @@ def load_entry_point_pages() -> None:
                 f"Entry point {entry_point.name!r} in group {ENTRY_POINT_GROUP!r} "
                 f"must load to a ResumePage subclass or a callable, got {target!r}"
             )
-        _loaded_entry_points.add(identity)
+        _loaded_entry_points[declaration] = provider
 
 
 def autodiscover_pages() -> None:

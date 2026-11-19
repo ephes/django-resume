@@ -9,6 +9,10 @@ Unreleased
   migration 0003. Non-object, non-null roots stop conversion with the affected
   resume ID and repair instructions before any rows change.
 
+* Include distribution identity in page entry-point discovery. Identical
+  declarations from distinct distributions raise a startup error naming both
+  providers. Repeated discovery of the same entry point remains idempotent.
+
 0.4.0 - 2026-11-17
 ------------------
 

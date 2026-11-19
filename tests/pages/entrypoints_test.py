@@ -7,11 +7,15 @@ installed distribution is proven by the live-server e2e test
 (``e2e_tests/entrypoint_page_test.py``).
 """
 
+from types import SimpleNamespace
+
 import pytest
 
 import django_resume.pages as pages_pkg
 from django_resume.pages import (
     ENTRY_POINT_GROUP,
+    PageRegistrationError,
+    PageRegistry,
     ResumePage,
     load_entry_point_pages,
     page_registry,
@@ -21,16 +25,19 @@ from django_resume.pages import (
 @pytest.fixture(autouse=True)
 def _isolate_entry_point_guard(monkeypatch):
     # Give each test a fresh idempotency guard so loads are deterministic and do
-    # not leak across tests (monkeypatch restores the real set afterwards).
-    monkeypatch.setattr(pages_pkg, "_loaded_entry_points", set())
+    # not leak across tests (monkeypatch restores the real mapping afterwards).
+    monkeypatch.setattr(
+        pages_pkg, "_loaded_entry_points", type(pages_pkg._loaded_entry_points)()
+    )
 
 
 class _FakeEntryPoint:
-    def __init__(self, target, name="fake", value="fake.module:target"):
+    def __init__(self, target, name="fake", value="fake.module:target", dist=None):
         self._target = target
         self.name = name
         self.value = value
         self.group = ENTRY_POINT_GROUP
+        self.dist = dist
 
     def load(self):
         return self._target
@@ -72,14 +79,47 @@ def test_loading_is_idempotent_across_repeated_calls(monkeypatch):
     # A registering callable runs at most once even if discovery runs again
     # (e.g. AppConfig.ready re-runs), so pages are not double-registered.
     calls = []
-    _patch_entry_points(
-        monkeypatch, [_FakeEntryPoint(lambda: calls.append(1), name="once")]
-    )
-
-    load_entry_point_pages()
-    load_entry_point_pages()
+    for _ in range(2):
+        dist = SimpleNamespace(name="synthetic-pages", version="1.0")
+        _patch_entry_points(
+            monkeypatch, [_FakeEntryPoint(lambda: calls.append(1), dist=dist)]
+        )
+        load_entry_point_pages()
 
     assert calls == [1]
+
+
+@pytest.mark.parametrize("already_loaded", [False, True])
+def test_rejects_duplicate_entry_point_from_distinct_distributions(
+    monkeypatch, already_loaded
+):
+    registry = PageRegistry()
+    monkeypatch.setattr(pages_pkg, "page_registry", registry)
+
+    class SharedPage(ResumePage):
+        url_name = "synthetic"
+        path = "synthetic/"
+
+    first = SimpleNamespace(name="synthetic-first", version="1.0")
+    second = SimpleNamespace(name="synthetic-second", version="1.0")
+    first_entry = _FakeEntryPoint(SharedPage, dist=first)
+    second_entry = _FakeEntryPoint(SharedPage, dist=second)
+    if already_loaded:
+        _patch_entry_points(monkeypatch, [first_entry])
+        load_entry_point_pages()
+    before = dict(registry.pages)
+    _patch_entry_points(
+        monkeypatch, [second_entry] if already_loaded else [first_entry, second_entry]
+    )
+
+    with pytest.raises(
+        PageRegistrationError, match="Duplicate.*fake.*fake.module:target"
+    ) as exc:
+        load_entry_point_pages()
+
+    assert "synthetic-first" in str(exc.value)
+    assert "synthetic-second" in str(exc.value)
+    assert registry.pages == before
 
 
 def test_rejects_non_page_non_callable_target(monkeypatch):
@@ -125,8 +165,6 @@ def test_autodiscover_runs_modules_then_entry_points(monkeypatch):
 
 @pytest.mark.parametrize("failure", [ValueError, KeyboardInterrupt])
 def test_failed_callback_restores_registry_and_can_retry(monkeypatch, failure):
-    from django_resume.pages import PageRegistry
-
     registry = PageRegistry()
     monkeypatch.setattr(pages_pkg, "page_registry", registry)
 
