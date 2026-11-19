@@ -48,6 +48,11 @@ theme package name, an exact version, display metadata, preview image metadata,
 and a boolean ``enabled`` value. Disabled entries can be shown as unavailable
 but cannot be previewed or selected.
 
+The shared cache stores one version of each package. All enabled keys for the
+same npm package must pin the same exact version. Aliases with the same pin
+and disabled entries with different pins are allowed. A conflict invalidates
+the catalog before npm runs, even when installing a single key.
+
 ``DJANGO_RESUME_JSON_RESUME_ALLOW_CATALOG_THEME_INSTALL``
 =========================================================
 

@@ -1579,6 +1579,54 @@ def test_install_catalog_themes_command_reports_unknown_key(settings, tmp_path):
         call_command("install_json_resume_catalog_themes", "nope")
 
 
+def test_install_catalog_themes_rejects_conflicting_enabled_pins(
+    tmp_path, settings, monkeypatch
+):
+    from .theme_generation_test import fake_npm
+
+    target = tmp_path / "themes"
+    settings.DJANGO_RESUME_JSON_RESUME_THEME_DIR = target
+    monkeypatch.setattr(json_resume_themes.shutil, "which", lambda name: f"/bin/{name}")
+    monkeypatch.setattr(json_resume_themes, "_run_process", fake_npm)
+    installed = install_catalog_theme("even")
+    marker = target / ".current"
+    active = marker.read_text()
+    generations = sorted(target.glob("generation-*"))
+    settings.DJANGO_RESUME_JSON_RESUME_THEME_CATALOG = [
+        installed,
+        {
+            "key": "alternate",
+            "package": installed.package,
+            "version": "0.27.0",
+            "display_name": "Alternate",
+        },
+    ]
+    monkeypatch.setattr(
+        json_resume_themes,
+        "_run_process",
+        lambda *args, **kwargs: pytest.fail("npm must not run"),
+    )
+
+    for keys in ((), ("even",)):
+        with pytest.raises(CommandError, match=r"Conflicting.*jsonresume-theme-even"):
+            call_command("install_json_resume_catalog_themes", *keys)
+    assert marker.read_text() == active
+    assert sorted(target.glob("generation-*")) == generations
+    assert json_resume_themes.catalog_theme_installed(installed)
+
+
+def test_catalog_accepts_same_version_alias_and_disabled_alternate(settings):
+    entry = {"package": "jsonresume-theme-even", "display_name": "Even"}
+    settings.DJANGO_RESUME_JSON_RESUME_THEME_CATALOG = [
+        {**entry, "key": "even", "version": "0.26.1"},
+        {**entry, "key": "alias", "version": "0.26.1"},
+        {**entry, "key": "alternate", "version": "0.27.0", "enabled": False},
+    ]
+
+    assert catalog_theme("alias").version == catalog_theme("even").version
+    assert catalog_theme("alternate", enabled_only=False).enabled is False
+
+
 def _fake_installed_theme(target: Path, package: str, version: str) -> None:
     package_dir = target / "node_modules" / package
     package_dir.mkdir(parents=True)

@@ -967,12 +967,21 @@ def _catalog_entries(raw_catalog) -> list[ThemeCatalogEntry]:
         iterable = list(raw_catalog)
     entries = [_catalog_entry(item) for item in iterable]
     seen = set()
+    enabled_pins: dict[str, ThemeCatalogEntry] = {}
     for entry in entries:
         if entry.key in seen:
             raise JsonResumeThemeError(
                 f"Duplicate JSON Resume theme catalog key {entry.key!r}"
             )
         seen.add(entry.key)
+        if entry.enabled:
+            previous = enabled_pins.setdefault(entry.package, entry)
+            if previous.version != entry.version:
+                raise JsonResumeThemeError(
+                    f"Conflicting JSON Resume theme catalog pins for {entry.package!r}: "
+                    f"{previous.key!r} pins {previous.version}, "
+                    f"{entry.key!r} pins {entry.version}"
+                )
     return entries
 
 

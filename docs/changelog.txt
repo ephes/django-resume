@@ -5,6 +5,9 @@ Changelog
 Unreleased
 ----------
 
+* Reject conflicting versions of one npm package across enabled JSON Resume
+  catalog entries before installation. Same-version aliases are allowed.
+
 * Preflight stored ``plugin_data`` roots in both directions of education
   migration 0003. Non-object, non-null roots stop conversion with the affected
   resume ID and repair instructions before any rows change.
