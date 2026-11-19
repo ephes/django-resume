@@ -4,13 +4,26 @@ from django.db.migrations.exceptions import IrreversibleError
 LEGACY_EDUCATION_FIELDS = ("school_name", "school_url", "start", "end")
 
 
+def _education_data(resume, error_type):
+    root = resume.plugin_data
+    if root is None:
+        return None
+    if not isinstance(root, dict):
+        raise error_type(
+            f"Resume {resume.pk} has non-object plugin_data. Make a database backup "
+            "and export that resume's plugin_data, then repair it to a JSON object "
+            "before retrying migration 0003."
+        )
+    return root.get("education")
+
+
 def education_to_list(apps, schema_editor):
     """Move single-entry education data into the list plugin shape."""
     Resume = apps.get_model("django_resume", "Resume")
     alias = schema_editor.connection.alias
-    rows = Resume.objects.using(alias).only("id", "plugin_data")
+    rows = Resume.objects.using(alias).only("id", "plugin_data").order_by("pk")
     for resume in rows.iterator():
-        data = (resume.plugin_data or {}).get("education")
+        data = _education_data(resume, RuntimeError)
         if (
             isinstance(data, dict)
             and "items" not in data
@@ -22,7 +35,7 @@ def education_to_list(apps, schema_editor):
                 "backup and export all education plugin_data before explicitly converting it."
             )
     for resume in rows.iterator():
-        data = (resume.plugin_data or {}).get("education")
+        data = _education_data(resume, RuntimeError)
         if not isinstance(data, dict) or "items" in data or "flat" in data:
             continue
         if any(data.get(field) for field in LEGACY_EDUCATION_FIELDS):
@@ -63,9 +76,9 @@ def education_to_single_entry(apps, schema_editor):
     """Refuse rollback before writing if legacy education cannot hold the data."""
     Resume = apps.get_model("django_resume", "Resume")
     alias = schema_editor.connection.alias
-    rows = Resume.objects.using(alias).only("id", "plugin_data")
+    rows = Resume.objects.using(alias).only("id", "plugin_data").order_by("pk")
     for resume in rows.iterator():
-        data = (resume.plugin_data or {}).get("education")
+        data = _education_data(resume, IrreversibleError)
         if (
             isinstance(data, dict)
             and "items" in data
@@ -76,7 +89,7 @@ def education_to_single_entry(apps, schema_editor):
                 "all education plugin_data before explicitly converting it to the legacy shape."
             )
     for resume in rows.iterator():
-        data = (resume.plugin_data or {}).get("education")
+        data = _education_data(resume, IrreversibleError)
         if not isinstance(data, dict) or "items" not in data:
             continue
         first = data["items"][0] if data["items"] else {}

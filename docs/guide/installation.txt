@@ -99,8 +99,12 @@ Education data migrations
 -------------------------
 
 Migration 0003 reads and writes only the database alias selected by ``migrate
---database``. Before migrating backwards, it checks every resume before changing
-any row. Legacy education can represent at most one item and only ``school_name``,
+--database``. In either direction, it checks every resume before changing any row.
+A ``plugin_data`` root may be a JSON object or null. For a list or scalar root,
+the migration reports the resume's primary key. Back up the selected database,
+export the original value, then repair the root to a JSON object before retrying.
+
+Legacy education can represent at most one item and only ``school_name``,
 ``school_url``, ``start`` and ``end``. Nonempty degrees, extension fields and
 custom flat metadata refuse rollback with ``IrreversibleError``. Generated item
 IDs, positions and the default "Education" title are structural metadata.

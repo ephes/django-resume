@@ -1,9 +1,10 @@
 import pytest
 from importlib import import_module
 
-from django.db import connection, connections
+from django.db import connection, connections, models
 from django.db.migrations.exceptions import IrreversibleError
 from django.db.migrations.executor import MigrationExecutor
+from django.test.utils import CaptureQueriesContext
 
 BEFORE = [("django_resume", "0002_resume_integration_data")]
 AFTER = [("django_resume", "0003_education_list_items")]
@@ -139,6 +140,7 @@ def test_reverse_preflights_every_row(education):
 @pytest.mark.django_db(transaction=True)
 def test_education_migration_lossless_round_trip():
     apps = migrate(BEFORE)
+    null_root = create_resume(apps, "null-root", models.Value(None, models.JSONField()))
     resume = create_resume(
         apps,
         "roundtrip",
@@ -153,11 +155,15 @@ def test_education_migration_lossless_round_trip():
     )
     original = resume.plugin_data
     migrate(AFTER)
+    null_root.refresh_from_db()
+    assert null_root.plugin_data is None
     apps = migrate(BEFORE)
     assert (
         apps.get_model("django_resume", "Resume").objects.get(pk=resume.pk).plugin_data
         == original
     )
+    null_root.refresh_from_db()
+    assert null_root.plugin_data is None
     migrate(AFTER)
 
 
@@ -182,3 +188,33 @@ def test_forward_refuses_extensions_before_any_write(education):
         original = resume.plugin_data
         resume.refresh_from_db()
         assert resume.plugin_data == original
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("plugin_data", [["synthetic"], "synthetic", [], False])
+@pytest.mark.parametrize("reverse", [False, True])
+def test_education_migration_refuses_non_object_plugin_data(plugin_data, reverse):
+    source, target = (AFTER, BEFORE) if reverse else (BEFORE, AFTER)
+    apps = migrate(source)
+    education = {"school_name": "Synthetic School"}
+    valid_data = {"education": {"items": [education]} if reverse else education}
+    valid = create_resume(apps, "valid-first", valid_data)
+    malformed = create_resume(apps, "malformed-last", plugin_data)
+    error_type = IrreversibleError if reverse else RuntimeError
+
+    try:
+        with (
+            CaptureQueriesContext(connection) as queries,
+            pytest.raises(error_type, match=r"plugin_data.*backup.*JSON object") as exc,
+        ):
+            migrate(target)
+
+        assert f"Resume {malformed.pk} " in str(exc.value)
+        assert not any(query["sql"].lstrip().startswith("UPDATE") for query in queries)
+        valid.refresh_from_db()
+        malformed.refresh_from_db()
+        assert valid.plugin_data == valid_data
+        assert malformed.plugin_data == plugin_data
+    finally:
+        malformed.delete()
+        migrate(AFTER)
