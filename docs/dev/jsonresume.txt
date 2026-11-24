@@ -1627,11 +1627,11 @@ Import parser limits
 --------------------
 
 Prepared adapter values must fit the built-in editor limits before any resume
-is created: education institution/school name allows 100 characters, degree
-(including a merged studyType and area) allows 200, and language fluency/note
-allows 50. Skills allow at most 1,024 string badges, each at most 1,024
-Unicode code points, with at most 65,536 code points across the list after
-keyword deduplication. Oversized values are refused rather
+is created. Education institution/school name allows 100 characters, degree
+and field of study each allow 200, and language fluency/note allows 50.
+Skills allow at most 1,024 string badges, each at most 1,024 Unicode code
+points, with at most 65,536 code points across the list after keyword
+deduplication. Oversized values are refused rather
 than truncated. Preview and command reports identify the plugin/item/field,
 retain mapping and loss notes, and create no resume. The caller's source
 document is unchanged; correct it and preview again. Valid imports retain the

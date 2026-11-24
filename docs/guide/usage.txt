@@ -20,8 +20,8 @@ This is the list of built-in plugins that come with django-resume:
   (always in the editorial theme and in edit mode).
 - **Cover**: A cover letter with a profile picture, letter details (recipient,
   place and date, subject, salutation, closing) and an optional signature.
-- **Education**: A list of schools with an optional degree and the time you
-  attended.
+- **Education**: A list of schools with an optional degree, field of study,
+  and dates of attendance.
 - **Identity**: Your name, email, phone number, profile picture, social media
   links and an optional website or portfolio URL. Only the name is required.
 - **Languages**: A list of languages with a 0-100 level and an optional note,
@@ -320,7 +320,9 @@ Empty-string dates such as ``"endDate": ""`` are treated as absent, profiles
 that only give a ``username`` get a link when the network makes it
 unambiguous, repeated skill keywords become one badge, and item fields without
 a django-resume field are listed in the report. Third-party ``meta`` keys
-such as ``meta.theme`` are kept in later exports. Award organizers map to the
+such as ``meta.theme`` are kept in later exports. Education entries map
+``studyType`` and ``area`` to the separate **Degree** and **Field of study**
+fields, including in exports after editing. Award organizers map to the
 **Awarder** field in the item editor and are included in later portable
 exports. Awards with a blank or missing awarder omit that field.
 

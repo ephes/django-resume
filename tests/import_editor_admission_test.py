@@ -21,8 +21,8 @@ from tests.editor_helpers import post_current_editor
         ("education", {"institution": "School", "studyType": "D" * 201}, "degree"),
         (
             "education",
-            {"institution": "School", "studyType": "D" * 100, "area": "A" * 100},
-            "degree",
+            {"institution": "School", "area": "A" * 201},
+            "area",
         ),
         ("languages", {"language": "English", "fluency": "F" * 51}, "note"),
     ],
@@ -50,7 +50,13 @@ def test_import_rejects_oversized_editor_fields(user, section, entry, field):
 def test_boundary_import_saves_unchanged_through_editors(client, user):
     user.save()
     document = {
-        "education": [{"institution": "S" * 100, "studyType": "D" * 200}],
+        "education": [
+            {
+                "institution": "S" * 100,
+                "studyType": "D" * 200,
+                "area": " " + "A" * 198 + " ",
+            }
+        ],
         "languages": [{"language": "日本語", "fluency": "F" * 50}],
     }
     result = import_resume_document(document, owner=user, slug="editable")

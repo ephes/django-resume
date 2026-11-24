@@ -566,12 +566,12 @@ def _item_badge_errors(
 def _adapter_editor_errors(plugin_name: str, payload: dict) -> list[str]:
     """Check prepared built-in values against their editor's length limits.
 
-    Validate after mapping (including merged degree/area), without trimming or
-    otherwise changing source values. Opaque extension payloads stay untouched.
+    Validate after mapping, without trimming or otherwise changing source
+    values. Opaque extension payloads stay untouched.
     """
     errors = []
     fields = {
-        "education": (EducationItemForm, ("school_name", "degree")),
+        "education": (EducationItemForm, ("school_name", "degree", "area")),
         "languages": (LanguagesItemForm, ("note",)),
     }
     if plugin_name in fields:

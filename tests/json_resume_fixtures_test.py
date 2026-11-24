@@ -310,9 +310,10 @@ def test_unicode_document_keeps_text_exact_and_maps_profiles_and_location(client
     assert identity["linkedin"] == "https://linkedin.example/in/zoe"
     assert identity["mastodon"] == "https://social.example/@zoe"
     assert identity["location_name"] == "Zürich, ZH, CH"
-    assert [item["degree"] for item in plugin_data["education"]["items"]] == [
-        "M.Sc., Informatik",
-        "数学",
+    education = plugin_data["education"]["items"]
+    assert [(item["degree"], item["area"]) for item in education] == [
+        ("M.Sc.", "Informatik"),
+        ("", "数学"),
     ]
     assert plugin_data["awards"]["items"][0]["project"] == "Für «grüne» Software"
     assert plugin_data["awards"]["items"][0]["awarder"] == "Stiftung Beispiel"
@@ -322,7 +323,6 @@ def test_unicode_document_keeps_text_exact_and_maps_profiles_and_location(client
         "basics.location city, region, countryCode combined into "
         "identity.location_name" in notes
     )
-    assert "education entry '東京例大学' area was merged into the degree" in notes
 
     client.force_login(user)
     page = client.get(
@@ -766,4 +766,59 @@ def test_portable_awards_retain_awarder_after_inline_edit(client, user, theme):
         },
         {"title": "Bronze", "awarder": "Example Foundation"},
         {"title": "Legacy award"},
+    ]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("theme", ["plain", "editorial", "headwind"])
+def test_portable_education_keeps_area_separate_after_edit(client, user, theme):
+    from django_resume.plugins.awards import AwardsPlugin
+    from django_resume.plugins.education import EducationPlugin
+    from tests.plugin_stale_edit_test import loaded_data
+
+    user.save()
+    client.force_login(user)
+    education = [
+        {"institution": "Sample University", "studyType": "BSc", "area": "Robotics"},
+        {"institution": "Sample College", "studyType": "Diploma, with distinction"},
+        {"institution": "Sample Institute", "area": "Mathematics"},
+    ]
+    resume = import_fixture_document(
+        {"education": education, "awards": [{"title": "Original award"}]},
+        user,
+        "synthetic-education",
+    ).resume
+    resume.plugin_data["theme"] = {"name": theme}
+    resume.save()
+
+    awards = AwardsPlugin().inline
+    [award] = resume.plugin_data["awards"]["items"]
+    post_url = awards.get_post_item_url(resume.pk)
+    data = loaded_data(
+        client, awards.get_edit_item_url(resume.pk, award["id"]), post_url
+    )
+    data["title"] = "Edited award"
+    assert client.post(post_url, data).status_code == 200
+
+    export_url = reverse("django_resume:json-resume", kwargs={"slug": resume.slug})
+    exported = client.get(export_url).json()
+    assert exported["awards"] == [{"title": "Edited award"}]
+    assert exported["education"] == education
+
+    plugin = EducationPlugin().inline
+    first = resume.plugin_data["education"]["items"][0]
+    post_url = plugin.get_post_item_url(resume.pk)
+    data = loaded_data(
+        client, plugin.get_edit_item_url(resume.pk, first["id"]), post_url
+    )
+    assert data["degree"] == "BSc"
+    assert data["area"] == "Robotics"
+    data["area"] = "Engineering"
+    response = client.post(post_url, data)
+    assert response.status_code == 200
+    assert "BSc, Engineering" in response.content.decode()
+
+    assert client.get(export_url).json()["education"] == [
+        {**education[0], "area": "Engineering"},
+        *education[1:],
     ]

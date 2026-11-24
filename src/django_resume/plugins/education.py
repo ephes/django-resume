@@ -65,6 +65,9 @@ class EducationItemForm(ListItemFormMixin, forms.Form):
         widget=forms.URLInput(), required=False, assume_scheme="https"
     )
     degree = forms.CharField(widget=forms.TextInput(), required=False, max_length=200)
+    area = forms.CharField(
+        label="Field of study", required=False, max_length=200, strip=False
+    )
     start = forms.CharField(widget=forms.TextInput(), required=False)
     end = forms.CharField(widget=forms.TextInput(), required=False)
     position = forms.IntegerField(widget=forms.NumberInput(), required=False)
@@ -84,11 +87,15 @@ class EducationItemForm(ListItemFormMixin, forms.Form):
         }
 
     def set_context(self, item: dict, context: ContextDict) -> ContextDict:
+        degree = item.get("degree", "")
+        area = item.get("area", "")
+        if isinstance(area, str) and area:
+            degree = f"{degree}, {area}" if degree else area
         context["entry"] = {
             "id": item.get("id"),
             "school_name": item["school_name"],
             "school_url": safe_link_url(str(item.get("school_url") or "")),
-            "degree": item.get("degree", ""),
+            "degree": degree,
             "start": item.get("start", ""),
             "end": item.get("end", ""),
             "edit_url": context.get("edit_url"),
@@ -106,6 +113,21 @@ class EducationItemForm(ListItemFormMixin, forms.Form):
         if "position" not in initial:
             initial["position"] = self.get_max_position(self.existing_items) + 1
         self.initial = initial
+
+    def clean(self) -> dict[str, Any] | None:
+        cleaned_data = super().clean()
+        if cleaned_data is None:
+            return None
+        # Older templates may omit area even when the item has a value.
+        if self.add_prefix("area") not in self.data:
+            cleaned_data.pop("area", None)
+        # Keep degree-only rows unchanged when the new field is left blank.
+        elif cleaned_data.get("area") == "" and not any(
+            item["id"] == cleaned_data.get("id") and "area" in item
+            for item in self.existing_items
+        ):
+            cleaned_data.pop("area")
+        return cleaned_data
 
     def clean_position(self) -> int:
         position = self.cleaned_data.get("position", 0) or 0
@@ -149,6 +171,9 @@ class EducationJsonResumeAdapter:
                 entry["url"] = item["school_url"]
             if item.get("degree"):
                 entry["studyType"] = item["degree"]
+            area = item.get("area")
+            if isinstance(area, str) and area:
+                entry["area"] = area
             for json_key, fact_key in (("startDate", "start"), ("endDate", "end")):
                 value = item.get(fact_key, "")
                 if not value:
@@ -182,20 +207,13 @@ class EducationJsonResumeAdapter:
                     EDUCATION_IMPORTED_KEYS,
                 )
             )
-            degree = entry.get("studyType", "")
-            area = entry.get("area", "")
-            if area:
-                degree = f"{degree}, {area}" if degree else area
-                notes.append(
-                    f"education entry {entry.get('institution', '?')!r} area "
-                    "was merged into the degree"
-                )
             items.append(
                 {
                     "id": f"json-resume-education-{position + 1}",
                     "school_name": entry.get("institution", ""),
                     "school_url": entry.get("url", ""),
-                    "degree": degree,
+                    "degree": entry.get("studyType", ""),
+                    "area": entry.get("area", ""),
                     "start": entry.get("startDate", ""),
                     "end": entry.get("endDate", ""),
                     "position": position,
@@ -232,6 +250,7 @@ class EducationPlugin(ListPlugin):
                     "school_name": item.get("school_name", ""),
                     "school_url": item.get("school_url", ""),
                     "degree": item.get("degree", ""),
+                    "area": item.get("area", ""),
                     "start": item.get("start", ""),
                     "end": item.get("end", ""),
                 }

@@ -126,5 +126,6 @@ def test_legacy_education_unchanged_editor_save_preserves_extensions(
     resume.refresh_from_db()
     [stored] = resume.plugin_data["education"]["items"]
     assert {key: stored[key] for key in legacy} == legacy
+    assert "area" not in stored
     assert stored["id"] == "education-1"
     assert stored["position"] == 0

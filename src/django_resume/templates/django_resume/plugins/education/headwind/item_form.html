@@ -53,6 +53,14 @@
             <p class="mt-1 text-sm text-red-600">{{ error|escape }}</p>
           {% endfor %}
         </div>
+        <label class="block text-sm font-medium text-slate-700">
+          {{ form.area.label }}
+          <input type="text" name="area" maxlength="{{ form.area.field.max_length }}" value="{{ form.area.value|default_if_none:"" }}"
+                 class="block w-full bg-white rounded-lg px-4 py-3 border border-slate-200">
+        </label>
+        {% for error in form.area.errors %}
+          <p class="mt-1 text-sm text-red-600">{{ error|escape }}</p>
+        {% endfor %}
       </div>
       <div class="grid grid-cols-2 gap-4 content-start">
         <div>

@@ -171,8 +171,9 @@ or, for a full Mastodon handle ``user@host``, ``https://host/@user``. A bare
 Mastodon username names no server, so it is reported instead of becoming an
 empty link. The first profile per network wins; later ones are reported.
 The bundled education adapter exports every education entry in position order
-and maps the degree to ``studyType``. On import, ``area`` is appended to the
-degree because django-resume stores a single degree field.
+and maps ``studyType`` to the degree and ``area`` to the field of study on
+import and export. Stored degree-only entries export their complete degree
+as ``studyType``. The native CV displays the degree and field of study together.
 The awards adapter maps the project to ``summary`` and the year to ``date``.
 The languages adapter maps the note to ``fluency``; the numeric level has no
 JSON Resume field, so it is not exported and defaults to 80 on import.

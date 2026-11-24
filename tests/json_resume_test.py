@@ -237,7 +237,12 @@ def test_education_adapter_exports_legacy_single_entry_data(resume):
     # Given education data stored before education became a list plugin
     plugin = EducationPlugin()
     resume.plugin_data = {
-        "education": {"school_name": "Uni", "start": "2010", "end": "2014"}
+        "education": {
+            "school_name": "Uni",
+            "degree": "Diploma, with distinction",
+            "start": "2010",
+            "end": "2014",
+        }
     }
 
     # When it is exported
@@ -246,7 +251,12 @@ def test_education_adapter_exports_legacy_single_entry_data(resume):
 
     # Then the single legacy entry is exported as one education entry
     assert dict(result.contributions)["/education"] == [
-        {"institution": "Uni", "startDate": "2010", "endDate": "2014"}
+        {
+            "institution": "Uni",
+            "studyType": "Diploma, with distinction",
+            "startDate": "2010",
+            "endDate": "2014",
+        }
     ]
 
 
@@ -267,10 +277,11 @@ def test_education_adapter_imports_all_entries():
     )
     items = result.plugin_data["items"]
     assert [item["school_name"] for item in items] == ["Uni", "Second Uni"]
-    assert items[0]["degree"] == "Bachelor, Computer Science"
+    assert items[0]["degree"] == "Bachelor"
+    assert items[0]["area"] == "Computer Science"
     assert items[1]["degree"] == "Master"
     assert [item["position"] for item in items] == [0, 1]
-    assert any("area was merged into the degree" in note for note in result.notes)
+    assert result.notes == []
 
 
 def test_timeline_adapter_maps_items_to_work_and_omits_bad_dates(resume):

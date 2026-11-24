@@ -5,6 +5,10 @@ Changelog
 Unreleased
 ----------
 
+* Keep education degree and field of study separate in the editors and in
+  portable JSON Resume imports and exports. Degree-only entries continue to
+  export their full degree as ``studyType``.
+
 * Preserve the optional awarder in portable JSON Resume imports and exports.
   Award item forms can edit it. Existing awards without it still export.
 
