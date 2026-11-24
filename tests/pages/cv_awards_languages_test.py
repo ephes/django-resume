@@ -4,7 +4,9 @@ from tests.editor_helpers import post_current_editor
 
 
 import pytest
+from bs4 import BeautifulSoup
 from django.urls import reverse
+from django.utils.html import escape
 
 from django_resume.plugins import plugin_registry
 
@@ -149,6 +151,48 @@ def test_awards_and_languages_inline_round_trip(client, cv_resume, theme):
         )
         assert f"{prefix}flat.html" in used_templates(flat)
         assert "Renamed" in flat.content.decode()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("theme", [*THEMES, "editorial"])
+def test_cv_renders_saved_awarder_as_text(client, cv_resume, theme):
+    set_theme(cv_resume, theme)
+    client.force_login(cv_resume.owner)
+    url = reverse("resume:cv", kwargs={"slug": cv_resume.slug})
+    [award] = cv_resume.plugin_data["awards"]["items"]
+
+    legacy = BeautifulSoup(client.get(url).content, "html.parser").find(
+        id="awards-item-a1"
+    )
+    assert legacy is not None
+    assert legacy.select_one(".award-awarder") is None
+
+    awarder = "Example & <District Jury>"
+    inline = plugin_registry.get_plugin("awards").inline
+    post_url = inline.get_post_item_url(cv_resume.pk)
+    response = post_current_editor(client, post_url, {**award, "awarder": awarder})
+    assert response.status_code == 200
+    assert escape(awarder) in response.content.decode()
+    cv_resume.refresh_from_db()
+    assert cv_resume.plugin_data["awards"]["items"][0]["awarder"] == awarder
+
+    response = client.get(url)
+    assert response.status_code == 200
+    assert f"django_resume/plugins/awards/{theme}/item.html" in used_templates(response)
+    html = response.content.decode()
+    displayed = BeautifulSoup(html, "html.parser").select_one(
+        "#awards-item-a1 .award-awarder"
+    )
+    assert displayed is not None
+    assert displayed.get_text(strip=True) == awarder
+    assert escape(awarder) in html
+
+    response = post_current_editor(client, post_url, {**award, "awarder": ""})
+    assert response.status_code == 200
+    blank = BeautifulSoup(client.get(url).content, "html.parser").find(
+        id="awards-item-a1"
+    )
+    assert blank == legacy
 
 
 @pytest.mark.django_db

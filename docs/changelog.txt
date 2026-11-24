@@ -5,6 +5,9 @@ Changelog
 Unreleased
 ----------
 
+* Display the saved awarder in the plain, editorial, and headwind CV themes
+  when the field is filled in.
+
 * Keep education degree and field of study separate in the editors and in
   portable JSON Resume imports and exports. Degree-only entries continue to
   export their full degree as ``studyType``.

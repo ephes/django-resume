@@ -30,6 +30,7 @@ class AwardsItemForm(ListItemFormMixin, forms.Form):
         context["award"] = {
             "id": item.get("id"),
             "title": item["title"],
+            "awarder": item.get("awarder", ""),
             "project": item.get("project", ""),
             "year": item.get("year", ""),
             "edit_url": context.get("edit_url"),

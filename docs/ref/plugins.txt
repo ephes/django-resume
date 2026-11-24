@@ -174,7 +174,9 @@ The bundled education adapter exports every education entry in position order
 and maps ``studyType`` to the degree and ``area`` to the field of study on
 import and export. Stored degree-only entries export their complete degree
 as ``studyType``. The native CV displays the degree and field of study together.
-The awards adapter maps the project to ``summary`` and the year to ``date``.
+The awards adapter maps the project to ``summary``, the year to ``date``,
+and the optional awarder to ``awarder``. Native award templates receive
+the saved value as ``award.awarder``.
 The languages adapter maps the note to ``fluency``; the numeric level has no
 JSON Resume field, so it is not exported and defaults to 80 on import.
 Import adapters should add report notes for any standard JSON Resume fields they

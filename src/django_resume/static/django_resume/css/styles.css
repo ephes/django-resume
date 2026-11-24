@@ -459,7 +459,8 @@ section {
     border-radius: 0.5ch;
 }
 
-.award-project {
+.award-project,
+.award-awarder {
     font-size: calc(0.9 * var(--s0));
 }
 

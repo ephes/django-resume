@@ -2,6 +2,9 @@
   <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
     <div class="flex-1">
       <h3 class="text-lg font-semibold text-slate-800">{{ award.title }}</h3>
+      {% if award.awarder %}
+        <div class="award-awarder text-sm text-slate-600 mt-1">{{ award.awarder }}</div>
+      {% endif %}
       {% if award.project %}
         <div class="text-sm font-medium text-slate-600 mt-1">{{ award.project }}</div>
       {% endif %}

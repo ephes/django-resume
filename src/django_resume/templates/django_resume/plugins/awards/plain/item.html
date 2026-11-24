@@ -2,6 +2,7 @@
   <div>
     <h3 class="link-margin">{{ award.title }}</h3>
   </div>
+  {% if award.awarder %}<div class="award-awarder">{{ award.awarder }}</div>{% endif %}
   {% if award.project %}<div class="award-project">{{ award.project }}</div>{% endif %}
   {% if award.year %}<div class="award-year">{{ award.year }}</div>{% endif %}
   {% if show_edit_button %}

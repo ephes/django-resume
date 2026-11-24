@@ -15,9 +15,10 @@ Plugins
 This is the list of built-in plugins that come with django-resume:
 
 - **About**: A simple `about` section.
-- **Awards**: A list of awards with project and year. The item editor also
-  accepts an optional awarder. The CV pages show awards when there are entries
-  (always in the editorial theme and in edit mode).
+- **Awards**: A list of awards with a project, year, and optional awarder.
+  The plain, editorial, and headwind CV pages display the saved awarder when
+  filled in. The CV pages show awards when there are entries (always in the
+  editorial theme and in edit mode).
 - **Cover**: A cover letter with a profile picture, letter details (recipient,
   place and date, subject, salutation, closing) and an optional signature.
 - **Education**: A list of schools with an optional degree, field of study,

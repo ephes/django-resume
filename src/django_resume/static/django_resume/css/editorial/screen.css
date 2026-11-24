@@ -881,7 +881,7 @@ a { color: inherit; }
 .award-box { display: grid; gap: 0.1em; }
 .award-box h3 { margin: 0; font-weight: 700; font-size: var(--s-1); }
 .award-project { font-size: var(--s-2); font-style: italic; }
-.award-year { font-size: var(--s-2); }
+.award-year, .award-awarder { font-size: var(--s-2); }
 
 /* awards as a full-bleed black footer bar: script label + two columns */
 .cv-awards-bar {
