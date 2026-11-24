@@ -14,6 +14,7 @@ AWARD_IMPORTED_KEYS = ("title", "date", "awarder", "summary")
 class AwardsItemForm(ListItemFormMixin, forms.Form):
     title = forms.CharField(widget=forms.TextInput())
     project = forms.CharField(widget=forms.TextInput(), required=False)
+    awarder = forms.CharField(required=False, strip=False)
     year = forms.CharField(widget=forms.TextInput(), required=False)
     position = forms.IntegerField(widget=forms.NumberInput(), required=False)
 
@@ -46,6 +47,13 @@ class AwardsItemForm(ListItemFormMixin, forms.Form):
         if "position" not in initial:
             initial["position"] = self.get_max_position(self.existing_items) + 1
         self.initial = initial
+
+    def clean(self) -> dict[str, Any] | None:
+        cleaned_data = super().clean()
+        # An older custom template can still submit the other award fields.
+        if cleaned_data is not None and self.add_prefix("awarder") not in self.data:
+            cleaned_data.pop("awarder", None)
+        return cleaned_data
 
     def clean_position(self) -> int:
         position = self.cleaned_data.get("position", 0) or 0
@@ -85,6 +93,9 @@ class AwardsJsonResumeAdapter:
             entry: dict[str, object] = {}
             if item.get("title"):
                 entry["title"] = item["title"]
+            awarder = item.get("awarder")
+            if isinstance(awarder, str) and awarder:
+                entry["awarder"] = awarder
             if item.get("project"):
                 entry["summary"] = item["project"]
             year = item.get("year", "")
@@ -110,8 +121,6 @@ class AwardsJsonResumeAdapter:
             item for item in awards if isinstance(item, dict)
         ):
             title = entry.get("title", "")
-            if entry.get("awarder"):
-                notes.append(f"awards entry {title!r} awarder is not imported")
             notes.extend(
                 unimported_item_fields(
                     f"awards entry {title or '?'!r}", entry, AWARD_IMPORTED_KEYS
@@ -122,6 +131,7 @@ class AwardsJsonResumeAdapter:
                     "id": f"json-resume-award-{position + 1}",
                     "title": title,
                     "project": entry.get("summary", ""),
+                    "awarder": entry.get("awarder", ""),
                     "year": entry.get("date", ""),
                     "position": position,
                 }
@@ -152,6 +162,7 @@ class AwardsPlugin(ListPlugin):
                 {
                     "title": item.get("title", ""),
                     "project": item.get("project", ""),
+                    "awarder": item.get("awarder", ""),
                     "year": item.get("year", ""),
                 }
                 for item in items

@@ -315,13 +315,13 @@ def test_unicode_document_keeps_text_exact_and_maps_profiles_and_location(client
         "数学",
     ]
     assert plugin_data["awards"]["items"][0]["project"] == "Für «grüne» Software"
+    assert plugin_data["awards"]["items"][0]["awarder"] == "Stiftung Beispiel"
     notes = notes_of(result.report)
     assert "basics.profiles entry 'Xing' is not imported" in notes
     assert (
         "basics.location city, region, countryCode combined into "
         "identity.location_name" in notes
     )
-    assert "awards entry 'Preis für Ökologie' awarder is not imported" in notes
     assert "education entry '東京例大学' area was merged into the degree" in notes
 
     client.force_login(user)
@@ -718,3 +718,52 @@ def test_adapter_claiming_all_of_basics_gets_no_basics_loss_notes():
         "whole_basics": {"name": "Jo Invented", "email": "jo@example.org"}
     }
     assert not [note for note in prepared.report.notes if "basics field" in note]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("theme", ["plain", "editorial", "headwind"])
+def test_portable_awards_retain_awarder_after_inline_edit(client, user, theme):
+    from django_resume.plugins.awards import AwardsPlugin
+    from tests.plugin_stale_edit_test import loaded_data
+
+    user.save()
+    client.force_login(user)
+    result = import_fixture_document(
+        {
+            "awards": [
+                {
+                    "title": "Silver",
+                    "awarder": "Example & District Jury",
+                    "date": "2024",
+                },
+                {"title": "Bronze", "awarder": "Example Foundation"},
+            ]
+        },
+        user,
+        "synthetic-awards",
+    )
+    resume = result.resume
+    resume.plugin_data["theme"] = {"name": theme}
+    items = resume.plugin_data["awards"]["items"]
+    items.append({"id": "legacy", "title": "Legacy award", "position": 2})
+    resume.save()
+
+    plugin = AwardsPlugin()
+    edit_url = plugin.inline.get_edit_item_url(resume.pk, items[0]["id"])
+    post_url = plugin.inline.get_post_item_url(resume.pk)
+    data = loaded_data(client, edit_url, post_url)
+    assert data["awarder"] == "Example & District Jury"
+    data["project"] = "Edited project"
+    assert client.post(post_url, data).status_code == 200
+
+    resume.refresh_from_db()
+    assert projected_export(resume).document["awards"] == [
+        {
+            "title": "Silver",
+            "awarder": "Example & District Jury",
+            "summary": "Edited project",
+            "date": "2024",
+        },
+        {"title": "Bronze", "awarder": "Example Foundation"},
+        {"title": "Legacy award"},
+    ]

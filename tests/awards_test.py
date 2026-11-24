@@ -23,6 +23,7 @@ def test_awards_item_form_valid_and_context(resume):
     context = form.set_context(form.cleaned_data, {"edit_url": "#", "delete_url": "#"})
     assert context["award"]["title"] == "Design Award 2024: Bronze"
     assert context["award"]["year"] == "2024"
+    assert "awarder" not in form.cleaned_data
 
 
 def test_awards_json_resume_export_and_import(resume):
@@ -62,4 +63,5 @@ def test_awards_json_resume_export_and_import(resume):
     )
     [item] = imported.plugin_data["items"]
     assert (item["title"], item["year"], item["position"]) == ("Bronze", "2024", 0)
-    assert any("awarder is not imported" in note for note in imported.notes)
+    assert item["awarder"] == "Jury"
+    assert imported.notes == []

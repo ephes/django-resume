@@ -56,6 +56,16 @@
       </div>
     </div>
 
+    <label class="block text-sm font-medium text-slate-700">
+      Awarder
+      <input
+        class="block w-full mt-2 rounded-lg px-4 py-3 border border-slate-200"
+        type="text"
+        name="awarder"
+        value="{{ form.awarder.value|default_if_none:"" }}"
+      >
+    </label>
+
     <div class="flex items-center justify-end pt-6 border-t border-slate-200">
       <button
         id="{{ plugin_name }}-submit-item-{{ form.item_id }}"
