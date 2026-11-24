@@ -340,8 +340,12 @@ def resume_delete(request: HttpRequest, slug: str) -> HttpResponse:
 @require_http_methods(["GET"])
 def export_json_resume(request: HttpRequest, slug: str) -> HttpResponse:
     """Download one owned resume as a JSON Resume document."""
-    resume = get_object_or_404(Resume, slug=slug)
-    if resume.owner != request.user:
+    database = router.db_for_write(Resume)
+    try:
+        resume = Resume.objects.using(database).get(slug=slug)
+    except Resume.DoesNotExist:
+        return HttpResponse(status=404)
+    if resume.owner_id != request.user.pk:
         return HttpResponse(status=404)
     try:
         result = export_resume(resume)

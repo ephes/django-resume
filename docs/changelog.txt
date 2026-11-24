@@ -5,6 +5,9 @@ Changelog
 Unreleased
 ----------
 
+* Use the writer-side resume row for owner authorization and JSON Resume
+  export. Missing rows and owner mismatches return private 404 responses.
+
 * Display the saved awarder in the plain, editorial, and headwind CV themes
   when the field is filled in.
 

@@ -1272,7 +1272,9 @@ Resume themes. Users can still render it with tools that ignore unknown
 projection and strips ``meta.django_resume`` before invoking the Node renderer.
 The same export is available to authenticated resume owners through the
 non-page ``<slug>/json-resume/`` route, which is ordered before the page
-registry catch-all.
+registry catch-all. The route checks ownership and exports from the same
+resume row on the database selected by Django's write router. A missing row
+or an owner mismatch returns a private, non-cacheable 404.
 
 ``import_json_resume`` creates a new resume for a caller-supplied owner and slug.
 Authenticated owners can run the same create-only import from the resume
