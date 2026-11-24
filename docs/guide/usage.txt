@@ -342,6 +342,9 @@ unchanged.
 
 URL imports are not previewed. **Import from URL** fetches the document and
 creates the resume in one step, as before, and reports the mapping afterwards.
+Custom forms can submit ``action=import-url`` for this operation. Existing
+clients that omit the action field are still supported. Other supplied
+actions, including an empty value, return a form error before fetching the URL.
 By default, a django-resume round-trip export restores
 ``meta.django_resume.plugin_data`` so application-private fields can survive a
 backup or migration. Select **Standard JSON Resume fields only** to ignore that

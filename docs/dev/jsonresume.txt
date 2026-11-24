@@ -1448,9 +1448,10 @@ The browser flow in ``views.import_json_resume``:
   confirmation is refused by the slug check.
 * An uploaded file is created only by ``action=create`` with a valid
   confirmation; any other action with an uploaded file is refused.
-  ``action=preview`` or ``action=create`` with a URL source is refused with an
-  explanation and does not fetch the URL. URL imports (``action=import-url`` or
-  no action) keep the one-step fetch-and-create behavior.
+* ``action=import-url`` with a URL source fetches and creates the resume in one
+  step. Legacy clients may omit the ``action`` field for a URL source. Any other
+  supplied action, including an empty value, returns a URL-field error before
+  fetching or creating the resume.
 
 Signing confirms that this server previewed these bytes and options for this
 owner; it does not authenticate the document, and a restored

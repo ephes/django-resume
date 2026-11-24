@@ -54,7 +54,7 @@ def test_large_integer_file_bytes_and_url_have_bounded_errors(tmp_path, monkeypa
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    "source, action", [("file", "preview"), ("file", "create"), ("url", "")]
+    "source, action", [("file", "preview"), ("file", "create"), ("url", "import-url")]
 )
 def test_large_integer_browser_writes_nothing(
     client, django_user_model, monkeypatch, action, source

@@ -115,6 +115,7 @@ def resume_list(request: HttpRequest) -> HttpResponse:
 
 IMPORT_ACTION_PREVIEW = "preview"
 IMPORT_ACTION_CREATE = "create"
+IMPORT_ACTION_URL = "import-url"
 
 
 def _read_uploaded_import(uploaded_file) -> bytes:
@@ -272,20 +273,20 @@ def import_json_resume(request: HttpRequest) -> HttpResponse:
 
     Uploaded files are previewed first (``action=preview``) and created only
     by a later ``action=create`` request that re-uploads the same file with the
-    signed preview confirmation. URL imports fetch and create in one request.
+    signed preview confirmation. URL imports fetch and create in one request
+    with ``action=import-url`` or with the action field omitted by legacy clients.
     """
     assert request.user.is_authenticated
     form = JsonResumeImportForm(request.POST, request.FILES)
     context = _resume_list_context(request, import_form=form)
-    action = request.POST.get("action", "")
+    action = request.POST.get("action")
     if form.is_valid():
         result = None
         try:
             if form.cleaned_data.get("file") is None:
-                if action in {IMPORT_ACTION_PREVIEW, IMPORT_ACTION_CREATE}:
+                if action not in {None, IMPORT_ACTION_URL}:
                     raise JsonResumeImportError(
-                        "Preview is only available for uploaded files. URL "
-                        "imports are not previewed; use Import from URL to "
+                        "URL imports are not previewed; use Import from URL to "
                         "create the resume directly.",
                         field="source_url",
                     )

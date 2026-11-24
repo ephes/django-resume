@@ -526,6 +526,37 @@ def test_url_import_is_not_previewed(client, owner, monkeypatch):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("action", ["unknown", ""])
+def test_url_import_rejects_unsupported_action_before_fetch_or_write(
+    client, owner, action, mocker
+):
+    fetch = mocker.patch(
+        "django_resume.views.load_document_url",
+        return_value={"basics": {"name": "Synthetic Resume"}},
+    )
+    write = mocker.patch(
+        "django_resume.views.import_resume_document",
+        side_effect=AssertionError("Rejected URL import reached the writer"),
+    )
+
+    response = client.post(
+        IMPORT_URL,
+        {
+            "source_url": "https://example.invalid/resume.json",
+            "slug": "unsupported-url-action",
+            "action": action,
+        },
+    )
+
+    assert response.status_code == 200
+    assert (
+        "use Import from URL" in response.context["import_form"].errors["source_url"][0]
+    )
+    fetch.assert_not_called()
+    write.assert_not_called()
+
+
+@pytest.mark.django_db
 def test_url_import_still_creates_in_one_step(client, owner, monkeypatch):
     monkeypatch.setattr(
         "django_resume.views.load_document_url",

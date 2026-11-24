@@ -8,6 +8,9 @@ Unreleased
 * Use the writer-side resume row for owner authorization and JSON Resume
   export. Missing rows and owner mismatches return private 404 responses.
 
+* Reject empty and unrecognized URL import actions before fetching or
+  creating a resume. The documented omitted-action default remains supported.
+
 * Display the saved awarder in the plain, editorial, and headwind CV themes
   when the field is filled in.
 
