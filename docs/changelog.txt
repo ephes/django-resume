@@ -5,6 +5,9 @@ Changelog
 Unreleased
 ----------
 
+* Preserve explicitly empty JSON Resume metadata when an unchanged import
+  is exported as a portable document.
+
 * Use the latest valid language override when a deferred template response is
   wrapped more than once, including when a failed render is retried.
 

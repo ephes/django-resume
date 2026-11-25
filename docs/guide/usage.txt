@@ -224,7 +224,9 @@ normal CV route continues to use the resume's page theme; the JSON Resume route
 is a separate export/render artifact. The renderer receives a portable JSON
 Resume projection: django-resume removes its private ``meta.django_resume``
 envelope before writing the temporary ``resume.json`` passed to the Node
-renderer.
+renderer. Portable conversion preserves an explicitly empty ``meta`` object
+from an unchanged import. If the private envelope was the only metadata,
+the portable document omits ``meta``.
 
 Developers and site operators can also render a static HTML file outside
 django-resume with the JSON Resume command-line tooling. First export the

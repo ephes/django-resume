@@ -107,6 +107,28 @@ def test_unchanged_import_reexports_source_document_exactly(user, name, restore)
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("meta", "portable_meta"),
+    [
+        ({}, {"meta": {}}),
+        ({"django_resume": {"version": 1, "plugin_data": {}}}, {}),
+    ],
+    ids=["explicit-empty", "private-envelope-only"],
+)
+def test_unchanged_import_preserves_portable_meta_shape(user, meta, portable_meta):
+    user.save()
+    basics = {"name": "Synthetic Resume"}
+    document = {"basics": basics, "meta": meta}
+    imported = import_resume_document(document, owner=user, slug="meta-round-trip")
+    assert imported.resume is not None, imported.report.validation_errors
+
+    exported = export_resume(imported.resume)
+
+    assert exported.document == document
+    assert portable_document(exported.document) == {"basics": basics, **portable_meta}
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize("name", FIXTURE_NAMES)
 def test_adapter_projection_is_schema_valid_and_a_portable_fixpoint(user, name):
     user.save()

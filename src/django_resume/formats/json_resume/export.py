@@ -46,10 +46,10 @@ def portable_document(document: dict) -> dict:
     """
     result = deepcopy(document)
     meta = result.get("meta")
-    if isinstance(meta, dict):
-        meta.pop("django_resume", None)
+    if isinstance(meta, dict) and "django_resume" in meta:
+        del meta["django_resume"]
         if not meta:
-            result.pop("meta", None)
+            del result["meta"]
     return result
 
 
