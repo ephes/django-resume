@@ -63,8 +63,15 @@ class SkillsJsonResumeAdapter:
                 imported_keywords = [
                     keyword
                     for keyword in keywords
-                    if isinstance(keyword, str) and keyword
+                    if isinstance(keyword, str) and keyword.strip()
                 ]
+                if any(
+                    isinstance(keyword, str) and not keyword.strip()
+                    for keyword in keywords
+                ):
+                    notes.append(
+                        f"skills entry {name!r} blank keywords are not imported"
+                    )
                 if imported_keywords:
                     candidates.extend((keyword, name) for keyword in imported_keywords)
                     notes.append(f"skills entry {name!r} category name is not imported")

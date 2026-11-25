@@ -1,4 +1,4 @@
-from typing import Type, cast, Any
+from typing import Type
 
 from django import forms
 
@@ -13,6 +13,12 @@ LANGUAGE_IMPORTED_KEYS = ("language", "fluency")
 DEFAULT_LEVEL = 80
 
 
+def _stored_position(value: object) -> int | None:
+    if type(value) is int and value >= 0:
+        return value
+    return None
+
+
 class LanguagesItemForm(ListItemFormMixin, forms.Form):
     name = forms.CharField(widget=forms.TextInput())
     level = forms.IntegerField(
@@ -21,7 +27,9 @@ class LanguagesItemForm(ListItemFormMixin, forms.Form):
         max_value=100,
     )
     note = forms.CharField(widget=forms.TextInput(), required=False, max_length=50)
-    position = forms.IntegerField(widget=forms.NumberInput(), required=False)
+    position = forms.IntegerField(
+        widget=forms.NumberInput(), required=False, min_value=0
+    )
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -44,23 +52,38 @@ class LanguagesItemForm(ListItemFormMixin, forms.Form):
 
     @staticmethod
     def get_max_position(items: list[dict]) -> int:
-        positions = [item.get("position", 0) for item in items]
-        return max(positions) if positions else -1
+        return max(
+            (
+                position
+                for item in items
+                if (position := _stored_position(item.get("position"))) is not None
+            ),
+            default=-1,
+        )
 
     def set_initial_position(self) -> None:
-        initial = cast(dict[str, Any], self.initial)
-        if "position" not in initial:
-            initial["position"] = self.get_max_position(self.existing_items) + 1
-        self.initial = initial
+        if _stored_position(self.initial.get("position")) is None:
+            self.initial = {
+                **self.initial,
+                "position": self.get_max_position(self.existing_items) + 1,
+            }
 
     def clean_position(self) -> int:
-        position = self.cleaned_data.get("position", 0) or 0
-        if position < 0:
-            raise forms.ValidationError("Position must be a positive integer.")
+        # IntegerField also coerces decimal spellings such as "1.0".
+        raw_position = self["position"].data
+        if raw_position is None or raw_position == "":
+            position = 0
+        elif type(raw_position) is int or (
+            isinstance(raw_position, str)
+            and raw_position.strip().removeprefix("+").isdecimal()
+        ):
+            position = self.cleaned_data["position"]
+        else:
+            raise forms.ValidationError("Position must be a non-negative integer.")
         for item in self.existing_items:
             if item["id"] == self.cleaned_data["id"]:
                 continue
-            if item.get("position") == position:
+            if _stored_position(item.get("position")) == position:
                 max_position = self.get_max_position(self.existing_items)
                 raise forms.ValidationError(
                     f"Position must be unique - take {max_position + 1} instead."

@@ -158,12 +158,13 @@ Portable ``work[].highlights`` and ``projects[].highlights`` entries are
 imported as markdown-style bullet lines in the item description, not as
 django-resume badges, because JSON Resume highlights are usually
 accomplishment sentences.
-The bundled skills adapter imports ``skills[].keywords`` as skill badges and
-uses ``skills[].name`` as a fallback only when no keywords are present; in many
-JSON Resume documents ``name`` is a category label such as "Programming
-Languages" rather than a concrete skill. Badges repeated across categories are
-imported once, keeping the first spelling and position (compared
-case-insensitively after trimming), and each skipped repeat is reported.
+The bundled skills adapter imports nonblank ``skills[].keywords`` as skill
+badges. Empty and whitespace-only keywords are skipped and reported. When an
+entry has no nonblank keywords, the adapter uses ``skills[].name`` as the
+fallback badge. With nonblank keywords, it treats the name as a category label.
+Badges repeated across categories are imported once, keeping the first
+spelling and position. The adapter compares them case-insensitively after
+trimming and reports each skipped repeat.
 The identity adapter maps GitHub, LinkedIn and Mastodon profiles. A profile
 without ``url`` gets a link built from ``username`` when that is unambiguous:
 ``https://github.com/<username>``, ``https://www.linkedin.com/in/<username>``,
@@ -179,6 +180,13 @@ and the optional awarder to ``awarder``. Native award templates receive
 the saved value as ``award.awarder``.
 The languages adapter maps the note to ``fluency``; the numeric level has no
 JSON Resume field, so it is not exported and defaults to 80 on import.
+
+Language item forms keep valid stored positions. Add forms and edits of items
+with a missing or malformed position suggest the next non-negative integer
+after the highest valid position, starting at zero when none exists. Submitted
+positions must be non-negative integers, with blank input treated as zero.
+Positions already used by another item with a valid position are rejected.
+
 Import adapters should add report notes for any standard JSON Resume fields they
 deliberately ignore or normalize. The bundled adapters list the item keys they
 consume and report every other non-empty item key, including item-level ``x-*``

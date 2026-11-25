@@ -1157,13 +1157,13 @@ Remaining Work
 Remaining JSON Resume import/export work:
 
 * Keep adapter mappings aligned with real-world JSON Resume documents. Current
-  known normalizations include importing ``skills[].keywords`` as django-resume
-  skill badges, treating ``skills[].name`` as a category when keywords are
-  present, importing ``work[].highlights`` as description bullet lines
-  rather than long timeline badges, importing ``basics.location.address`` (or,
-  without an address, ``city``, ``region`` and ``countryCode`` joined by
-  commas) as the identity location name, and skipping ``languages`` entries
-  without a language name.
+  known normalizations include importing nonblank ``skills[].keywords`` as
+  django-resume skill badges, treating ``skills[].name`` as a category when
+  nonblank keywords are present, importing ``work[].highlights`` as description
+  bullet lines rather than long timeline badges, importing
+  ``basics.location.address`` (or, without an address, ``city``, ``region`` and
+  ``countryCode`` joined by commas) as the identity location name, and skipping
+  ``languages`` entries without a language name.
 * The invented fixtures in ``tests/fixtures/jsonresume/`` (sparse editor
   output, highlights-heavy work history, skill keyword variants, non-ASCII
   text, extension fields and a round-trip envelope) exposed mapping gaps that

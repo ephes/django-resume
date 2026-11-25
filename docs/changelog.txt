@@ -11,6 +11,13 @@ Unreleased
 * Refuse ``llm-content`` path headers containing line separators in both
   full and paths-only exports.
 
+* Report and skip blank portable JSON Resume skill keywords. Use the skill
+  name when no nonblank keywords remain.
+
+* Initialize language item forms using valid stored positions and reject
+  duplicate or invalid submitted positions. Missing or malformed legacy
+  positions get a usable suggestion when edited.
+
 * Use the writer-side resume row for owner authorization and JSON Resume
   export. Missing rows and owner mismatches return private 404 responses.
 

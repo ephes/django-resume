@@ -709,6 +709,44 @@ def test_import_resume_document_maps_json_resume_skill_keywords_as_badges(user):
 
 
 @pytest.mark.django_db
+def test_portable_skill_round_trip_skips_blank_keywords_before_fallback(user):
+    user.save()
+    skills = [
+        {"name": "Woodturning", "keywords": [" \t\u2003", ""]},
+        {"name": "Fabrication", "keywords": ["Router", " \t", "Lathe"]},
+    ]
+    result = import_resume_document({"skills": skills}, owner=user, slug="workshop")
+
+    assert result.resume is not None, result.report.validation_errors
+    expected_badges = ["Woodturning", "Router", "Lathe"]
+    assert result.resume.plugin_data["skills"]["badges"] == expected_badges
+    assert (
+        "skills entry 'Woodturning' blank keywords are not imported"
+        in result.report.notes
+    )
+    assert (
+        "skills entry 'Fabrication' blank keywords are not imported"
+        in result.report.notes
+    )
+    assert (
+        "skills entry 'Fabrication' category name is not imported"
+        in result.report.notes
+    )
+    assert (
+        "skills entry 'Woodturning' category name is not imported"
+        not in result.report.notes
+    )
+
+    exported = export_resume(result.resume)
+    assert exported.report.valid, exported.report.validation_errors
+    portable = portable_document(exported.document)
+    assert portable["skills"] == skills
+    imported = import_resume_document(portable, owner=user, slug="workshop-roundtrip")
+    assert imported.resume is not None, imported.report.validation_errors
+    assert imported.resume.plugin_data["skills"]["badges"] == expected_badges
+
+
+@pytest.mark.django_db
 def test_import_resume_document_rejects_invalid_optional_dates(user):
     user.save()
     document = {"work": [{"name": "Acme", "startDate": "Present"}]}
