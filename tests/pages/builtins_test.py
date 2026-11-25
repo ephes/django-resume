@@ -1,3 +1,5 @@
+from urllib.parse import parse_qs, urlsplit
+
 import pytest
 from django.contrib.auth.models import AnonymousUser
 from django.test import RequestFactory
@@ -167,6 +169,28 @@ def test_permission_denied_editor_route_is_owner_only(
     r = client.get(url)
     assert r.status_code == 200
     assert "Access Token Needed for CV" in r.content.decode("utf-8")
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("edit", [False, True])
+def test_denial_editor_login_return_keeps_only_edit_mode(client, resume, edit):
+    resume.owner.save()
+    resume.save()
+    url = reverse("resume:403", kwargs={"slug": resume.slug})
+    query = {"token": ["synthetic+&=#", "another-synthetic-token"], "source": "test"}
+    if edit:
+        query["edit"] = "true"
+
+    response = client.get(url, query)
+
+    assert response.status_code == 302
+    next_url = f"{url}?edit=true" if edit else url
+    assert parse_qs(urlsplit(response.url).query)["next"] == [next_url]
+
+    client.force_login(resume.owner)
+    editor = client.get(next_url)
+    assert editor.status_code == 200
+    assert editor.context["show_edit_button"] is edit
 
 
 def test_builtin_pages_registered():

@@ -5,6 +5,9 @@ Changelog
 Unreleased
 ----------
 
+* Limit the 403 editor's login return URL to the editor path and edit mode,
+  keeping CV bearer tokens out of the login redirect.
+
 * Use the stored owner ID for page context and 403 editor ownership checks,
   avoiding a query for the owner relation.
 

@@ -5,6 +5,7 @@ from django.core.exceptions import PermissionDenied
 from django.http import HttpRequest, HttpResponse, HttpResponseForbidden
 from django.shortcuts import render
 from django.utils.cache import patch_cache_control
+from django.utils.encoding import escape_uri_path
 from django.utils.translation import gettext
 
 from ..models import Resume
@@ -104,7 +105,10 @@ class PermissionDeniedPage(ResumePage):
 
     def check_access(self, request: HttpRequest, resume: Resume) -> HttpResponse | None:
         if not request.user.is_authenticated:
-            return redirect_to_login(request.get_full_path())
+            next_url = escape_uri_path(request.path)
+            if "edit" in request.GET:
+                next_url += "?edit=true"
+            return redirect_to_login(next_url)
         if not _is_resume_owner(request, resume):
             return HttpResponse(status=403)
         return None

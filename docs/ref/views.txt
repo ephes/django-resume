@@ -234,8 +234,10 @@ reference):
    **Behavior**:
 
    - Resolves the specified :class:`~django_resume.models.Resume`.
-   - ``check_access`` redirects anonymous users to the login page, and returns a
-     403 response if the current user is not the owner.
+   - ``check_access`` redirects anonymous users to login with a return URL
+     containing the editor path and, when requested, ``?edit=true``. CV
+     tokens and other query parameters are discarded from the return URL.
+     Authenticated users who do not own the resume receive HTTP 403.
    - Otherwise renders ``cv_403.html`` with the shared renderer and the
      ``permission_denied`` section context. If the renderer is unregistered,
      the editor returns HTTP 404.
