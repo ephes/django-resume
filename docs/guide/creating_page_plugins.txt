@@ -67,6 +67,8 @@ The attributes are:
    URL name, and paths must be unique in the resulting registry. For example,
    two registered pages can exchange their paths in one batch. Route
    validation runs before any of the submitted page classes are instantiated.
+   A URL name may appear only once per batch. Repeating one raises
+   ``PageRegistrationError`` and leaves the registry as it was.
 
 ``template_name``
    Resolved as ``django_resume/pages/{resume.current_theme}/{template_name}``.

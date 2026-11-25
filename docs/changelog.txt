@@ -5,6 +5,9 @@ Changelog
 Unreleased
 ----------
 
+* Reject a page registration batch that repeats a URL name. A single
+  submission for an existing name still replaces that page.
+
 * Validate the final set of page routes before instantiating a registration
   batch, allowing registered pages to swap paths together.
 

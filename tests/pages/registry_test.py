@@ -174,6 +174,20 @@ def test_batch_rejects_internal_duplicate_paths():
     assert registry.pages == {}
 
 
+def test_batch_rejects_duplicate_url_names_before_replacing_a_page():
+    registry = PageRegistry()
+    registry.register(DummyPage)
+    original = registry.get_page("dummy")
+    replacement = _page("dummy", "moved/")
+
+    with pytest.raises(PageRegistrationError, match="Duplicate page url_name 'dummy'"):
+        registry.register_page_list([replacement, _page("dummy", "other/")])
+
+    assert registry.get_all_pages() == [original]
+    registry.register(replacement)
+    assert type(registry.get_page("dummy")) is replacement
+
+
 def test_replacing_a_url_name_keeps_its_position_and_may_move_path():
     registry = PageRegistry()
     registry.register_page_list([DummyPage, CvLikePage, RootPage])

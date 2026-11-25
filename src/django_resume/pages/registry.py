@@ -54,8 +54,8 @@ class PageRegistry:
         """Validate the whole batch, then publish it at once.
 
         Re-registering a ``url_name`` replaces that entry. A batch with an
-        invalid ``url_name``/``path``, a reserved path, or a ``url_name`` or
-        ``path`` that collides with another page leaves the registry unchanged.
+        invalid or reserved route, a repeated submitted ``url_name``, or a path
+        collision in the proposed registry raises before any page is instantiated.
         """
         pending: dict[str, type[ResumePage]] = {}
         for page_class in page_classes:
@@ -68,6 +68,10 @@ class PageRegistry:
             if url_name in RESERVED_PAGE_URL_NAMES:
                 raise PageRegistrationError(
                     f"Page url_name {url_name!r} is reserved for a fixed route"
+                )
+            if url_name in pending:
+                raise PageRegistrationError(
+                    f"Duplicate page url_name {url_name!r} in batch"
                 )
             if not isinstance(page_path, str) or not _PAGE_PATH.fullmatch(page_path):
                 raise PageRegistrationError(
