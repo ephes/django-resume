@@ -45,11 +45,10 @@ from .export import (
     third_party_meta,
 )
 from .mapping import unimported_item_fields
-from .validation import drop_empty_dates, validate_document
+from .validation import MAX_NESTING_DEPTH, drop_empty_dates, validate_document
 
 FORMAT_ID = "json_resume"
 MAX_INPUT_BYTES = 2 * 1024 * 1024
-MAX_NESTING_DEPTH = 64
 MAX_INTEGER_DIGITS = 4300
 URL_FETCH_TIMEOUT_SECONDS = 10
 URL_FETCH_TOTAL_SECONDS = 15

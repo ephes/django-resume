@@ -5,6 +5,9 @@ Changelog
 Unreleased
 ----------
 
+* Compare JSON Resume replay snapshots without building complete serialized
+  copies. Invalid or overdeep legacy snapshots fall back to adapter export.
+
 * Reject invalid reserved export pointers with ``PathConflictError`` before
   checking adapter claims or calling adapters.
 

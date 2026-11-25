@@ -16,6 +16,7 @@ def _schema() -> dict:
     return json.loads(_SCHEMA_PATH.read_text(encoding="utf-8"))
 
 
+MAX_NESTING_DEPTH = 64
 MAX_VALIDATION_ERRORS = 20
 MAX_LOCATION_LENGTH = 160
 MAX_MESSAGE_LENGTH = 256

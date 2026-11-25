@@ -1,12 +1,13 @@
 import json
 from dataclasses import dataclass
 from copy import deepcopy
+from itertools import zip_longest
 
 from ...interchange.coordinator import build_document, collect_adapters
 from ...interchange.report import ExportReport
 from ...models import Resume
 from ...plugins import plugin_registry
-from .validation import validate_document
+from .validation import MAX_NESTING_DEPTH, validate_document
 
 FORMAT_ID = "json_resume"
 DJANGO_RESUME_META_VERSION = 1
@@ -52,13 +53,32 @@ def portable_document(document: dict) -> dict:
     return result
 
 
-def _same_json(left: object, right: object) -> bool:
-    """Compare JSON snapshots without Python's bool/int equality coercion."""
-    try:
-        return json.dumps(left, sort_keys=True, allow_nan=False) == json.dumps(
-            right, sort_keys=True, allow_nan=False
+def _is_json_snapshot(value: object, depth: int = 1) -> bool:
+    # The encoder also accepts tuples and coerces non-string object keys.
+    # Refuse those before comparing snapshots of stored JSON.
+    if isinstance(value, dict):
+        return depth <= MAX_NESTING_DEPTH and all(
+            isinstance(key, str) and _is_json_snapshot(child, depth + 1)
+            for key, child in value.items()
         )
-    except (TypeError, ValueError):
+    if isinstance(value, list):
+        return depth <= MAX_NESTING_DEPTH and all(
+            _is_json_snapshot(child, depth + 1) for child in value
+        )
+    return value is None or isinstance(value, (str, bool, int, float))
+
+
+def _same_json(left: object, right: object) -> bool:
+    """Compare canonical JSON without assembling either serialized snapshot."""
+    encoder = json.JSONEncoder(sort_keys=True, allow_nan=False)
+    try:
+        if not (_is_json_snapshot(left) and _is_json_snapshot(right)):
+            return False
+        return all(
+            a == b
+            for a, b in zip_longest(encoder.iterencode(left), encoder.iterencode(right))
+        )
+    except (TypeError, ValueError, RecursionError):
         return False
 
 

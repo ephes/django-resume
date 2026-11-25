@@ -1301,12 +1301,12 @@ on later JSON Resume exports.
 All successful imports also store the parsed source document, the
 adapter-generated source projection, and the imported plugin-data snapshot under
 ``integration_data["json_resume"]``. If a later export's current adapter
-projection and full plugin data still match those stored values in both JSON
-values and types, export re-emits
-the parsed source document exactly. This gives third-party JSON Resume samples
-an exact unchanged import/render/export path without hiding later plugin-data
-edits; once plugin data changes, export regenerates the document from adapters
-and writes the django-resume extension envelope.
+projection and full plugin data still match those stored values, export
+re-emits the parsed source document exactly. The comparison streams sorted-key
+JSON encoder fragments, preserving distinctions such as booleans versus
+integers and signed zero. A mismatch, a non-JSON value, a non-finite
+number or nesting beyond 64 containers causes export to regenerate the
+document from adapters and write the django-resume extension envelope.
 The current portable ``/work`` import maps all entries into
 ``employed_timeline`` and reports that JSON Resume cannot recover the original
 freelance/employed timeline split.
