@@ -59,8 +59,10 @@ symlinks are not traversed; matching file symlinks and non-regular files cause
 an explicit nonzero refusal without reporting their target contents. Content
 opens are anchored to the selected root and refuse replacement symlinks in
 both directory components and filenames. ``--paths-only`` checks the inventory
-without opening file contents. The source tree must be trusted: hard links
-and concurrent edits to regular files are not a filesystem snapshot boundary.
+without opening file contents. Each content read checks that the descriptor's
+size, modification time and change time stay stable and that the bytes read
+match the admitted size. The source tree must be trusted because each file is
+checked independently and hard links can reach other parts of the filesystem.
 
 The inventory streams directory entries and admits at most 20,000 encountered
 entries (including excluded names in visited directories), 64 directory levels,
@@ -70,7 +72,9 @@ bytes, including files that grow after inventory. Files must decode as UTF-8;
 newlines retain the prior universal-newline behavior. The complete output,
 including paths, delimiters and normalized content, is limited to 16 MiB of
 UTF-8. Paths-only has the same inventory/output limits but never reads source
-contents. Results are sorted by relative path. The complete export is staged
+contents. Both formats refuse relative paths containing line separators. Full
+exports also apply this check to the absolute root used in path headers.
+Results are sorted by relative path. The complete export is staged
 in a temporary spool before stdout: admission/read failures exit nonzero and
 emit no partial stdout. An output-device failure can still interrupt delivery;
 only exit status zero denotes a complete export.

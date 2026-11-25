@@ -14,6 +14,8 @@ MAX_TREE_ENTRIES = 20_000
 MAX_TREE_DEPTH = 64
 MAX_FILE_BYTES = 1024 * 1024
 MAX_EXPORT_BYTES = 16 * 1024 * 1024
+# Line boundaries recognized by str.splitlines(), including Unicode separators.
+LINE_SEPARATORS = "\n\r\v\f\x1c\x1d\x1e\x85\u2028\u2029"
 
 
 def get_project_root():
@@ -96,15 +98,28 @@ def llm_content():
             ) as output,
         ):
             all_files = collect_sources(root_fd, exclude_dirs, exclude_files, patterns)
+            if all_files and not args.paths_only:
+                check_path_line(str(project_root))
             total = 0
             for relative_path in sorted(all_files):
                 if args.paths_only:
                     chunk = f"{relative_path}\n"
                 else:
                     with open_source(root_fd, relative_path) as source:
+                        before = os.fstat(source.fileno())
+                        if not stat.S_ISREG(before.st_mode):
+                            raise ValueError("unsafe source entry")
+                        if before.st_size > MAX_FILE_BYTES:
+                            raise ValueError("per-file byte limit exceeded")
                         raw = source.read(MAX_FILE_BYTES + 1)
-                    if len(raw) > MAX_FILE_BYTES:
-                        raise ValueError("per-file byte limit exceeded")
+                        after = os.fstat(source.fileno())
+                        if (
+                            len(raw) != before.st_size
+                            or before.st_size != after.st_size
+                            or before.st_mtime_ns != after.st_mtime_ns
+                            or before.st_ctime_ns != after.st_ctime_ns
+                        ):
+                            raise ValueError("source changed during read")
                     content = (
                         raw.decode("utf-8").replace("\r\n", "\n").replace("\r", "\n")
                     )
@@ -126,6 +141,11 @@ def llm_content():
         )
         return 1
     return 0
+
+
+def check_path_line(path: str) -> None:
+    if any(separator in path for separator in LINE_SEPARATORS):
+        raise ValueError("source path contains a line separator")
 
 
 def collect_sources(root_fd, exclude_dirs, exclude_files, patterns):
@@ -155,7 +175,9 @@ def collect_sources(root_fd, exclude_dirs, exclude_files, patterns):
                 ):
                     if not stat.S_ISREG(entry.stat(follow_symlinks=False).st_mode):
                         raise ValueError("unsafe source entry")
-                    path_bytes += len(str(path).encode("utf-8"))
+                    relative_path = str(path)
+                    check_path_line(relative_path)
+                    path_bytes += len(relative_path.encode("utf-8"))
                     if path_bytes > MAX_EXPORT_BYTES:
                         raise ValueError("inventory path byte limit exceeded")
                     files.append(path)
@@ -192,8 +214,6 @@ def open_source(root_fd, relative_path):
             dir_fd=directory_fd,
         )
         with os.fdopen(fd, "rb") as source:
-            if not stat.S_ISREG(os.fstat(source.fileno()).st_mode):
-                raise ValueError("unsafe source entry")
             yield source
     finally:
         os.close(directory_fd)

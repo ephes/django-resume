@@ -1,5 +1,6 @@
 import os
 import sys
+from contextlib import contextmanager
 
 import pytest
 
@@ -126,6 +127,36 @@ def test_context_growth_after_inventory_is_bounded(monkeypatch, tmp_path, capsys
     assert capsys.readouterr().out == ""
 
 
+def test_context_refuses_source_rewritten_during_read(monkeypatch, tmp_path, capsys):
+    (tmp_path / "a.py").write_text("stable source")
+    path = tmp_path / "z.py"
+    path.write_bytes(b"old source")
+    original = path.stat()
+    open_source = cli.open_source
+
+    @contextmanager
+    def open_rewritten_source(root_fd, relative_path):
+        with open_source(root_fd, relative_path) as source:
+            if relative_path.name == path.name:
+
+                def rewrite_during_read(size):
+                    prefix = source.raw.read(3)
+                    path.write_bytes(b"new script")
+                    os.utime(
+                        path, ns=(original.st_atime_ns, original.st_mtime_ns + 10**9)
+                    )
+                    return prefix + source.raw.read(size - len(prefix))
+
+                monkeypatch.setattr(source, "read", rewrite_during_read)
+            yield source
+
+    monkeypatch.setattr(cli, "open_source", open_rewritten_source)
+    assert run_cli(monkeypatch, tmp_path) == 1
+    result = capsys.readouterr()
+    assert result.out == ""
+    assert "refused" in result.err
+
+
 def test_context_aggregate_limit_counts_headers_and_utf8(monkeypatch, tmp_path, capsys):
     for name in ("a.py", "z.py"):
         (tmp_path / name).write_text("é" * 4, encoding="utf-8")
@@ -165,6 +196,29 @@ def test_context_paths_only_never_opens_contents(monkeypatch, tmp_path, capsys):
     monkeypatch.setattr(os, "open", no_content_open)
     assert run_cli(monkeypatch, tmp_path, "--paths-only") == 0
     assert capsys.readouterr().out == "a.py\nz.py\n"
+
+
+@pytest.mark.parametrize("args", [(), ("--paths-only",)])
+@pytest.mark.parametrize("separator", ["\n", "\r", "\u2028"])
+def test_context_refuses_path_record_separators(
+    monkeypatch, tmp_path, capsys, args, separator
+):
+    (tmp_path / "a.py").write_text("valid")
+    (tmp_path / f"z{separator}extra.py").write_text("synthetic source")
+    assert run_cli(monkeypatch, tmp_path, *args) == 1
+    result = capsys.readouterr()
+    assert result.out == ""
+    assert "refused" in result.err
+
+
+def test_context_checks_root_only_when_written_to_output(monkeypatch, tmp_path, capsys):
+    root = tmp_path / "project\nextra"
+    root.mkdir()
+    (root / "café.py").write_text("synthetic source")
+    assert run_cli(monkeypatch, root) == 1
+    assert capsys.readouterr().out == ""
+    assert run_cli(monkeypatch, root, "--paths-only") == 0
+    assert capsys.readouterr().out == "café.py\n"
 
 
 def test_context_rejects_non_utf8_without_partial_stdout(monkeypatch, tmp_path, capsys):

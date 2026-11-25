@@ -5,6 +5,12 @@ Changelog
 Unreleased
 ----------
 
+* Refuse a complete ``llm-content`` export when a source changes during its
+  read or the bytes read differ from the admitted descriptor size.
+
+* Refuse ``llm-content`` path headers containing line separators in both
+  full and paths-only exports.
+
 * Use the writer-side resume row for owner authorization and JSON Resume
   export. Missing rows and owner mismatches return private 404 responses.
 
