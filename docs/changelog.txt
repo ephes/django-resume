@@ -5,6 +5,9 @@ Changelog
 Unreleased
 ----------
 
+* Bound adapter path overlap checks to object-key prefixes while preserving
+  conflict reporting order.
+
 * Refuse a complete ``llm-content`` export when a source changes during its
   read or the bytes read differ from the admitted descriptor size.
 

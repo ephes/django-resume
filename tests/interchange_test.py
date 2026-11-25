@@ -87,6 +87,36 @@ def test_build_document_raises_on_ancestor_path_overlap():
         build_document([_resolved("parent", parent), _resolved("child", child)])
 
 
+def test_build_document_bounds_comparisons_for_disjoint_paths():
+    comparisons = 0
+
+    class CountedPath(str):
+        def startswith(self, *args, **kwargs):
+            nonlocal comparisons
+            comparisons += 1
+            return super().startswith(*args, **kwargs)
+
+    paths = tuple(CountedPath(f"/basics/field-{i:04}") for i in range(2000))
+    adapter = _Adapter(paths, (), [(path, 1) for path in paths])
+    document, _ = build_document([_resolved("fields", adapter)])
+
+    assert len(document["basics"]) == len(paths)
+    assert comparisons <= 4 * len(paths)
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_build_document_reports_first_overlap_by_parent_then_child(reverse):
+    paths = ("/a", "/a-extra", "/a-extra/child", "/a/z", "/a/y", "/a/y/child")
+    resolved = [_resolved(path, _Adapter((path,), (), [])) for path in paths]
+    if reverse:
+        resolved.reverse()
+
+    with pytest.raises(PathConflictError) as error:
+        build_document(resolved)
+
+    assert str(error.value) == "Overlapping write paths '/a' and '/a/y'"
+
+
 def test_build_document_raises_on_undeclared_contribution():
     rogue = _Adapter(("/skills",), (), [("/awards", [{"title": "X"}])])
     with pytest.raises(PathConflictError):

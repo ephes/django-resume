@@ -25,11 +25,20 @@ def detect_path_conflicts(claims: dict[str, list[str]]) -> PathConflict | None:
         if len(claimers) > 1:
             return PathConflict(kind="duplicate", path=path, claimers=claimers)
 
-    paths = sorted(claims)
-    for index, parent in enumerate(paths):
-        for child in paths[index + 1 :]:
-            if parent != child and is_ancestor_path(parent, child):
-                return PathConflict(
-                    kind="overlap", path=parent, parent=parent, child=child
-                )
+    first_overlap: tuple[str, str] | None = None
+    for child in claims:
+        boundary = child.find("/", 1)
+        while boundary != -1:
+            parent = child[:boundary]
+            if parent in claims:
+                # The shortest matching prefix sorts first for this child.
+                # Choose the first pair in parent-then-child order overall.
+                candidate = (parent, child)
+                if first_overlap is None or candidate < first_overlap:
+                    first_overlap = candidate
+                break
+            boundary = child.find("/", boundary + 1)
+    if first_overlap is not None:
+        parent, child = first_overlap
+        return PathConflict(kind="overlap", path=parent, parent=parent, child=child)
     return None

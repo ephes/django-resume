@@ -1610,6 +1610,10 @@ detection or any adapter export call; invalid import ``source_paths`` raise
 writing and conflict checks share the same subset (low-level helpers raise
 ``ValueError``).
 
+Ancestor checks look up only complete key-path prefixes of each claimed path.
+For adapter-to-adapter conflicts, duplicate claims that cannot be merged take
+precedence. Overlaps are reported in lexicographic parent-then-child order.
+
 ``/meta/django_resume`` is reserved for the private round-trip envelope that
 the exporter writes itself. Export adapters may not declare it, a path inside
 it, or an ancestor such as ``/meta``; JSON Resume export raises
