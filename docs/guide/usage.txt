@@ -71,6 +71,8 @@ This is the list of built-in plugins that come with django-resume:
   ``page_nav_links`` or ``page_nav_groups`` to preserve a validated token on the
   built-in protected CV link. No token is copied to other destinations; owner,
   staff and public CV navigation stays token-free. See :doc:`../ref/pages`.
+  With the request supplied, the appearance editor link appears only for the
+  authenticated owner of a token-gated resume.
 
 Legacy education and optional denial avatars
 --------------------------------------------

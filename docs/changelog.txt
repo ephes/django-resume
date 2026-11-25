@@ -126,7 +126,9 @@ Unreleased
 * Allow navigation tags to accept an optional request and retain a validated
   capability only on the built-in protected CV link. Omit invalid/expired
   tokens and keep public, owner/staff and custom destinations token-free;
-  existing tag callers and custom page URL hooks remain compatible.
+  custom page visibility and URL hooks retain their signatures. The 403
+  appearance editor link appears only for the authenticated resume owner when
+  the request is supplied and the CV requires a token.
 
 * Enforce the built-in CV's stored token policy independently of token renderer
   registration, retaining explicit public CVs and owner/staff access. When the

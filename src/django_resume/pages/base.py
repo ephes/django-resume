@@ -188,6 +188,12 @@ class ResumePage:
         editor, which only matters when the resume requires an access token)."""
         return True
 
+    def is_visible_for_request(
+        self, resume: Resume, request: HttpRequest | None
+    ) -> bool:
+        """Whether to advertise the page to this caller."""
+        return self.is_visible(resume)
+
     def nav_url(self, resume: Resume) -> str:
         """The URL of this page for ``resume``.
 

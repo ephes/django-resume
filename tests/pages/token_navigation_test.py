@@ -24,6 +24,9 @@ class ExternalPage(ResumePage):
     path = "external/"
     nav_title = "External"
 
+    def is_visible(self, resume):
+        return resume.token_is_required
+
     # Existing consumer overrides accept only resume, and may return any URL.
     def nav_url(self, resume):
         return "https://example.com/portfolio/?view=public"
@@ -73,6 +76,33 @@ def token_request(token=None):
     request = RequestFactory().get("/", {"token": token} if token is not None else {})
     request.user = AnonymousUser()
     return request
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("grouped", [False, True])
+@pytest.mark.parametrize(
+    "visitor,editor_status",
+    [("owner", 200), ("anonymous", 302), ("other", 403), ("staff", 403)],
+)
+def test_only_owner_sees_denial_editor_link(
+    client, navigation_resume, django_user_model, grouped, visitor, editor_status
+):
+    resume = navigation_resume
+    request = token_request("cap+&=#ä")
+    if visitor == "owner":
+        request.user = resume.owner
+    elif visitor != "anonymous":
+        request.user = django_user_model.objects.create_user(
+            username=visitor, is_staff=visitor == "staff"
+        )
+    if request.user.is_authenticated:
+        client.force_login(request.user)
+    editor_url = reverse("resume:403", kwargs={"slug": resume.slug})
+
+    assert client.get(editor_url).status_code == editor_status
+    links = render_links(resume, request, grouped=grouped)
+    assert links.get("403") == (editor_url if visitor == "owner" else None)
+    assert links["External"] == "https://example.com/portfolio/?view=public"
 
 
 @pytest.mark.django_db
@@ -205,4 +235,6 @@ def test_navigation_without_request_in_context_stays_bare(
         a.text: a["href"] for a in BeautifulSoup(html, "html.parser").find_all("a")
     }
     assert links["CV"] == CvPage().nav_url(navigation_resume)
+    assert "403" not in links
+    assert links["External"] == "https://example.com/portfolio/?view=public"
     assert all("token" not in parse_qs(urlsplit(u).query) for u in links.values())

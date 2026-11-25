@@ -289,8 +289,9 @@ without a migration:
   third-party ``path`` never shadows (or is shadowed by) the default page.
 * A page advertises itself in navigation by setting ``nav_title`` and, when
   it is only relevant in some states, overriding ``is_visible(resume)`` (the
-  built-in 403 editor returns ``resume.token_is_required``). The ``page_nav``
-  template tag (``{% page_nav_links resume as nav_links %}``) renders the
+  built-in 403 editor uses the token policy and also requires the owner via
+  ``is_visible_for_request(resume, request)``). The ``page_nav`` template tag
+  (``{% page_nav_links resume request=request as nav_links %}``) renders the
   registry-driven link list, so the resume overview lists every registered
   page's link for a resume without hand-editing the template, and a discovered
   third-party page appears there automatically. Link order is explicit via

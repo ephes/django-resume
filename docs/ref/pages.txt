@@ -100,6 +100,12 @@ ResumePage
       state-dependent links (the built-in 403 editor returns
       ``resume.token_is_required``). Default: ``True``.
 
+   .. method:: is_visible_for_request(resume, request)
+
+      Whether to advertise the page to the current caller. The default calls
+      ``is_visible(resume)``, including existing overrides. The navigation tags
+      pass ``None`` when no request is available.
+
    .. method:: nav_url(resume)
 
       The page's URL for ``resume``, reversed via the ``django_resume``
@@ -261,7 +267,7 @@ Navigation template tags
 
 Load the tags with ``{% load page_nav %}``. Both take a ``resume`` and return
 only pages that have a :attr:`~ResumePage.nav_title` and are
-:meth:`~ResumePage.is_visible` for that resume.
+:meth:`~ResumePage.is_visible_for_request` for that resume and caller.
 
 ``page_nav_links resume [request=request]``
    Returns a flat list of ``{"title", "url", "group"}`` entries, ordered by
@@ -271,7 +277,7 @@ only pages that have a :attr:`~ResumePage.nav_title` and are
    Returns the same links bucketed by :attr:`~ResumePage.nav_group` as
    ``{"title", "links"}`` groups. Groups appear in the order their first link
    does, and a group stays one contiguous section even if its members interleave
-   with other groups by order. The resume overview renders this tag.
+   with other groups by order.
 
 Pass the optional ``request`` to keep a token visitor authorized when following
 the built-in CV navigation link. The token must pass the destination resume's
@@ -282,12 +288,13 @@ and explicitly public CVs retain their bare URLs.
 
 Tokens are never added to cover, permission-denied, public, external or custom
 page links. This also excludes ``CvPage`` subclasses and custom replacements
-of the CV page: they need their own explicit navigation contract. Existing
-calls without a request, in Python or templates, keep their previous behavior.
-The caller supplies the current request explicitly; tags do not read it from
-template context automatically. If the ``request`` variable is missing from the
-template context (for example ``render_to_string`` without a request, or no
-request context processor), the tags fall back to the bare, token-free URLs.
+of the CV page: they need their own explicit navigation contract.
+
+The built-in 403 appearance editor link appears only when the request user is
+the authenticated owner of a token-gated resume. Supply the request explicitly
+to either tag. Calls without a request and templates with a missing request
+variable omit the editor and use the other eligible pages' usual navigation
+URLs.
 
 .. code-block:: html+django
 

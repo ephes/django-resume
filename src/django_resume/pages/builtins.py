@@ -96,6 +96,17 @@ class PermissionDeniedPage(ResumePage):
         # an access token; otherwise no one can ever see the 403 page.
         return resume.token_is_required
 
+    def is_visible_for_request(
+        self, resume: Resume, request: HttpRequest | None
+    ) -> bool:
+        user = getattr(request, "user", None)
+        return (
+            user is not None
+            and user.is_authenticated
+            and user.pk == resume.owner_id
+            and self.is_visible(resume)
+        )
+
     def check_access(self, request: HttpRequest, resume: Resume) -> HttpResponse | None:
         if not request.user.is_authenticated:
             return redirect_to_login(request.get_full_path())

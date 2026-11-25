@@ -19,11 +19,9 @@ def _nav_url(page: ResumePage, resume: Resume, request: HttpRequest | None) -> s
     url = page.nav_url(resume)
     # Custom pages (including CvPage subclasses) retain their existing URL
     # contract. Never attach a bearer capability to an arbitrary destination.
-    # A template without ``request`` in its context resolves the variable to
-    # "" (or ``string_if_invalid``); anything that is not a request is ignored.
     if (
         type(page) is not CvPage
-        or not isinstance(request, HttpRequest)
+        or request is None
         or not resume.token_is_required
         or TokenPlugin.user_can_bypass_token(request, resume)
     ):
@@ -70,7 +68,7 @@ def page_nav_links(
 ) -> list[dict[str, str]]:
     """Return ordered ``{"title", "url", "group"}`` nav entries for every
     registered page that is advertised (has a ``nav_title``) and visible for
-    ``resume``.
+    the resume and request.
 
     Entries are ordered by each page's ``nav_order`` (stable, so equal orders
     keep registration order). This is what lets new pages -- including
@@ -78,9 +76,12 @@ def page_nav_links(
     appear in navigation automatically and in a predictable place, without
     editing the template that renders the links.
 
-    Pass ``request`` to retain a validated token on the built-in protected CV
-    link. Public, custom and external destinations never receive the token.
+    Pass ``request`` to show the appearance editor to the owner of a protected
+    CV and to retain a validated token on the built-in protected CV link.
     """
+    # A missing template variable resolves to "" (or string_if_invalid).
+    if not isinstance(request, HttpRequest):
+        request = None
     return [
         {
             "title": page.nav_title,
@@ -88,7 +89,7 @@ def page_nav_links(
             "group": page.nav_group,
         }
         for page in page_registry.get_ordered_pages()
-        if page.nav_title and page.is_visible(resume)
+        if page.nav_title and page.is_visible_for_request(resume, request)
     ]
 
 

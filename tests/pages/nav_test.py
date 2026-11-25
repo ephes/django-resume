@@ -1,4 +1,5 @@
 import pytest
+from django.test import RequestFactory
 from django.urls import reverse
 
 from django_resume.pages.base import ResumePage
@@ -49,9 +50,7 @@ def test_page_nav_links_lists_visible_registered_pages(resume):
     links = page_nav_links(resume)
     titles = [link["title"] for link in links]
 
-    # Built-ins are registered in this order; 403 shows because a token is
-    # required by default for a resume with no token data.
-    assert titles == ["Cover", "CV", "403"]
+    assert titles == ["Cover", "CV"]
     assert all(link["url"].startswith("/resume/") for link in links)
     assert {"title", "url"} <= set(links[0])
 
@@ -61,6 +60,8 @@ def test_page_nav_links_hides_token_gated_403_when_not_required(resume):
     resume.owner.save()
     resume.plugin_data["token"] = {"flat": {"token_required": False}}
     resume.save()
+    request = RequestFactory().get("/")
+    request.user = resume.owner
 
-    titles = [link["title"] for link in page_nav_links(resume)]
+    titles = [link["title"] for link in page_nav_links(resume, request=request)]
     assert titles == ["Cover", "CV"]

@@ -2,7 +2,7 @@
   <h2>Edit or Remove from List</h2>
   <ul id="resume-list" class="deletable-ul">
     {% for resume in resumes %}
-      {% page_nav_links resume as nav_links %}
+      {% page_nav_links resume request=request as nav_links %}
       <li id="resume-{{ resume.slug }}" class="deletable-li resume-overview-row">
         <span class="resume-row-content">
           <span class="resume-row-name">{{ resume.name }}:</span>

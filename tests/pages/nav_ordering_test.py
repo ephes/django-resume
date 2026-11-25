@@ -8,6 +8,7 @@ which each group first appears.
 """
 
 import pytest
+from django.test import RequestFactory
 
 from django_resume.pages.base import ResumePage
 from django_resume.pages.registry import PageRegistry
@@ -87,22 +88,27 @@ def test_group_nav_links_empty_group_title_is_kept_distinct():
 def test_page_nav_links_ordered_by_nav_order(resume):
     resume.owner.save()
     resume.save()
+    request = RequestFactory().get("/")
+    request.user = resume.owner
 
-    titles = [link["title"] for link in page_nav_links(resume)]
+    links = page_nav_links(resume, request=request)
+    titles = [link["title"] for link in links]
 
     # Built-ins: Cover (10), CV (20), 403 (30) -> explicit nav_order, not
     # registration order. 403 shows because a token is required by default.
     assert titles == ["Cover", "CV", "403"]
     # The group is exposed on each link for grouped rendering.
-    assert {"title", "url", "group"} <= set(page_nav_links(resume)[0])
+    assert {"title", "url", "group"} <= set(links[0])
 
 
 @pytest.mark.django_db
 def test_page_nav_groups_groups_builtins(resume):
     resume.owner.save()
     resume.save()
+    request = RequestFactory().get("/")
+    request.user = resume.owner
 
-    groups = page_nav_groups(resume)
+    groups = page_nav_groups(resume, request=request)
     titles = [g["title"] for g in groups]
 
     # Cover/CV are the public "Resume" group; the owner-only 403 editor is its

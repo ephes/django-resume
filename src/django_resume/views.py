@@ -63,6 +63,7 @@ from .models import Resume
 def _resume_list_context(request: HttpRequest, **extra: Any) -> dict[str, Any]:
     assert request.user.is_authenticated
     context: dict[str, Any] = {
+        "request": request,
         "is_editable": True,  # needed to include edit styles in the base
         "resumes": Resume.objects.filter(owner=request.user),
         "form": ResumeForm(),

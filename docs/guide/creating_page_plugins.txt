@@ -285,8 +285,10 @@ For navigation on a token-authorized CV, opt into request-aware links with
 validate the token against that resume and carry it only to the built-in,
 protected CV destination. Other links, custom CV replacements/subclasses,
 owner/staff visits and public CVs keep token-free URLs. Invalid or expired
-tokens are never reflected. Existing tag calls and ``nav_url(resume)``
-overrides remain compatible; see :doc:`../ref/pages` for the full contract.
+tokens are never reflected. Supplying the request also lets the tags show the
+built-in 403 editor link to the owner of a protected resume. Without a request,
+the editor link is omitted. Existing ``is_visible(resume)`` and
+``nav_url(resume)`` overrides keep their signatures. See :doc:`../ref/pages`.
 
 Shipping a page as its own package
 ----------------------------------
