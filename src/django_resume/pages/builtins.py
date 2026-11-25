@@ -11,6 +11,7 @@ from ..models import Resume
 from ..plugins.tokens import TokenPlugin
 from .base import (
     ResumePage,
+    _is_resume_owner,
     build_base_context,
     build_section_context,
     page_template_name,
@@ -99,18 +100,12 @@ class PermissionDeniedPage(ResumePage):
     def is_visible_for_request(
         self, resume: Resume, request: HttpRequest | None
     ) -> bool:
-        user = getattr(request, "user", None)
-        return (
-            user is not None
-            and user.is_authenticated
-            and user.pk == resume.owner_id
-            and self.is_visible(resume)
-        )
+        return _is_resume_owner(request, resume) and self.is_visible(resume)
 
     def check_access(self, request: HttpRequest, resume: Resume) -> HttpResponse | None:
         if not request.user.is_authenticated:
             return redirect_to_login(request.get_full_path())
-        if resume.owner != request.user:
+        if not _is_resume_owner(request, resume):
             return HttpResponse(status=403)
         return None
 

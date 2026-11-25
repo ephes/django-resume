@@ -217,6 +217,9 @@ order-dependent side effect (see `Problem`_).
   denial path and the standalone owner-only 403 editor view. When the optional
   plugin is unregistered, a CV denial returns a generic HTTP 403 response and
   the editor returns HTTP 404.
+* The shared page context and the 403 editor's access and navigation checks
+  compare the authenticated user's primary key with the resume's stored
+  ``owner_id``. These checks do not load the owner relation.
 * ``CvPage.finalize_response`` sets ``Referrer-Policy: no-referrer`` when
   ``resume.token_is_required``. Because the dispatcher applies
   ``finalize_response`` to whatever response it returns — the rendered page or

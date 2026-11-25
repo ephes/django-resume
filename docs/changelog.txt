@@ -5,6 +5,9 @@ Changelog
 Unreleased
 ----------
 
+* Use the stored owner ID for page context and 403 editor ownership checks,
+  avoiding a query for the owner relation.
+
 * Bound theme render file growth in the POSIX child process before checking
   the rendered HTML for admission.
 

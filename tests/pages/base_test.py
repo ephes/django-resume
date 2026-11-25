@@ -1,6 +1,8 @@
 import pytest
+from django.contrib.auth.models import AnonymousUser
 from django.test import RequestFactory
 
+from django_resume.models import Resume
 from django_resume.pages.base import (
     ResumePage,
     build_base_context,
@@ -51,23 +53,27 @@ def test_build_section_context_skips_unknown_section(resume):
 
 
 @pytest.mark.django_db
-def test_build_base_context_owner_vs_anonymous(resume, django_user_model):
-    from django.contrib.auth.models import AnonymousUser
-
-    resume.owner.save()
+@pytest.mark.parametrize("viewer", ["owner", "other", "anonymous"])
+def test_build_base_context_uses_owner_id(
+    resume, django_user_model, django_assert_num_queries, viewer
+):
+    owner = resume.owner
+    owner.save()
     resume.save()
+    resume = Resume.objects.get(pk=resume.pk)
+    request = RequestFactory().get("/john-doe/?edit=true")
+    if viewer == "owner":
+        request.user = owner
+    elif viewer == "other":
+        request.user = django_user_model.objects.create_user(username="other")
+    else:
+        request.user = AnonymousUser()
 
-    owner_request = RequestFactory().get("/john-doe/?edit=true")
-    owner_request.user = resume.owner
-    owner_context = build_base_context(owner_request, resume)
-    assert owner_context["is_editable"] is True
-    assert owner_context["show_edit_button"] is True
+    with django_assert_num_queries(0):
+        context = build_base_context(request, resume)
 
-    anon_request = RequestFactory().get("/john-doe/?edit=true")
-    anon_request.user = AnonymousUser()
-    anon_context = build_base_context(anon_request, resume)
-    assert anon_context["is_editable"] is False
-    assert anon_context["show_edit_button"] is False
+    assert context["is_editable"] is (viewer == "owner")
+    assert context["show_edit_button"] is (viewer == "owner")
 
 
 def test_page_template_path_uses_theme(resume):

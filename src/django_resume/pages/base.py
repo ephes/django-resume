@@ -64,9 +64,19 @@ def get_edit_and_show_urls(request: HttpRequest) -> tuple[str, str]:
     return edit_url, show_url
 
 
+def _is_resume_owner(request: HttpRequest | None, resume: Resume) -> bool:
+    user = getattr(request, "user", None)
+    return (
+        user is not None
+        and user.is_authenticated
+        and user.pk is not None
+        and user.pk == resume.owner_id
+    )
+
+
 def build_base_context(request: HttpRequest, resume: Resume) -> dict:
     edit = bool(dict(request.GET).get("edit", False))
-    is_editable = request.user.is_authenticated and resume.owner == request.user
+    is_editable = _is_resume_owner(request, resume)
     show_edit_button = bool(is_editable and edit)
     edit_url, show_url = get_edit_and_show_urls(request)
     return {
