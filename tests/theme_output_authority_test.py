@@ -77,7 +77,7 @@ def test_output_replacement_is_refused_without_reading_unadmitted_bytes(
             read_bytes.append(result)
         return result
 
-    def render(command, *, cwd, timeout):
+    def render(command, *, cwd, timeout, file_size_limit):
         output = Path(command[command.index("--output") + 1])
         output.write_text("valid")
         output_paths.append(output)
@@ -105,7 +105,7 @@ def test_output_read_requires_one_descriptor_generation(cache, monkeypatch, muta
     original_open, original_read = os.open, os.read
     body = b"a" * 65536 + b"b" * 65536
 
-    def render(command, *, cwd, timeout):
+    def render(command, *, cwd, timeout, file_size_limit):
         output = Path(command[command.index("--output") + 1])
         output.write_bytes(body)
         output_paths.append(output)
@@ -140,3 +140,63 @@ def test_output_read_requires_one_descriptor_generation(cache, monkeypatch, muta
     else:
         with pytest.raises(themes.JsonResumeThemeError, match="output changed"):
             themes.render_catalog_theme(SimpleNamespace(), "even")
+
+
+@pytest.mark.parametrize("size", [32, 8192])
+def test_renderer_file_growth_is_bounded(cache, settings, monkeypatch, size):
+    import sys
+
+    limit = 32
+    settings.DJANGO_RESUME_JSON_RESUME_RENDER_MAX_BYTES = limit
+    renderer = themes._resumed_bin(cache)
+    renderer.write_text(
+        f"#!{sys.executable}\n"
+        "import errno, sys\n"
+        "with open(sys.argv[-1], 'wb', buffering=0) as output:\n"
+        "    try:\n"
+        f"        remaining = {size}\n"
+        "        while remaining:\n"
+        "            remaining -= output.write(b'x' * remaining)\n"
+        "    except OSError as error:\n"
+        "        if error.errno != errno.EFBIG:\n"
+        "            raise\n"
+    )
+    renderer.chmod(0o755)
+
+    run_process = themes._run_process
+    staged = []
+
+    def measure(command, **kwargs):
+        completed = run_process(command, **kwargs)
+        output = Path(command[-1])
+        staged.append((output, output.stat().st_size))
+        return completed
+
+    monkeypatch.setattr(themes, "_run_process", measure)
+    if size > limit:
+        with pytest.raises(themes.JsonResumeThemeError, match="exceeds maximum size"):
+            themes.render_catalog_theme(SimpleNamespace(), "even")
+        assert staged[0][1] == limit + 1
+    else:
+        assert themes.render_catalog_theme(SimpleNamespace(), "even").html == "x" * size
+        assert staged[0][1] == size
+    assert not staged[0][0].parent.exists()
+
+
+def test_theme_install_uses_inherited_file_size_limit(cache, settings, monkeypatch):
+    import sys
+
+    settings.DJANGO_RESUME_JSON_RESUME_RENDER_MAX_BYTES = 32
+    npm = cache / "fake-npm"
+    npm.write_text(
+        f"#!{sys.executable}\n"
+        "from pathlib import Path\n"
+        "Path('installed-file').write_bytes(b'x' * 8192)\n"
+    )
+    npm.chmod(0o755)
+    monkeypatch.setattr(themes.shutil, "which", lambda name: str(npm))
+
+    themes.install_catalog_theme("even")
+
+    generation = themes._active_generation(cache)
+    assert (generation / "installed-file").stat().st_size == 8192

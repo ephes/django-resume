@@ -1714,6 +1714,13 @@ must be positive Python integers no larger than ``sys.maxsize``; strings,
 booleans and floats are refused. Validation occurs before cache mutation and
 process startup; invalid policy raises ``JsonResumeThemeError``.
 
+On POSIX, the exec trampoline caps each regular file written by the renderer
+or its descendants at the configured HTML limit plus one byte, subject to the
+platform maximum and any stricter inherited limit. The extra byte lets the
+post-run check reject a truncated write even if the renderer reports success.
+The final HTML read still checks size, file identity and stability. Theme
+installation retains the process's inherited file-size limits.
+
 A failure reading either child stream invalidates the command even when the
 child exits zero. The error contains no stream content. Owned processes are
 terminated/reaped, readers settled and streams closed; partial output never

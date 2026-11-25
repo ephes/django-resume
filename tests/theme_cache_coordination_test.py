@@ -41,7 +41,7 @@ def _cache_worker(
     )
     themes.portable_document = lambda document: document
 
-    def run(command, *, cwd, timeout):
+    def run(command, *, cwd, timeout, file_size_limit=None):
         entered.set()
         if action == "install":
             if fail:

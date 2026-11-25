@@ -5,6 +5,9 @@ Changelog
 Unreleased
 ----------
 
+* Bound theme render file growth in the POSIX child process before checking
+  the rendered HTML for admission.
+
 * Compare JSON Resume replay snapshots without building complete serialized
   copies. Invalid or overdeep legacy snapshots fall back to adapter export.
 

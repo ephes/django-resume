@@ -1841,7 +1841,7 @@ def test_render_theme_writes_portable_resume_and_returns_html(
     resume.save()
     written_resume = {}
 
-    def fake_run(command, *, cwd, timeout):
+    def fake_run(command, *, cwd, timeout, file_size_limit):
         resume_path = Path(command[2])
         output_path = Path(command[command.index("--output") + 1])
         written_resume.update(json.loads(resume_path.read_text(encoding="utf-8")))
@@ -1889,7 +1889,7 @@ def test_render_theme_normalizes_document_for_brittle_theme_shapes(
     resume.save()
     written_resume = {}
 
-    def fake_run(command, *, cwd, timeout):
+    def fake_run(command, *, cwd, timeout, file_size_limit):
         resume_path = Path(command[2])
         output_path = Path(command[command.index("--output") + 1])
         written_resume.update(json.loads(resume_path.read_text(encoding="utf-8")))
@@ -2386,7 +2386,7 @@ def test_render_json_resume_theme_output_contract(
     original_lstat = Path.lstat
     original_stat = Path.stat
 
-    def fake_run(command, *, cwd, timeout):
+    def fake_run(command, *, cwd, timeout, file_size_limit):
         output = Path(command[command.index("--output") + 1])
         output_paths.append(output)
         assert output.parent.stat().st_mode & 0o777 == 0o700

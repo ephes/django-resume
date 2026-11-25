@@ -58,7 +58,7 @@ def cache(tmp_path, settings, monkeypatch):
 def assert_renders(monkeypatch, expected="complete"):
     from django_resume.formats.json_resume import themes
 
-    def render(command, *, cwd, timeout):
+    def render(command, *, cwd, timeout, file_size_limit):
         assert (
             themes._installed_package_version(cwd, "jsonresume-theme-even") == "0.26.1"
         )
@@ -190,7 +190,7 @@ def _restart_renderer(target, result):
     )
     themes.portable_document = lambda document: document
 
-    def render(command, *, cwd, timeout):
+    def render(command, *, cwd, timeout, file_size_limit):
         assert "--output" in command, "ordinary rendering must never install"
         renderer = themes._resumed_bin(cwd).read_text()
         revision = (cwd / "node_modules/jsonresume-theme-even/revision").read_text()

@@ -871,7 +871,14 @@ def _render_theme(
             "--output",
             str(output_path),
         ]
-        completed = _run_process(command, cwd=target, timeout=timeout)
+        # Leave one overflow byte so a renderer that ignores a short write
+        # still fails the post-run size check.
+        completed = _run_process(
+            command,
+            cwd=target,
+            timeout=timeout,
+            file_size_limit=min(max_bytes + 1, sys.maxsize),
+        )
         if completed.returncode != 0:
             raise JsonResumeThemeError(_bounded_error("Theme render failed", completed))
         try:
@@ -1187,7 +1194,13 @@ def _render_limits(timeout: float) -> int:
     return _byte_limit("DJANGO_RESUME_JSON_RESUME_RENDER_MAX_BYTES", 5_000_000)
 
 
-def _run_process(command: list[str], *, cwd: Path, timeout: float):
+def _run_process(
+    command: list[str],
+    *,
+    cwd: Path,
+    timeout: float,
+    file_size_limit: int | None = None,
+):
     _check_cache_authority()
     env = _minimal_env()
     timeout, max_output_bytes = _process_limits(timeout)
@@ -1206,9 +1219,20 @@ def _run_process(command: list[str], *, cwd: Path, timeout: float):
             launch = [
                 _trampoline_python(),
                 "-c",
-                "import os,sys; fd=int(sys.argv[1]); os.fchdir(fd); "
-                "os.close(fd); os.execvpe(sys.argv[2], sys.argv[2:], os.environ)",
+                "import os, sys\n"
+                "fd = int(sys.argv[1])\n"
+                "if sys.argv[2]:\n"
+                "    import resource\n"
+                "    limit = int(sys.argv[2])\n"
+                "    inherited, _ = resource.getrlimit(resource.RLIMIT_FSIZE)\n"
+                "    if inherited != resource.RLIM_INFINITY:\n"
+                "        limit = min(limit, inherited)\n"
+                "    resource.setrlimit(resource.RLIMIT_FSIZE, (limit, limit))\n"
+                "os.fchdir(fd)\n"
+                "os.close(fd)\n"
+                "os.execvpe(sys.argv[3], sys.argv[3:], os.environ)",
                 str(directory),
+                "" if file_size_limit is None else str(file_size_limit),
                 *pinned_command,
             ]
             process = subprocess.Popen(
