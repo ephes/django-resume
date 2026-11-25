@@ -129,8 +129,9 @@ Unreleased
   existing tag callers and custom page URL hooks remain compatible.
 
 * Enforce the built-in CV's stored token policy independently of token renderer
-  registration, retaining explicit public CVs and owner/staff access. Missing
-  denial renderers return a content-free 404 without exposing CV sections.
+  registration, retaining explicit public CVs and owner/staff access. When the
+  optional denial renderer is unregistered, denied CV requests still return
+  HTTP 403 with privacy headers and a generic message.
 
 * Preserve the resume language during synchronous/asynchronous streaming steps
   and Django's response-close lifecycle, restoring ambient language between

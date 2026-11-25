@@ -195,9 +195,9 @@ reference):
    - Each plugin’s context is merged into the template context under the plugin’s
      name key (``context[plugin.name]``).
    - ``check_access`` enforces token permissions explicitly (via
-     :class:`~django_resume.plugins.TokenPlugin`) before rendering. If the token
-     plugin is registered and the check fails, it short-circuits with a 403
-     rendered from ``cv_403.html``.
+     :class:`~django_resume.plugins.TokenPlugin`) before rendering. If the check
+     fails, it returns HTTP 403 with the themed ``cv_403.html`` or a generic
+     message when the optional permission-denied renderer is unregistered.
    - When the resume requires a token, only the resume owner and staff users
      pass without one; other logged-in users need a valid token like
      anonymous visitors. An invalid token, including one with non-ASCII
@@ -236,9 +236,9 @@ reference):
    - Resolves the specified :class:`~django_resume.models.Resume`.
    - ``check_access`` redirects anonymous users to the login page, and returns a
      403 response if the current user is not the owner.
-   - Otherwise renders ``cv_403.html`` through the same shared renderer the CV
-     denial path uses, building the ``permission_denied`` section context, so the
-     two paths cannot drift.
+   - Otherwise renders ``cv_403.html`` with the shared renderer and the
+     ``permission_denied`` section context. If the renderer is unregistered,
+     the editor returns HTTP 404.
 
    **Example**::
 

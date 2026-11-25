@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from django.contrib.auth.views import redirect_to_login
 from django.core.exceptions import PermissionDenied
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpRequest, HttpResponse, HttpResponseForbidden
 from django.shortcuts import render
 from django.utils.cache import patch_cache_control
+from django.utils.translation import gettext
 
 from ..models import Resume
 from ..plugins.tokens import TokenPlugin
@@ -19,8 +20,7 @@ from .registry import page_registry
 
 
 def render_cv_403(request: HttpRequest, resume: Resume, *, status: int) -> HttpResponse:
-    """Single renderer for cv_403.html, shared by the CV denial path and the
-    standalone permission-denied editor, so the two cannot drift."""
+    """Render the shared denial template when its section is available."""
     # Resolve the theme once (with fallback to plain) and use it for both the
     # section context and the template, matching ResumePage.serve.
     theme = resolve_page_theme(resume, "cv_403.html")
@@ -29,6 +29,10 @@ def render_cv_403(request: HttpRequest, resume: Resume, *, status: int) -> HttpR
         request, resume, base_context, ["permission_denied"], theme=theme
     )
     if "permission_denied" not in context:
+        if status == 403:
+            return HttpResponseForbidden(
+                gettext("Access denied"), content_type="text/plain; charset=utf-8"
+            )
         return HttpResponse(status=404)
     return render(
         request,
@@ -102,9 +106,6 @@ class PermissionDeniedPage(ResumePage):
     def serve(
         self, request: HttpRequest, resume: Resume, base_context: dict
     ) -> HttpResponse:
-        # Render through the shared cv_403 renderer (status 200 for the editor)
-        # so the standalone 403 page cannot drift from the CV denial path and
-        # keeps render_cv_403's missing-permission_denied 404 behavior.
         return render_cv_403(request, resume, status=200)
 
 

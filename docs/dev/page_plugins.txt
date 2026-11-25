@@ -214,8 +214,9 @@ order-dependent side effect (see `Problem`_).
   section; a page that wants a subset can use an explicit list or
   ``by_capability(...)`` instead.
 * A shared helper builds the ``permission_denied`` context for both the CV
-  denial path and the standalone owner-only 403 editor view, so the two paths
-  cannot drift.
+  denial path and the standalone owner-only 403 editor view. When the optional
+  plugin is unregistered, a CV denial returns a generic HTTP 403 response and
+  the editor returns HTTP 404.
 * ``CvPage.finalize_response`` sets ``Referrer-Policy: no-referrer`` when
   ``resume.token_is_required``. Because the dispatcher applies
   ``finalize_response`` to whatever response it returns — the rendered page or

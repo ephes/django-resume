@@ -63,17 +63,34 @@ def test_cv_policy_without_token_renderer(
         reverse("resume:cv", kwargs={"slug": resume.slug}),
         {"token": token} if token else {},
     )
-    expected_status = 404 if status == 403 and not denial_renderer else status
-    assert response.status_code == expected_status
+    assert response.status_code == status
     if status == 200:
         assert b"Private synthetic school" in response.content
     else:
         assert b"Private synthetic school" not in response.content
         if denial_renderer:
             assert b"Synthetic access request" in response.content
+        else:
+            assert b"Access denied" in response.content
+            assert b"Synthetic access request" not in response.content
     if not public:
         assert response["Referrer-Policy"] == "no-referrer"
         assert response["Cache-Control"] == "private, no-store"
+        assert response["X-Robots-Tag"] == "noindex"
+
+
+@pytest.mark.django_db
+def test_permission_denied_editor_without_renderer_is_missing(
+    client, resume, monkeypatch
+):
+    resume.owner.save()
+    resume.save()
+    monkeypatch.delitem(plugin_registry.plugins, "permission_denied")
+    client.force_login(resume.owner)
+
+    response = client.get(reverse("resume:403", kwargs={"slug": resume.slug}))
+
+    assert response.status_code == 404
 
 
 @pytest.mark.django_db
