@@ -35,6 +35,7 @@ from ...theme_names import is_valid_theme_name
 from ...plugins import plugin_registry
 from ...plugins.tokens import TokenPlugin
 from ...plugins.about import AboutForm
+from ...plugins.identity import IdentityForm
 from ...plugins.education import EducationItemForm
 from ...plugins.languages import LanguagesItemForm
 from ...plugins.skills import validate_skill_badges
@@ -583,7 +584,10 @@ def _adapter_editor_errors(plugin_name: str, payload: dict) -> list[str]:
     values. Opaque extension payloads stay untouched.
     """
     errors = []
-    flat_fields = {"about": (AboutForm, ("text",))}
+    flat_fields = {
+        "about": (AboutForm, ("text",)),
+        "identity": (IdentityForm, ("tagline", "location_name")),
+    }
     item_fields = {
         "education": (EducationItemForm, ("school_name", "degree", "area")),
         "languages": (LanguagesItemForm, ("note",)),

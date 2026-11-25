@@ -5,6 +5,9 @@ Changelog
 Unreleased
 ----------
 
+* Report identity taglines and location names that exceed editor limits
+  during portable JSON Resume import preparation.
+
 * Skip the storage URL lookup when rendering an identity with no uploaded avatar.
 
 * Reject overlong portable JSON Resume summaries during import preparation

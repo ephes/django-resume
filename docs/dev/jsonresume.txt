@@ -1329,6 +1329,12 @@ editor's 1,024-character limit for stored text. The check counts literal
 characters before any editor escaping. Shorten an overlong summary in the
 source and retry the import.
 
+Portable preparation also checks the mapped identity tagline and location
+name against the identity editor's limits of 512 and 100 characters. The
+location check includes any separators added when combining city, region and
+country code. Overlong values produce a field-specific error and must be
+shortened in the source. Private-envelope restoration retains stored labels.
+
 Portable identity import leaves the uploaded avatar field empty. The built-in
 identity views show the theme's empty-avatar presentation without asking the
 storage backend for a URL until an avatar is uploaded.

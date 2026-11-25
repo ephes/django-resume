@@ -919,3 +919,55 @@ def test_portable_about_summary_matches_editor_limit(extra):
         )
         assert submitted.is_valid(), submitted.errors
         assert submitted.cleaned_data["text"] == summary
+
+
+@pytest.mark.parametrize(
+    ("tagline_length", "city_length", "error"),
+    [
+        (512, 90, None),
+        (513, 90, "identity.tagline exceeds editor maximum length of 512 characters"),
+        (
+            512,
+            91,
+            "identity.location_name exceeds editor maximum length of 100 characters",
+        ),
+    ],
+)
+def test_portable_identity_labels_match_editor_limits(
+    tagline_length, city_length, error
+):
+    tagline = "é" * tagline_length
+    city = "A" * city_length
+    document = {
+        "basics": {
+            "label": tagline,
+            "location": {"city": city, "region": "Test", "countryCode": "ZZ"},
+        }
+    }
+    prepared = prepare_resume_import(
+        document, slug="identity-label-lengths", restore_django_resume_data=False
+    )
+
+    if error:
+        assert prepared.plan is None
+        assert prepared.report.validation_errors == [error]
+    else:
+        assert prepared.plan is not None
+        identity = prepared.plan.plugin_data["identity"]
+        assert identity["tagline"] == tagline
+        assert identity["location_name"] == f"{city}, Test, ZZ"
+
+
+def test_restored_identity_retains_labels_over_portable_editor_limits():
+    identity = {"tagline": "T" * 513, "location_name": "L" * 101}
+    document = {
+        "basics": {"label": identity["tagline"]},
+        "meta": {
+            "django_resume": {"version": 1, "plugin_data": {"identity": identity}}
+        },
+    }
+    prepared = prepare_resume_import(document, slug="restore-identity-labels")
+
+    assert prepared.plan is not None
+    assert prepared.plan.plugin_data["identity"] == identity
+    assert prepared.report.restored_plugins == ["identity"]
