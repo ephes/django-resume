@@ -410,10 +410,13 @@ Removing all resumes administratively
 To permanently delete **every owner's resumes** in the configured write database, run
 ``python manage.py remove_all_resumes --delete-all-resumes``. Confirm your Django
 settings/database routing before using that flag. The preview uses the same
-write database as deletion. The confirmed deletion, including
-related rows deleted by Django, runs in one transaction and rolls back on a
-database failure, reported as a command error. The preview is informational; the confirmed command deletes
-all resumes present when it runs, including any added after the preview.
+write database as deletion. The confirmed deletion includes related rows
+deleted by Django and rolls back on database failure, which the command reports
+as an error. The command prints the deletion count when the transaction on the
+write database commits. If it runs inside an outer transaction, the receipt
+waits for that transaction's commit and is discarded on rollback. The preview
+reports its count immediately. The confirmed command deletes all resumes
+present when it runs, including any added after the preview.
 
 Concurrent plugin edits
 -----------------------

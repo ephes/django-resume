@@ -5,6 +5,9 @@ Changelog
 Unreleased
 ----------
 
+* Print the ``remove_all_resumes`` deletion receipt only after the write
+  transaction commits, including when the command runs in a nested transaction.
+
 * Preserve explicitly empty JSON Resume metadata when an unchanged import
   is exported as a portable document.
 

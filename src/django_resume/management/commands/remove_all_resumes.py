@@ -32,4 +32,8 @@ class Command(BaseCommand):
                 f"Could not remove resumes; deletion rolled back: {exc}"
             ) from exc
         count = deleted_by_model.get(Resume._meta.label, 0)
-        self.stdout.write(f"Deleted {count} resumes across all owners.")
+        write_receipt = self.stdout.write
+        transaction.on_commit(
+            lambda: write_receipt(f"Deleted {count} resumes across all owners."),
+            using=database,
+        )

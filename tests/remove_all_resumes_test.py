@@ -33,7 +33,7 @@ def test_remove_all_defaults_to_count_only(resumes):
     assert "--delete-all-resumes" in out.getvalue()
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 def test_explicit_flag_deletes_every_owners_resume(resumes):
     out = StringIO()
     call_command("remove_all_resumes", "--delete-all-resumes", stdout=out)
@@ -88,3 +88,37 @@ def test_preview_and_delete_use_same_write_database(resumes, settings):
         call_command("remove_all_resumes", "--delete-all-resumes", stdout=out)
     assert any(call.kwargs == {"using": "default"} for call in atomic.call_args_list)
     assert not Resume.objects.using("default").exists()
+
+
+@pytest.mark.django_db(databases=["other"], transaction=True)
+@pytest.mark.parametrize("commit", [False, True], ids=["rollback", "commit"])
+def test_delete_receipt_waits_for_routed_transaction(
+    django_user_model, settings, commit
+):
+    class OtherWriter(ReadReplicaRouter):
+        def db_for_write(self, model, **hints):
+            return "other"
+
+    settings.DATABASE_ROUTERS = [OtherWriter()]
+    owner = django_user_model.objects.db_manager("other").create_user(
+        username="synthetic-owner"
+    )
+    resumes_on_writer = Resume.objects.using("other")
+    resume = resumes_on_writer.create(
+        name="Synthetic Resume", slug="synthetic-resume", owner=owner
+    )
+    out = StringIO()
+
+    with transaction.atomic(using="other"):
+        call_command("remove_all_resumes", "--delete-all-resumes", stdout=out)
+        assert not resumes_on_writer.exists()
+        assert out.getvalue() == ""
+        if not commit:
+            transaction.set_rollback(True, using="other")
+
+    if commit:
+        assert not resumes_on_writer.exists()
+        assert out.getvalue() == "Deleted 1 resumes across all owners.\n"
+    else:
+        assert resumes_on_writer.filter(pk=resume.pk).exists()
+        assert out.getvalue() == ""
