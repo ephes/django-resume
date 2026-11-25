@@ -166,7 +166,13 @@ class ProjectsJsonResumeAdapter:
         for position, entry in enumerate(
             item for item in projects if isinstance(item, dict)
         ):
-            label = entry.get("name") or "?"
+            title = entry.get("name", "")
+            if not title.strip():
+                notes.append(
+                    f"projects[{position}].name is blank. "
+                    f"projects.items[{position}].title is required by the editor"
+                )
+            label = title or "?"
             highlights = entry.get("highlights")
             if isinstance(highlights, list) and any(
                 isinstance(highlight, str) and highlight for highlight in highlights
@@ -183,7 +189,7 @@ class ProjectsJsonResumeAdapter:
             items.append(
                 {
                     "id": f"json-resume-project-{position + 1}",
-                    "title": entry.get("name", ""),
+                    "title": title,
                     "url": entry.get("url", ""),
                     "description": description_with_highlights(
                         entry.get("description", ""), highlights

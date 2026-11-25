@@ -200,9 +200,15 @@ class EducationJsonResumeAdapter:
         for position, entry in enumerate(
             item for item in education if isinstance(item, dict)
         ):
+            school_name = entry.get("institution", "")
+            if not school_name.strip():
+                notes.append(
+                    f"education[{position}].institution is blank. "
+                    f"education.items[{position}].school_name is required by the editor"
+                )
             notes.extend(
                 unimported_item_fields(
-                    f"education entry {entry.get('institution') or '?'!r}",
+                    f"education entry {school_name or '?'!r}",
                     entry,
                     EDUCATION_IMPORTED_KEYS,
                 )
@@ -210,7 +216,7 @@ class EducationJsonResumeAdapter:
             items.append(
                 {
                     "id": f"json-resume-education-{position + 1}",
-                    "school_name": entry.get("institution", ""),
+                    "school_name": school_name,
                     "school_url": entry.get("url", ""),
                     "degree": entry.get("studyType", ""),
                     "area": entry.get("area", ""),

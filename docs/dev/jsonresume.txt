@@ -1318,6 +1318,12 @@ Portable import also reports currently unsupported standard fields such as
 additional education entries, unmapped profile networks, ``basics.url``, skill
 levels, location fields that do not fit the identity location name, nameless
 language entries, and defaulted section titles.
+
+When an award title, education institution or project name is missing or blank,
+the import report identifies the row and the required editor field. The row
+and its other facts are imported, and an unchanged export can replay the source
+document. Supply the required name in the item editor when saving that row.
+
 JSON Resume render theme support currently lets authenticated owners browse a
 curated catalog, and optionally search npm for ``jsonresume-theme-*`` and
 ``@jsonresume/jsonresume-theme-*`` packages when dynamic discovery is enabled.

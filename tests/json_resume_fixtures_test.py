@@ -844,3 +844,51 @@ def test_portable_education_keeps_area_separate_after_edit(client, user, theme):
         {**education[0], "area": "Engineering"},
         *education[1:],
     ]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("section", "source_field", "editor_field", "facts"),
+    [
+        ("awards", "title", "title", {"awarder": "Sample Jury"}),
+        ("education", "institution", "school_name", {"studyType": "Diploma"}),
+        ("projects", "name", "title", {"description": "Invented project"}),
+    ],
+)
+def test_portable_rows_report_missing_editor_titles(
+    client, user, section, source_field, editor_field, facts
+):
+    from django_resume.plugins import plugin_registry
+    from tests.plugin_stale_edit_test import loaded_data
+
+    user.save()
+    client.force_login(user)
+    rows = [facts, {**facts, source_field: " \t"}, {source_field: "Named row"}]
+    document = {section: rows}
+    result = import_fixture_document(document, user, "missing-editor-titles")
+
+    assert [
+        note for note in result.report.notes if "required by the editor" in note
+    ] == [
+        f"{section}[{index}].{source_field} is blank. "
+        f"{section}.items[{index}].{editor_field} is required by the editor"
+        for index in (0, 1)
+    ]
+    resume = result.resume
+    assert portable_document(export_resume(resume).document) == document
+
+    editor = plugin_registry.get_plugin(section).inline
+    first = resume.plugin_data[section]["items"][0]
+    post_url = editor.get_post_item_url(resume.pk)
+    data = loaded_data(
+        client, editor.get_edit_item_url(resume.pk, first["id"]), post_url
+    )
+    data[editor_field] = "Added name"
+    assert client.post(post_url, data).status_code == 200
+
+    resume.refresh_from_db()
+    assert resume.plugin_data[section]["items"][0][editor_field] == "Added name"
+    assert export_resume(resume).document[section][0] == {
+        **facts,
+        source_field: "Added name",
+    }

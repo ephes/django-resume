@@ -122,6 +122,11 @@ class AwardsJsonResumeAdapter:
             item for item in awards if isinstance(item, dict)
         ):
             title = entry.get("title", "")
+            if not title.strip():
+                notes.append(
+                    f"awards[{position}].title is blank. "
+                    f"awards.items[{position}].title is required by the editor"
+                )
             notes.extend(
                 unimported_item_fields(
                     f"awards entry {title or '?'!r}", entry, AWARD_IMPORTED_KEYS

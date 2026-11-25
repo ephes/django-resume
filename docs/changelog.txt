@@ -5,6 +5,9 @@ Changelog
 Unreleased
 ----------
 
+* Report missing or blank award titles, education institutions and project
+  names on portable JSON Resume import while retaining the rows for editing.
+
 * Split names in the editorial header on Unicode whitespace while preserving
   the stored name and its JSON Resume export.
 
