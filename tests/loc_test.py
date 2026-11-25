@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from django_resume.entrypoints.loc import (
+    _aggregate_cloc_csv,
     _is_test_path,
     _normalized_path,
     area_for_path,
@@ -151,6 +152,39 @@ def test_cloc_report_uses_one_scan_for_all_tables(mocker, capsys):
     assert not output.err
     run.assert_called_once()
     assert "--exclude-lang=JSON,Markdown" in run.call_args.args[0]
+
+
+def test_cloc_receipt_preserves_filename_whitespace_and_identity():
+    summary, areas, directories = _aggregate_cloc_csv(
+        "language,filename,blank,comment,code\n"
+        'Python," tests/sample.py",0,0,1\n'
+        'Python,"./tests/sample.py",0,0,2\n'
+        'Python,"./src/tool_test.py ",0,0,3\n'
+        'Text,"./docs/section\nname/page.txt",0,0,4\n'
+        "Python,SUM,0,0,5\n"
+        "SUM,,0,0,15\n"
+    )
+
+    assert directories == {
+        " tests": {"files": 1, "lines": 1},
+        "tests": {"files": 1, "lines": 2},
+        "src/tool_test.py ": {"files": 1, "lines": 3},
+        "docs/section\nname": {"files": 1, "lines": 4},
+        ".": {"files": 1, "lines": 5},
+    }
+    assert areas == {
+        "tooling": {"files": 2, "lines": 6},
+        "tests": {"files": 1, "lines": 2},
+        "src": {"files": 1, "lines": 3},
+        "docs": {"files": 1, "lines": 4},
+    }
+    assert summary["rows"][-1] == {
+        "language": "SUM",
+        "files": 5,
+        "blank": 0,
+        "comment": 0,
+        "code": 15,
+    }
 
 
 def test_missing_cloc_uses_python_fallback(mocker, capsys):

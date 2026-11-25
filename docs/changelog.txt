@@ -5,6 +5,9 @@ Changelog
 Unreleased
 ----------
 
+* Preserve significant whitespace in filenames from the per-file CSV used by
+  ``just loc``.
+
 * Derive language totals, area shares and directory counts from a single
   per-file scan in ``just loc``.
 

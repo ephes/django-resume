@@ -200,15 +200,15 @@ def _aggregate_cloc_csv(
     directory_stats: dict[str, dict[str, int]] = defaultdict(
         lambda: {"files": 0, "lines": 0}
     )
-    reader = csv.DictReader(io.StringIO(csv_output))
+    reader = csv.DictReader(io.StringIO(csv_output, newline=""))
     metadata = (
         reader.fieldnames[5] if reader.fieldnames and len(reader.fieldnames) > 5 else ""
     )
 
     for row in reader:
-        file_path = (row.get("filename") or "").strip()
+        file_path = row.get("filename")
         language = (row.get("language") or "").strip()
-        if not file_path or file_path == "SUM" or not language:
+        if language == "SUM" or not file_path or not language:
             continue
 
         try:
