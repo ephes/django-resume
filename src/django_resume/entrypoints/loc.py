@@ -79,15 +79,7 @@ def count_lines_of_code() -> int:
 
 
 def _count_with_cloc() -> int:
-    summary_cmd = [
-        "cloc",
-        ".",
-        "--vcs=git",
-        f"--exclude-lang={EXCLUDED_LANGUAGES}",
-        "--csv",
-        "--quiet",
-    ]
-    detail_cmd = [
+    command = [
         "cloc",
         ".",
         "--vcs=git",
@@ -97,11 +89,7 @@ def _count_with_cloc() -> int:
         "--quiet",
     ]
 
-    summary_output = _run_cloc(summary_cmd)
-    detail_output = _run_cloc(detail_cmd)
-
-    summary_info = _parse_cloc_summary_csv(summary_output)
-    area_stats, directory_stats = _aggregate_cloc_csv(detail_output)
+    summary_info, area_stats, directory_stats = _aggregate_cloc_csv(_run_cloc(command))
 
     if RichConsoleModule is not None and RichTableModule is not None:
         console = RichConsoleModule.Console()
@@ -204,7 +192,8 @@ def _run_cloc(command: list[str]) -> str:
 
 def _aggregate_cloc_csv(
     csv_output: str,
-) -> tuple[dict[str, dict[str, int]], dict[str, dict[str, int]]]:
+) -> tuple[ClocSummary, dict[str, dict[str, int]], dict[str, dict[str, int]]]:
+    language_stats: dict[str, ClocSummaryRow] = {}
     area_stats: dict[str, dict[str, int]] = defaultdict(
         lambda: {"files": 0, "lines": 0}
     )
@@ -212,52 +201,54 @@ def _aggregate_cloc_csv(
         lambda: {"files": 0, "lines": 0}
     )
     reader = csv.DictReader(io.StringIO(csv_output))
+    metadata = (
+        reader.fieldnames[5] if reader.fieldnames and len(reader.fieldnames) > 5 else ""
+    )
 
     for row in reader:
-        file_path = row.get("filename", "").strip()
-        if not file_path or file_path == "SUM":
+        file_path = (row.get("filename") or "").strip()
+        language = (row.get("language") or "").strip()
+        if not file_path or file_path == "SUM" or not language:
             continue
 
         try:
-            line_count = int(row["code"])
+            blank = int(row["blank"])
+            comment = int(row["comment"])
+            code = int(row["code"])
         except (KeyError, TypeError, ValueError):
             continue
+
+        stats = language_stats.setdefault(
+            language,
+            {"language": language, "files": 0, "blank": 0, "comment": 0, "code": 0},
+        )
+        stats["files"] += 1
+        stats["blank"] += blank
+        stats["comment"] += comment
+        stats["code"] += code
 
         area = area_for_path(file_path)
         bucket = directory_bucket_for_path(file_path)
         area_stats[area]["files"] += 1
-        area_stats[area]["lines"] += line_count
+        area_stats[area]["lines"] += code
         directory_stats[bucket]["files"] += 1
-        directory_stats[bucket]["lines"] += line_count
+        directory_stats[bucket]["lines"] += code
 
-    return dict(area_stats), dict(directory_stats)
-
-
-def _parse_cloc_summary_csv(csv_output: str) -> ClocSummary:
-    reader = csv.DictReader(io.StringIO(csv_output))
-    metadata = ""
-    if reader.fieldnames and len(reader.fieldnames) > 5:
-        metadata = reader.fieldnames[5]
-
-    rows: list[ClocSummaryRow] = []
-    for row in reader:
-        language = row.get("language", "").strip()
-        if not language:
-            continue
-        try:
-            rows.append(
-                {
-                    "language": language,
-                    "files": int(row["files"]),
-                    "blank": int(row["blank"]),
-                    "comment": int(row["comment"]),
-                    "code": int(row["code"]),
-                }
-            )
-        except (KeyError, TypeError, ValueError):
-            continue
-
-    return {"metadata": metadata, "rows": rows}
+    rows = sorted(
+        language_stats.values(), key=lambda row: (-row["code"], row["language"])
+    )
+    if reader.fieldnames:
+        rows.append(
+            {
+                "language": "SUM",
+                "files": sum(row["files"] for row in rows),
+                "blank": sum(row["blank"] for row in rows),
+                "comment": sum(row["comment"] for row in rows),
+                "code": sum(row["code"] for row in rows),
+            }
+        )
+    summary: ClocSummary = {"metadata": metadata, "rows": rows}
+    return summary, dict(area_stats), dict(directory_stats)
 
 
 def area_for_path(path: str | Path) -> str:

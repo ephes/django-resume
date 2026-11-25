@@ -236,8 +236,9 @@ Show a colorized repository line-count summary with language totals, a high-leve
 
     $ just loc
 
-The helper uses ``cloc`` when available, with a 60-second timeout for each
-of its two invocations (summary and file details). Timeout or startup failure
+The helper uses one per-file scan from ``cloc`` when available, with a 60-second
+timeout. Language totals, area shares and directory counts all come from that
+scan. Timeout or startup failure
 prints a diagnostic to stderr and exits with status 1, without a partial report.
 Other cloc failures retain cloc's nonzero exit status. If ``cloc`` is not found
 before execution, the existing Python fallback counts lines and exits with

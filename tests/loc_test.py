@@ -74,9 +74,8 @@ def test_directory_bucket_for_path_matches_expected_breakdown(raw_path, expected
     assert directory_bucket_for_path(raw_path) == expected
 
 
-@pytest.mark.parametrize("failed_call", [1, 2])
 @pytest.mark.parametrize("failure", ["timeout", "missing", "permission"])
-def test_cloc_failure_exits_without_report(mocker, capsys, failed_call, failure):
+def test_cloc_failure_exits_without_report(mocker, capsys, failure):
     import subprocess
 
     from django_resume.entrypoints import loc
@@ -89,19 +88,17 @@ def test_cloc_failure_exits_without_report(mocker, capsys, failed_call, failure)
         calls.append(command)
         assert kwargs["timeout"] == 60
         assert kwargs["check"] is True
-        if len(calls) == failed_call:
-            if failure == "timeout":
-                raise subprocess.TimeoutExpired(command, kwargs["timeout"])
-            if failure == "missing":
-                raise FileNotFoundError("executable disappeared")
-            raise PermissionError("not executable")
-        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+        if failure == "timeout":
+            raise subprocess.TimeoutExpired(command, kwargs["timeout"])
+        if failure == "missing":
+            raise FileNotFoundError("executable disappeared")
+        raise PermissionError("not executable")
 
     mocker.patch.object(loc.subprocess, "run", side_effect=run)
     with pytest.raises(SystemExit) as exc:
         loc.count_lines_of_code()
     assert exc.value.code == 1
-    assert len(calls) == failed_call
+    assert len(calls) == 1
     fallback.assert_not_called()
     output = capsys.readouterr()
     assert not output.out
@@ -110,36 +107,50 @@ def test_cloc_failure_exits_without_report(mocker, capsys, failed_call, failure)
     assert ("timed out" if failure == "timeout" else "could not start") in output.err
 
 
-def test_cloc_valid_output_preserves_summaries(mocker, capsys):
+def test_cloc_report_uses_one_scan_for_all_tables(mocker, capsys):
     import subprocess
 
     from django_resume.entrypoints import loc
 
     mocker.patch.object(loc.shutil, "which", return_value="/usr/bin/cloc")
     mocker.patch.object(loc, "RichConsoleModule", None)
-    run = mocker.patch.object(
-        loc.subprocess,
-        "run",
-        side_effect=[
-            subprocess.CompletedProcess(
-                [],
-                0,
-                stdout="files,language,blank,comment,code\n1,Python,2,3,7\n1,SUM,2,3,7\n",
-            ),
-            subprocess.CompletedProcess(
-                [],
-                0,
-                stdout="language,filename,blank,comment,code\nPython,src/django_resume/views.py,2,3,7\n",
-            ),
-        ],
-    )
+
+    def scan(command, **kwargs):
+        # A file grows after the first scan.
+        code = 7 if run.call_count == 1 else 11
+        if "--by-file" in command:
+            receipt = (
+                "language,filename,blank,comment,code,cloc metadata\n"
+                f"Python,./src/django_resume/views.py,2,3,{code}\n"
+                "HTML,./example/index.html,1,0,2\n"
+                f"SUM,,3,3,{code + 2}\n"
+            )
+        else:
+            receipt = (
+                "files,language,blank,comment,code,cloc metadata\n"
+                f"1,Python,2,3,{code}\n1,HTML,1,0,2\n2,SUM,3,3,{code + 2}\n"
+            )
+        return subprocess.CompletedProcess(command, 0, stdout=receipt, stderr="")
+
+    run = mocker.patch.object(loc.subprocess, "run", side_effect=scan)
     assert loc.count_lines_of_code() == 0
-    assert run.call_count == 2
     output = capsys.readouterr()
-    assert "Python" in output.out
-    assert "src/django_resume" in output.out
-    assert "100.0%" in output.out
+    rows = [
+        [cell.strip() for cell in line.split("|")[1:-1]]
+        for line in output.out.splitlines()
+        if line.startswith("|")
+    ]
+    assert ["Python", "1", "2", "3", "7"] in rows
+    assert ["HTML", "1", "1", "0", "2"] in rows
+    assert ["SUM", "2", "3", "3", "9"] in rows
+    assert ["src", "1", "7", "77.8%"] in rows
+    assert ["example", "1", "2", "22.2%"] in rows
+    assert ["src/django_resume", "1", "7"] in rows
+    assert ["example", "1", "2"] in rows
+    assert "cloc metadata" in output.out
     assert not output.err
+    run.assert_called_once()
+    assert "--exclude-lang=JSON,Markdown" in run.call_args.args[0]
 
 
 def test_missing_cloc_uses_python_fallback(mocker, capsys):

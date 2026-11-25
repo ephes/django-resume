@@ -5,6 +5,9 @@ Changelog
 Unreleased
 ----------
 
+* Derive language totals, area shares and directory counts from a single
+  per-file scan in ``just loc``.
+
 * Attempt every affected directory sync during plugin recovery and keep the
   intent for retry if any sync fails.
 
