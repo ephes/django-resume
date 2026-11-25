@@ -239,9 +239,12 @@ block elements such as ``div``, ``p`` and ``li`` separate lines. Blank lines
 inside the value survive all native submission paths, and literal angle brackets
 remain text. ``data-type="html"`` editors retain their HTML projection.
 
-Streaming plugin responses iterate in the selected resume language. Each
-sync/async iteration step restores the caller's language before yielding bytes;
-exceptions and cancellation also restore it. Django's synchronous
+Streaming plugin responses iterate in the selected resume language. Rebinding
+the same response to another supported language updates subsequent iteration
+steps and cleanup. File responses keep their original byte stream and use the
+latest language for cleanup. Each sync/async iteration step restores the
+caller's language before yielding bytes. Exceptions and cancellation also
+restore it. Django's synchronous
 ``response.close()`` and its registered resource closers run in that language.
 For early cleanup, async streaming sources must provide the synchronous
 ``close()`` hook supported by Django's response lifecycle; Django does not call

@@ -25,7 +25,8 @@ def test_sync_streams_interleave_and_close_in_their_language(failure):
             cleanup.append(translation.get_language())
 
     with translation.override("en"):
-        german = render_in_language(StreamingHttpResponse(source()), "de")
+        german = render_in_language(StreamingHttpResponse(source()), "it")
+        assert render_in_language(german, "de") is german
         french = render_in_language(StreamingHttpResponse(source()), "fr")
         de, fr = iter(german), iter(french)
         assert next(de) == b"de"
@@ -59,7 +60,7 @@ def test_async_stream_operations_and_supported_close(ending):
 
         async def __anext__(self):
             self.count += 1
-            if self.count == 1:
+            if self.count <= 2:
                 await asyncio.sleep(0)
                 return translation.get_language()
             if ending == "error":
@@ -77,9 +78,14 @@ def test_async_stream_operations_and_supported_close(ending):
             cleanup.append(("close", translation.get_language()))
 
     async def scenario():
-        german = render_in_language(StreamingHttpResponse(Source()), "de")
+        german = render_in_language(StreamingHttpResponse(Source()), "it")
+        assert render_in_language(german, "de") is german
         french = render_in_language(StreamingHttpResponse(Source()), "fr")
         de, fr = aiter(german), aiter(french)
+        assert await anext(de) == b"de"
+        assert translation.get_language() == "en"
+        assert await anext(fr) == b"fr"
+        assert translation.get_language() == "en"
         assert await anext(de) == b"de"
         assert translation.get_language() == "en"
         assert await anext(fr) == b"fr"
@@ -154,9 +160,15 @@ def test_file_response_keeps_file_wrapper_and_closes_in_language(tmp_path):
         response._resource_closers.append(
             lambda: closed.append(translation.get_language())
         )
-        response = render_in_language(response, "de")
-        assert response.file_to_stream is not None
+        file_to_stream = response.file_to_stream
+        assert file_to_stream is not None
+        response = render_in_language(response, "it")
+        close = response.close
+        assert render_in_language(response, "de") is response
+        assert response.file_to_stream is file_to_stream
         assert b"".join(response) == b"synthetic"
         response.close()
+        assert file_to_stream.closed
         assert closed == ["de"]
+        assert response.close is close
         assert translation.get_language() == "en"

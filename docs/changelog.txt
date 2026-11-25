@@ -5,6 +5,9 @@ Changelog
 Unreleased
 ----------
 
+* Use the latest valid language binding for streaming response iteration and
+  cleanup, including cleanup of file responses.
+
 * Print the ``remove_all_resumes`` deletion receipt only after the write
   transaction commits, including when the command runs in a nested transaction.
 

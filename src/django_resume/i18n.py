@@ -47,15 +47,21 @@ def render_in_language(response: ResponseT, language: str) -> ResponseT:
     process_template_response middleware), when the view's language override
     has already ended. Wrapping the response's own render() keeps Django in
     charge of when and how it renders (including sync_to_async for async views)
-    while the resume language is active during rendering. For an unrendered
-    template response, the latest accepted language replaces any earlier one."""
+    while the resume language is active during rendering. For streams and
+    unrendered templates, the latest accepted language replaces any earlier one."""
     language = normalize_language(language)
     if language and isinstance(response, StreamingHttpResponse):
+        stream_language_key = "_django_resume_stream_language"
+        already_wrapped = stream_language_key in response.__dict__
+        response.__dict__[stream_language_key] = language
+        if already_wrapped:
+            return response
+
         content = response.streaming_content
         close = response.close
 
         def close_with_language() -> None:
-            with resume_language(language):
+            with resume_language(response.__dict__[stream_language_key]):
                 close()
 
         # Use Django's public content/close interfaces: it retains ownership of
@@ -64,13 +70,13 @@ def render_in_language(response: ResponseT, language: str) -> ResponseT:
         # Raw file bytes do not depend on the language; leave FileResponse
         # content alone so Django keeps its wsgi.file_wrapper/sendfile path.
         if getattr(response, "file_to_stream", None) is not None:
-            pass
-        elif response.is_async:
+            return response
+        if response.is_async:
 
             async def async_content():
                 iterator = aiter(content)
                 while True:
-                    with resume_language(language):
+                    with resume_language(response.__dict__[stream_language_key]):
                         try:
                             part = await anext(iterator)
                         except StopAsyncIteration:
@@ -84,7 +90,7 @@ def render_in_language(response: ResponseT, language: str) -> ResponseT:
             def sync_content():
                 iterator = iter(content)
                 while True:
-                    with resume_language(language):
+                    with resume_language(response.__dict__[stream_language_key]):
                         try:
                             part = next(iterator)
                         except StopIteration:
