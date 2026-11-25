@@ -5,6 +5,9 @@ Changelog
 Unreleased
 ----------
 
+* Reject invalid reserved export pointers with ``PathConflictError`` before
+  checking adapter claims or calling adapters.
+
 * Bound adapter path overlap checks to object-key prefixes while preserving
   conflict reporting order.
 

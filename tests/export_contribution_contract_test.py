@@ -183,6 +183,21 @@ def test_build_document_without_reserved_paths_keeps_generic_behavior():
     assert document == {"meta": {"django_resume": "synthetic"}}
 
 
+@pytest.mark.parametrize("reserved", ["", "/", "meta", "/meta//field", "/meta~1x", 42])
+@pytest.mark.parametrize("with_adapter", [False, True])
+def test_build_document_refuses_invalid_reserved_pointers(
+    reserved, with_adapter, mocker
+):
+    adapter = ContributionAdapter("/basics/name", ["synthetic"])
+    export_call = mocker.spy(adapter, "export")
+    resolved = [ResolvedAdapter("synthetic", adapter, {})] if with_adapter else []
+
+    with pytest.raises(PathConflictError, match="unsupported reserved object pointer"):
+        build_document(resolved, reserved_paths=("/meta/valid", reserved))
+
+    export_call.assert_not_called()
+
+
 def test_meta_siblings_remain_available_to_export_adapters():
     adapter = ContributionAdapter("/meta/x-synthetic", ["value"])
     document, _notes = build_document(

@@ -1620,6 +1620,9 @@ it, or an ancestor such as ``/meta``; JSON Resume export raises
 ``PathConflictError`` before any adapter export call. Sibling keys such as
 ``/meta/x-example`` remain available. ``build_document`` applies this check
 through its ``reserved_paths`` argument (empty by default for other formats).
+Every reserved path must use the same object pointer subset. Invalid
+reservations raise ``PathConflictError`` before checking adapter claims or
+calling any adapter, including when the adapter list is empty.
 
 Import writes
 -------------

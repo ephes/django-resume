@@ -7,7 +7,7 @@ from .protocols import AdapterExport, ExportAdapter
 
 
 class PathConflictError(Exception):
-    """Raised when adapters violate their declared contribution path contracts."""
+    """Raised for invalid export path configuration or adapter contributions."""
 
 
 @dataclass
@@ -40,6 +40,13 @@ def collect_adapters(
 def _check_conflicts(
     resolved: list[ResolvedAdapter], reserved_paths: tuple[str, ...] = ()
 ) -> None:
+    for reserved in reserved_paths:
+        try:
+            validate_pointer(reserved)
+        except ValueError as exc:
+            raise PathConflictError(
+                "Export configuration declares an unsupported reserved object pointer"
+            ) from exc
     for item in resolved:
         for path in (*item.adapter.owned_paths, *item.adapter.multivalued_paths):
             try:
@@ -90,12 +97,14 @@ def build_document(
 ) -> tuple[dict, list[str]]:
     """Assemble a document from adapter contributions.
 
-    Raises PathConflictError before assembly on identical non-multivalued claims,
-    ancestor/descendant path overlaps, or a declared path equal to, inside or
-    containing one of ``reserved_paths``, and during assembly if an adapter
-    contributes an undeclared pointer, repeats a non-multivalued contribution,
-    or contributes a non-list to a multivalued path. Multivalued (array) paths
-    claimed by several adapters are concatenated in order.
+    Validates ``reserved_paths`` as object pointers before checking adapter
+    claims. Raises PathConflictError before assembly on invalid pointers,
+    identical non-multivalued claims, ancestor/descendant path overlaps, or a
+    declared path equal to, inside or containing one of ``reserved_paths``.
+    During assembly, raises if an adapter contributes an undeclared pointer,
+    repeats a non-multivalued contribution, or contributes a non-list to a
+    multivalued path. Multivalued (array) paths claimed by several adapters are
+    concatenated in order.
     """
     _check_conflicts(resolved, reserved_paths)
     notes: list[str] = []
