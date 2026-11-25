@@ -5,6 +5,9 @@ Changelog
 Unreleased
 ----------
 
+* Split names in the editorial header on Unicode whitespace while preserving
+  the stored name and its JSON Resume export.
+
 * Report unused JSON Resume profile usernames when a supplied URL takes
   precedence during portable import.
 

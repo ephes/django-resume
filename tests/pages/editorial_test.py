@@ -5,6 +5,7 @@ from django.test import RequestFactory
 from django.urls import reverse
 from django.utils import translation
 
+from django_resume.formats.json_resume.importer import import_resume_document
 from django_resume.pages import by_capability
 from django_resume.pages.base import build_section_context
 
@@ -151,6 +152,33 @@ def test_editorial_cv_renders_sections_and_resources(client, editorial_resume):
     assert ".pdf" not in html
     assert '<a href="https://portfolio.example">Portfolio</a>' in html
     assert 'data-label="Clients:"' in html
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "name", [" \u00a0Synthetic\u00a0Example Family \t", "Synthetic\tExample Family"]
+)
+def test_editorial_cv_splits_imported_name_on_unicode_whitespace(client, user, name):
+    user.save()
+    client.force_login(user)
+    document = {"basics": {"name": name}}
+    result = import_resume_document(document, owner=user, slug="editorial-name")
+    resume = result.resume
+    assert resume is not None
+    export_url = reverse("resume:json-resume", kwargs={"slug": resume.slug})
+    assert client.get(export_url).json() == document
+
+    resume.plugin_data["theme"] = {"name": "editorial"}
+    resume.save(update_fields=["plugin_data"])
+    response = client.get(reverse("resume:cv", kwargs={"slug": resume.slug}))
+
+    assert response.status_code == 200
+    html = response.content.decode()
+    assert '<span class="cv-firstname">Synthetic</span>' in html
+    assert '<span class="cv-lastname">Example Family</span>' in html
+    resume.refresh_from_db()
+    assert resume.plugin_data["identity"]["name"] == name
+    assert client.get(export_url).json()["basics"] == document["basics"]
 
 
 @pytest.mark.django_db

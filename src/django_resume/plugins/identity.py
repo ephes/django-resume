@@ -371,10 +371,10 @@ class IdentityPlugin(SimplePlugin):
         context["avatar_img_url"] = default_storage.url(
             plugin_data.get("avatar_img", "")
         )
-        # Themes that set the first name apart (editorial) need the name split
-        # once: the first word, then everything after it.
-        first_name, _, last_name = str(context.get("name") or "").partition(" ")
-        context["first_name"], context["last_name"] = first_name, last_name.strip()
+        # Editorial emphasizes the first word and displays the rest together.
+        name_parts = str(context.get("name") or "").strip().split(maxsplit=1)
+        context["first_name"] = name_parts[0] if name_parts else ""
+        context["last_name"] = name_parts[1] if len(name_parts) == 2 else ""
         # Plugin data can come from JSON Resume imports, which bypass the form's
         # URL validation; never render a dangerous scheme as a link.
         for field_name in LINK_FIELDS:

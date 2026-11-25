@@ -51,6 +51,11 @@ sidebar with the photo and three rails:
 - "Resources": a print button and, when the identity has a website or
   portfolio URL, a "Portfolio" link to it.
 
+The displayed name emphasizes the first word and places the rest beside it.
+The split recognizes Unicode whitespace, including tabs and nonbreaking
+spaces. The stored identity name and its JSON Resume export keep the original
+spacing.
+
 Awards are shown in a dark footer bar. The freelance timeline and the projects
 section are not part of the editorial CV.
 
