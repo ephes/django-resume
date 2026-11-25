@@ -5,6 +5,9 @@ Changelog
 Unreleased
 ----------
 
+* Reject theme installation before npm runs if an active cache file changes
+  while it is being copied. Keep the active generation available.
+
 * Preserve significant whitespace in filenames from the per-file CSV used by
   ``just loc``.
 

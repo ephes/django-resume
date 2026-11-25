@@ -1510,8 +1510,11 @@ admit at most 100,000 entries, 1 GiB of file/link bytes and 64 nested levels.
 One 30-second elapsed budget covers both walks; checks bracket chunk reads
 and filesystem operations. Symlinks inside npm trees are copied without
 following them; special files and redirected top-level sources are refused.
-Refusal never starts npm, removes only the owned stage and preserves the
-current generation. These are fixed copy limits, separate from npm's timeout. npm only mutates that copy. Before publication,
+Each opened regular file must keep its size and modification and change
+timestamps through the copy. The number of bytes read must match its size.
+A refused copy removes the private stage, preserves the active generation
+and stops before npm runs. The copy limits are separate from npm's timeout.
+npm only mutates that copy. Before publication,
 every previously declared direct dependency must retain its installed version
 unless explicitly replaced, requested pinned packages must match, and the
 renderer file must exist. An incomplete or failed install leaves the active

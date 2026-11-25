@@ -484,3 +484,44 @@ def test_unreadable_generation_directory_fails_publication_closed(cache, monkeyp
     assert themes._active_generation(cache) == previous
     assert list(cache.glob("generation-*")) == [previous]
     assert_renders(monkeypatch)
+
+
+def test_in_place_payload_edit_during_copy_preserves_current(cache, monkeypatch):
+    from django_resume.formats.json_resume import themes
+    from unittest.mock import Mock
+
+    monkeypatch.setattr(themes, "_run_process", fake_npm)
+    themes.install_catalog_theme("even")
+    previous = themes._active_generation(cache)
+    marker = (cache / ".current").read_bytes()
+    payload = previous / "node_modules/jsonresume-theme-even/payload.js"
+    payload.write_bytes(b"a" * 131072)
+    source_info = payload.stat()
+    read = themes.os.read
+    edited = False
+
+    def edit_after_read(fd, size):
+        nonlocal edited
+        chunk = read(fd, size)
+        if chunk and not edited and themes.os.fstat(fd).st_ino == source_info.st_ino:
+            with payload.open("r+b") as output:
+                output.write(b"b" * source_info.st_size)
+            # Preserve the length and force a different mtime even on coarse clocks.
+            themes.os.utime(
+                payload, ns=(source_info.st_atime_ns, source_info.st_mtime_ns - 10**9)
+            )
+            edited = True
+        return chunk
+
+    monkeypatch.setattr(themes.os, "read", edit_after_read)
+    npm = Mock(side_effect=fake_npm)
+    monkeypatch.setattr(themes, "_run_process", npm)
+
+    with pytest.raises(themes.JsonResumeThemeError, match="copy source changed"):
+        themes.install_catalog_theme("flat")
+
+    assert edited
+    npm.assert_not_called()
+    assert (cache / ".current").read_bytes() == marker
+    assert list(cache.glob("generation-*")) == [previous]
+    assert_renders(monkeypatch)

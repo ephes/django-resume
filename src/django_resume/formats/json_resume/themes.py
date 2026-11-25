@@ -672,6 +672,7 @@ def _copy_generation(current: Path, staged: Path) -> None:
                             raise JsonResumeThemeError(
                                 "Theme generation copy source changed"
                             )
+                        start_total = total
                         with destination.open("xb") as output:
                             while True:
                                 check()
@@ -687,6 +688,16 @@ def _copy_generation(current: Path, staged: Path) -> None:
                                 if not chunk:
                                     break
                                 output.write(chunk)
+                        final = os.fstat(fd)
+                        if (
+                            opened.st_size != final.st_size
+                            or opened.st_mtime_ns != final.st_mtime_ns
+                            or opened.st_ctime_ns != final.st_ctime_ns
+                            or total - start_total != final.st_size
+                        ):
+                            raise JsonResumeThemeError(
+                                "Theme generation copy source changed"
+                            )
                         destination.chmod(stat.S_IMODE(opened.st_mode))
                     finally:
                         os.close(fd)
