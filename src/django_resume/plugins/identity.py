@@ -368,9 +368,8 @@ class IdentityPlugin(SimplePlugin):
         context = super().get_context(
             _request, plugin_data, resume_pk, context=context, edit=edit, theme=theme
         )
-        context["avatar_img_url"] = default_storage.url(
-            plugin_data.get("avatar_img", "")
-        )
+        avatar = plugin_data.get("avatar_img") or ""
+        context["avatar_img_url"] = default_storage.url(avatar) if avatar else ""
         # Editorial emphasizes the first word and displays the rest together.
         name_parts = str(context.get("name") or "").strip().split(maxsplit=1)
         context["first_name"] = name_parts[0] if name_parts else ""

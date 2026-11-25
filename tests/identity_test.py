@@ -126,3 +126,37 @@ def test_identity_rejects_html_avatar_and_shows_error(
     assert "Upload a valid image" in response.content.decode()
     resume.refresh_from_db()
     assert "identity" not in resume.plugin_data
+
+
+def test_imported_identity_renders_without_requesting_an_empty_avatar_url(monkeypatch):
+    from django_resume.plugins import identity
+
+    plugin = identity.IdentityPlugin()
+    document = {
+        "basics": {
+            "name": "Example Person",
+            "image": "https://images.example/avatar.png",
+        }
+    }
+    adapter = identity.IdentityJsonResumeAdapter()
+    data = adapter.import_data(document).plugin_data
+    storage_calls = []
+
+    class Storage:
+        def url(self, name):
+            assert name, "storage requires a nonempty key"
+            storage_calls.append(name)
+            return f"/media/{name}"
+
+    monkeypatch.setattr(identity, "default_storage", Storage())
+    context = plugin.get_context(None, data, 1, context={})
+    assert context["avatar_img_url"] == ""
+    template = "django_resume/plugins/identity/plain/content.html"
+    assert 'href="#avatar"' in render_to_string(template, {"identity": context})
+    assert storage_calls == []
+
+    data["avatar_img"] = "avatars/example.png"
+    context = plugin.get_context(None, data, 1, context={})
+    html = render_to_string(template, {"identity": context})
+    assert 'src="/media/avatars/example.png"' in html
+    assert storage_calls == ["avatars/example.png"]

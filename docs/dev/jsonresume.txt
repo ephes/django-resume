@@ -1329,6 +1329,10 @@ editor's 1,024-character limit for stored text. The check counts literal
 characters before any editor escaping. Shorten an overlong summary in the
 source and retry the import.
 
+Portable identity import leaves the uploaded avatar field empty. The built-in
+identity views show the theme's empty-avatar presentation without asking the
+storage backend for a URL until an avatar is uploaded.
+
 JSON Resume render theme support currently lets authenticated owners browse a
 curated catalog, and optionally search npm for ``jsonresume-theme-*`` and
 ``@jsonresume/jsonresume-theme-*`` packages when dynamic discovery is enabled.

@@ -5,6 +5,8 @@ Changelog
 Unreleased
 ----------
 
+* Skip the storage URL lookup when rendering an identity with no uploaded avatar.
+
 * Reject overlong portable JSON Resume summaries during import preparation
   using the About editor's stored-text limit.
 
