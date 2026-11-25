@@ -47,7 +47,8 @@ def render_in_language(response: ResponseT, language: str) -> ResponseT:
     process_template_response middleware), when the view's language override
     has already ended. Wrapping the response's own render() keeps Django in
     charge of when and how it renders (including sync_to_async for async views)
-    while the resume language is active during rendering."""
+    while the resume language is active during rendering. For an unrendered
+    template response, the latest accepted language replaces any earlier one."""
     language = normalize_language(language)
     if language and isinstance(response, StreamingHttpResponse):
         content = response.streaming_content
@@ -96,18 +97,26 @@ def render_in_language(response: ResponseT, language: str) -> ResponseT:
         and isinstance(response, SimpleTemplateResponse)
         and not response.is_rendered
     ):
+        render_language_key = "_django_resume_render_language"
+        already_wrapped = render_language_key in response.__dict__
+        response.__dict__[render_language_key] = language
+        if already_wrapped:
+            return response
+
         render = response.render
 
         def render_with_language() -> SimpleTemplateResponse:
-            # Drop the instance attribute before rendering: post-render
+            # Drop the instance wrapper before rendering: post-render
             # callbacks (cache_page) pickle the response inside render(), and a
             # local function on the instance cannot be pickled.
             response.__dict__.pop("render", None)
+            render_language = response.__dict__.pop(render_language_key, language)
             try:
-                with resume_language(language):
+                with resume_language(render_language):
                     return render()
             except BaseException:
                 if not response.is_rendered:
+                    response.__dict__[render_language_key] = render_language
                     response.render = render_with_language  # type: ignore[method-assign]
                 raise
 

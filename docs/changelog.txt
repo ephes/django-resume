@@ -5,6 +5,9 @@ Changelog
 Unreleased
 ----------
 
+* Use the latest valid language override when a deferred template response is
+  wrapped more than once, including when a failed render is retried.
+
 * Reject a page registration batch that repeats a URL name. A single
   submission for an existing name still replaces that page.
 

@@ -308,8 +308,9 @@ def test_cache_page_view_renders_and_caches_in_resume_language(
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("replacement", [False, True])
+@pytest.mark.parametrize("second_language", [None, "fr"])
 def test_failed_deferred_render_can_retry_in_resume_language(
-    rf, monkeypatch, replacement
+    rf, monkeypatch, replacement, second_language
 ):
     import pickle
 
@@ -338,6 +339,8 @@ def test_failed_deferred_render_can_retry_in_resume_language(
     response.add_post_render_callback(cache_and_replace)
     with translation.override("en"):
         render_in_language(response, "de")
+        if second_language is not None:
+            render_in_language(response, second_language)
         with pytest.raises(ValueError, match="synthetic template failure"):
             response.render()
         assert not response.is_rendered
@@ -345,9 +348,11 @@ def test_failed_deferred_render_can_retry_in_resume_language(
         rendered = response.render()
         assert translation.get_language() == "en"
         assert "render" not in response.__dict__
-    assert attempts == ["de", "de"]
-    assert cached == [b"lang=de"]
-    assert rendered.content == (b"lang=de replaced" if replacement else b"lang=de")
+    expected_language = second_language or "de"
+    expected_content = f"lang={expected_language}".encode()
+    assert attempts == [expected_language, expected_language]
+    assert cached == [expected_content]
+    assert rendered.content == expected_content + (b" replaced" if replacement else b"")
     assert rendered.status_code == (201 if replacement else 200)
     assert pickle.loads(pickle.dumps(rendered)).content == rendered.content
 
