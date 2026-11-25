@@ -288,7 +288,10 @@ To install the complete recorded new generation instead, use
 ``--action finish``. Recovery validates the target set and every copy's digest
 before changing files, and holds the same writer locks. It retains authority
 copies throughout recovery, so an interrupted recovery can be repeated.
-Only a complete recovery retires the intent and admits new mutations.
+Recovery attempts to sync every affected directory, children before parents,
+even if an earlier directory sync fails. It reports the first sync error and
+keeps the intent and recovery copies so the same action can be retried. Only
+a complete recovery retires the intent and admits new mutations.
 
 Recovery only replaces what the interrupted command owned. Before changing
 anything, it requires every installed target to hold one of the two recorded

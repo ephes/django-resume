@@ -5,6 +5,9 @@ Changelog
 Unreleased
 ----------
 
+* Attempt every affected directory sync during plugin recovery and keep the
+  intent for retry if any sync fails.
+
 * Limit the 403 editor's login return URL to the editor path and edit mode,
   keeping CV bearer tokens out of the login redirect.
 

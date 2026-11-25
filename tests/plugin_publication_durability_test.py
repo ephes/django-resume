@@ -327,6 +327,53 @@ def test_committed_removal_sync_failure_names_finish_assertion(tree, monkeypatch
     assert not intent.exists()
 
 
+def test_recovery_attempts_all_directory_syncs_and_preserves_first_failure(
+    tree, monkeypatch
+):
+    from django_resume.management.commands import _plugin_publication as publication
+
+    root = tree.resolve()
+    targets = _paths(root)
+    staged = root / "staged"
+    staged.write_text("new")
+    pending = publication.Publication(targets)
+    pending.prepare(dict.fromkeys(targets, staged))
+    sync = publication.sync_directory
+    attempted = []
+    plain = targets[1].parent
+    expected = [
+        plain,
+        plain.parent,
+        plain.parent.parent,
+        targets[0].parent,
+        plain.parent.parent.parent,
+        root / "core",
+        root / "templates",
+        root,
+    ]
+
+    def fail(directory):
+        attempted.append(directory)
+        if directory == plain:
+            raise OSError("first sync failure")
+        if directory == targets[0].parent:
+            raise OSError("second sync failure")
+        sync(directory)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(publication, "sync_directory", fail)
+        with pytest.raises(CommandError, match="first sync failure"):
+            call_command(
+                "recover_plugin", "safe_plugin", action="finish", stdout=StringIO()
+            )
+
+    assert attempted == expected
+    assert pending.intent.is_file()
+    assert [path.read_text() for path in targets] == ["new"] * 3
+    call_command("recover_plugin", "safe_plugin", action="finish", stdout=StringIO())
+    assert not pending.intent.exists()
+
+
 def test_symlinked_templates_keep_intent_in_project_root(tmp_path, monkeypatch):
     from django_resume.management.commands import _plugin_publication as publication
 

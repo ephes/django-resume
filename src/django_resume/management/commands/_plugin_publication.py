@@ -240,8 +240,15 @@ class Publication:
                 if parent == root or parent in outside_stops or parent == parent.parent:
                     break
                 parent = parent.parent
-        for directory in sorted(directories, key=lambda p: len(p.parts), reverse=True):
-            sync_directory(directory)
+        first_error: OSError | None = None
+        for directory in sorted(directories, key=lambda p: (-len(p.parts), str(p))):
+            try:
+                sync_directory(directory)
+            except OSError as error:
+                if first_error is None:
+                    first_error = error
+        if first_error is not None:
+            raise first_error
 
     def write_intent(self) -> None:
         # Atomic JSON publication: never expose a partially written intent.
