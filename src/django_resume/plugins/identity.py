@@ -260,14 +260,18 @@ def _import_profile_url(
 ) -> tuple[str, list[str]]:
     """Return the link for a mapped profile plus notes.
 
-    ``url`` wins. Without it, a link is built from ``username`` only when the
-    network's URL scheme is unambiguous; otherwise the username is reported so
-    it stays visible in the import report instead of becoming an empty link.
+    ``url`` wins and any unused username is reported. Without a URL, build a
+    link from ``username`` when the network's URL scheme is unambiguous.
     """
     url = profile.get("url")
-    if isinstance(url, str) and url.strip():
-        return url, []
     username = profile.get("username")
+    if isinstance(url, str) and url.strip():
+        if isinstance(username, str) and username.strip():
+            return url, [
+                f"basics.profiles entry {label!r} username is not imported; "
+                "url takes precedence"
+            ]
+        return url, []
     if not isinstance(username, str) or not username.strip():
         return "", [f"basics.profiles entry {label!r} has no url or username"]
     username = username.strip()

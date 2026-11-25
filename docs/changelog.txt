@@ -5,6 +5,9 @@ Changelog
 Unreleased
 ----------
 
+* Report unused JSON Resume profile usernames when a supplied URL takes
+  precedence during portable import.
+
 * Use the latest valid language binding for streaming response iteration and
   cleanup, including cleanup of file responses.
 

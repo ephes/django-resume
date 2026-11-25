@@ -1183,6 +1183,10 @@ Remaining JSON Resume import/export work:
     built link; bare Mastodon usernames and usernames that are not plain
     handles are reported. Later profiles for an already mapped network are
     reported instead of replacing the first.
+    A supplied URL takes precedence over a nonblank username on a mapped
+    profile, and the report identifies the unused username field. Exact source
+    re-export retains the username while source replay applies. Rebuilt
+    profiles export the mapped URL.
   * Skill keywords repeated across categories are imported once.
   * Third-party ``meta`` keys are stored as
     ``integration_data["json_resume"]["meta_extensions"]`` and written back

@@ -264,6 +264,36 @@ def test_preview_creation_and_export_match_independent_loss_oracle(client, owner
 
 
 @pytest.mark.django_db
+def test_preview_reports_username_discarded_in_favor_of_profile_url(client, owner):
+    profile = {
+        "network": "GitHub",
+        "url": "https://github.com/synthetic-url",
+        "username": "synthetic-independent-handle",
+    }
+    document = {"basics": {"profiles": [profile]}}
+    data = encode(document)
+    response = preview(client, data, slug="profile-url")
+    token = token_from(response)
+
+    assert (
+        "basics.profiles entry 'GitHub' username is not imported; url takes precedence"
+        in unescape(response.content.decode())
+    )
+    assert confirm(client, data, token, slug="profile-url").status_code == 200
+    created = Resume.objects.get(slug="profile-url")
+    assert created.plugin_data["identity"]["github"] == profile["url"]
+    export_url = reverse("resume:json-resume", kwargs={"slug": created.slug})
+    assert client.get(export_url).json() == document
+
+    created.plugin_data["identity"]["tagline"] = "Synthetic editor"
+    created.save(update_fields=["plugin_data"])
+    assert client.get(export_url).json()["basics"] == {
+        "label": "Synthetic editor",
+        "profiles": [{"network": "GitHub", "url": profile["url"]}],
+    }
+
+
+@pytest.mark.django_db
 def test_prepare_resume_import_does_not_query_the_database(
     owner, django_assert_num_queries
 ):

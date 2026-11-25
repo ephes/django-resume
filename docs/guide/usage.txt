@@ -333,6 +333,11 @@ fields, including in exports after editing. Award organizers map to the
 **Awarder** field in the item editor and are included in later portable
 exports. Awards with a blank or missing awarder omit that field.
 
+For a mapped profile with both a URL and a nonblank username, the URL takes
+precedence and the preview and import report flag the unused username field.
+Exact source re-export keeps both fields. After an identity edit, the rebuilt
+profile includes the link and network.
+
 Uploaded files are previewed before anything is created. **Preview new resume**
 shows the planned name, slug, mode, plugin content, omitted plugins, source
 sections that do not map into editable plugins, and every warning or loss
