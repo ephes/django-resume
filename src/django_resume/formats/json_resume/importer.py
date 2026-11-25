@@ -17,7 +17,7 @@ from typing import Any, Callable, cast
 from urllib.parse import urljoin, urlparse
 
 from django.contrib.auth import get_user_model
-from django.forms import CharField
+from django.forms import CharField, Form
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_slug
 from django.db import IntegrityError, router, transaction
@@ -34,6 +34,7 @@ from ...models import Resume
 from ...theme_names import is_valid_theme_name
 from ...plugins import plugin_registry
 from ...plugins.tokens import TokenPlugin
+from ...plugins.about import AboutForm
 from ...plugins.education import EducationItemForm
 from ...plugins.languages import LanguagesItemForm
 from ...plugins.skills import validate_skill_badges
@@ -562,6 +563,19 @@ def _item_badge_errors(
     return errors
 
 
+def _editor_length_errors(
+    path: str, values: dict, form_class: type[Form], names: tuple[str, ...]
+) -> list[str]:
+    errors = []
+    for name in names:
+        limit = cast(CharField, form_class.base_fields[name]).max_length
+        if limit is not None and len(values.get(name, "")) > limit:
+            errors.append(
+                f"{path}.{name} exceeds editor maximum length of {limit} characters"
+            )
+    return errors
+
+
 def _adapter_editor_errors(plugin_name: str, payload: dict) -> list[str]:
     """Check prepared built-in values against their editor's length limits.
 
@@ -569,20 +583,23 @@ def _adapter_editor_errors(plugin_name: str, payload: dict) -> list[str]:
     values. Opaque extension payloads stay untouched.
     """
     errors = []
-    fields = {
+    flat_fields = {"about": (AboutForm, ("text",))}
+    item_fields = {
         "education": (EducationItemForm, ("school_name", "degree", "area")),
         "languages": (LanguagesItemForm, ("note",)),
     }
-    if plugin_name in fields:
-        form_class, names = fields[plugin_name]
+    if plugin_name in flat_fields:
+        errors.extend(
+            _editor_length_errors(plugin_name, payload, *flat_fields[plugin_name])
+        )
+    if plugin_name in item_fields:
+        form_class, names = item_fields[plugin_name]
         for index, item in enumerate(payload.get("items", [])):
-            for name in names:
-                limit = cast(CharField, form_class.base_fields[name]).max_length
-                if limit is not None and len(item.get(name, "")) > limit:
-                    errors.append(
-                        f"{plugin_name}.items[{index}].{name} exceeds editor "
-                        f"maximum length of {limit} characters"
-                    )
+            errors.extend(
+                _editor_length_errors(
+                    f"{plugin_name}.items[{index}]", item, form_class, names
+                )
+            )
     errors.extend(_item_badge_errors(plugin_name, payload))
     if plugin_name == "skills" and "badges" in payload:
         try:

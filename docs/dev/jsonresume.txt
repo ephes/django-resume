@@ -1324,6 +1324,11 @@ the import report identifies the row and the required editor field. The row
 and its other facts are imported, and an unchanged export can replay the source
 document. Supply the required name in the item editor when saving that row.
 
+During portable import preparation, ``basics.summary`` must fit the About
+editor's 1,024-character limit for stored text. The check counts literal
+characters before any editor escaping. Shorten an overlong summary in the
+source and retry the import.
+
 JSON Resume render theme support currently lets authenticated owners browse a
 curated catalog, and optionally search npm for ``jsonresume-theme-*`` and
 ``@jsonresume/jsonresume-theme-*`` packages when dynamic discovery is enabled.

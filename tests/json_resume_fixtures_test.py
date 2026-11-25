@@ -217,7 +217,7 @@ def test_highlights_heavy_document_maps_bullets_dates_and_long_text(user):
     plugin_data = result.resume.plugin_data
 
     assert plugin_data["about"]["text"] == document["basics"]["summary"]
-    assert len(plugin_data["about"]["text"]) > 2000
+    assert len(plugin_data["about"]["text"]) > 900
     current, previous, leap_day = plugin_data["employed_timeline"]["items"]
     assert current["description"] == (
         "Owns the invented routing platform.\n\n"
@@ -892,3 +892,30 @@ def test_portable_rows_report_missing_editor_titles(
         **facts,
         source_field: "Added name",
     }
+
+
+@pytest.mark.parametrize("extra", ["", "é"])
+def test_portable_about_summary_matches_editor_limit(extra):
+    from django_resume.plugins.about import AboutForm
+
+    summary = "&amp;" * 204 + "Text" + extra
+    document = {"basics": {"summary": summary}}
+    prepared = prepare_resume_import(
+        document, slug="about-length", restore_django_resume_data=False
+    )
+
+    if extra:
+        assert prepared.plan is None
+        assert prepared.report.validation_errors == [
+            "about.text exceeds editor maximum length of 1024 characters"
+        ]
+    else:
+        assert prepared.plan is not None
+        mapped = prepared.plan.plugin_data["about"]
+        assert mapped["text"] == summary
+        form = AboutForm(initial=mapped)
+        submitted = AboutForm(
+            data={"title": mapped["title"], "text": form["text"].value()}
+        )
+        assert submitted.is_valid(), submitted.errors
+        assert submitted.cleaned_data["text"] == summary
