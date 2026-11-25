@@ -20,6 +20,10 @@ _READ_FLAGS = (
 )
 
 
+class _PreparedTargetChanged(CommandError):
+    pass
+
+
 def project_root() -> Path:
     # Commands resolve their targets below the current project directory.
     # Anchor the intent there even when ``templates`` or ``core/plugins`` is a
@@ -74,12 +78,22 @@ def digest(path: Path) -> str:
 def target_state(path: Path) -> str | None:
     """Digest of an installed regular target, or ``None`` when it is absent."""
     try:
-        mode = path.lstat().st_mode
+        before = path.lstat()
     except FileNotFoundError:
         return None
-    if not stat.S_ISREG(mode):
+    if not stat.S_ISREG(before.st_mode):
         raise ValueError("not a regular file")
-    return digest(path)
+    state = digest(path)
+    after = path.lstat()
+    if (
+        before.st_dev != after.st_dev
+        or before.st_ino != after.st_ino
+        or before.st_size != after.st_size
+        or before.st_mtime_ns != after.st_mtime_ns
+        or before.st_ctime_ns != after.st_ctime_ns
+    ):
+        raise ValueError("target changed while reading")
+    return state
 
 
 def read_intent(path: Path) -> bytes:
@@ -161,6 +175,7 @@ class Publication:
         self.data: dict = {"version": 1, "operation": "create", "files": []}
         # The exact bytes admitted by ``load``, also shown by ``status``.
         self.raw: bytes | None = None
+        self._attempted: set[Path] = set()
         # Set by the removal body immediately before its transaction commits.
         # A later failure cannot prove a rollback, so files are not restored.
         self.commit_attempted = False
@@ -221,6 +236,36 @@ class Publication:
                     f"--action status, then --action restore{hint}: {error}"
                 ) from error
             raise
+
+    def _require_old(self, path: Path, entry: dict) -> None:
+        expected = entry["old_sha256"] if entry["old"] is not None else None
+        message = f"Plugin target changed from its recorded old generation: {path}"
+        try:
+            current = target_state(path)
+        except (OSError, ValueError) as error:
+            raise _PreparedTargetChanged(f"{message} ({error})") from error
+        if current != expected:
+            raise _PreparedTargetChanged(message)
+
+    def publish(self, staged: dict[Path, Path | None] | None = None) -> None:
+        targets = list(zip(self.paths, self.data["files"]))
+        # Refuse the full set before mutating it, then narrow the recheck to
+        # the next target because an editor can save outside our writer locks.
+        for path, entry in targets:
+            self._require_old(path, entry)
+        for path, entry in targets:
+            self._require_old(path, entry)
+            if staged is None and entry["old"] is None:
+                continue
+            # Record the attempt before the syscall, which can be interrupted
+            # after it changed the target.
+            self._attempted.add(path)
+            if staged is None:
+                path.unlink(missing_ok=True)
+            else:
+                source = staged[path]
+                assert source is not None
+                source.replace(path)
 
     def sync_targets(self) -> None:
         # Sync each target directory and its ancestors up to the project root,
@@ -332,7 +377,7 @@ class Publication:
                 f"generation is absent), repeat recovery, then reapply the change."
             )
 
-    def apply(self, generation: str) -> None:
+    def apply(self, generation: str, *, attempted_only: bool = False) -> None:
         # Keep the authority copies intact, so interruption during recovery is
         # itself recoverable by repeating exactly the same command. Admit the
         # complete target set first, then recheck each target and its staged
@@ -340,6 +385,8 @@ class Publication:
         targets = list(zip(self.paths, self.data["files"]))
         self.admit(targets)
         for path, entry in reversed(targets):
+            if attempted_only and path not in self._attempted:
+                continue
             source = entry[generation]
             if source is None:
                 self.admit([(path, entry)])
@@ -407,8 +454,19 @@ def publication_files(
                 f"the database and run recover_plugin {paths[0].stem} with "
                 f"--database-outcome"
             ) from error
+        if isinstance(error, _PreparedTargetChanged) and publication._attempted:
+            hint = (
+                "; after verifying the rollback, use --database-outcome rolled-back"
+                if database is not None
+                else ""
+            )
+            raise CommandError(
+                f"{error}; recovery intent retained: {publication.intent}; "
+                f"run recover_plugin {paths[0].stem} --action status{hint}"
+            ) from error
         try:
-            publication.apply("old")
+            if not isinstance(error, _PreparedTargetChanged):
+                publication.apply("old", attempted_only=True)
             publication.retire()
         except (OSError, CommandError) as restore_error:
             raise CommandError(

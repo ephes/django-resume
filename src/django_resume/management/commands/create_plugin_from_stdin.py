@@ -67,10 +67,8 @@ class Command(BaseCommand):
                 assert staged_path is not None
                 mode = path.stat().st_mode if path.is_file() else new_file_mode
                 staged_path.chmod(mode)
-            with backup_files(paths, staged=staged):
-                for path, staged_path in staged.items():
-                    assert staged_path is not None
-                    staged_path.replace(path)
+            with backup_files(paths, staged=staged) as publication:
+                publication.publish(staged)
         except OSError as error:
             raise CommandError(f"Could not create plugin: {error}") from error
         finally:

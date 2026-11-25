@@ -512,3 +512,124 @@ def test_remove_reports_database_conflict_and_restores_files(
     resume.refresh_from_db()
     assert resume.plugin_data == original_data
     assert [path.read_bytes() for path in paths] == original_files
+
+
+@pytest.mark.parametrize(
+    "command", ["create_plugin_from_stdin", "remove_plugin_by_name"]
+)
+@pytest.mark.parametrize("edit_at", ["prepared", "after_first_target"])
+def test_publication_refuses_concurrent_target_edit(
+    stored_plugin, monkeypatch, command, edit_at
+):
+    from pathlib import Path
+
+    from django_resume.management.commands import _plugin_publication as publication
+
+    resume, source_paths = stored_plugin
+    paths = [path.resolve() for path in source_paths]
+    original_data = resume.plugin_data.copy()
+    changed = paths[1]
+    owner_bytes = b"concurrent owner edit"
+    removing = command == "remove_plugin_by_name"
+    args = ("safe_plugin",) if removing else ()
+    monkeypatch.setattr("sys.stdin", StringIO(plugin_bundle()))
+
+    if edit_at == "prepared":
+        write_intent = publication.Publication.write_intent
+
+        def edit_after_intent(pending):
+            write_intent(pending)
+            changed.write_bytes(owner_bytes)
+
+        monkeypatch.setattr(publication.Publication, "write_intent", edit_after_intent)
+    elif removing:
+        unlink = Path.unlink
+
+        def edit_after_unlink(path, *args, **kwargs):
+            unlink(path, *args, **kwargs)
+            if path == paths[0]:
+                changed.write_bytes(owner_bytes)
+
+        monkeypatch.setattr(Path, "unlink", edit_after_unlink)
+    else:
+        replace = Path.replace
+
+        def edit_after_replace(source, target):
+            result = replace(source, target)
+            if target == paths[0] and ".stage-" in source.name:
+                changed.write_bytes(owner_bytes)
+            return result
+
+        monkeypatch.setattr(Path, "replace", edit_after_replace)
+
+    with pytest.raises(CommandError, match="changed from its recorded old generation"):
+        call_command(command, *args, stdout=StringIO())
+
+    assert changed.read_bytes() == owner_bytes
+    assert paths[2].read_bytes() == b"original 2"
+    intent = publication.intent_path(paths)
+    assert intent.exists() == (edit_at == "after_first_target")
+    if edit_at == "prepared":
+        assert paths[0].read_bytes() == b"original 0"
+        assert not list(paths[0].parent.glob(".*.backup-*"))
+    else:
+        pending = publication.Publication(paths)
+        pending.load()  # The intent and all recovery copies are still valid.
+        expected_new = pending.data["files"][0].get("new_sha256")
+        assert publication.target_state(paths[0]) == expected_new
+    resume.refresh_from_db()
+    assert resume.plugin_data == original_data
+
+
+def test_create_rollback_leaves_target_it_did_not_modify(stored_plugin, monkeypatch):
+    from pathlib import Path
+
+    _, source_paths = stored_plugin
+    paths = [path.resolve() for path in source_paths]
+    replace = Path.replace
+    edit = None
+
+    def fail_second_stage(source, target):
+        nonlocal edit
+        if target == paths[1] and ".stage-" in source.name:
+            # An independent edit can also match the recorded new bytes.
+            new_copy = next(paths[2].parent.glob(f".{paths[2].name}.new-*"))
+            edit = new_copy.read_bytes()
+            paths[2].write_bytes(edit)
+            raise OSError("synthetic replacement failure")
+        return replace(source, target)
+
+    monkeypatch.setattr("sys.stdin", StringIO(plugin_bundle()))
+    monkeypatch.setattr(Path, "replace", fail_second_stage)
+
+    with pytest.raises(CommandError, match="synthetic replacement failure"):
+        call_command("create_plugin_from_stdin", stdout=StringIO())
+
+    assert [path.read_bytes() for path in paths[:2]] == [b"original 0", b"original 1"]
+    assert paths[2].read_bytes() == edit
+
+
+def test_target_state_refuses_file_replaced_during_digest(tmp_path, monkeypatch):
+    import os
+
+    from django_resume.management.commands import _plugin_publication as publication
+
+    target = tmp_path / "target.py"
+    target.write_bytes(b"old")
+    inode = target.stat().st_ino
+    replacement = tmp_path / "replacement.py"
+    replacement.write_bytes(b"edited")
+    read = os.read
+
+    def read_then_replace(fd, size):
+        chunk = read(fd, size)
+        if chunk and os.fstat(fd).st_ino == inode:
+            replacement.replace(target)
+        return chunk
+
+    monkeypatch.setattr(os, "read", read_then_replace)
+
+    with pytest.raises(ValueError, match="changed while reading"):
+        publication.target_state(target)
+
+    assert target.read_bytes() == b"edited"

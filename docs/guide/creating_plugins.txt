@@ -262,6 +262,15 @@ termination, including termination after the final replacement. A subsequent
 create or remove refuses the unresolved intent instead of accepting a mixed
 bundle. Do not delete the intent or its referenced files.
 
+Both commands check every target against its recorded old bytes or absence
+after preparing the intent. They recheck each target immediately before
+changing it and refuse files edited or replaced during the check. A conflict
+preserves the edit. Before the first file mutation it also retires the intent.
+After a mutation starts, the intent and recovery copies remain available.
+A removal conflict rolls back the database transaction. During rollback after
+other failures, the command checks for unrecognized generations and restores
+only files it attempted to change.
+
 Intents are per project root. Sharing one symlinked ``templates`` or
 ``core/plugins`` tree between several projects is not supported for plugin
 create/remove: another project cannot see this project's unresolved intent and

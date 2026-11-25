@@ -5,6 +5,9 @@ Changelog
 Unreleased
 ----------
 
+* Recheck prepared plugin targets before creating or removing files. Preserve
+  independent edits and retain the recovery intent on a mid-publication conflict.
+
 * Reject theme installation before npm runs if an active cache file changes
   while it is being copied. Keep the active generation available.
 

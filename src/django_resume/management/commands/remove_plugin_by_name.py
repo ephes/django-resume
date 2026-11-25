@@ -37,8 +37,7 @@ class Command(BaseCommand):
         try:
             with backup_files(paths, database=database) as publication:
                 with transaction.atomic(using=database, durable=True):
-                    for path in paths:
-                        path.unlink(missing_ok=True)
+                    publication.publish()
                     Resume.objects.db_manager(database).remove_plugin_data_by_name(
                         plugin_name
                     )
