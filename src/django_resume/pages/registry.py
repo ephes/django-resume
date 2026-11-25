@@ -57,7 +57,7 @@ class PageRegistry:
         invalid ``url_name``/``path``, a reserved path, or a ``url_name`` or
         ``path`` that collides with another page leaves the registry unchanged.
         """
-        pages = dict(self.pages)
+        pending: dict[str, type[ResumePage]] = {}
         for page_class in page_classes:
             url_name = page_class.url_name
             page_path = page_class.path
@@ -77,13 +77,27 @@ class PageRegistry:
                 raise PageRegistrationError(
                     f"Page {url_name!r} path {page_path!r} is reserved"
                 )
-            for other_name, other in pages.items():
-                if other_name != url_name and other.path == page_path:
-                    raise PageRegistrationError(
-                        f"Page {url_name!r} path {page_path!r} is already "
-                        f"served by page {other_name!r}"
-                    )
-            pages[url_name] = page_class()
+            pending[url_name] = page_class
+
+        # The old paths of replaced pages are free in the proposed registry.
+        path_owners = {
+            page.path: url_name
+            for url_name, page in self.pages.items()
+            if url_name not in pending
+        }
+        for url_name, page_class in pending.items():
+            page_path = page_class.path
+            if page_path in path_owners:
+                raise PageRegistrationError(
+                    f"Page {url_name!r} path {page_path!r} is already "
+                    f"served by page {path_owners[page_path]!r}"
+                )
+            path_owners[page_path] = url_name
+
+        pages = dict(self.pages)
+        pages.update(
+            {url_name: page_class() for url_name, page_class in pending.items()}
+        )
         self.pages = pages
 
     def unregister(self, page_class: type[ResumePage]) -> None:

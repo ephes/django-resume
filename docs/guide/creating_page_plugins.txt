@@ -62,6 +62,12 @@ The attributes are:
    ``delete`` or ``json-resume``. Invalid routes raise
    ``PageRegistrationError`` at registration time.
 
+   To replace several pages together, pass their classes to
+   ``page_registry.register_page_list([...])``. Existing pages are replaced by
+   URL name, and paths must be unique in the resulting registry. For example,
+   two registered pages can exchange their paths in one batch. Route
+   validation runs before any of the submitted page classes are instantiated.
+
 ``template_name``
    Resolved as ``django_resume/pages/{resume.current_theme}/{template_name}``.
 

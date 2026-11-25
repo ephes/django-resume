@@ -5,6 +5,9 @@ Changelog
 Unreleased
 ----------
 
+* Validate the final set of page routes before instantiating a registration
+  batch, allowing registered pages to swap paths together.
+
 * Recheck prepared plugin targets before creating or removing files. Preserve
   independent edits and retain the recovery intent on a mid-publication conflict.
 

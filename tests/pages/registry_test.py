@@ -127,6 +127,46 @@ def test_failed_batch_publishes_nothing():
     assert registry.get_page("dummy") is original
 
 
+def test_batch_can_swap_registered_paths():
+    registry = PageRegistry()
+    registry.register_page_list([DummyPage, CvLikePage, RootPage])
+    dummy = _page("dummy", "cv/")
+    cv_like = _page("cv-like", "dummy/")
+
+    registry.register_page_list([cv_like, dummy])
+
+    assert [type(page) for page in registry.get_all_pages()] == [
+        dummy,
+        cv_like,
+        RootPage,
+    ]
+    assert {pattern.name: str(pattern.pattern) for pattern in registry.get_urls()} == {
+        "dummy": "<slug:slug>/cv/",
+        "cv-like": "<slug:slug>/dummy/",
+        "root": "<slug:slug>/",
+    }
+
+
+def test_invalid_batch_runs_no_page_constructors():
+    registry = PageRegistry()
+    registry.register(DummyPage)
+    original = registry.get_page("dummy")
+    constructed = []
+
+    class NewPage(DummyPage):
+        url_name = "new"
+        path = "new/"
+
+        def __init__(self):
+            constructed.append(self)
+
+    with pytest.raises(PageRegistrationError, match="already served by page 'dummy'"):
+        registry.register_page_list([NewPage, _page("conflict", "dummy/")])
+
+    assert constructed == []
+    assert registry.get_all_pages() == [original]
+
+
 def test_batch_rejects_internal_duplicate_paths():
     registry = PageRegistry()
     with pytest.raises(PageRegistrationError, match="already served by page 'one'"):
