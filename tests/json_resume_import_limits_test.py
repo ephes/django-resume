@@ -35,14 +35,19 @@ def deep_bytes():
 def test_depth_check_extra_memory_is_independent_of_extension_width():
     narrow = {"meta": {"vendor": [{}]}}
     wide = {"meta": {"vendor": [{} for _ in range(50_000)]}}
+    was_tracing = tracemalloc.is_tracing()
 
     def peak_extra_bytes(document):
-        tracemalloc.start()
+        if not was_tracing:
+            tracemalloc.start()
+        tracemalloc.reset_peak()
+        baseline = tracemalloc.get_traced_memory()[0]
         try:
             importer._check_nesting_depth(document)
-            return tracemalloc.get_traced_memory()[1]
+            return tracemalloc.get_traced_memory()[1] - baseline
         finally:
-            tracemalloc.stop()
+            if not was_tracing:
+                tracemalloc.stop()
 
     assert peak_extra_bytes(wide) <= peak_extra_bytes(narrow) + 64 * 1024
 
@@ -154,6 +159,9 @@ def test_same_size_rewrite_during_file_read_refuses_import(
     assert not Resume.objects.exists()
 
 
+@pytest.mark.skipif(
+    os.name == "nt", reason="Windows cannot replace a file that is held open"
+)
 def test_path_replacement_preserves_open_file_generation(tmp_path, monkeypatch):
     path = tmp_path / "original.json"
     path.write_bytes(b'{"basics":{"name":"Original"}}')

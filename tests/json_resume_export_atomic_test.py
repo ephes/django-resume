@@ -91,6 +91,18 @@ def test_closed_diagnostics_preserve_file_export_outcome(
 
 
 @pytest.mark.django_db
+def test_missing_stderr_still_publishes_file_export(
+    export_resume, tmp_path, monkeypatch
+):
+    output = tmp_path / "resume.json"
+    # A CLI started with fd 2 closed runs with sys.stderr set to None.
+    monkeypatch.setattr("sys.stderr", None)
+    call_command("export_json_resume", "unicode-export", output=str(output))
+    monkeypatch.undo()
+    assert json.loads(output.read_bytes())["basics"]["name"] == "Zoë 東京"
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize("failure", ["write", "flush", "replace"])
 @pytest.mark.parametrize("linked", [False, True])
 def test_failed_export_preserves_previous_bytes(

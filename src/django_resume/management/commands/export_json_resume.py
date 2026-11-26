@@ -43,10 +43,13 @@ class Command(BaseCommand):
             self._publish_file(output, payload)
 
         # File exports have their own outcome even if stderr is unavailable.
-        with suppress(OSError, ValueError) if output else nullcontext():
-            self._write_report(report)
-            if output and report.valid:
-                self.stderr.write(self.style.SUCCESS(f"Wrote {output}"))
+        # A CLI started with fd 2 closed has sys.stderr set to None.
+        stderr_missing = getattr(self.stderr, "_out", self.stderr) is None
+        if not (output and stderr_missing):
+            with suppress(OSError, ValueError) if output else nullcontext():
+                self._write_report(report)
+                if output and report.valid:
+                    self.stderr.write(self.style.SUCCESS(f"Wrote {output}"))
 
         if not report.valid:
             raise CommandError(

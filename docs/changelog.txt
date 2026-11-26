@@ -6,7 +6,7 @@ Unreleased
 ----------
 
 * Publish validated JSON Resume file exports before reporting success, and
-  preserve the file or validation outcome when stderr is unavailable.
+  preserve the file or validation outcome when stderr is unavailable or closed.
 
 * Abort theme cache staging on a short write and keep the active generation.
 
@@ -14,8 +14,8 @@ Unreleased
   for wide extension objects and arrays.
 
 * Refuse a JSON Resume file that changes during reading before parsing or
-  creating a resume. Atomic pathname replacement can leave the originally
-  opened file readable.
+  creating a resume; a second bounded read must match the first. Atomic
+  pathname replacement can leave the originally opened file readable.
 
 * Omit the first section's heading and body from plain-theme cover letters
   with no paragraphs, including when printing.

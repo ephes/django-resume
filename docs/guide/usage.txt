@@ -182,7 +182,8 @@ For ``--output FILE``, the complete UTF-8 document is written and flushed to a
 unique temporary file beside the destination before atomic replacement. Write,
 flush or replacement failures preserve an existing export and remove the
 temporary file. With ``--output``, success diagnostics follow publication.
-An unavailable stderr stream does not change the file or validation outcome.
+An unavailable or closed stderr stream does not change the file or validation
+outcome.
 Published files use owner-only permissions, as exports can
 contain private plugin settings; replacement does not preserve an existing
 file's mode or group. Symlinks are followed to their target; other existing
@@ -431,8 +432,8 @@ JSON Resume import limits
 File, upload and URL imports accept at most 2 MiB of UTF-8 JSON. File imports
 open a regular file once and bound each read to the limit plus one byte.
 Directories and FIFOs are rejected, and a file whose read detects an in-place
-rewrite is refused before parsing. If file metadata changes after an atomic replacement, a bounded
-reread can confirm the contents of the already open file. JSON documents support
+rewrite is refused before parsing: a second bounded read must match the first.
+An atomic replacement of the pathname leaves the already open file readable. JSON documents support
 up to 64 nested object/array levels, counting the root object as level one. This limit applies
 to unknown extension fields and direct ``prepare_resume_import`` calls too.
 Unsupported nesting and recursion exhaustion produce ``JsonResumeImportError``
