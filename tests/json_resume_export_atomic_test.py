@@ -48,6 +48,49 @@ def test_successful_export_is_complete_unicode(export_resume, tmp_path, linked):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("outcome", ["publish", "invalid", "replace-fails"])
+def test_closed_diagnostics_preserve_file_export_outcome(
+    export_resume, tmp_path, monkeypatch, outcome
+):
+    from django_resume.formats.json_resume import export as exporter
+
+    output = tmp_path / "resume.json"
+    previous = b"previous export"
+    output.write_bytes(previous)
+    stderr = StringIO()
+    stderr.close()
+
+    def run():
+        call_command(
+            "export_json_resume", "unicode-export", output=str(output), stderr=stderr
+        )
+
+    if outcome == "invalid":
+        monkeypatch.setattr(
+            exporter, "validate_document", lambda document: ["synthetic schema error"]
+        )
+        with pytest.raises(CommandError, match="failed JSON Resume schema validation"):
+            run()
+    elif outcome == "replace-fails":
+
+        def reject_replace(*args):
+            raise OSError("synthetic replacement failure")
+
+        monkeypatch.setattr(os, "replace", reject_replace)
+        with pytest.raises(OSError, match="synthetic replacement failure"):
+            run()
+    else:
+        run()
+
+    if outcome == "publish":
+        assert json.loads(output.read_bytes())["basics"]["name"] == "Zoë 東京"
+        assert output.read_bytes().endswith(b"\n")
+    else:
+        assert output.read_bytes() == previous
+    assert list(tmp_path.iterdir()) == [output]
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize("failure", ["write", "flush", "replace"])
 @pytest.mark.parametrize("linked", [False, True])
 def test_failed_export_preserves_previous_bytes(

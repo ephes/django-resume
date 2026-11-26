@@ -5,6 +5,9 @@ Changelog
 Unreleased
 ----------
 
+* Publish validated JSON Resume file exports before reporting success, and
+  preserve the file or validation outcome when stderr is unavailable.
+
 * Abort theme cache staging on a short write and keep the active generation.
 
 * Bound the JSON Resume nesting check's auxiliary memory by depth, including

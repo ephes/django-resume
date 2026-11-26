@@ -1,5 +1,6 @@
 import json
 import os
+from contextlib import nullcontext, suppress
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
@@ -7,6 +8,7 @@ from django.core.management.base import BaseCommand, CommandError
 
 from ...formats.json_resume.export import export_resume
 from ...interchange.coordinator import PathConflictError
+from ...interchange.report import ExportReport
 from ...models import Resume
 
 
@@ -35,6 +37,25 @@ class Command(BaseCommand):
             raise CommandError(f"Adapter configuration error: {exc}")
 
         report = result.report
+        output = options["output"]
+        if output and report.valid:
+            payload = json.dumps(result.document, indent=2, ensure_ascii=False)
+            self._publish_file(output, payload)
+
+        # File exports have their own outcome even if stderr is unavailable.
+        with suppress(OSError, ValueError) if output else nullcontext():
+            self._write_report(report)
+            if output and report.valid:
+                self.stderr.write(self.style.SUCCESS(f"Wrote {output}"))
+
+        if not report.valid:
+            raise CommandError(
+                "Export failed JSON Resume schema validation; no output written."
+            )
+        if not output:
+            self.stdout.write(json.dumps(result.document, indent=2, ensure_ascii=False))
+
+    def _write_report(self, report: ExportReport) -> None:
         self.stderr.write(
             f"Mapped plugins: {', '.join(report.mapped_plugins) or '(none)'}"
         )
@@ -51,33 +72,26 @@ class Command(BaseCommand):
         if not report.valid:
             for error in report.validation_errors:
                 self.stderr.write(f"validation error: {error}")
-            raise CommandError(
-                "Export failed JSON Resume schema validation; no output written."
-            )
 
-        payload = json.dumps(result.document, indent=2, ensure_ascii=False)
-        output = options["output"]
-        if output:
-            destination = Path(output).resolve()
-            if destination.exists() and not destination.is_file():
-                raise CommandError("--output must name a regular file.")
-            temporary = None
-            try:
-                with NamedTemporaryFile(
-                    mode="w",
-                    encoding="utf-8",
-                    dir=destination.parent,
-                    prefix=f".{destination.name}.",
-                    suffix=".tmp",
-                    delete=False,
-                ) as handle:
-                    temporary = Path(handle.name)
-                    handle.write(payload + "\n")
-                    handle.flush()
-                os.replace(temporary, destination)
-            finally:
-                if temporary is not None:
-                    temporary.unlink(missing_ok=True)
-            self.stderr.write(self.style.SUCCESS(f"Wrote {output}"))
-        else:
-            self.stdout.write(payload)
+    @staticmethod
+    def _publish_file(output: str, payload: str) -> None:
+        destination = Path(output).resolve()
+        if destination.exists() and not destination.is_file():
+            raise CommandError("--output must name a regular file.")
+        temporary = None
+        try:
+            with NamedTemporaryFile(
+                mode="w",
+                encoding="utf-8",
+                dir=destination.parent,
+                prefix=f".{destination.name}.",
+                suffix=".tmp",
+                delete=False,
+            ) as handle:
+                temporary = Path(handle.name)
+                handle.write(payload + "\n")
+                handle.flush()
+            os.replace(temporary, destination)
+        finally:
+            if temporary is not None:
+                temporary.unlink(missing_ok=True)

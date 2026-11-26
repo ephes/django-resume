@@ -181,7 +181,9 @@ validation against the pinned JSON Resume v1.0.0 schema and writes no output.
 For ``--output FILE``, the complete UTF-8 document is written and flushed to a
 unique temporary file beside the destination before atomic replacement. Write,
 flush or replacement failures preserve an existing export and remove the
-temporary file. Published files use owner-only permissions, as exports can
+temporary file. With ``--output``, success diagnostics follow publication.
+An unavailable stderr stream does not change the file or validation outcome.
+Published files use owner-only permissions, as exports can
 contain private plugin settings; replacement does not preserve an existing
 file's mode or group. Symlinks are followed to their target; other existing
 nonregular destinations (such as devices, directories and FIFOs) are rejected
