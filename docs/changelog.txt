@@ -10,6 +10,8 @@ Unreleased
 
 * Keep Markdown headings on their own source lines, including empty headings.
 
+* Preserve line boundaries around headings and lists in plain-text output.
+
 * Refuse recovery if the admitted plugin intent changes and preserve the
   intent and recovery copies for inspection. Retirement sets the intent aside
   under a unique name and verifies it before deletion.

@@ -813,3 +813,33 @@ def test_cv_malformed_token_container_denies_privately(client, resume, token_dat
     )
     assert response.status_code == 403
     _assert_private_cv_headers(response)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "source, expected",
+    [
+        ("# First\n## Second", "First\nSecond"),
+        ("<h1>First &amp; second</h1><h2>Third</h2>", "First & second\nThird"),
+        ("# First\n- one\n- two", "First\none\ntwo"),
+        (
+            "<h2>First</h2><ul><li>one</li></ul><h3>Second</h3>Tail",
+            "First\none\nSecond\nTail",
+        ),
+        ("First\n\nSecond\nThird\n\n\nFourth", "First\n\nSecond\nThird\n\nFourth"),
+    ],
+)
+def test_resume_cv_about_plain_text_keeps_block_boundaries(
+    client, resume, source, expected
+):
+    resume.owner.save()
+    resume.plugin_data = {
+        "token": {"flat": {"token_required": False}},
+        "about": {"title": "About", "text": source},
+    }
+    resume.save()
+
+    response = client.get(reverse("resume:cv", kwargs={"slug": resume.slug}))
+
+    assert response.status_code == 200
+    assert response.context["about"]["text_plain"] == expected

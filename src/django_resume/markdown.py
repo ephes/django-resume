@@ -144,8 +144,13 @@ def textarea_input_to_html(text: str) -> str:
 
 def markdown_to_plain_text(text: str) -> str:
     text = markdown_to_html(text)
-    text = text.replace("<br>", "\n")
-    text = text.replace("<ul>", "\n").replace("</li>", "\n")
+    # Adjacent block tags share a boundary. Explicit breaks still count
+    # individually so the usual blank-line normalization can run below.
+    text = re.sub(
+        r"(?:<br>|</?(?:h[1-6]|ul|li)>)+",
+        lambda boundary: "\n" * max(1, boundary[0].count("<br>")),
+        text,
+    )
     text = re.sub(r"<[^>]+>", "", text)
     text = html.unescape(text)
     text = re.sub(r"\n{3,}", "\n\n", text)

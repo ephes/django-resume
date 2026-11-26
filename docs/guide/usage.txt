@@ -125,7 +125,8 @@ The supported formatting is intentionally limited to:
 - line breaks
 
 Rendered HTML is sanitized before it is marked safe, so raw HTML is not preserved
-and dangerous link protocols are removed.
+and dangerous link protocols are removed. Plain-text output keeps headings and
+list items on separate lines and retains up to one consecutive blank line.
 
 Link matching runs in linear work, including unmatched/nested brackets. The
 existing small syntax is preserved: labels stay on one line, and URLs support
