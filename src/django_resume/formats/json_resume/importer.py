@@ -10,6 +10,7 @@ import socket
 import ssl
 import time
 from threading import Event, Timer
+from collections.abc import Iterator
 from copy import deepcopy
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -131,17 +132,19 @@ def _json_integer(token: str) -> int:
 
 def _check_nesting_depth(document: dict) -> None:
     """Count container levels iteratively, with the root object at depth one."""
-    pending: list[tuple[dict | list, int]] = [(document, 1)]
-    while pending:
-        value, depth = pending.pop()
-        if depth > MAX_NESTING_DEPTH:
-            raise JsonResumeImportError(
-                f"Input exceeds maximum nesting depth of {MAX_NESTING_DEPTH}"
-            )
-        children = value.values() if isinstance(value, dict) else value
-        pending.extend(
-            (child, depth + 1) for child in children if isinstance(child, (dict, list))
-        )
+    stack: list[Iterator[Any]] = [iter(document.values())]
+    while stack:
+        for child in stack[-1]:
+            if not isinstance(child, (dict, list)):
+                continue
+            if len(stack) >= MAX_NESTING_DEPTH:
+                raise JsonResumeImportError(
+                    f"Input exceeds maximum nesting depth of {MAX_NESTING_DEPTH}"
+                )
+            stack.append(iter(child.values() if isinstance(child, dict) else child))
+            break
+        else:
+            stack.pop()
 
 
 def _loads_document(text: str) -> dict:

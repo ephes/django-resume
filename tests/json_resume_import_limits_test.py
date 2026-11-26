@@ -6,6 +6,7 @@ import os
 import stat
 import subprocess
 import sys
+import tracemalloc
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -29,6 +30,21 @@ def nested_document(depth):
 
 def deep_bytes():
     return b'{"meta":{"vendor":' + b"[" * 1500 + b"0" + b"]" * 1500 + b"}}"
+
+
+def test_depth_check_extra_memory_is_independent_of_extension_width():
+    narrow = {"meta": {"vendor": [{}]}}
+    wide = {"meta": {"vendor": [{} for _ in range(50_000)]}}
+
+    def peak_extra_bytes(document):
+        tracemalloc.start()
+        try:
+            importer._check_nesting_depth(document)
+            return tracemalloc.get_traced_memory()[1]
+        finally:
+            tracemalloc.stop()
+
+    assert peak_extra_bytes(wide) <= peak_extra_bytes(narrow) + 64 * 1024
 
 
 def test_prepare_rejects_depth_before_recursive_work():

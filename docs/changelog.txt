@@ -5,6 +5,9 @@ Changelog
 Unreleased
 ----------
 
+* Bound the JSON Resume nesting check's auxiliary memory by depth, including
+  for wide extension objects and arrays.
+
 * Refuse a JSON Resume file that changes during reading before parsing or
   creating a resume. Atomic pathname replacement can leave the originally
   opened file readable.

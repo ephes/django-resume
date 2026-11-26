@@ -1696,6 +1696,8 @@ byte count, size and timestamps before parsing. It refuses in-place changes
 that affect the bytes read. If only change time differs, a second bounded read
 must agree with the first and have stable metadata. Replacing the pathname
 can therefore leave an already open, complete file readable.
+The 64-container nesting check keeps one iterator per open object or
+array, so wide extensions do not increase its auxiliary memory.
 
 Malformed URL authorities (including brackets, normalization and ports) raise
 ``JsonResumeImportError`` with ``field="source_url"`` and the bounded message
