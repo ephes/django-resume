@@ -1,4 +1,12 @@
-{% load page_nav %}<main id="main-resumes-list" class="stack-large">
+{% load page_nav %}<main id="main-resumes-list" class="stack-large"
+  hx-on::before-swap="
+    if (event.target === this && event.detail.xhr.status === 409 &&
+        event.detail.requestConfig.headers['HX-Trigger'] === 'json-resume-import-form') {
+      event.detail.shouldSwap = true;
+      event.detail.isError = false;
+    }
+  "
+>
   <h2>Edit or Remove from List</h2>
   <ul id="resume-list" class="deletable-ul">
     {% for resume in resumes %}

@@ -1469,8 +1469,11 @@ The browser flow in ``views.import_json_resume``:
   confirmation. The server verifies signature and age, the owner, the input
   digest and options, re-parses and re-prepares the file, compares the plan
   digest and then calls ``create_prepared_import`` once. Any mismatch,
-  expiry or tampering is refused with a request to preview again. A replayed
-  confirmation is refused by the slug check.
+  expiry or tampering of the confirmation returns HTTP 409 with a rendered
+  form error asking the user to preview again. The resume list swaps this
+  response into the page for the htmx import form. Successful creation,
+  ordinary upload validation errors (including a missing confirmation), and a
+  replay refused by the slug check retain their rendered HTTP 200 responses.
 * An uploaded file is created only by ``action=create`` with a valid
   confirmation; any other action with an uploaded file is refused.
 * ``action=import-url`` with a URL source fetches and creates the resume in one

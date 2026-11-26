@@ -21,9 +21,12 @@ _CLAIMS_VERSION = 1
 class ImportConfirmationError(ValueError):
     """Raised when a preview confirmation is missing, expired or mismatched."""
 
-    def __init__(self, message: str, *, field: str | None = None) -> None:
+    def __init__(
+        self, message: str, *, field: str | None = None, conflict: bool = True
+    ) -> None:
         super().__init__(message)
         self.field = field
+        self.conflict = conflict
 
 
 @dataclass(frozen=True)
@@ -64,7 +67,7 @@ def load_import_preview(
 ) -> ImportPreviewClaims:
     if not token:
         raise ImportConfirmationError(
-            "Preview the uploaded file before creating the resume."
+            "Preview the uploaded file before creating the resume.", conflict=False
         )
     try:
         payload = signing.loads(token, salt=IMPORT_PREVIEW_SALT, max_age=max_age)

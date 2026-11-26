@@ -5,6 +5,9 @@ Changelog
 Unreleased
 ----------
 
+* Return HTTP 409 for expired, invalid or mismatched JSON Resume upload
+  confirmations and show the retry message in the import form.
+
 * Show JSON Resume URL loading errors beside the URL field.
 
 * Publish validated JSON Resume file exports before reporting success, and

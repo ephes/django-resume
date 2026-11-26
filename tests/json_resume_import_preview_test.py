@@ -100,10 +100,11 @@ def preview(client, data, **options):
     )
 
 
-def confirm(client, data, token, **options):
+def confirm(client, data, token, *, headers=None, **options):
     return client.post(
         IMPORT_URL,
         {"file": upload(data), "action": "create", "confirmation": token, **options},
+        headers=headers,
     )
 
 
@@ -149,11 +150,14 @@ def test_preview_renders_plan_without_writing(client, owner):
 
 
 @pytest.mark.django_db
-def test_preview_and_confirm_creates_exactly_one_owned_resume(client, owner):
+@pytest.mark.parametrize("headers", [{}, {"HX-Request": "true"}], ids=["page", "htmx"])
+def test_preview_and_confirm_creates_exactly_one_owned_resume(client, owner, headers):
     data = encode(LOSSY_DOCUMENT)
     token = token_from(preview(client, data, slug="sam-created", name="Sam Override"))
 
-    response = confirm(client, data, token, slug="sam-created", name="Sam Override")
+    response = confirm(
+        client, data, token, slug="sam-created", name="Sam Override", headers=headers
+    )
 
     assert response.status_code == 200
     created = Resume.objects.get()
@@ -165,6 +169,7 @@ def test_preview_and_confirm_creates_exactly_one_owned_resume(client, owner):
     assert "Imported Sam Override." in response.content.decode()
 
     replay = confirm(client, data, token, slug="sam-created", name="Sam Override")
+    assert replay.status_code == 200
     assert "already exists" in replay.content.decode()
     assert Resume.objects.count() == 1
 
@@ -338,14 +343,19 @@ def test_upload_without_preview_is_refused(client, owner):
 
 
 @pytest.mark.django_db
-def test_changed_file_is_refused(client, owner):
+@pytest.mark.parametrize("headers", [{}, {"HX-Request": "true"}], ids=["page", "htmx"])
+def test_changed_file_is_refused(client, owner, headers):
     token = token_from(preview(client, encode(LOSSY_DOCUMENT), slug="changed-file"))
     changed = dict(LOSSY_DOCUMENT, basics={"name": "Someone Else"})
 
-    response = confirm(client, encode(changed), token, slug="changed-file")
+    response = confirm(
+        client, encode(changed), token, slug="changed-file", headers=headers
+    )
 
+    assert response.status_code == 409
     form = response.context["import_form"]
     assert "does not match the previewed file" in form.errors["file"][0]
+    assert "does not match the previewed file" in response.content.decode()
     assert "import_preview" not in response.context
     assert Resume.objects.count() == 0
 
@@ -366,6 +376,7 @@ def test_changed_options_are_refused(client, owner, changed):
 
     response = confirm(client, data, token, **{**options, **changed})
 
+    assert response.status_code == 409
     assert "changed after the preview" in response.content.decode()
     assert Resume.objects.count() == 0
 
@@ -379,6 +390,7 @@ def test_expired_confirmation_is_refused(client, owner, monkeypatch):
 
     response = confirm(client, data, token, slug="expired")
 
+    assert response.status_code == 409
     assert "The preview has expired" in response.content.decode()
     assert Resume.objects.count() == 0
 
@@ -398,10 +410,12 @@ def test_expired_confirmation_is_refused(client, owner, monkeypatch):
 )
 def test_tampered_confirmation_is_refused(client, owner, tamper):
     data = encode(LOSSY_DOCUMENT)
-    token = token_from(preview(client, data, slug="tampered"))
+    preview_token = token_from(preview(client, data, slug="tampered"))
+    token = tamper(preview_token)
 
-    response = confirm(client, data, tamper(token), slug="tampered")
+    response = confirm(client, data, token, slug="tampered")
 
+    assert response.status_code == (409 if token else 200)
     assert "import_report" not in response.context
     assert response.context["import_form"].errors
     assert Resume.objects.count() == 0
@@ -423,6 +437,7 @@ def test_changed_plan_is_refused(client, owner):
 
     response = confirm(client, data, forged, slug="plan-changed")
 
+    assert response.status_code == 409
     assert "import result changed since the preview" in response.content.decode()
     assert Resume.objects.count() == 0
 
@@ -496,6 +511,7 @@ def test_invalid_inputs_get_no_preview_or_confirmation(client, owner, data, mess
     with CaptureQueriesContext(connection) as queries:
         response = preview(client, data, slug="invalid")
 
+    assert response.status_code == 200
     assert write_queries(queries.captured_queries) == []
     assert "import_preview" not in response.context
     assert message in " ".join(response.context["import_form"].errors["file"])
@@ -643,6 +659,7 @@ def test_upload_with_confirmation_needs_explicit_create_action(client, owner, ac
         },
     )
 
+    assert response.status_code == 200
     assert "Preview the uploaded file before creating" in response.content.decode()
     assert Resume.objects.count() == 0
 

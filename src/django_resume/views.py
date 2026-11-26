@@ -285,6 +285,7 @@ def import_json_resume(request: HttpRequest) -> HttpResponse:
     form = JsonResumeImportForm(request.POST, request.FILES)
     context = _resume_list_context(request, import_form=form)
     action = request.POST.get("action")
+    status = 200
     if form.is_valid():
         result = None
         try:
@@ -301,16 +302,18 @@ def import_json_resume(request: HttpRequest) -> HttpResponse:
             elif action == IMPORT_ACTION_CREATE:
                 result = _confirm_uploaded_import(request, form)
             else:
-                raise ImportConfirmationError(
+                form.add_error(
+                    "file",
                     "Preview the uploaded file before creating the resume. "
                     "Import from URL only imports from a JSON Resume URL.",
-                    field="file",
                 )
         except JsonResumeImportError as exc:
             form.add_error(exc.field or "file", str(exc))
             context.pop("import_preview", None)
         except ImportConfirmationError as exc:
             form.add_error(exc.field, str(exc))
+            if exc.conflict:
+                status = 409
         if result is not None:
             context = _resume_list_context(
                 request,
@@ -318,7 +321,10 @@ def import_json_resume(request: HttpRequest) -> HttpResponse:
                 import_report=result.report,
             )
     return render(
-        request, "django_resume/pages/plain/resume_list_main.html", context=context
+        request,
+        "django_resume/pages/plain/resume_list_main.html",
+        context=context,
+        status=status,
     )
 
 

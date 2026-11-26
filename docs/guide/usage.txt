@@ -370,7 +370,8 @@ note, without writing to the database. To create the resume, select the same
 file again (browsers do not keep a chosen file between requests) and press
 **Create new resume** within 15 minutes. The server re-reads and re-plans the
 file and creates the resume only if the file bytes, name, slug, mode and
-planned result still match the preview; otherwise it asks for a new preview.
+planned result still match the preview. An expired or mismatched confirmation
+returns HTTP 409 and shows why another preview is needed.
 Changing the name, slug, mode or URL fields after a preview withdraws the
 **Create new resume** button. A preview does not reserve the slug: if another
 resume takes it first, creation is refused and the existing resume is left
