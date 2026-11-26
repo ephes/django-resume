@@ -435,3 +435,66 @@ def test_fresh_project_syncs_every_created_parent(tmp_path, monkeypatch):
     plain = root / "templates/django_resume/plugins/safe_plugin/plain"
     expected |= {plain, *[p for p in plain.parents if p.is_relative_to(root)]}
     assert expected <= synced
+
+
+@pytest.mark.parametrize("changed_index", [0, 1])
+def test_create_rejects_stage_replaced_after_prepare(tree, monkeypatch, changed_index):
+    from django_resume.management.commands import _plugin_publication as publication
+
+    targets = _paths(tree)
+    prepare = publication.Publication.prepare
+    installed = []
+
+    def replace_stage(pending, staged, database):
+        prepare(pending, staged, database)
+        replacement = tree / "replacement"
+        replacement.write_text("unprepared bytes")
+        replacement.replace(staged[targets[changed_index]])
+
+    replace = Path.replace
+
+    def record_install(source, target):
+        if target in targets:
+            installed.append(source.read_text())
+        return replace(source, target)
+
+    monkeypatch.setattr(publication.Publication, "prepare", replace_stage)
+    monkeypatch.setattr(Path, "replace", record_install)
+    with pytest.raises(CommandError, match="stage changed.*recovery intent retained"):
+        call_command("create_plugin_from_stdin", stdout=StringIO())
+
+    assert "unprepared bytes" not in installed
+    assert targets[changed_index].read_text() == "old"
+    assert publication.intent_path(targets).is_file()
+    call_command("recover_plugin", "safe_plugin", action="restore", stdout=StringIO())
+    assert [path.read_text() for path in targets] == ["old"] * 3
+    assert not publication.intent_path(targets).exists()
+
+
+def test_create_keeps_intent_when_installed_files_fail_verification(tree, monkeypatch):
+    from django_resume.management.commands import _plugin_publication as publication
+
+    targets = _paths(tree)
+    sync_targets = publication.Publication.sync_targets
+    changed = False
+
+    def edit_after_sync(pending):
+        nonlocal changed
+        sync_targets(pending)
+        if pending.intent.exists() and not changed:
+            changed = True
+            targets[0].write_text("owner edit")
+
+    monkeypatch.setattr(publication.Publication, "sync_targets", edit_after_sync)
+    with pytest.raises(
+        CommandError, match="installed generation.*recovery intent retained"
+    ):
+        call_command("create_plugin_from_stdin", stdout=StringIO())
+
+    assert targets[0].read_text() == "owner edit"
+    intent = json.loads(publication.intent_path(targets).read_text())
+    assert all(
+        Path(entry[key]).is_file()
+        for entry in intent["files"]
+        for key in ["old", "new"]
+    )

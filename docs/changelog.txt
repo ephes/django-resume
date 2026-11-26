@@ -5,6 +5,9 @@ Changelog
 Unreleased
 ----------
 
+* Verify staged and installed plugin files against the prepared generation
+  and retain the recovery intent when verification fails.
+
 * Report identity taglines and location names that exceed editor limits
   during portable JSON Resume import preparation.
 

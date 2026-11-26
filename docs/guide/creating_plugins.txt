@@ -274,6 +274,11 @@ A removal conflict rolls back the database transaction. During rollback after
 other failures, the command checks for unrecognized generations and restores
 only files it attempted to change.
 
+Creation also checks each staged file against the intent immediately before
+installation, then checks all installed files after syncing their directories.
+A generation mismatch keeps the intent and recovery copies for inspection and
+explicit recovery.
+
 Intents are per project root. Sharing one symlinked ``templates`` or
 ``core/plugins`` tree between several projects is not supported for plugin
 create/remove: another project cannot see this project's unresolved intent and

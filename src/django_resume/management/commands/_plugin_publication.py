@@ -24,6 +24,10 @@ class _PreparedTargetChanged(CommandError):
     pass
 
 
+class _NewGenerationChanged(CommandError):
+    pass
+
+
 def project_root() -> Path:
     # Commands resolve their targets below the current project directory.
     # Anchor the intent there even when ``templates`` or ``core/plugins`` is a
@@ -247,6 +251,19 @@ class Publication:
         if current != expected:
             raise _PreparedTargetChanged(message)
 
+    def _require_new(self, path: Path, entry: dict, description: str) -> None:
+        message = f"Plugin {description}: {path}"
+        try:
+            current = target_state(path)
+        except (OSError, ValueError) as error:
+            raise _NewGenerationChanged(f"{message} ({error})") from error
+        if current != entry["new_sha256"]:
+            raise _NewGenerationChanged(message)
+
+    def verify_installed(self) -> None:
+        for path, entry in zip(self.paths, self.data["files"]):
+            self._require_new(path, entry, "installed generation differs from intent")
+
     def publish(self, staged: dict[Path, Path | None] | None = None) -> None:
         targets = list(zip(self.paths, self.data["files"]))
         # Refuse the full set before mutating it, then narrow the recheck to
@@ -257,14 +274,18 @@ class Publication:
             self._require_old(path, entry)
             if staged is None and entry["old"] is None:
                 continue
+            source = staged[path] if staged is not None else None
+            if staged is not None:
+                assert source is not None
+                self._require_new(
+                    source, entry, "stage changed from its recorded new generation"
+                )
             # Record the attempt before the syscall, which can be interrupted
             # after it changed the target.
             self._attempted.add(path)
-            if staged is None:
+            if source is None:
                 path.unlink(missing_ok=True)
             else:
-                source = staged[path]
-                assert source is not None
                 source.replace(path)
 
     def sync_targets(self) -> None:
@@ -454,7 +475,9 @@ def publication_files(
                 f"the database and run recover_plugin {paths[0].stem} with "
                 f"--database-outcome"
             ) from error
-        if isinstance(error, _PreparedTargetChanged) and publication._attempted:
+        if isinstance(error, _NewGenerationChanged) or (
+            isinstance(error, _PreparedTargetChanged) and publication._attempted
+        ):
             hint = (
                 "; after verifying the rollback, use --database-outcome rolled-back"
                 if database is not None
@@ -479,7 +502,14 @@ def publication_files(
         # not a prepublication error: never restore blindly across this boundary.
         try:
             publication.sync_targets()
+            if staged is not None:
+                publication.verify_installed()
             publication.retire()
+        except _NewGenerationChanged as error:
+            raise CommandError(
+                f"{error}; recovery intent retained: {publication.intent}; "
+                f"run recover_plugin {paths[0].stem} --action status"
+            ) from error
         except OSError as error:
             hint = (
                 "; the removal transaction committed: use --action finish "
