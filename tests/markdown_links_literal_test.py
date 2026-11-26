@@ -145,3 +145,26 @@ def test_about_and_project_pages_render_literal_markdown_links(client, resume, t
         assert anchor.strong.get_text() == "Synthetic CV"
     resume.refresh_from_db()
     assert resume.plugin_data == before
+
+
+@pytest.mark.parametrize("suffix", ["", "](none)", "[none]", "[none](unfinished"])
+def test_markdown_without_link_delimiters_skips_the_suffix_index(monkeypatch, suffix):
+    from django_resume import markdown
+
+    visits = []
+
+    def track_range(*args):
+        if len(args) == 3 and args[2] == -1:
+            visits.append(args)
+        return range(*args)
+
+    monkeypatch.setattr(markdown, "range", track_range, raising=False)
+    text = "x" * (markdown.MAX_MARKDOWN_CHARS - len(suffix)) + suffix
+    assert markdown.markdown_to_html(text) == text
+    assert visits == []
+
+    rendered = markdown.markdown_to_html("[CV](https://example.test/a(b)?x=1&y=2)")
+    assert rendered == (
+        '<a href="https://example.test/a(b)?x=1&amp;y=2" rel="noopener noreferrer">CV</a>'
+    )
+    assert len(visits) == 2

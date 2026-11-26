@@ -164,6 +164,9 @@ def _replace_links(text: str, render: Callable[[str, str], str]) -> str:
     no deeper nesting. Precompute each suffix's closing URL delimiter so a
     failed candidate never rescans the remaining text.
     """
+    if "[" not in text or "](" not in text or ")" not in text:
+        return text
+
     ends = [-1] * (len(text) + 1)
     next_paren = len(text)
     for index in range(len(text) - 1, -1, -1):

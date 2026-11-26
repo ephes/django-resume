@@ -128,7 +128,8 @@ Rendered HTML is sanitized before it is marked safe, so raw HTML is not preserve
 and dangerous link protocols are removed. Plain-text output keeps headings and
 list items on separate lines and retains up to one consecutive blank line.
 
-Link matching runs in linear work, including unmatched/nested brackets. The
+Link matching runs in linear work, including unmatched/nested brackets.
+Text missing the delimiters for a link skips the character-sized link index. The
 existing small syntax is preserved: labels stay on one line, and URLs support
 flat parenthesized groups (for example ``https://example.com/a(b)``), but no
 deeper nesting. Backslashes retain their literal behavior; this is not a full

@@ -12,6 +12,8 @@ Unreleased
 
 * Preserve line boundaries around headings and lists in plain-text output.
 
+* Skip building the Markdown link index for text without link delimiters.
+
 * Refuse recovery if the admitted plugin intent changes and preserve the
   intent and recovery copies for inspection. Retirement sets the intent aside
   under a unique name and verifies it before deletion.
