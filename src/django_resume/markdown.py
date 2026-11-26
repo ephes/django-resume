@@ -145,10 +145,20 @@ def textarea_input_to_html(text: str) -> str:
 def markdown_to_plain_text(text: str) -> str:
     text = markdown_to_html(text)
     # Adjacent block tags share a boundary. Explicit breaks still count
-    # individually so the usual blank-line normalization can run below.
+    # individually so the usual blank-line normalization can run below. A list
+    # edge stands for the source line break that ``markdown_to_html`` joins
+    # into the list block instead of emitting a ``<br>``.
     text = re.sub(
         r"(?:<br>|</?(?:h[1-6]|ul|li)>)+",
-        lambda boundary: "\n" * max(1, boundary[0].count("<br>")),
+        lambda boundary: (
+            "\n"
+            * max(
+                1,
+                boundary[0].count("<br>")
+                + boundary[0].count("<ul>")
+                + boundary[0].count("</ul>"),
+            )
+        ),
         text,
     )
     text = re.sub(r"<[^>]+>", "", text)

@@ -827,6 +827,12 @@ def test_cv_malformed_token_container_denies_privately(client, resume, token_dat
             "First\none\nSecond\nTail",
         ),
         ("First\n\nSecond\nThird\n\n\nFourth", "First\n\nSecond\nThird\n\nFourth"),
+        ("Text\n- item", "Text\nitem"),
+        ("Text\n\n- item", "Text\n\nitem"),
+        ("- item\n\nText", "item\n\nText"),
+        ("- one\n\n- two", "one\n\ntwo"),
+        ("# First\n\n- one", "First\n\none"),
+        ("Text\n\n\n\n- item", "Text\n\nitem"),
     ],
 )
 def test_resume_cv_about_plain_text_keeps_block_boundaries(
