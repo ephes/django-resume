@@ -305,6 +305,10 @@ To install the complete recorded new generation instead, use
 ``--action finish``. Recovery validates the target set and every copy's digest
 before changing files, and holds the same writer locks. It retains authority
 copies throughout recovery, so an interrupted recovery can be repeated.
+Before each file change and before retiring the intent, recovery checks that
+the intent still has the admitted file identity and bytes. A conflict stops
+recovery, reports that the intent changed, and leaves the visible intent and
+recovery copies for inspection. Earlier file changes may already have completed.
 Recovery attempts to sync every affected directory, children before parents,
 even if an earlier directory sync fails. It reports the first sync error and
 keeps the intent and recovery copies so the same action can be retried. Only
@@ -390,10 +394,12 @@ For a removal this message adds that the transaction committed, so
 ``--action finish --database-outcome committed`` applies.
 Inspect with ``recover_plugin ... --action status`` and explicitly restore or
 finish as above. A failure during intent retirement likewise retains the copies
-and attempts to re-establish the visible intent; an ongoing storage failure may
-prevent that write, in which case stop writers and preserve every named copy
-for manual reconciliation. Cleanup warnings after durable retirement only name
-unreferenced leftovers; they do not change the completed operation's outcome.
+and attempts to re-establish the visible intent. During recovery this restores
+the admitted bytes only if the intent path is still vacant. An ongoing storage
+failure may prevent that write, in which case stop writers and preserve every
+named copy for manual reconciliation. Cleanup warnings after durable retirement
+only name unreferenced leftovers; they do not change the completed operation's
+outcome.
 
 These sync boundaries acknowledge the filesystem's durability contract, not a
 transaction for readers across three files, nor a replacement for database

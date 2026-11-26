@@ -5,6 +5,9 @@ Changelog
 Unreleased
 ----------
 
+* Refuse recovery if the admitted plugin intent changes and preserve the
+  intent and recovery copies for inspection.
+
 * Verify staged and installed plugin files against the prepared generation
   and retain the recovery intent when verification fails.
 

@@ -100,8 +100,19 @@ def target_state(path: Path) -> str | None:
     return state
 
 
-def read_intent(path: Path) -> bytes:
-    """Read one regular intent file through a single descriptor, bounded."""
+def _intent_stamp(info: os.stat_result) -> tuple[int, ...]:
+    return (
+        info.st_dev,
+        info.st_ino,
+        info.st_mode,
+        info.st_size,
+        info.st_mtime_ns,
+        info.st_ctime_ns,
+    )
+
+
+def read_intent(path: Path) -> tuple[bytes, tuple[int, ...]]:
+    """Read one bounded regular intent and capture its identity."""
     fd, before = open_regular(path)
     try:
         if before.st_size > INTENT_LIMIT:
@@ -120,12 +131,14 @@ def read_intent(path: Path) -> bytes:
     raw = b"".join(chunks)
     if len(raw) > INTENT_LIMIT:
         raise ValueError(f"intent exceeds {INTENT_LIMIT} bytes")
-    if (before.st_size, before.st_mtime_ns) != (
-        after.st_size,
-        after.st_mtime_ns,
-    ) or len(raw) != after.st_size:
+    stamp = _intent_stamp(after)
+    if (
+        len(raw) != after.st_size
+        or _intent_stamp(before) != stamp
+        or _intent_stamp(path.lstat()) != stamp
+    ):
         raise ValueError("intent changed while reading")
-    return raw
+    return raw, stamp
 
 
 def _validated(data: object) -> dict:
@@ -179,6 +192,7 @@ class Publication:
         self.data: dict = {"version": 1, "operation": "create", "files": []}
         # The exact bytes admitted by ``load``, also shown by ``status``.
         self.raw: bytes | None = None
+        self._intent_stamp: tuple[int, ...] | None = None
         self._attempted: set[Path] = set()
         # Set by the removal body immediately before its transaction commits.
         # A later failure cannot prove a rollback, so files are not restored.
@@ -321,19 +335,29 @@ class Publication:
         fd, name = tempfile.mkstemp(prefix=".plugin-intent-", dir=self.intent.parent)
         temporary = Path(name)
         try:
-            with os.fdopen(fd, "w") as output:
-                json.dump(self.data, output)
+            with os.fdopen(fd, "wb") as output:
+                output.write(
+                    self.raw
+                    if self.raw is not None
+                    else json.dumps(self.data).encode("utf-8")
+                )
                 output.flush()
                 os.fsync(output.fileno())
-            temporary.replace(self.intent)
+            if self.raw is None:
+                temporary.replace(self.intent)
+            else:
+                # A recovery retirement sync failed. Restore the admitted
+                # bytes only if no replacement has appeared in the meantime.
+                os.link(temporary, self.intent)
             sync_directory(self.intent.parent)
         finally:
             temporary.unlink(missing_ok=True)
 
     def load(self) -> None:
         self.raw = None
+        self._intent_stamp = None
         try:
-            self.raw = read_intent(self.intent)
+            self.raw, stamp = read_intent(self.intent)
             data = _validated(json.loads(self.raw.decode("utf-8")))
             entries = data["files"]
             if [entry["path"] for entry in entries] != [
@@ -364,6 +388,24 @@ class Publication:
                 f"Cannot read recovery intent {self.intent}: {error}"
             ) from error
         self.data = data
+        self._intent_stamp = stamp
+
+    def _intent_conflict(self) -> CommandError:
+        return CommandError(
+            f"Refusing plugin recovery: recovery intent changed at {self.intent}; "
+            f"preserve the intent and recovery copies and inspect with "
+            f"recover_plugin {self.paths[0].stem} --action status"
+        )
+
+    def _require_admitted_intent(self) -> None:
+        if self._intent_stamp is None:
+            return  # Internal rollback uses the intent it prepared itself.
+        try:
+            raw, stamp = read_intent(self.intent)
+        except (OSError, ValueError) as error:
+            raise self._intent_conflict() from error
+        if raw != self.raw or stamp != self._intent_stamp:
+            raise self._intent_conflict()
 
     def recorded(self, entry: dict) -> set[str | None]:
         # An absent generation is recorded as ``None``: the target is missing.
@@ -404,6 +446,7 @@ class Publication:
         # complete target set first, then recheck each target and its staged
         # authority bytes immediately before replacing it.
         targets = list(zip(self.paths, self.data["files"]))
+        self._require_admitted_intent()
         self.admit(targets)
         for path, entry in reversed(targets):
             if attempted_only and path not in self._attempted:
@@ -411,6 +454,7 @@ class Publication:
             source = entry[generation]
             if source is None:
                 self.admit([(path, entry)])
+                self._require_admitted_intent()
                 path.unlink(missing_ok=True)
             else:
                 copy = copy_sibling(Path(source), path, "backup-restore")
@@ -421,6 +465,7 @@ class Publication:
                             f"while staging {path}; {self.intent} is retained"
                         )
                     self.admit([(path, entry)])
+                    self._require_admitted_intent()
                     copy.replace(path)
                 finally:
                     copy.unlink(missing_ok=True)
@@ -438,6 +483,7 @@ class Publication:
         cleanup_backups(copies)
 
     def retire(self) -> None:
+        self._require_admitted_intent()
         self.intent.unlink()
         try:
             sync_directory(self.intent.parent)
@@ -446,9 +492,18 @@ class Publication:
             # Re-establish the visible blocker and retain every authority copy.
             try:
                 self.write_intent()
+            except FileExistsError as conflict:
+                raise self._intent_conflict() from conflict
             except OSError:
                 pass
             raise
+        if self._intent_stamp is not None:
+            try:
+                self.intent.lstat()
+            except FileNotFoundError:
+                pass
+            else:
+                raise self._intent_conflict()
         self.cleanup()
 
 

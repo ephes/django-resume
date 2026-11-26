@@ -513,3 +513,78 @@ def test_status_reads_the_intent_exactly_once(tmp_path, monkeypatch, valid):
             )
     assert len(opened) == 1
     assert json.loads(output.getvalue()) == record
+
+
+@pytest.mark.parametrize(
+    ("boundary", "replace_file"),
+    [("load", True), ("load", False), ("retire", True)],
+    ids=["same-bytes-new-file", "edit-in-place", "before-retirement"],
+)
+def test_recovery_keeps_changed_intent_and_copies(
+    tmp_path, monkeypatch, boundary, replace_file
+):
+    monkeypatch.chdir(tmp_path)
+    paths, _ = _interrupted_create(tmp_path, replaced=1)
+    intent = _intent(tmp_path)
+    before = _snapshot(tmp_path)
+    publication = _publication().Publication
+    original = getattr(publication, boundary)
+    replacement_bytes = before[str(intent)]
+    if boundary == "retire" or not replace_file:
+        replacement_bytes += b" "
+
+    def change_intent(pending):
+        if boundary == "load":
+            original(pending)
+        if replace_file:
+            replacement = tmp_path / "replacement"
+            replacement.write_bytes(replacement_bytes)
+            replacement.replace(intent)
+        else:
+            intent.write_bytes(replacement_bytes)
+        if boundary == "retire":
+            original(pending)
+
+    monkeypatch.setattr(publication, boundary, change_intent)
+    output = StringIO()
+    with pytest.raises(CommandError, match="recovery intent changed"):
+        call_command("recover_plugin", "safe_plugin", action="finish", stdout=output)
+
+    assert output.getvalue() == ""
+    before[str(intent)] = replacement_bytes
+    if boundary == "retire":
+        for index, path in enumerate(paths):
+            before[str(path)] = f"new {index}".encode()
+    assert _snapshot(tmp_path) == before
+
+
+@pytest.mark.parametrize("sync_fails", [False, True])
+def test_recovery_keeps_intent_created_during_retirement_sync(
+    tmp_path, monkeypatch, sync_fails
+):
+    monkeypatch.chdir(tmp_path)
+    paths, _ = _interrupted_create(tmp_path, replaced=1)
+    intent = _intent(tmp_path)
+    before = _snapshot(tmp_path)
+    replacement_bytes = before[str(intent)] + b" "
+    sync_directory = _publication().sync_directory
+
+    def replace_after_unlink(directory):
+        if directory == intent.parent and not intent.exists():
+            intent.write_bytes(replacement_bytes)
+            if sync_fails:
+                raise OSError("retirement sync failed")
+        sync_directory(directory)
+
+    monkeypatch.setattr(_publication(), "sync_directory", replace_after_unlink)
+    output = StringIO()
+    with pytest.raises(
+        CommandError, match="recovery intent changed|retirement sync failed"
+    ):
+        call_command("recover_plugin", "safe_plugin", action="finish", stdout=output)
+
+    assert output.getvalue() == ""
+    before[str(intent)] = replacement_bytes
+    for index, path in enumerate(paths):
+        before[str(path)] = f"new {index}".encode()
+    assert _snapshot(tmp_path) == before
