@@ -8,6 +8,8 @@ Unreleased
 * Keep edge whitespace and consecutive blank lines when saving untouched rich
   text in inline and admin forms.
 
+* Keep Markdown headings on their own source lines, including empty headings.
+
 * Refuse recovery if the admitted plugin intent changes and preserve the
   intent and recovery copies for inspection. Retirement sets the intent aside
   under a unique name and verifies it before deletion.

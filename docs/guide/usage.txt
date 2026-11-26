@@ -117,7 +117,7 @@ text fields. This currently applies to text-heavy sections such as **About**,
 
 The supported formatting is intentionally limited to:
 
-- headings
+- headings (a line containing only heading markers creates an empty heading)
 - bold
 - italic
 - links

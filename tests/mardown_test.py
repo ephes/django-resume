@@ -515,3 +515,16 @@ def test_editor_input_ceiling_counts_whitespace_before_stripping():
     form = AboutForm(data={"title": "Synthetic", "text": " " * (2 * 1024 * 1024) + "x"})
     assert not form.is_valid()
     assert "2097152" in str(form.errors["text"])
+
+
+@pytest.mark.parametrize("marker", ["#", "# \t"])
+@pytest.mark.parametrize(
+    "following, expected",
+    [
+        ("Prose", "<br>Prose"),
+        ("- Item", "<ul><li>Item</li></ul>"),
+        ("## Heading", "<br><h2>Heading</h2>"),
+    ],
+)
+def test_empty_markdown_heading_keeps_the_next_source_line(marker, following, expected):
+    assert markdown_to_html(f"{marker}\n{following}") == "<h1></h1>" + expected

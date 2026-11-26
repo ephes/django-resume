@@ -247,7 +247,7 @@ def markdown_to_html(text: str, handlers: dict[str, Callable] | None = None) -> 
             return f"<h{level}>{content}</h{level}>"
 
     text = re.sub(
-        r"^(#{1,6})\s*(.*)",
+        r"^(#{1,6})(.*)",
         render_heading,
         text,
         flags=re.MULTILINE,
