@@ -656,3 +656,48 @@ def test_recovery_keeps_set_aside_intent_when_its_path_is_taken(tmp_path, monkey
     assert str(asides[0]) in str(raised.value)
     assert asides[0].read_bytes() == admitted
     assert intent.read_bytes() == admitted + b"  "
+
+
+def test_recovery_keeps_set_aside_intent_when_restored_blocker_sync_fails(
+    tmp_path, monkeypatch
+):
+    monkeypatch.chdir(tmp_path)
+    _interrupted_create(tmp_path, replaced=1)
+    intent = _intent(tmp_path)
+    changed = intent.read_bytes() + b" "
+    module = _publication()
+    publication = module.Publication
+    original_retire = publication.retire
+    original_check = publication._require_admitted_intent
+    original_sync = module.sync_directory
+    retiring = False
+
+    def retire(pending):
+        nonlocal retiring
+        retiring = True
+        original_retire(pending)
+
+    def check_then_change(pending):
+        original_check(pending)
+        if retiring:
+            intent.write_bytes(changed)
+
+    def sync_directory(directory):
+        if directory == intent.parent and any(
+            tmp_path.glob(f"{intent.name}.retiring-*")
+        ):
+            raise OSError("blocker sync failed")
+        original_sync(directory)
+
+    monkeypatch.setattr(publication, "retire", retire)
+    monkeypatch.setattr(publication, "_require_admitted_intent", check_then_change)
+    monkeypatch.setattr(module, "sync_directory", sync_directory)
+    with pytest.raises(CommandError, match="recovery intent changed"):
+        call_command(
+            "recover_plugin", "safe_plugin", action="finish", stdout=StringIO()
+        )
+
+    # Until the restored blocker is durable, the set-aside name is kept too.
+    (aside,) = tmp_path.glob(f"{intent.name}.retiring-*")
+    assert aside.read_bytes() == changed
+    assert intent.read_bytes() == changed

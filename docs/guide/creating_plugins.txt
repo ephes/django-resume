@@ -312,9 +312,9 @@ recovery copies for inspection. Earlier file changes may already have completed.
 To retire the intent, recovery first renames it to
 ``<intent>.retiring-<random>`` and verifies that file, so a replacement is never
 deleted by name; a changed file is linked back to the intent path. If that path
-is taken again in the meantime, the error names the set-aside file, which is
-then kept. A ``.retiring-`` file left by a crash or such a conflict is an intent
-to inspect, not a leftover to delete.
+is taken again in the meantime, or the restored intent cannot be synced, the
+set-aside file is kept as well. A ``.retiring-`` file left by a crash or such
+a conflict is an intent to inspect, not a leftover to delete.
 Recovery attempts to sync every affected directory, children before parents,
 even if an earlier directory sync fails. It reports the first sync error and
 keeps the intent and recovery copies so the same action can be retried. Only

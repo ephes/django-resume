@@ -511,6 +511,11 @@ class Publication:
                 f"to {self.intent} if that path is free, and inspect with "
                 f"recover_plugin {self.paths[0].stem} --action status"
             ) from error
+        try:
+            # Make the restored blocker durable before dropping the aside name.
+            sync_directory(self.intent.parent)
+        except OSError as error:
+            raise self._intent_conflict() from error
         aside.unlink()
         raise self._intent_conflict()
 
