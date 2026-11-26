@@ -127,6 +127,8 @@ The supported formatting is intentionally limited to:
 Rendered HTML is sanitized before it is marked safe, so raw HTML is not preserved
 and dangerous link protocols are removed. Plain-text output keeps headings and
 list items on separate lines and retains up to one consecutive blank line.
+HTML and plain-text rendering treat LF, CRLF, and standalone CR as line
+breaks. The editor keeps the original stored line endings on an unchanged save.
 
 Link matching runs in linear work, including unmatched/nested brackets.
 Text missing the delimiters for a link skips the character-sized link index. The

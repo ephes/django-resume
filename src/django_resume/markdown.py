@@ -228,6 +228,8 @@ def markdown_to_html(text: str, handlers: dict[str, Callable] | None = None) -> 
     if handlers is None:
         handlers = {}
 
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
+
     # Protect destinations before formatting, including multiline URLs that
     # contain what would otherwise look like a heading or list item. Source
     # NULs are removed so the numeric markers cannot collide with input.

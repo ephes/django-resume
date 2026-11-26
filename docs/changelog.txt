@@ -7,6 +7,9 @@ Unreleased
 
 * Preserve line breaks from attributed div blocks when saving editor text.
 
+* Render Markdown with CRLF or CR line endings the same way as LF while
+  preserving the stored line endings on unchanged editor saves.
+
 * Keep edge whitespace and consecutive blank lines when saving untouched rich
   text in inline and admin forms.
 

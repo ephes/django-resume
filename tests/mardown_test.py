@@ -193,6 +193,20 @@ def test_editor_input_roundtrip_is_lossless(stored):
     assert textarea_input_to_markdown(markdown_to_textarea_input(stored)) == stored
 
 
+@pytest.mark.parametrize("line_ending", ["\r\n", "\r"], ids=["crlf", "cr"])
+def test_legacy_line_endings_survive_editor_and_render_as_lf(line_ending):
+    source = "# Heading\nIntro\n\n- one\n- two\n\n- three\n- four\n\nOutro"
+    stored = source.replace("\n", line_ending)
+    editor_input = markdown_to_textarea_input(stored)
+    reopened = textarea_input_to_markdown(textarea_input_to_html(editor_input))
+
+    assert reopened == stored
+    assert markdown_to_html(reopened) == markdown_to_html(source)
+    assert markdown_to_plain_text(reopened) == (
+        "Heading\nIntro\n\none\ntwo\n\nthree\nfour\n\nOutro"
+    )
+
+
 def test_markdown_to_plain_text_removes_markdown_markup():
     # Given markdown with headings and links
     markdown = "# Heading\n**Bold** [link](https://example.com)"
