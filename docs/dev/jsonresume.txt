@@ -1536,7 +1536,8 @@ One 30-second elapsed budget covers both walks; checks bracket chunk reads
 and filesystem operations. Symlinks inside npm trees are copied without
 following them; special files and redirected top-level sources are refused.
 Each opened regular file must keep its size and modification and change
-timestamps through the copy. The number of bytes read must match its size.
+timestamps through the copy. The number of bytes read must match its size,
+and the destination must accept all bytes of every chunk.
 A refused copy removes the private stage, preserves the active generation
 and stops before npm runs. The copy limits are separate from npm's timeout.
 npm only mutates that copy. Before publication,

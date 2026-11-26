@@ -525,3 +525,41 @@ def test_in_place_payload_edit_during_copy_preserves_current(cache, monkeypatch)
     assert (cache / ".current").read_bytes() == marker
     assert list(cache.glob("generation-*")) == [previous]
     assert_renders(monkeypatch)
+
+
+def test_short_copy_write_preserves_active_theme_generation(cache, monkeypatch):
+    from contextlib import contextmanager
+    from unittest.mock import Mock
+
+    from django_resume.formats.json_resume import themes
+
+    monkeypatch.setattr(themes, "_run_process", fake_npm)
+    themes.install_catalog_theme("even")
+    previous = themes._active_generation(cache)
+    marker = (cache / ".current").read_bytes()
+    payload = previous / "node_modules/jsonresume-theme-even/payload.js"
+    payload.write_bytes(b"synthetic package payload")
+    original_open = Path.open
+
+    @contextmanager
+    def short_writer(stream):
+        with stream:
+            yield SimpleNamespace(write=lambda chunk: stream.write(chunk[:-1]))
+
+    def open_file(path, mode="r", *args, **kwargs):
+        stream = original_open(path, mode, *args, **kwargs)
+        if mode == "xb" and path.name == payload.name:
+            return short_writer(stream)
+        return stream
+
+    monkeypatch.setattr(Path, "open", open_file)
+    npm = Mock(side_effect=fake_npm)
+    monkeypatch.setattr(themes, "_run_process", npm)
+
+    with pytest.raises(themes.JsonResumeThemeError, match="copy destination"):
+        themes.install_catalog_theme("flat")
+
+    npm.assert_not_called()
+    assert (cache / ".current").read_bytes() == marker
+    assert list(cache.glob("generation-*")) == [previous]
+    assert_renders(monkeypatch)

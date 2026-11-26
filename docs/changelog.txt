@@ -5,6 +5,8 @@ Changelog
 Unreleased
 ----------
 
+* Abort theme cache staging on a short write and keep the active generation.
+
 * Bound the JSON Resume nesting check's auxiliary memory by depth, including
   for wide extension objects and arrays.
 

@@ -687,7 +687,10 @@ def _copy_generation(current: Path, staged: Path) -> None:
                                     )
                                 if not chunk:
                                     break
-                                output.write(chunk)
+                                if output.write(chunk) != len(chunk):
+                                    raise JsonResumeThemeError(
+                                        "Theme generation copy destination accepted a short write"
+                                    )
                         final = os.fstat(fd)
                         if (
                             opened.st_size != final.st_size
