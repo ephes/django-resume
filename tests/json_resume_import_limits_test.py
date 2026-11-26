@@ -131,9 +131,11 @@ class ReadInterleaving:
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("restore_mtime", [False, True])
+@pytest.mark.parametrize(
+    "restore_mtime, pin_ctime", [(False, False), (True, False), (True, True)]
+)
 def test_same_size_rewrite_during_file_read_refuses_import(
-    django_user_model, tmp_path, monkeypatch, restore_mtime
+    django_user_model, tmp_path, monkeypatch, restore_mtime, pin_ctime
 ):
     owner = django_user_model.objects.create_user(username="synthetic")
     path = tmp_path / "synthetic.json"
@@ -152,6 +154,24 @@ def test_same_size_rewrite_during_file_read_refuses_import(
     monkeypatch.setattr(
         os, "fdopen", lambda fd, mode: ReadInterleaving(fdopen(fd, mode, 0), rewrite)
     )
+    if pin_ctime:
+        # Windows reports creation time as st_ctime, so a rewrite that
+        # restores mtime leaves every reported timestamp unchanged.
+        fstat = os.fstat
+
+        def pinned_fstat(fd):
+            result = fstat(fd)
+            if result.st_ino != before.st_ino:
+                return result
+            return SimpleNamespace(
+                st_mode=result.st_mode,
+                st_size=result.st_size,
+                st_mtime_ns=result.st_mtime_ns,
+                st_ctime_ns=before.st_ctime_ns,
+                st_ino=result.st_ino,
+            )
+
+        monkeypatch.setattr(os, "fstat", pinned_fstat)
     with pytest.raises(CommandError, match="input changed during read"):
         call_command(
             "import_json_resume", str(path), owner=owner.username, slug="rewritten"
@@ -175,6 +195,27 @@ def test_path_replacement_preserves_open_file_generation(tmp_path, monkeypatch):
         lambda fd, mode: ReadInterleaving(
             fdopen(fd, mode, 0), lambda: replacement.replace(path)
         ),
+    )
+    assert importer.load_document(path) == {"basics": {"name": "Original"}}
+
+
+@pytest.mark.skipif(
+    os.name == "nt", reason="Windows cannot replace a file that is held open"
+)
+def test_path_replacement_before_confirmation_read_is_admitted(tmp_path, monkeypatch):
+    path = tmp_path / "original.json"
+    path.write_bytes(b'{"basics":{"name":"Original"}}')
+    replacement = tmp_path / "replacement.json"
+    replacement.write_bytes(b'{"basics":{"name":"Replacement"}}')
+    fdopen = os.fdopen
+
+    class ReplaceOnSeek(ReadInterleaving):
+        def seek(self, offset):
+            replacement.replace(path)
+            return self.stream.seek(offset)
+
+    monkeypatch.setattr(
+        os, "fdopen", lambda fd, mode: ReplaceOnSeek(fdopen(fd, mode, 0), None)
     )
     assert importer.load_document(path) == {"basics": {"name": "Original"}}
 

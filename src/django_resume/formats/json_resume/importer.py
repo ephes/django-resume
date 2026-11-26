@@ -193,16 +193,16 @@ def load_document(path: str | Path) -> dict:
                     raise JsonResumeImportError(
                         f"Could not read {input_path}: input changed during read"
                     )
-                # A rewrite can restore mtime, and Windows reports creation
-                # time as st_ctime, so always confirm with a stable reread.
+                # A rewrite can restore mtime, and ctime is unreliable (Windows
+                # reports creation time; renaming the open inode updates it),
+                # so always confirm the bytes with a second bounded read.
                 stream.seek(0)
                 reread = stream.read(MAX_INPUT_BYTES + 1)
                 checked = os.fstat(fd)
-                if reread != data or (
-                    checked.st_size,
-                    checked.st_mtime_ns,
-                    checked.st_ctime_ns,
-                ) != (final.st_size, final.st_mtime_ns, final.st_ctime_ns):
+                if reread != data or (checked.st_size, checked.st_mtime_ns) != (
+                    final.st_size,
+                    final.st_mtime_ns,
+                ):
                     raise JsonResumeImportError(
                         f"Could not read {input_path}: input changed during read"
                     )
