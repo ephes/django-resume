@@ -85,7 +85,8 @@ unrelated sections out of that lookup. JSON Resume schema diagnostics stop at
 
 Browser JSON Resume imports read at most the input byte limit plus one byte,
 checking actual bytes before parsing, signing a preview or creating a resume.
-Read failures return a file-field diagnostic. Custom image forms may supply a
+Upload read failures appear beside the file field. URL loading errors appear
+beside the URL field. Custom image forms may supply a
 one-shot ``image_fields`` iterable: each form snapshots it before field setup,
 preflights every upload before storing any, and tracks only its own new files
 for failure cleanup.

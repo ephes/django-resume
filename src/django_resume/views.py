@@ -252,7 +252,11 @@ def _import_from_url(
     request: HttpRequest, form: JsonResumeImportForm
 ) -> JsonResumeImport | None:
     """Fetch and create in one step; URL imports are not part of the preview."""
-    document = load_document_url(form.cleaned_data["source_url"])
+    try:
+        document = load_document_url(form.cleaned_data["source_url"])
+    except JsonResumeImportError as exc:
+        form.add_error(exc.field or "source_url", str(exc))
+        return None
     result = import_resume_document(
         document,
         owner=request.user,

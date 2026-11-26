@@ -5,7 +5,10 @@ import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 
-from django_resume.formats.json_resume.importer import MAX_INPUT_BYTES
+from django_resume.formats.json_resume.importer import (
+    MAX_INPUT_BYTES,
+    JsonResumeImportError,
+)
 from django_resume.models import Resume
 from django_resume.plugins import plugin_registry, TokenPlugin
 
@@ -409,6 +412,52 @@ def test_import_json_resume_view_attaches_url_schema_errors_to_url_field(
     form = response.context["import_form"]
     assert "work: Value is not of type 'array'." in form.errors["source_url"]
     assert "file" not in form.errors
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("action", [None, "import-url"])
+def test_import_json_resume_view_attaches_read_errors_to_source_field(
+    client, django_user_model, monkeypatch, action
+):
+    user = django_user_model.objects.create_user(username="synthetic-owner")
+    client.force_login(user)
+    monkeypatch.setattr(
+        "django_resume.views.load_document_url",
+        lambda _url: {"basics": {"name": "Synthetic Resume"}},
+    )
+    Resume.objects.create(owner=user, slug="taken", name="Synthetic Existing")
+    url_data = {"source_url": "https://example.invalid/resume.json", "slug": "taken"}
+    if action is not None:
+        url_data["action"] = action
+    import_url = reverse("resume:json-resume-import")
+
+    duplicate = client.post(import_url, url_data)
+
+    def fail_to_load(_url):
+        raise JsonResumeImportError("Could not read the source URL.")
+
+    monkeypatch.setattr("django_resume.views.load_document_url", fail_to_load)
+    url_error = client.post(import_url, {**url_data, "slug": "new"})
+    file_error = client.post(
+        import_url,
+        {
+            "file": SimpleUploadedFile("invalid.json", b"{"),
+            "action": "preview",
+            "slug": "new",
+        },
+    )
+
+    for response, field, message in [
+        (duplicate, "slug", "already exists"),
+        (url_error, "source_url", "Could not read the source URL."),
+        (file_error, "file", "Invalid JSON:"),
+    ]:
+        assert response.status_code == 200
+        errors = response.context["import_form"].errors
+        assert list(errors) == [field]
+        assert message in errors[field][0]
+        assert message in response.content.decode()
+    assert Resume.objects.count() == 1
 
 
 @pytest.mark.django_db

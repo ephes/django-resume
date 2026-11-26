@@ -378,6 +378,8 @@ unchanged.
 
 URL imports are not previewed. **Import from URL** fetches the document and
 creates the resume in one step, as before, and reports the mapping afterwards.
+Source loading errors appear beside the URL field. A duplicate slug is
+reported beside the slug field.
 Custom forms can submit ``action=import-url`` for this operation. Existing
 clients that omit the action field are still supported. Other supplied
 actions, including an empty value, return a form error before fetching the URL.
