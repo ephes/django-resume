@@ -2,6 +2,7 @@ from tests.editor_helpers import post_current_editor
 from copy import deepcopy
 import re
 import pytest
+from bs4 import BeautifulSoup
 from django.contrib.auth.models import AnonymousUser
 from django.core.files.storage import InMemoryStorage
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -346,3 +347,67 @@ def test_cover_shows_error_when_replacing_avatar_with_svg(
     assert "Upload a valid image" in response.content.decode()
     resume.refresh_from_db()
     assert resume.plugin_data["cover"]["flat"]["avatar_img"] == "uploads/avatar.png"
+
+
+@pytest.mark.django_db
+def test_plain_cover_removes_first_section_until_an_item_is_added(client, resume):
+    resume.owner.save()
+    resume.plugin_data = {
+        "theme": {"name": "plain"},
+        "cover": {
+            "flat": dict(LETTER_DETAILS),
+            "items": [{"id": "last", "title": "Old heading", "text": "Old paragraph."}],
+        },
+    }
+    resume.save()
+    url = reverse("resume:detail", kwargs={"slug": resume.slug})
+    inline = plugin_registry.get_plugin("cover").inline
+
+    client.force_login(resume.owner)
+    editor = client.get(url, {"edit": "true"})
+    delete_url = editor.context["cover"]["first_item"]["delete_url"]
+    assert client.delete(delete_url).status_code == 200
+
+    client.logout()
+    public = client.get(url)
+    assert public.status_code == 200
+    # The browser prints this same page with the print stylesheet.
+    html = BeautifulSoup(public.content, "html.parser")
+    assert html.select_one('link[media="print"]')
+    flat = html.select_one("#cover-flat")
+    assert flat.select_one("h1").get_text(strip=True) == LETTER_DETAILS["title"]
+    assert flat.select_one("h2") is None
+    assert flat.select_one(".pretty") is None
+
+    client.force_login(resume.owner)
+    editor = client.get(url, {"edit": "true"})
+    html = BeautifulSoup(editor.content, "html.parser")
+    assert html.select_one('#cover-flat [hx-get][hx-target="#cover-flat"]')
+    form = client.get(inline.get_edit_item_url(resume.pk)).context["form"]
+    added = client.post(
+        inline.get_post_item_url(resume.pk),
+        {
+            "id": form.item_id,
+            "edit_revision": form["edit_revision"].value(),
+            "title": "Replacement heading",
+            "text": "Replacement paragraph.",
+        },
+    )
+    assert added.status_code == 200
+
+    client.logout()
+    public = client.get(url)
+    assert public.status_code == 200
+    html = BeautifulSoup(public.content, "html.parser")
+    assert (
+        html.select_one("#cover-flat h2").get_text(strip=True) == "Replacement heading"
+    )
+    assert [
+        heading.get_text(strip=True)
+        for heading in html.select("#cover-flat h2, #cover-items h3")
+    ] == ["Replacement heading"]
+    assert (
+        html.select_one("#cover-flat .pretty").get_text(strip=True)
+        == "Replacement paragraph."
+    )
+    assert public.content.count(b"Replacement paragraph.") == 1

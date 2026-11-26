@@ -5,6 +5,9 @@ Changelog
 Unreleased
 ----------
 
+* Omit the first section's heading and body from plain-theme cover letters
+  with no paragraphs, including when printing.
+
 * Skip image URL lookups for missing or cleared cover profile and signature
   images in the editor and on the public cover letter.
 

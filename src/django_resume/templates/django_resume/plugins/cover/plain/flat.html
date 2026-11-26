@@ -25,7 +25,7 @@
       >
     </div>
   {% endif %}
-  {% if not show_edit_button %}
+  {% if not show_edit_button and cover.first_item %}
     <h2 class="first-cover-headline">{{ cover.first_item.title }}</h2>
     <div class="pretty">
       {{ cover.first_item.text|safe }}
