@@ -18,6 +18,7 @@ from .base import (
 
 from ..theme_names import is_valid_theme_name
 from ..markdown import (
+    MAX_MARKDOWN_CHARS,
     markdown_to_html,
     safe_link_url,
     underlined_link_handler,
@@ -150,7 +151,7 @@ class TimelineItemForm(ListItemFormMixin, forms.Form):
         widget=forms.URLInput(), required=False, assume_scheme="https"
     )
     company_name = forms.CharField(widget=forms.TextInput(), max_length=50)
-    description = EditorTextField()
+    description = EditorTextField(max_length=MAX_MARKDOWN_CHARS)
     start = forms.CharField(widget=forms.TextInput(), required=False)
     end = forms.CharField(widget=forms.TextInput(), required=False)
     initial_badges = [

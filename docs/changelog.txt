@@ -5,6 +5,9 @@ Changelog
 Unreleased
 ----------
 
+* Validate project and timeline descriptions against the Markdown renderer's
+  character limit before saving in either editor.
+
 * Preserve line breaks from attributed div blocks when saving editor text.
 
 * Render Markdown with CRLF or CR line endings the same way as LF while

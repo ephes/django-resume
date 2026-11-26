@@ -74,6 +74,14 @@ This is the list of built-in plugins that come with django-resume:
   With the request supplied, the appearance editor link appears only for the
   authenticated owner of a token-gated resume.
 
+Project and timeline descriptions
+---------------------------------
+
+The inline and admin editors accept up to 262,144 Unicode characters of
+Markdown in project descriptions and in both timelines. Validation counts
+decoded Markdown. The separate 2,097,152-character limit on submitted editor
+HTML still applies.
+
 Legacy education and optional denial avatars
 --------------------------------------------
 

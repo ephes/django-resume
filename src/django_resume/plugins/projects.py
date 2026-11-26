@@ -15,6 +15,7 @@ from .base import (
 )
 
 from ..markdown import (
+    MAX_MARKDOWN_CHARS,
     markdown_to_html,
     safe_link_url,
     underlined_link_handler,
@@ -32,7 +33,7 @@ PROJECT_IMPORTED_KEYS = ("name", "url", "description", "highlights", "keywords")
 class ProjectItemForm(ListItemFormMixin, forms.Form):
     title = forms.CharField(widget=forms.TextInput())
     url = forms.URLField(widget=forms.URLInput(), required=False, assume_scheme="https")
-    description = EditorTextField()
+    description = EditorTextField(max_length=MAX_MARKDOWN_CHARS)
     initial_badges = ["Some Badge", "Another Badge"]
     badges = BadgesField(
         widget=forms.TextInput(), required=False, initial=initial_badges
