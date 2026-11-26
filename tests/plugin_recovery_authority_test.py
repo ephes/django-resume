@@ -588,3 +588,71 @@ def test_recovery_keeps_intent_created_during_retirement_sync(
     for index, path in enumerate(paths):
         before[str(path)] = f"new {index}".encode()
     assert _snapshot(tmp_path) == before
+
+
+def test_recovery_keeps_intent_replaced_between_recheck_and_retirement(
+    tmp_path, monkeypatch
+):
+    monkeypatch.chdir(tmp_path)
+    paths, _ = _interrupted_create(tmp_path, replaced=1)
+    intent = _intent(tmp_path)
+    before = _snapshot(tmp_path)
+    replacement_bytes = before[str(intent)] + b" "
+    publication = _publication().Publication
+    original_retire = publication.retire
+    original_check = publication._require_admitted_intent
+    retiring = False
+
+    def retire(pending):
+        nonlocal retiring
+        retiring = True
+        original_retire(pending)
+
+    def check_then_replace(pending):
+        original_check(pending)
+        if retiring:
+            # A replacement lands after the last check, right before the
+            # intent is taken out of view.
+            replacement = tmp_path / "replacement"
+            replacement.write_bytes(replacement_bytes)
+            replacement.replace(intent)
+
+    monkeypatch.setattr(publication, "retire", retire)
+    monkeypatch.setattr(publication, "_require_admitted_intent", check_then_replace)
+    output = StringIO()
+    with pytest.raises(CommandError, match="recovery intent changed"):
+        call_command("recover_plugin", "safe_plugin", action="finish", stdout=output)
+
+    assert output.getvalue() == ""
+    before[str(intent)] = replacement_bytes
+    for index, path in enumerate(paths):
+        before[str(path)] = f"new {index}".encode()
+    assert _snapshot(tmp_path) == before
+
+
+def test_recovery_keeps_set_aside_intent_when_its_path_is_taken(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    _interrupted_create(tmp_path, replaced=1)
+    intent = _intent(tmp_path)
+    admitted = intent.read_bytes()
+    module = _publication()
+    original_read = module.read_intent
+
+    def read_aside(path):
+        if ".retiring-" in path.name:
+            # The pathname is reused while the changed intent is set aside.
+            intent.write_bytes(admitted + b"  ")
+            return b"changed", (0, 0, 0, 0, 0, 0)
+        return original_read(path)
+
+    monkeypatch.setattr(module, "read_intent", read_aside)
+    with pytest.raises(CommandError, match="changed intent was kept at") as raised:
+        call_command(
+            "recover_plugin", "safe_plugin", action="finish", stdout=StringIO()
+        )
+
+    asides = list(tmp_path.glob(f"{intent.name}.retiring-*"))
+    assert len(asides) == 1
+    assert str(asides[0]) in str(raised.value)
+    assert asides[0].read_bytes() == admitted
+    assert intent.read_bytes() == admitted + b"  "

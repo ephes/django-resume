@@ -3,6 +3,7 @@
 import hashlib
 import json
 import os
+import secrets
 import shutil
 import stat
 import tempfile
@@ -482,9 +483,43 @@ class Publication:
         }
         cleanup_backups(copies)
 
+    def _retire_admitted_intent(self) -> None:
+        # Take whatever file holds the intent pathname out of view first, then
+        # verify that file, so a replacement can never be deleted by name.
+        assert self._intent_stamp is not None
+        aside = self.intent.with_name(
+            f"{self.intent.name}.retiring-{secrets.token_hex(8)}"
+        )
+        os.rename(self.intent, aside)
+        try:
+            raw, stamp = read_intent(aside)
+        except (OSError, ValueError):
+            matches = False
+        else:
+            # A rename updates only the change time of the moved file.
+            matches = raw == self.raw and stamp[:5] == self._intent_stamp[:5]
+        if matches:
+            aside.unlink()
+            return
+        try:
+            os.link(aside, self.intent, follow_symlinks=False)
+        except OSError as error:
+            raise CommandError(
+                f"Refusing plugin recovery: recovery intent changed at "
+                f"{self.intent}; the changed intent was kept at {aside} "
+                f"({error}). Preserve it and the recovery copies, move it back "
+                f"to {self.intent} if that path is free, and inspect with "
+                f"recover_plugin {self.paths[0].stem} --action status"
+            ) from error
+        aside.unlink()
+        raise self._intent_conflict()
+
     def retire(self) -> None:
         self._require_admitted_intent()
-        self.intent.unlink()
+        if self._intent_stamp is None:
+            self.intent.unlink()
+        else:
+            self._retire_admitted_intent()
         try:
             sync_directory(self.intent.parent)
         except OSError:
