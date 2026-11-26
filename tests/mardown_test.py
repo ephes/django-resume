@@ -428,6 +428,35 @@ def test_editor_tag_scan_compatibility(source, expected):
     assert textarea_input_to_markdown(source) == expected
 
 
+@pytest.mark.django_db
+def test_attributed_divs_keep_line_boundaries_in_reopened_editor(client, resume):
+    from django_resume.plugins import plugin_registry
+    from tests.editor_helpers import post_current_editor
+
+    resume.owner.save()
+    resume.save()
+    client.force_login(resume.owner)
+    inline = plugin_registry.get_plugin("about").inline
+    response = post_current_editor(
+        client,
+        inline.get_post_url(resume.pk),
+        {
+            "title": "Synthetic",
+            "text": (
+                '<DIV class="pasted">First <em>line</em></DIV>'
+                "<div data-label='2 > 1'>Second &lt;div&gt; &amp;lt;div&amp;gt;</div>"
+            ),
+        },
+    )
+    assert response.status_code == 200
+    resume.refresh_from_db()
+    assert resume.plugin_data["about"]["text"] == "First line\nSecond <div> &lt;div&gt;"
+
+    editor = client.get(inline.get_edit_url(resume.pk))
+    assert editor.status_code == 200
+    assert b"First line<br>Second &lt;div&gt; &amp;lt;div&amp;gt;" in editor.content
+
+
 def test_editor_encoded_input_ceiling_precedes_conversion(monkeypatch):
     from django_resume import markdown
 

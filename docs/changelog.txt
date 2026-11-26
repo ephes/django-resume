@@ -5,6 +5,8 @@ Changelog
 Unreleased
 ----------
 
+* Preserve line breaks from attributed div blocks when saving editor text.
+
 * Keep edge whitespace and consecutive blank lines when saving untouched rich
   text in inline and admin forms.
 

@@ -82,18 +82,30 @@ def sanitize_html(text: str) -> str:
     )
 
 
-def _strip_html_tags(text: str) -> str:
-    """Remove the legacy <[^>]+> subset without rescanning failed suffixes."""
+# Keep raw "<" as a scan boundary, even for malformed quoted attributes.
+# Quoted values can contain ">" without ending the opening tag.
+DIV_OPEN_RE = re.compile(
+    r"""<div(?:[ \t\n\f\r](?:[^<>"']|"[^"<]*"|'[^'<]*')*)?>""",
+    re.IGNORECASE,
+)
+BR_RE = re.compile(r"<br\s*/?>", re.IGNORECASE)
+
+
+def _replace_editor_tags(text: str) -> str:
+    """Keep structural line breaks and strip other tags in a bounded walk."""
     pieces = []
     cursor = search = 0
     while (start := text.find("<", search)) != -1:
         end = text.find(">", start + 1)
         if end == -1:
             break
-        search = end + 1
+        div = DIV_OPEN_RE.match(text, start)
+        search = div.end() if div else end + 1
         if end == start + 1:  # <> was never a tag in the editor format.
             continue
         pieces.append(text[cursor:start])
+        if div or BR_RE.fullmatch(text, start, search):
+            pieces.append("\n")
         cursor = search
     pieces.append(text[cursor:])
     return "".join(pieces)
@@ -102,18 +114,8 @@ def _strip_html_tags(text: str) -> str:
 def textarea_input_to_markdown(text: str) -> str:
     if len(text) > MAX_EDITOR_INPUT_CHARS:
         raise ValueError("Editor input exceeds 2097152 character limit")
-    # Replace div tags with newlines
-    content = re.sub(r"<div>", "\n", text, flags=re.IGNORECASE)
-    content = re.sub(r"</div>", "", content, flags=re.IGNORECASE)
-
-    # Replace <br> and <br/> with newlines
-    content = re.sub(r"<br\s*/?>", "\n", content, flags=re.IGNORECASE)
-
-    # Remove any remaining HTML tags
-    content = _strip_html_tags(content)
-
     # Decode once after stripping tags: encoded markup remains literal text.
-    content = html.unescape(content)
+    content = html.unescape(_replace_editor_tags(text))
 
     # Fix multiple newlines (more than 2) to maximum 2 newlines
     content = re.sub(r"\n{3,}", "\n\n", content)

@@ -373,12 +373,14 @@ Inline editor text
 
 Multi-line text fields (about, cover, project and timeline descriptions) are
 stored as literal text. The editor input format is an HTML fragment in which
-that text is entity-escaped and ``<br>`` marks a line break. Saving removes
-structural HTML and then decodes entities once, so ampersands, angle brackets,
-nonbreaking spaces and markup-looking text such as a literal ``<br>`` survive
-unchanged saves and JSON Resume exports. Encoded markup is not parsed again
-during input cleaning; rendered Markdown still passes through the output
-sanitizer. Length limits apply to the stored text, not to its encoded form.
+that text is entity-escaped and ``<br>`` marks a line break. When saving pasted
+or browser-generated HTML, opening ``div`` tags also mark line breaks, including
+tags with attributes. Saving removes the tags and then decodes entities once,
+so ampersands, angle brackets, nonbreaking spaces and markup-looking text such
+as a literal ``<br>`` survive unchanged saves and JSON Resume exports. Encoded
+markup is not parsed again during input cleaning; rendered Markdown still
+passes through the output sanitizer. Length limits apply to the stored text,
+not to its encoded form.
 A separate work ceiling admits at most 2,097,152 encoded input characters
 before conversion. Tag discovery scans linearly, including unfinished tags.
 Over-ceiling submissions show a field error and leave saved content unchanged;
