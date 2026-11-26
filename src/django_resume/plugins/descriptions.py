@@ -4,7 +4,12 @@ from typing import Any, cast
 
 from django import forms
 
-from ..markdown import MAX_MARKDOWN_CHARS, markdown_to_html, underlined_link_handler
+from ..markdown import (
+    MAX_MARKDOWN_CHARS,
+    markdown_to_html,
+    textarea_input_to_markdown,
+    underlined_link_handler,
+)
 from .base import EditorTextField, prepare_editor_text
 
 
@@ -15,9 +20,17 @@ class DescriptionField(EditorTextField):
         super().__init__(max_length=MAX_MARKDOWN_CHARS)
 
     def clean(self, value: Any) -> str:
-        if self._legacy_text is not None and value in (None, ""):
+        if self._legacy_text is not None and self._is_blank(value):
             return self._legacy_text
         return super().clean(value)
+
+    def _is_blank(self, value: Any) -> bool:
+        # A cleared contenteditable can still submit markup such as ``<br>``.
+        try:
+            text = textarea_input_to_markdown(self.to_python(value) or "")
+        except ValueError:
+            return False
+        return not text.strip()
 
 
 def prepare_description(form: forms.Form) -> str:

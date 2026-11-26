@@ -131,6 +131,17 @@ def test_legacy_description_can_be_recovered(
     if surface == "inline":
         assert b"Description exceeds the Markdown display limit." in response.content
 
+    for blank in ("<br>", " <div><br></div> ", "&nbsp;"):
+        response = post_current_editor(
+            client, post_url, {**data, label: f"Blank {blank!r}", "description": blank}
+        )
+        assert response.status_code == 200
+        assert b"This field is required." not in response.content
+        resume.refresh_from_db()
+        saved = plugin.get_data(resume)["items"][0]
+        assert saved[label] == f"Blank {blank!r}"
+        assert saved["description"] == original
+
     refused = post_current_editor(
         client, post_url, {**data, "description": "x" * (MAX_MARKDOWN_CHARS + 1)}
     )
