@@ -3,7 +3,9 @@ from copy import deepcopy
 import re
 import pytest
 from django.contrib.auth.models import AnonymousUser
+from django.core.files.storage import InMemoryStorage
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.urls import reverse
 
 from django_resume.formats.json_resume.export import export_resume
 from django_resume.pages.base import build_base_context
@@ -120,6 +122,97 @@ def test_cover_flat_form_template_posts_letter_details(client, resume, theme):
         assert f'name="{field}"' in content
     assert 'name="signature_name"' in content
     assert "Application as Senior Designer" in content
+
+
+class StrictImageStorage(InMemoryStorage):
+    def url(self, name):
+        if not name:
+            raise ValueError("An image name is required")
+        return super().url(name)
+
+
+@pytest.fixture
+def strict_image_storage(settings, in_memory_storage):
+    settings.STORAGES = {
+        **settings.STORAGES,
+        "default": {"BACKEND": "tests.cover_test.StrictImageStorage"},
+    }
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "images",
+    [
+        {},
+        {"avatar_img": None, "signature_img": None},
+        {"avatar_img": "", "signature_img": ""},
+    ],
+)
+def test_cover_renders_without_optional_images(
+    client, resume, strict_image_storage, images
+):
+    resume.owner.save()
+    resume.plugin_data = {"cover": {"flat": {**LETTER_DETAILS, **images}}}
+    resume.save()
+    url = reverse("resume:detail", kwargs={"slug": resume.slug})
+
+    public = client.get(url)
+    assert public.status_code == 200
+    assert public.context["cover"]["avatar_img_url"] == ""
+    assert public.context["cover"]["signature_img_url"] == ""
+    assert b'class="cover-avatar-image"' not in public.content
+
+    client.force_login(resume.owner)
+    inline = plugin_registry.get_plugin("cover").inline
+    editor = client.get(inline.get_edit_flat_url(resume.pk))
+    assert editor.status_code == 200
+    assert editor.context["form"].avatar_img_url == ""
+    assert editor.context["form"].signature_img_url == ""
+
+
+@pytest.mark.django_db
+def test_cover_clearing_images_updates_preview_and_public_page(
+    client, resume, strict_image_storage
+):
+    resume.owner.save()
+    resume.plugin_data = {
+        "cover": {
+            "flat": {
+                **LETTER_DETAILS,
+                "avatar_img": "uploads/avatar.png",
+                "signature_img": "uploads/signature.png",
+            }
+        }
+    }
+    resume.save()
+    url = reverse("resume:detail", kwargs={"slug": resume.slug})
+    public = client.get(url)
+    assert public.status_code == 200
+    assert public.context["cover"]["avatar_img_url"].endswith("/uploads/avatar.png")
+    assert public.context["cover"]["signature_img_url"].endswith(
+        "/uploads/signature.png"
+    )
+
+    client.force_login(resume.owner)
+    inline = plugin_registry.get_plugin("cover").inline
+    preview = post_current_editor(
+        client,
+        inline.get_edit_flat_post_url(resume.pk),
+        {**LETTER_DETAILS, "clear_avatar": "on", "clear_signature": "on"},
+    )
+    assert preview.status_code == 200
+    assert b'id="cover-flat"' in preview.content
+    resume.refresh_from_db()
+    assert resume.plugin_data["cover"]["flat"]["avatar_img"] is None
+    assert resume.plugin_data["cover"]["flat"]["signature_img"] is None
+
+    client.logout()
+    public = client.get(url)
+    assert public.status_code == 200
+    for response in (preview, public):
+        assert response.context["cover"]["avatar_img_url"] == ""
+        assert response.context["cover"]["signature_img_url"] == ""
+        assert b'class="cover-avatar-image"' not in response.content
 
 
 @pytest.mark.django_db

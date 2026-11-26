@@ -19,8 +19,10 @@ This is the list of built-in plugins that come with django-resume:
   The plain, editorial, and headwind CV pages display the saved awarder when
   filled in. The CV pages show awards when there are entries (always in the
   editorial theme and in edit mode).
-- **Cover**: A cover letter with a profile picture, letter details (recipient,
-  place and date, subject, salutation, closing) and an optional signature.
+- **Cover**: A cover letter with letter details (recipient, place and date,
+  subject, salutation, closing) and optional profile and signature images.
+  Clear either image in the editor to omit it from the preview and public
+  cover letter.
 - **Education**: A list of schools with an optional degree, field of study,
   and dates of attendance.
 - **Identity**: Your name, email, phone number, profile picture, social media

@@ -5,6 +5,9 @@ Changelog
 Unreleased
 ----------
 
+* Skip image URL lookups for missing or cleared cover profile and signature
+  images in the editor and on the public cover letter.
+
 * Show a placeholder for oversized stored project and timeline descriptions.
   Owners can update other fields or supply a shorter replacement and can copy
   the original from their private JSON Resume export.

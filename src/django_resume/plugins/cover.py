@@ -1,7 +1,6 @@
 from typing import Type
 
 from django import forms
-from django.core.files.storage import default_storage
 from django.http import HttpRequest
 
 from .base import (
@@ -118,22 +117,17 @@ class CoverFlatForm(ImageFormMixin, forms.Form):
 
     @property
     def avatar_img_url(self) -> str:
-        return self.get_image_url_for_field(self.initial.get("avatar_img", ""))
+        return self.get_image_url_for_field(self.initial.get("avatar_img"))
 
     @property
     def signature_img_url(self) -> str:
-        signature_img = self.initial.get("signature_img", "")
-        return self.get_image_url_for_field(signature_img) if signature_img else ""
+        return self.get_image_url_for_field(self.initial.get("signature_img"))
 
-    @staticmethod
-    def set_context(item: dict, context: ContextDict) -> ContextDict:
-        image_url = ImageFormMixin.get_image_url_for_field(item.get("avatar_img", ""))
+    @classmethod
+    def set_context(cls, item: dict, context: ContextDict) -> ContextDict:
+        image_url = cls.get_image_url_for_field(item.get("avatar_img"))
         signature_img = item.get("signature_img") or ""
-        signature_url = (
-            ImageFormMixin.get_image_url_for_field(signature_img)
-            if signature_img
-            else ""
-        )
+        signature_url = cls.get_image_url_for_field(signature_img)
         context["cover"] = {
             "title": item.get("title", ""),
             "avatar_alt": item.get("avatar_alt", ""),
@@ -185,9 +179,10 @@ class CoverPlugin(ListPlugin):
         context["first_item"] = items[0] if items else None
         # add avatar and signature image urls
         flat = plugin_data.get("flat", {})
-        context["avatar_img_url"] = default_storage.url(flat.get("avatar_img", ""))
-        signature_img = flat.get("signature_img") or ""
-        context["signature_img_url"] = (
-            default_storage.url(signature_img) if signature_img else ""
+        context["avatar_img_url"] = CoverFlatForm.get_image_url_for_field(
+            flat.get("avatar_img")
+        )
+        context["signature_img_url"] = CoverFlatForm.get_image_url_for_field(
+            flat.get("signature_img")
         )
         return context

@@ -371,12 +371,12 @@ class ImageFormMixin:
             if initial is None:
                 continue
             initial_filename = initial.get(field_name)
-            if initial_filename is not None:
+            if initial_filename:
                 self.fields[field_name].initial = CustomFileObject(initial_filename)
 
     @staticmethod
-    def get_image_url_for_field(image_path: str) -> str:
-        return default_storage.url(image_path)
+    def get_image_url_for_field(image_path: str | None) -> str:
+        return default_storage.url(image_path) if image_path else ""
 
     def do_clean_image_field(
         self, cleaned_data: dict[str, Any], image_field: str, clear_field: str
