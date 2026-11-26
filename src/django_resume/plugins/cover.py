@@ -1,4 +1,4 @@
-from typing import Type, cast, Any
+from typing import Type
 
 from django import forms
 from django.core.files.storage import default_storage
@@ -6,6 +6,7 @@ from django.http import HttpRequest
 
 from .base import (
     EditorTextField,
+    prepare_editor_text,
     ListPlugin,
     ListItemFormMixin,
     ListInline,
@@ -14,8 +15,6 @@ from .base import (
 
 from ..markdown import (
     markdown_to_html,
-    textarea_input_to_html,
-    markdown_to_textarea_input,
     underlined_link_handler,
 )
 from ..images import ImageFormMixin
@@ -35,11 +34,7 @@ class CoverItemForm(ListItemFormMixin, forms.Form):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        # Transform initial text from markdown to textarea input.
-        initial = cast(dict[str, Any], self.initial)
-        initial["text"] = markdown_to_textarea_input(self.initial.get("text", ""))
-        self.initial = initial
-        self.text_display_html = textarea_input_to_html(self["text"].value() or "")
+        self.text_display_html = prepare_editor_text(self, "text")
 
     @staticmethod
     def get_initial() -> ContextDict:

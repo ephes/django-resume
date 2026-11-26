@@ -144,3 +144,77 @@ def test_all_required_editor_fields_reject_decoded_empty_text(
     with pytest.raises(forms.ValidationError) as error:
         field.clean(submitted)
     assert error.value.error_list[0].code == "required"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("surface", ["admin", "inline"])
+@pytest.mark.parametrize("plugin_name", ["about", "projects"])
+def test_untouched_rich_field_save_preserves_imported_text(
+    client, resume, surface, plugin_name
+):
+    from django_resume.plugins import plugin_registry
+
+    stored = " \tFirst & <tag>\n\n\nSecond\u00a0 "
+    project = {
+        "id": "p1",
+        "title": "Synthetic",
+        "url": "",
+        "description": stored,
+        "badges": [],
+        "position": 0,
+    }
+    resume.owner.is_staff = True
+    resume.owner.save()
+    resume.plugin_data = {
+        "about": {"title": "Synthetic", "text": stored},
+        "projects": {"flat": {"title": "Projects"}, "items": [project]},
+    }
+    resume.save()
+    client.force_login(resume.owner)
+    plugin = plugin_registry.get_plugin(plugin_name)
+    view = plugin.admin if surface == "admin" else plugin.inline
+    if plugin_name == "about":
+        field = "text"
+        form = AboutForm(initial=resume.plugin_data["about"].copy())
+        url = (
+            view.get_change_post_url(resume.pk)
+            if surface == "admin"
+            else view.get_post_url(resume.pk)
+        )
+    else:
+        field = "description"
+        form = ProjectItemForm(initial=project.copy(), resume=resume, existing_items=[])
+        url = (
+            view.get_change_item_post_url(resume.pk)
+            if surface == "admin"
+            else view.get_post_item_url(resume.pk)
+        )
+
+    def save_and_read(submitted):
+        response = post_current_editor(
+            client, url, {**project, "title": "Updated title", field: submitted}
+        )
+        assert response.status_code in (200, 302)
+        resume.refresh_from_db()
+        data = resume.plugin_data[plugin_name]
+        return data if plugin_name == "about" else data["items"][0]
+
+    encoded = form[field].value()
+    bound = type(form)(
+        data={"title": "Synthetic", field: encoded, "position": 0},
+        initial={"title": "Synthetic", field: stored},
+        **(
+            {"resume": resume, "existing_items": []}
+            if plugin_name == "projects"
+            else {}
+        ),
+    )
+    assert bound.is_valid(), bound.errors
+    assert bound.cleaned_data[field] == stored
+    saved = save_and_read(encoded)
+    assert saved["title"] == "Updated title"
+    assert saved[field] == stored
+    assert getattr(form, f"{field}_display_html") == encoded
+    assert save_and_read(encoded.replace("Second", "Edited"))[field] == (
+        "First & <tag>\n\nEdited"
+    )

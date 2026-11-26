@@ -7,6 +7,7 @@ from .badges import BadgesField, display_badges, editor_badges_json
 
 from .base import (
     EditorTextField,
+    prepare_editor_text,
     ListPlugin,
     ListItemFormMixin,
     ListInline,
@@ -16,8 +17,6 @@ from .base import (
 from ..markdown import (
     markdown_to_html,
     safe_link_url,
-    textarea_input_to_html,
-    markdown_to_textarea_input,
     underlined_link_handler,
 )
 from ..interchange.pointer import get_pointer
@@ -43,15 +42,7 @@ class ProjectItemForm(ListItemFormMixin, forms.Form):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.set_initial_position()
-        # Transform initial text from markdown to textarea input.
-        initial = cast(dict[str, Any], self.initial)
-        initial["description"] = markdown_to_textarea_input(
-            self.initial.get("description", "")
-        )
-        self.initial = initial
-        self.description_display_html = textarea_input_to_html(
-            self["description"].value() or ""
-        )
+        self.description_display_html = prepare_editor_text(self, "description")
 
     def badges_as_json(self) -> str:
         return editor_badges_json(self)

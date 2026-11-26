@@ -4,12 +4,16 @@ from django.http import HttpRequest
 from django.template import TemplateDoesNotExist
 from django.template.loader import get_template
 
-from .base import EditorTextField, SimplePlugin, SimpleThemedTemplates, ContextDict
+from .base import (
+    EditorTextField,
+    prepare_editor_text,
+    SimplePlugin,
+    SimpleThemedTemplates,
+    ContextDict,
+)
 from ..images import ImageFormMixin
 from ..markdown import (
     markdown_to_html,
-    markdown_to_textarea_input,
-    textarea_input_to_html,
     underlined_link_handler,
 )
 
@@ -60,9 +64,7 @@ class PermissionDeniedForm(ImageFormMixin, forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Transform initial text from markdown to textarea input.
-        self.initial["text"] = markdown_to_textarea_input(self.initial.get("text", ""))
-        self.text_display_html = textarea_input_to_html(self["text"].value() or "")
+        self.text_display_html = prepare_editor_text(self, "text")
 
     @property
     def avatar_img_url(self):

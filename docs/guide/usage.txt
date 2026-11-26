@@ -384,7 +384,10 @@ the contenteditable preview stays empty until the input is reduced. The bound
 form retains the submitted value. Valid entity encodings can exceed the decoded
 field's length limit.
 
-Required fields validate the decoded, trimmed stored text. Markup-only,
+Saving an untouched rich field in the inline editor or Django admin retains
+leading and trailing whitespace and consecutive blank lines. Editing the field
+trims edge whitespace and collapses runs of three or more line breaks to two.
+Required fields validate the decoded text for non-whitespace content. Markup-only,
 break-only and nonbreaking-space-only input is empty and produces a required
 field error without changing saved content. Optional editor text fields accept
 the same inputs as empty text. Requiredness, length limits and custom validators

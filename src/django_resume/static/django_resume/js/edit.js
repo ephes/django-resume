@@ -57,23 +57,35 @@ class EditableForm extends HTMLElement {
             submitButton.setAttribute('form', formId);
         }
 
+        const getHiddenInput = (field) =>
+            formElement.querySelector(`input[type="hidden"][data-field="${field.dataset.field}"]`);
+        const originalRichFields = new Map();
+        // Keep the original encoding while the browser's rendered HTML is unchanged.
+        this.querySelectorAll('[contenteditable="true"][data-type="html"]').forEach((field) => {
+            const hiddenInput = getHiddenInput(field);
+            if (hiddenInput) {
+                originalRichFields.set(field, {html: field.innerHTML, value: hiddenInput.value});
+            }
+        });
+
         // Capture runs before HTMX's bubbling listener serializes the form.
         formElement.addEventListener('submit', () => {
             checkboxes.forEach(syncCheckbox);
             // Collect data from contenteditable elements
             this.querySelectorAll('[contenteditable="true"]').forEach((field) => {
-                const fieldName = field.dataset.field;
                 const fieldType = field.dataset.type;
                 let fieldValue;
 
                 if (fieldType === "html") {
-                    fieldValue = field.innerHTML.trim();
+                    const original = originalRichFields.get(field);
+                    const html = field.innerHTML;
+                    fieldValue = original?.html === html ? original.value : html.trim();
                 } else {
                     fieldValue = plainEditorText(field).trim();
                 }
 
                 // Update the corresponding hidden input field
-                const hiddenInput = formElement.querySelector(`input[type="hidden"][data-field="${fieldName}"]`);
+                const hiddenInput = getHiddenInput(field);
                 if (hiddenInput) {
                     hiddenInput.value = fieldValue;
                 }

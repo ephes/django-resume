@@ -685,3 +685,30 @@ describe('plain editor line breaks', () => {
         }
     });
 });
+
+test('an untouched rich editor submits its original hidden value', () => {
+    const owner = document.createElement('editable-form');
+    owner.innerHTML = `<form><input type="hidden" name="text" data-field="text"></form>
+        <div contenteditable="true" data-field="text" data-type="html"></div>
+        <button type="submit">Save</button>`;
+    const form = owner.querySelector('form');
+    const editor = owner.querySelector('[contenteditable]');
+    const encoded = '  First &amp; team<br><br><br>Second\u00a0 ';
+    form.elements.text.value = encoded;
+    // The browser serializes the nonbreaking space as an entity.
+    editor.innerHTML = encoded;
+    document.body.append(owner);
+    const submissions = [];
+    form.addEventListener('submit', event => {
+        event.preventDefault();
+        submissions.push(new FormData(form).get('text'));
+    });
+    form.requestSubmit();
+    editor.innerHTML = editor.innerHTML.replace('Second', 'Edited');
+    form.requestSubmit();
+    expect(submissions).toEqual([
+        encoded,
+        'First &amp; team<br><br><br>Edited&nbsp;',
+    ]);
+    owner.remove();
+});

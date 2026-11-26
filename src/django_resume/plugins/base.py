@@ -31,7 +31,13 @@ from django.core.exceptions import PermissionDenied
 from django.db import router, transaction
 
 from ..images import ImageFormMixin
-from ..markdown import MAX_EDITOR_INPUT_CHARS, safe_link_url, textarea_input_to_markdown
+from ..markdown import (
+    MAX_EDITOR_INPUT_CHARS,
+    markdown_to_textarea_input,
+    safe_link_url,
+    textarea_input_to_html,
+    textarea_input_to_markdown,
+)
 from ..theme_names import is_valid_theme_name
 from ..models import Resume
 
@@ -130,6 +136,7 @@ class EditorTextField(forms.CharField):
     """
 
     widget = forms.Textarea
+    _stored: tuple[str, str] | None = None
 
     def widget_attrs(self, widget: forms.Widget) -> dict[str, Any]:
         # The encoded value can be longer than the text it stands for; a
@@ -144,14 +151,32 @@ class EditorTextField(forms.CharField):
             raise forms.ValidationError(
                 "Editor input exceeds 2097152 character limit", code="max_editor_input"
             )
-        submitted = self.to_python(value)
-        try:
-            text = textarea_input_to_markdown(submitted or "")
-        except ValueError as error:
-            raise forms.ValidationError(str(error), code="max_editor_input") from error
-        self.validate(text)
+        if self._stored is not None and value == self._stored[0]:
+            text = self._stored[1]
+        else:
+            try:
+                text = textarea_input_to_markdown(self.to_python(value) or "")
+            except ValueError as error:
+                raise forms.ValidationError(
+                    str(error), code="max_editor_input"
+                ) from error
+        self.validate(text if text.strip() else "")
         self.run_validators(text)
         return text
+
+
+def prepare_editor_text(form: forms.Form, name: str) -> str:
+    """Set up the encoded initial value and return safe contenteditable HTML."""
+    field = cast(EditorTextField, form.fields[name])
+    stored = form.initial.get(name, "")
+    encoded = markdown_to_textarea_input(stored)
+    field._stored = (encoded, stored)
+    # The caller may still need the original data to verify its edit revision.
+    form.initial = {**form.initial, name: encoded}
+    submitted = form[name].value() or ""
+    if submitted == encoded and len(encoded) <= MAX_EDITOR_INPUT_CHARS:
+        return encoded
+    return textarea_input_to_html(submitted)
 
 
 class StrictObjectJSONField(forms.JSONField):
@@ -1116,19 +1141,17 @@ class ListAdmin(LockedResumeMutationMixin):
         with self.locked_resume(request, resume_id) as resume:
             form_class = self.form_classes["item"]
             existing_items = self.data.get_data(resume).get("items", [])
+            item_id = request.POST.get("id", "")
+            stored_item = self.data.get_item_by_id(resume, item_id)
             form = form_class(
                 request.POST,
                 request.FILES,
+                initial=copy.deepcopy(stored_item),
                 resume=resume,
                 existing_items=existing_items,
             )
-            item_id = request.POST.get("id", "")
             set_edit_revision(
-                form,
-                resume,
-                self.plugin_name,
-                "item:" + item_id,
-                self.data.get_item_by_id(resume, item_id),
+                form, resume, self.plugin_name, "item:" + item_id, stored_item
             )
             form.post_url = self.get_change_item_post_url(resume.pk)
             context = {"form": form}
@@ -1429,19 +1452,17 @@ class ListInline(LockedResumeMutationMixin):
         with self.locked_resume(request, resume_id) as resume:
             form_class = self.form_classes["item"]
             existing_items = self.data.get_data(resume).get("items", [])
+            item_id = request.POST.get("id", "")
+            stored_item = self.data.get_item_by_id(resume, item_id)
             form = form_class(
                 request.POST,
                 request.FILES,
+                initial=copy.deepcopy(stored_item),
                 resume=resume,
                 existing_items=existing_items,
             )
-            item_id = request.POST.get("id", "")
             set_edit_revision(
-                form,
-                resume,
-                self.plugin_name,
-                "item:" + item_id,
-                self.data.get_item_by_id(resume, item_id),
+                form, resume, self.plugin_name, "item:" + item_id, stored_item
             )
             form.post_url = self.get_post_item_url(resume.pk)
             context = {"form": form, "plugin_name": self.plugin_name}

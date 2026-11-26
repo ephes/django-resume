@@ -126,10 +126,8 @@ def textarea_input_to_markdown(text: str) -> str:
 
 def markdown_to_textarea_input(text: str) -> str:
     """Encode stored text as editor input: an HTML fragment in which literal
-    text is entity-escaped and ``<br>`` is the only markup. It is the inverse
-    of ``textarea_input_to_markdown``, so an unchanged save stores the same
-    text again."""
-    return html.escape(text, quote=False).replace("\n", "<br>")
+    text is entity-escaped and ``<br>`` is the only markup."""
+    return html.escape(text, quote=False).replace("\r", "&#13;").replace("\n", "<br>")
 
 
 def textarea_input_to_html(text: str) -> str:

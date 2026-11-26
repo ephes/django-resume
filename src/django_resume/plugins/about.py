@@ -1,14 +1,10 @@
-from typing import Any, cast
-
 from django import forms
 from django.http import HttpRequest
 
-from .base import EditorTextField, SimplePlugin, ContextDict
+from .base import EditorTextField, prepare_editor_text, SimplePlugin, ContextDict
 from ..markdown import (
     markdown_to_html,
     markdown_to_plain_text,
-    markdown_to_textarea_input,
-    textarea_input_to_html,
 )
 from ..interchange.pointer import get_pointer
 from ..interchange.protocols import AdapterExport, AdapterImport
@@ -24,10 +20,7 @@ class AboutForm(forms.Form):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        initial = cast(dict[str, Any], self.initial)
-        initial["text"] = markdown_to_textarea_input(initial.get("text", ""))
-        self.initial = initial
-        self.text_display_html = textarea_input_to_html(self["text"].value() or "")
+        self.text_display_html = prepare_editor_text(self, "text")
 
 
 class AboutJsonResumeAdapter:
