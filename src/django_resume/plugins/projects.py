@@ -6,20 +6,14 @@ from django.http import HttpRequest
 from .badges import BadgesField, display_badges, editor_badges_json
 
 from .base import (
-    EditorTextField,
-    prepare_editor_text,
     ListPlugin,
     ListItemFormMixin,
     ListInline,
     ContextDict,
 )
 
-from ..markdown import (
-    MAX_MARKDOWN_CHARS,
-    markdown_to_html,
-    safe_link_url,
-    underlined_link_handler,
-)
+from .descriptions import DescriptionField, prepare_description, render_description
+from ..markdown import safe_link_url
 from ..interchange.pointer import get_pointer
 from ..interchange.protocols import AdapterExport, AdapterImport
 from ..formats.json_resume.mapping import (
@@ -33,7 +27,7 @@ PROJECT_IMPORTED_KEYS = ("name", "url", "description", "highlights", "keywords")
 class ProjectItemForm(ListItemFormMixin, forms.Form):
     title = forms.CharField(widget=forms.TextInput())
     url = forms.URLField(widget=forms.URLInput(), required=False, assume_scheme="https")
-    description = EditorTextField(max_length=MAX_MARKDOWN_CHARS)
+    description = DescriptionField()
     initial_badges = ["Some Badge", "Another Badge"]
     badges = BadgesField(
         widget=forms.TextInput(), required=False, initial=initial_badges
@@ -43,7 +37,7 @@ class ProjectItemForm(ListItemFormMixin, forms.Form):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.set_initial_position()
-        self.description_display_html = prepare_editor_text(self, "description")
+        self.description_display_html = prepare_description(self)
 
     def badges_as_json(self) -> str:
         return editor_badges_json(self)
@@ -63,9 +57,7 @@ class ProjectItemForm(ListItemFormMixin, forms.Form):
             "id": item["id"],
             "url": safe_link_url(str(item["url"] or "")),
             "title": item["title"],
-            "description": markdown_to_html(
-                item["description"], handlers={"link": underlined_link_handler}
-            ),
+            "description": render_description(item["description"]),
             "badges": item["badges"],
             "edit_url": context["edit_url"],
             "delete_url": context["delete_url"],
@@ -235,9 +227,7 @@ class ProjectsPlugin(ListPlugin):
         )
         # Convert only the detached display records, preserving source Markdown.
         for item in context["ordered_entries"]:
-            item["description"] = markdown_to_html(
-                item["description"], handlers={"link": underlined_link_handler}
-            )
+            item["description"] = render_description(item["description"])
         return context
 
     def get_structured_data(self, resume) -> dict:

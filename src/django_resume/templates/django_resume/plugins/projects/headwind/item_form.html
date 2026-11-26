@@ -81,6 +81,9 @@
         data-type="html"
         placeholder="Describe your project, its goals, technologies used, and key achievements..."
       >{{ form.description_display_html|safe }}</div>
+      {% if form.description.help_text %}
+        <p>{{ form.description.help_text }}</p>
+      {% endif %}
       {% for error in form.description.errors %}
         <p class="mt-1 text-sm text-red-600">{{ error|escape }}</p>
       {% endfor %}

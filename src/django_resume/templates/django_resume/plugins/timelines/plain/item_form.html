@@ -60,6 +60,9 @@
     <p class="error">{{ error|escape }}</p>
   {% endfor %}
   <p contenteditable="true" class="textarea" data-field="description" data-type="html">{{ form.description_display_html|safe }}</p>
+  {% if form.description.help_text %}
+    <p>{{ form.description.help_text }}</p>
+  {% endif %}
   {% for error in form.description.errors %}
     <p class="error">{{ error|escape }}</p>
   {% endfor %}

@@ -5,6 +5,10 @@ Changelog
 Unreleased
 ----------
 
+* Show a placeholder for oversized stored project and timeline descriptions.
+  Owners can update other fields or supply a shorter replacement and can copy
+  the original from their private JSON Resume export.
+
 * Validate project and timeline descriptions against the Markdown renderer's
   character limit before saving in either editor.
 

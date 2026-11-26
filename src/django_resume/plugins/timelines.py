@@ -6,8 +6,6 @@ from django.http import HttpRequest
 from .badges import BadgesField, display_badges, editor_badges_json
 
 from .base import (
-    EditorTextField,
-    prepare_editor_text,
     ListPlugin,
     ListItemFormMixin,
     ListInline,
@@ -17,12 +15,8 @@ from .base import (
 )
 
 from ..theme_names import is_valid_theme_name
-from ..markdown import (
-    MAX_MARKDOWN_CHARS,
-    markdown_to_html,
-    safe_link_url,
-    underlined_link_handler,
-)
+from .descriptions import DescriptionField, prepare_description, render_description
+from ..markdown import safe_link_url
 from ..interchange.pointer import get_pointer
 from ..interchange.protocols import AdapterExport, AdapterImport
 from ..formats.json_resume.dates import is_valid_resume_date
@@ -151,7 +145,7 @@ class TimelineItemForm(ListItemFormMixin, forms.Form):
         widget=forms.URLInput(), required=False, assume_scheme="https"
     )
     company_name = forms.CharField(widget=forms.TextInput(), max_length=50)
-    description = EditorTextField(max_length=MAX_MARKDOWN_CHARS)
+    description = DescriptionField()
     start = forms.CharField(widget=forms.TextInput(), required=False)
     end = forms.CharField(widget=forms.TextInput(), required=False)
     initial_badges = [
@@ -166,7 +160,7 @@ class TimelineItemForm(ListItemFormMixin, forms.Form):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.set_initial_position()
-        self.description_display_html = prepare_editor_text(self, "description")
+        self.description_display_html = prepare_description(self)
 
     def badges_as_json(self) -> str:
         return editor_badges_json(self)
@@ -192,9 +186,7 @@ class TimelineItemForm(ListItemFormMixin, forms.Form):
             "role": item["role"],
             "start": item["start"],
             "end": item["end"],
-            "description": markdown_to_html(
-                item["description"], handlers={"link": underlined_link_handler}
-            ),
+            "description": render_description(item["description"]),
             "badges": item["badges"],
             "edit_url": context["edit_url"],
             "delete_url": context["delete_url"],
@@ -273,9 +265,7 @@ class TimelineMixin:
         )
         # Convert only the detached display records, preserving source Markdown.
         for item in context["ordered_entries"]:
-            item["description"] = markdown_to_html(
-                item["description"], handlers={"link": underlined_link_handler}
-            )
+            item["description"] = render_description(item["description"])
         return context
 
     def get_structured_data(self, resume) -> dict:

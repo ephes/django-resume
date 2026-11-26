@@ -82,6 +82,13 @@ Markdown in project descriptions and in both timelines. Validation counts
 decoded Markdown. The separate 2,097,152-character limit on submitted editor
 HTML still applies.
 
+A stored description above the Markdown limit appears as a placeholder on
+the CV. Its item editor opens with a blank replacement field. Leave it blank
+to keep the original while saving other fields, or enter shorter Markdown
+to replace it. To copy the full original, download your private JSON Resume
+export from ``/<resume-prefix>/<slug>/json-resume/`` and find the item under
+``meta.django_resume.plugin_data``.
+
 Legacy education and optional denial avatars
 --------------------------------------------
 
