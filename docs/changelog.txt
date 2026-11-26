@@ -5,6 +5,10 @@ Changelog
 Unreleased
 ----------
 
+* Refuse a JSON Resume file that changes during reading before parsing or
+  creating a resume. Atomic pathname replacement can leave the originally
+  opened file readable.
+
 * Omit the first section's heading and body from plain-theme cover letters
   with no paragraphs, including when printing.
 

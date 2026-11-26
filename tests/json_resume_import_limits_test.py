@@ -85,6 +85,76 @@ def test_deep_extension_cli_creates_nothing(django_user_model, tmp_path):
     assert not Resume.objects.exists()
 
 
+class ReadInterleaving:
+    def __init__(self, stream, change):
+        self.stream = stream
+        self.change = change
+
+    def __enter__(self):
+        self.stream.__enter__()
+        return self
+
+    def __exit__(self, *args):
+        return self.stream.__exit__(*args)
+
+    def read(self, size):
+        if self.change is None:
+            return self.stream.read(size)
+        prefix = self.stream.read(len(b'{"basics":{"name":"Alpha",'))
+        change, self.change = self.change, None
+        change()
+        return prefix + self.stream.read(size - len(prefix))
+
+    def seek(self, offset):
+        return self.stream.seek(offset)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("restore_mtime", [False, True])
+def test_same_size_rewrite_during_file_read_refuses_import(
+    django_user_model, tmp_path, monkeypatch, restore_mtime
+):
+    owner = django_user_model.objects.create_user(username="synthetic")
+    path = tmp_path / "synthetic.json"
+    original = b'{"basics":{"name":"Alpha","label":"old"}}'
+    rewritten = b'{"basics":{"name":"Bravo","label":"new"}}'
+    assert len(original) == len(rewritten)
+    path.write_bytes(original)
+    before = path.stat()
+    fdopen = os.fdopen
+
+    def rewrite():
+        path.write_bytes(rewritten)
+        mtime = before.st_mtime_ns if restore_mtime else before.st_mtime_ns - 10**9
+        os.utime(path, ns=(before.st_atime_ns, mtime))
+
+    monkeypatch.setattr(
+        os, "fdopen", lambda fd, mode: ReadInterleaving(fdopen(fd, mode, 0), rewrite)
+    )
+    with pytest.raises(CommandError, match="input changed during read"):
+        call_command(
+            "import_json_resume", str(path), owner=owner.username, slug="rewritten"
+        )
+    assert not Resume.objects.exists()
+
+
+def test_path_replacement_preserves_open_file_generation(tmp_path, monkeypatch):
+    path = tmp_path / "original.json"
+    path.write_bytes(b'{"basics":{"name":"Original"}}')
+    replacement = tmp_path / "replacement.json"
+    replacement.write_bytes(b'{"basics":{"name":"Replacement"}}')
+    fdopen = os.fdopen
+
+    monkeypatch.setattr(
+        os,
+        "fdopen",
+        lambda fd, mode: ReadInterleaving(
+            fdopen(fd, mode, 0), lambda: replacement.replace(path)
+        ),
+    )
+    assert importer.load_document(path) == {"basics": {"name": "Original"}}
+
+
 def test_file_read_is_bounded_even_when_stat_understates_size(tmp_path):
     path = tmp_path / "growing.json"
     path.write_bytes(b"{}")

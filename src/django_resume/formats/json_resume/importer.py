@@ -169,7 +169,8 @@ def load_document(path: str | Path) -> dict:
         flags = os.O_RDONLY | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_BINARY", 0)
         fd = os.open(input_path, flags)
         try:
-            if not stat.S_ISREG(os.fstat(fd).st_mode):
+            opened = os.fstat(fd)
+            if not stat.S_ISREG(opened.st_mode):
                 raise JsonResumeImportError(
                     f"Could not read {input_path}: input must be a regular file"
                 )
@@ -179,6 +180,30 @@ def load_document(path: str | Path) -> dict:
             raise
         with stream:
             data = stream.read(MAX_INPUT_BYTES + 1)
+            if len(data) <= MAX_INPUT_BYTES:
+                final = os.fstat(fd)
+                if (
+                    len(data) != opened.st_size
+                    or final.st_size != opened.st_size
+                    or final.st_mtime_ns != opened.st_mtime_ns
+                ):
+                    raise JsonResumeImportError(
+                        f"Could not read {input_path}: input changed during read"
+                    )
+                if final.st_ctime_ns != opened.st_ctime_ns:
+                    # Renaming or unlinking the open inode can update ctime.
+                    # Admit its bytes only if a stable reread agrees.
+                    stream.seek(0)
+                    reread = stream.read(MAX_INPUT_BYTES + 1)
+                    checked = os.fstat(fd)
+                    if reread != data or (
+                        checked.st_size,
+                        checked.st_mtime_ns,
+                        checked.st_ctime_ns,
+                    ) != (final.st_size, final.st_mtime_ns, final.st_ctime_ns):
+                        raise JsonResumeImportError(
+                            f"Could not read {input_path}: input changed during read"
+                        )
     except OSError as exc:
         raise JsonResumeImportError(f"Could not read {input_path}: {exc}") from exc
     return load_document_bytes(data, source=str(input_path))

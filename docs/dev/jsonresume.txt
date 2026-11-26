@@ -1691,7 +1691,11 @@ integer tokens longer than 4,300 digits (excluding the sign), even if Python's
 own digit limit is disabled. A stricter interpreter limit is also honored.
 Failures use the fixed ``JsonResumeImportError`` message "JSON integer exceeds
 supported limits" without echoing the token and create no resume or image.
-The file-only ``import_json_resume`` command uses the same loader.
+The file-only ``import_json_resume`` command checks the open regular file's
+byte count, size and timestamps before parsing. It refuses in-place changes
+that affect the bytes read. If only change time differs, a second bounded read
+must agree with the first and have stable metadata. Replacing the pathname
+can therefore leave an already open, complete file readable.
 
 Malformed URL authorities (including brackets, normalization and ports) raise
 ``JsonResumeImportError`` with ``field="source_url"`` and the bounded message
