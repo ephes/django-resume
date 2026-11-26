@@ -501,21 +501,25 @@ class Publication:
         if matches:
             aside.unlink()
             return
-        try:
-            os.link(aside, self.intent, follow_symlinks=False)
-        except OSError as error:
-            raise CommandError(
+
+        def kept_aside(error: OSError) -> CommandError:
+            return CommandError(
                 f"Refusing plugin recovery: recovery intent changed at "
                 f"{self.intent}; the changed intent was kept at {aside} "
                 f"({error}). Preserve it and the recovery copies, move it back "
                 f"to {self.intent} if that path is free, and inspect with "
                 f"recover_plugin {self.paths[0].stem} --action status"
-            ) from error
+            )
+
+        try:
+            os.link(aside, self.intent, follow_symlinks=False)
+        except OSError as error:
+            raise kept_aside(error) from error
         try:
             # Make the restored blocker durable before dropping the aside name.
             sync_directory(self.intent.parent)
         except OSError as error:
-            raise self._intent_conflict() from error
+            raise kept_aside(error) from error
         aside.unlink()
         raise self._intent_conflict()
 

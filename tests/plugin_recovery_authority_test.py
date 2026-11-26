@@ -692,12 +692,13 @@ def test_recovery_keeps_set_aside_intent_when_restored_blocker_sync_fails(
     monkeypatch.setattr(publication, "retire", retire)
     monkeypatch.setattr(publication, "_require_admitted_intent", check_then_change)
     monkeypatch.setattr(module, "sync_directory", sync_directory)
-    with pytest.raises(CommandError, match="recovery intent changed"):
+    with pytest.raises(CommandError, match="changed intent was kept at") as raised:
         call_command(
             "recover_plugin", "safe_plugin", action="finish", stdout=StringIO()
         )
 
     # Until the restored blocker is durable, the set-aside name is kept too.
     (aside,) = tmp_path.glob(f"{intent.name}.retiring-*")
+    assert str(aside) in str(raised.value)
     assert aside.read_bytes() == changed
     assert intent.read_bytes() == changed
