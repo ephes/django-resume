@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 from django.core.management import call_command
 from django.core.management.base import CommandError
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, connection, transaction
 from django.urls import reverse
 
 import django_resume.formats.json_resume as json_resume_pkg
@@ -2657,6 +2657,12 @@ def test_import_receipt_failure_inside_caller_transaction_is_not_settled(
     finally:
         transaction.rollback()
         transaction.set_autocommit(True)
+    survived = Resume.objects.filter(slug=slug).exists()
+    if mode == "manual-open":
+        assert not survived
+    elif mode == "manual-fresh" and connection.vendor == "sqlite":
+        # SQLite commits the importer's savepoint when no transaction was open.
+        assert survived
 
 
 @pytest.mark.django_db

@@ -395,11 +395,13 @@ The ``import_json_resume`` management command prints a receipt with the created
 slug to stdout after saving the resume, even if it cannot write diagnostics
 to stderr. If writing or flushing the receipt fails, the command reports that
 the resume was created and names its slug in the error. Check that slug before
-retrying. When the command runs inside an outer atomic block, the error says
-instead that the resume persists only if that transaction commits. With
-autocommit disabled, the error asks you to check whether your transaction
-committed the resume, because some databases commit it on their own when no
-transaction was open yet.
+retrying. When the command runs inside an outer ``transaction.atomic()`` block
+entered with autocommit on, the error says instead that the resume persists
+only if that transaction commits. When the caller disabled autocommit with
+``transaction.set_autocommit(False)`` (also before entering an atomic block),
+the error asks you to check whether your transaction committed the resume,
+because some databases commit it on their own when no transaction was open
+yet.
 
 Signed provenance and update-in-place imports remain future work in the JSON
 Resume plan. Browser import currently creates a fresh resume; it does not merge
