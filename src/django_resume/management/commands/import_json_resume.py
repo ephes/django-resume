@@ -1,3 +1,5 @@
+from contextlib import suppress
+
 from django.core.management.base import BaseCommand, CommandError
 
 from ...formats.json_resume.importer import (
@@ -5,6 +7,7 @@ from ...formats.json_resume.importer import (
     get_owner,
     import_resume_file,
 )
+from ...interchange.report import ImportReport
 
 
 class Command(BaseCommand):
@@ -50,10 +53,33 @@ class Command(BaseCommand):
             raise CommandError(str(exc))
 
         report = result.report
+        # Python uses None for a standard stream with a closed descriptor at startup.
+        if getattr(self.stderr, "_out", self.stderr) is not None:
+            with suppress(OSError, ValueError):
+                self._write_report(report)
+        if not report.valid:
+            raise CommandError("Import failed JSON Resume schema validation.")
+
+        assert result.resume is not None
+        slug = result.resume.slug
+        try:
+            if getattr(self.stdout, "_out", self.stdout) is None:
+                raise OSError("stdout is unavailable")
+            self.stdout.write(
+                self.style.SUCCESS(f"Imported {options['input']} as resume {slug!r}")
+            )
+            self.stdout.flush()
+        except (OSError, ValueError) as exc:
+            raise CommandError(
+                f"Resume {slug!r} was created, but writing the import receipt "
+                "to stdout failed."
+            ) from exc
+
+    def _write_report(self, report: ImportReport) -> None:
         if not report.valid:
             for error in report.validation_errors:
                 self.stderr.write(f"validation error: {error}")
-            raise CommandError("Import failed JSON Resume schema validation.")
+            return
 
         self.stderr.write(
             f"Mapped plugins: {', '.join(report.mapped_plugins) or '(none)'}"
@@ -70,9 +96,3 @@ class Command(BaseCommand):
         self.stderr.write(f"Omitted plugins: {omitted}")
         for note in report.notes:
             self.stderr.write(f"note: {note}")
-        assert result.resume is not None
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"Imported {options['input']} as resume {result.resume.slug!r}"
-            )
-        )

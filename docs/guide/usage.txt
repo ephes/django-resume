@@ -391,6 +391,12 @@ backup or migration. Select **Standard JSON Resume fields only** to ignore that
 private envelope and import only standard JSON Resume fields through plugin
 adapters.
 
+The ``import_json_resume`` management command prints a receipt with the created
+slug to stdout after saving the resume, even if it cannot write diagnostics
+to stderr. If writing or flushing the receipt fails, the command reports that
+the resume was created and names its slug in the error. Check that slug before
+retrying.
+
 Signed provenance and update-in-place imports remain future work in the JSON
 Resume plan. Browser import currently creates a fresh resume; it does not merge
 or replace data in an existing resume.

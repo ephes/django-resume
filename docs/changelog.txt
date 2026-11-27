@@ -15,6 +15,9 @@ Unreleased
   uncertain durability. Preserve the file or validation outcome when stderr is
   unavailable or closed.
 
+* Print the JSON Resume import receipt even when stderr is unavailable. If
+  stdout fails after creation, report the created slug in the command error.
+
 * Abort theme cache staging on a short write and keep the active generation.
 
 * Bound the JSON Resume nesting check's auxiliary memory by depth, including

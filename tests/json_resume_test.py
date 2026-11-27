@@ -2561,6 +2561,51 @@ def test_import_json_resume_command_creates_resume(tmp_path, user):
     assert "Mapped plugins" in stderr.getvalue()
 
 
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize(
+    "fault",
+    [
+        "stderr-write",
+        "stderr-missing",
+        "stdout-write",
+        "stdout-flush",
+        "stdout-missing",
+    ],
+)
+def test_import_json_resume_command_reports_creation_after_output_failure(
+    tmp_path, user, monkeypatch, fault
+):
+    user.save()
+    path = tmp_path / "resume.json"
+    path.write_text('{"basics": {"name": "Synthetic Resume"}}', encoding="utf-8")
+    slug = "synthetic-output-fault"
+    stdout, stderr = StringIO(), StringIO()
+
+    def broken_pipe(*args):
+        raise BrokenPipeError("synthetic output failure")
+
+    streams = {"stdout": stdout, "stderr": stderr}
+    stream, operation = fault.split("-")
+    if operation == "missing":
+        monkeypatch.setattr(f"sys.{stream}", None)
+        del streams[stream]
+    else:
+        monkeypatch.setattr(streams[stream], operation, broken_pipe)
+
+    def run():
+        call_command(
+            "import_json_resume", str(path), owner=user.username, slug=slug, **streams
+        )
+
+    if stream == "stderr":
+        run()
+        assert f"as resume {slug!r}" in stdout.getvalue()
+    else:
+        with pytest.raises(CommandError, match=f"Resume {slug!r} was created.*receipt"):
+            run()
+    assert Resume.objects.get(slug=slug).name == "Synthetic Resume"
+
+
 @pytest.mark.django_db
 def test_import_json_resume_command_errors_on_unknown_owner(tmp_path):
     path = tmp_path / "resume.json"
