@@ -196,3 +196,52 @@ def test_nonregular_output_is_rejected(export_resume, tmp_path, kind):
     assert output.stat().st_ino == before.st_ino
     assert output.stat().st_mode == before.st_mode
     assert list(tmp_path.iterdir()) == [output]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("fault", ["file", "directory"])
+def test_export_sync_failure_reports_publication_outcome(
+    export_resume, tmp_path, monkeypatch, fault
+):
+    output = tmp_path / "resume.json"
+    previous = b"previous export"
+    output.write_bytes(previous)
+    stderr = StringIO()
+    synced = []
+    real_fsync = os.fsync
+
+    def fsync(fd):
+        kind = "directory" if stat.S_ISDIR(os.fstat(fd).st_mode) else "file"
+        synced.append(kind)
+        assert not stderr.getvalue()
+        if kind == "file":
+            assert output.read_bytes() == previous
+        else:
+            assert json.loads(output.read_bytes())["basics"]["name"] == "Zoë 東京"
+        if kind == fault:
+            raise OSError("synthetic sync failure")
+        real_fsync(fd)
+
+    monkeypatch.setattr(os, "fsync", fsync)
+    if fault == "file":
+        with pytest.raises(OSError, match="synthetic sync failure"):
+            call_command(
+                "export_json_resume",
+                "unicode-export",
+                output=str(output),
+                stderr=stderr,
+            )
+        assert synced == ["file"]
+        assert output.read_bytes() == previous
+    else:
+        with pytest.raises(CommandError, match="visible.*durability is uncertain"):
+            call_command(
+                "export_json_resume",
+                "unicode-export",
+                output=str(output),
+                stderr=stderr,
+            )
+        assert synced == ["file", "directory"]
+        assert json.loads(output.read_bytes())["basics"]["name"] == "Zoë 東京"
+    assert not stderr.getvalue()
+    assert list(tmp_path.iterdir()) == [output]

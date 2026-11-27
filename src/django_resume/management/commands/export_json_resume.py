@@ -10,6 +10,7 @@ from ...formats.json_resume.export import export_resume
 from ...interchange.coordinator import PathConflictError
 from ...interchange.report import ExportReport
 from ...models import Resume
+from ._plugin_publication import sync_directory
 
 
 class Command(BaseCommand):
@@ -94,7 +95,15 @@ class Command(BaseCommand):
                 temporary = Path(handle.name)
                 handle.write(payload + "\n")
                 handle.flush()
+                os.fsync(handle.fileno())
             os.replace(temporary, destination)
+            try:
+                sync_directory(destination.parent)
+            except OSError as exc:
+                raise CommandError(
+                    f"Export is visible at {output!r}, but publication durability "
+                    "is uncertain; inspect the file before retrying."
+                ) from exc
         finally:
             if temporary is not None:
                 temporary.unlink(missing_ok=True)
