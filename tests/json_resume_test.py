@@ -2606,6 +2606,33 @@ def test_import_json_resume_command_reports_creation_after_output_failure(
     assert Resume.objects.get(slug=slug).name == "Synthetic Resume"
 
 
+@pytest.mark.django_db(transaction=True)
+def test_import_receipt_failure_inside_outer_transaction_is_pending(
+    tmp_path, user, monkeypatch
+):
+    user.save()
+    path = tmp_path / "resume.json"
+    path.write_text('{"basics": {"name": "Synthetic Resume"}}', encoding="utf-8")
+    slug = "synthetic-outer-transaction"
+    stdout = StringIO()
+
+    def broken_pipe(*args):
+        raise BrokenPipeError("synthetic output failure")
+
+    monkeypatch.setattr(stdout, "write", broken_pipe)
+    with pytest.raises(CommandError, match="open outer transaction.*commits"):
+        with transaction.atomic():
+            call_command(
+                "import_json_resume",
+                str(path),
+                owner=user.username,
+                slug=slug,
+                stdout=stdout,
+                stderr=StringIO(),
+            )
+    assert not Resume.objects.filter(slug=slug).exists()
+
+
 @pytest.mark.django_db
 def test_import_json_resume_command_errors_on_unknown_owner(tmp_path):
     path = tmp_path / "resume.json"

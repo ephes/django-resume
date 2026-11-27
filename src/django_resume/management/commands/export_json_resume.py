@@ -97,6 +97,9 @@ class Command(BaseCommand):
                 handle.flush()
                 os.fsync(handle.fileno())
             os.replace(temporary, destination)
+            # The temporary name is gone now; skip cleanup so a later failure
+            # cannot mask the durability error below.
+            temporary = None
             try:
                 sync_directory(destination.parent)
             except OSError as exc:

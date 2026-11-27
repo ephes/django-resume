@@ -1,6 +1,7 @@
 from contextlib import suppress
 
 from django.core.management.base import BaseCommand, CommandError
+from django.db import transaction
 
 from ...formats.json_resume.importer import (
     JsonResumeImportError,
@@ -70,6 +71,13 @@ class Command(BaseCommand):
             )
             self.stdout.flush()
         except (OSError, ValueError) as exc:
+            if transaction.get_connection(result.resume._state.db).in_atomic_block:
+                # An outer transaction still decides whether the resume persists.
+                raise CommandError(
+                    f"Resume {slug!r} was saved in the open outer transaction, but "
+                    "writing the import receipt to stdout failed; it persists only "
+                    "if that transaction commits."
+                ) from exc
             raise CommandError(
                 f"Resume {slug!r} was created, but writing the import receipt "
                 "to stdout failed."

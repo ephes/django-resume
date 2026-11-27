@@ -395,7 +395,8 @@ The ``import_json_resume`` management command prints a receipt with the created
 slug to stdout after saving the resume, even if it cannot write diagnostics
 to stderr. If writing or flushing the receipt fails, the command reports that
 the resume was created and names its slug in the error. Check that slug before
-retrying.
+retrying. When the command runs inside an outer transaction, the error says
+instead that the resume persists only if that transaction commits.
 
 Signed provenance and update-in-place imports remain future work in the JSON
 Resume plan. Browser import currently creates a fresh resume; it does not merge

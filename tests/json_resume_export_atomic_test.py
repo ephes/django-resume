@@ -245,3 +245,27 @@ def test_export_sync_failure_reports_publication_outcome(
         assert json.loads(output.read_bytes())["basics"]["name"] == "Zoë 東京"
     assert not stderr.getvalue()
     assert list(tmp_path.iterdir()) == [output]
+
+
+@pytest.mark.django_db
+def test_directory_sync_failure_is_not_masked_by_cleanup(
+    export_resume, tmp_path, monkeypatch
+):
+    from pathlib import Path
+
+    output = tmp_path / "resume.json"
+    real_fsync = os.fsync
+
+    def fsync(fd):
+        if stat.S_ISDIR(os.fstat(fd).st_mode):
+            raise OSError("synthetic directory sync failure")
+        real_fsync(fd)
+
+    def unlink(self, missing_ok=False):
+        raise PermissionError("synthetic cleanup failure")
+
+    monkeypatch.setattr(os, "fsync", fsync)
+    monkeypatch.setattr(Path, "unlink", unlink)
+    with pytest.raises(CommandError, match="visible.*durability is uncertain"):
+        export(output)
+    assert json.loads(output.read_bytes())["basics"]["name"] == "Zoë 東京"

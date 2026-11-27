@@ -12,11 +12,13 @@ Unreleased
 
 * Sync JSON Resume file exports and their destination directory before reporting
   success. If the directory sync fails, keep the visible export and report
-  uncertain durability. Preserve the file or validation outcome when stderr is
-  unavailable or closed.
+  uncertain durability; no cleanup after the replacement can mask that report.
+  Preserve the file or validation outcome when stderr is unavailable or closed.
 
 * Print the JSON Resume import receipt even when stderr is unavailable. If
-  stdout fails after creation, report the created slug in the command error.
+  stdout fails after creation, report the created slug in the command error;
+  inside an outer transaction, say that the resume persists only if that
+  transaction commits.
 
 * Abort theme cache staging on a short write and keep the active generation.
 
