@@ -71,8 +71,9 @@ class Command(BaseCommand):
             )
             self.stdout.flush()
         except (OSError, ValueError) as exc:
-            if transaction.get_connection(result.resume._state.db).in_atomic_block:
-                # An outer transaction still decides whether the resume persists.
+            connection = transaction.get_connection(result.resume._state.db)
+            if connection.in_atomic_block or not connection.get_autocommit():
+                # A caller-managed transaction still decides whether it persists.
                 raise CommandError(
                     f"Resume {slug!r} was saved in the open outer transaction, but "
                     "writing the import receipt to stdout failed; it persists only "

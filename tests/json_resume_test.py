@@ -2607,8 +2607,9 @@ def test_import_json_resume_command_reports_creation_after_output_failure(
 
 
 @pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("mode", ["atomic", "manual"])
 def test_import_receipt_failure_inside_outer_transaction_is_pending(
-    tmp_path, user, monkeypatch
+    tmp_path, user, monkeypatch, mode
 ):
     user.save()
     path = tmp_path / "resume.json"
@@ -2620,16 +2621,31 @@ def test_import_receipt_failure_inside_outer_transaction_is_pending(
         raise BrokenPipeError("synthetic output failure")
 
     monkeypatch.setattr(stdout, "write", broken_pipe)
+
+    def run():
+        call_command(
+            "import_json_resume",
+            str(path),
+            owner=user.username,
+            slug=slug,
+            stdout=stdout,
+            stderr=StringIO(),
+        )
+
     with pytest.raises(CommandError, match="open outer transaction.*commits"):
-        with transaction.atomic():
-            call_command(
-                "import_json_resume",
-                str(path),
-                owner=user.username,
-                slug=slug,
-                stdout=stdout,
-                stderr=StringIO(),
-            )
+        if mode == "atomic":
+            with transaction.atomic():
+                run()
+        else:
+            transaction.set_autocommit(False)
+            try:
+                # Write first: SQLite opens its implicit transaction only on DML,
+                # otherwise the importer's savepoint would become the transaction.
+                user.save()
+                run()
+            finally:
+                transaction.rollback()
+                transaction.set_autocommit(True)
     assert not Resume.objects.filter(slug=slug).exists()
 
 
