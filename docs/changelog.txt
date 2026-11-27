@@ -17,8 +17,9 @@ Unreleased
 
 * Print the JSON Resume import receipt even when stderr is unavailable. If
   stdout fails after creation, report the created slug in the command error;
-  inside an outer transaction or with autocommit disabled, say that the resume
-  persists only if that transaction commits.
+  inside an outer atomic block, say that the resume persists only if that
+  transaction commits; with autocommit disabled, ask the caller to check whether
+  their transaction committed it.
 
 * Abort theme cache staging on a short write and keep the active generation.
 

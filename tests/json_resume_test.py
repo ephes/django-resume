@@ -2607,8 +2607,10 @@ def test_import_json_resume_command_reports_creation_after_output_failure(
 
 
 @pytest.mark.django_db(transaction=True)
-@pytest.mark.parametrize("mode", ["atomic", "manual"])
-def test_import_receipt_failure_inside_outer_transaction_is_pending(
+@pytest.mark.parametrize(
+    "mode", ["atomic", "manual-open", "manual-fresh", "manual-atomic"]
+)
+def test_import_receipt_failure_inside_caller_transaction_is_not_settled(
     tmp_path, user, monkeypatch, mode
 ):
     user.save()
@@ -2632,21 +2634,29 @@ def test_import_receipt_failure_inside_outer_transaction_is_pending(
             stderr=StringIO(),
         )
 
-    with pytest.raises(CommandError, match="open outer transaction.*commits"):
-        if mode == "atomic":
+    if mode == "atomic":
+        with pytest.raises(CommandError, match="open outer transaction.*commits"):
             with transaction.atomic():
                 run()
-        else:
-            transaction.set_autocommit(False)
-            try:
-                # Write first: SQLite opens its implicit transaction only on DML,
-                # otherwise the importer's savepoint would become the transaction.
-                user.save()
+        assert not Resume.objects.filter(slug=slug).exists()
+        return
+
+    transaction.set_autocommit(False)
+    try:
+        if mode == "manual-open":
+            # A prior write opens the caller's transaction (SQLite does so on DML).
+            user.save()
+        with pytest.raises(
+            CommandError, match="autocommit disabled.*check whether.*committed"
+        ):
+            if mode == "manual-atomic":
+                with transaction.atomic():
+                    run()
+            else:
                 run()
-            finally:
-                transaction.rollback()
-                transaction.set_autocommit(True)
-    assert not Resume.objects.filter(slug=slug).exists()
+    finally:
+        transaction.rollback()
+        transaction.set_autocommit(True)
 
 
 @pytest.mark.django_db

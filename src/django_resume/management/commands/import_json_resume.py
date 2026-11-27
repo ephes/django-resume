@@ -72,12 +72,22 @@ class Command(BaseCommand):
             self.stdout.flush()
         except (OSError, ValueError) as exc:
             connection = transaction.get_connection(result.resume._state.db)
-            if connection.in_atomic_block or not connection.get_autocommit():
-                # A caller-managed transaction still decides whether it persists.
+            # commit_on_exit is False when the outer atomic block was entered
+            # with autocommit already disabled by the caller.
+            if connection.in_atomic_block and connection.commit_on_exit:
+                # An outer atomic block still decides whether the resume persists.
                 raise CommandError(
                     f"Resume {slug!r} was saved in the open outer transaction, but "
                     "writing the import receipt to stdout failed; it persists only "
                     "if that transaction commits."
+                ) from exc
+            if not connection.get_autocommit():
+                # Some backends commit the importer's savepoint when no
+                # transaction was open yet, so the outcome is the caller's to check.
+                raise CommandError(
+                    f"Resume {slug!r} was saved with autocommit disabled, but "
+                    "writing the import receipt to stdout failed; check whether "
+                    "your transaction committed it before retrying."
                 ) from exc
             raise CommandError(
                 f"Resume {slug!r} was created, but writing the import receipt "
